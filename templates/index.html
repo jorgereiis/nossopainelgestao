@@ -5,7 +5,7 @@
 
 <head>
     {% include 'partials/head.html' %}
-    <title>Homepage | Dash Ui - Bootstrap 5 Admin Dashboard Template</title>
+    <title>Painel de gestão IPTV</title>
 </head>
 
 <body class="bg-light">
@@ -50,8 +50,8 @@
                                 </div>
                                 <!-- project number -->
                                 <div>
-                                    <h1 class="fw-bold">18</h1>
-                                    <p class="mb-0"><span class="text-dark me-2">2</span>Em atraso</p>
+                                    <h1 class="fw-bold">{{total_mensalidades}}</h1>
+                                    <p class="mb-0"><span class="text-dark me-2">{{clientes_em_dia}}</span>Em atraso</p>
                                 </div>
                             </div>
                         </div>
@@ -75,7 +75,7 @@
                                 <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold">R$ 1835,00</h1>
-                                    <p class="mb-0"><span class="text-dark me-2"></span></p>
+                                    <p class="mb-0"><span class="text-dark me-2">10</span>Pagos</p>
                                 </div>
                             </div>
                         </div>
@@ -89,7 +89,7 @@
                                 <div class="d-flex justify-content-between align-items-center
                     mb-3">
                                     <div>
-                                        <h4 class="mb-0">Total a receber</h4>
+                                        <h4 class="mb-0">À receber no mês</h4>
                                     </div>
                                     <div class="icon-shape icon-md bg-light-primary text-primary
                       rounded-2">
@@ -99,7 +99,7 @@
                                 <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold">R$ 9860,00</h1>
-                                    <p class="mb-0"><span class="text-dark me-2"></span></p>
+                                    <p class="mb-0"><span class="text-dark me-2">100</span>À vencer</p>
                                 </div>
                             </div>
                         </div>
@@ -198,10 +198,10 @@
                                                 {% endif %}
                                                 {% for mensalidade in cliente.mensalidade_set.all %}
                                                 {% if mensalidade.dt_pagamento is None or not mensalidade.pgto %}
-                                                {% if datetime.day > mensalidade.dt_pagamento|date:'d' %}
-                                                    <td class="align-middle"><span class="badge bg-danger">{{ mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}</span></td>
+                                                {% if datetime.date.now > mensalidade.dt_pagamento %}
+                                                    <td class="align-middle"><span class="badge bg-danger">{{ mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                                 {% else %}
-                                                    <td class="align-middle"><span class="badge bg-info">{{ mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}</span></td>
+                                                    <td class="align-middle"><span class="badge bg-info">{{ mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                                 {% endif %}
                                                     <td>
                                                         <form method="post" action="{% url 'pagar_mensalidade' mensalidade.pk %}">
