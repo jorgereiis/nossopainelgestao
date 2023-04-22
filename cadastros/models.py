@@ -22,7 +22,23 @@ def definir_dia_pagamento(dia_adesao):
 
 # Cadastro de novos servidores
 class Servidor(models.Model):
-    nome = models.CharField(max_length=255, unique=True)
+
+    CLUB = 'CLUB'
+    PLAY = 'PlayON'
+    ALPHA = 'ALPHA'
+    SEVEN = 'SEVEN'
+    FIVE = 'FIVE'
+
+    CHOICES = (
+        (CLUB, CLUB),
+        (PLAY, PLAY),
+        (ALPHA, ALPHA),
+        (SEVEN, SEVEN),
+        (FIVE, FIVE)
+    )
+
+    nome = models.CharField(max_length=255, choices=CHOICES, unique=True)
+    logotipo = models.CharField(max_length=255, unique=True, null=True, blank=True)
 
     class Meta:
         verbose_name_plural = "Servidores"
@@ -38,9 +54,9 @@ class Tipos_pgto(models.Model):
     BOLETO = 'Boleto'
 
     CHOICES = (
-        (PIX, 'PIX'),
-        (CARTAO, 'Cartão de Crédito'),
-        (BOLETO, 'Boleto')
+        (PIX, PIX),
+        (CARTAO, CARTAO),
+        (BOLETO, BOLETO)
     )
 
     nome = models.CharField(max_length=255, choices=CHOICES, default=PIX, unique=True)
@@ -87,9 +103,9 @@ class Plano(models.Model):
     ANUAL = 'Anual'
 
     CHOICES = (
-        (MENSAL, 'Mensal'),
-        (SEMESTRAL, 'Semestral'),
-        (ANUAL, 'Anual')
+        (MENSAL, MENSAL),
+        (SEMESTRAL, SEMESTRAL),
+        (ANUAL, ANUAL)
     )
 
     nome = models.CharField('Nome do plano', max_length=255, choices=CHOICES, default=MENSAL)

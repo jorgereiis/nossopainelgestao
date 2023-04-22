@@ -1,0 +1,318 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    {% include 'partials/head.html' %}
+    <title>Painel de gestão IPTV</title>
+</head>
+
+<body class="bg-light">
+    <div id="db-wrapper">
+        <!-- navbar vertical -->
+        {% include 'partials/navbar-vertical.html' %}
+        <!-- Page content -->
+        <div id="page-content">
+            {% include 'partials/header.html' %}
+            <!-- Container fluid -->
+            <div class="bg-primary pt-10 pb-21"></div>
+            <div class="container-fluid mt-n22 px-6">
+                <div class="row">
+                    <div class="col-lg-12 col-md-12 col-12">
+                        <!-- Page header -->
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="mb-2 mb-lg-0">
+                                    <h2 class="mb-0  text-white">Dashboard</h2>
+                                </div>
+                                <!-- Dropdown Cadastros -->
+                                <div class="btn-group">
+                                    <div class="dropdown">
+                                        <button class="btn btn-light mb-2 dropdown-toggle" data-bs-toggle="dropdown">
+                                            <img src="{% static 'assets/images/svg/list.svg' %}"> Cadastros
+                                        </button>
+                                        <div class="dropdown-menu">
+                                            <li><button class="dropdown-item" type="button">Novo cliente</button></li>
+                                            <li><button class="dropdown-item" type="button">...</button></li>
+                                            <li><button class="dropdown-item" type="button">...</button></li>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6">
+                        <!-- card -->
+                        <div class="card ">
+                            <!-- card body -->
+                            <div class="card-body">
+                                <!-- heading -->
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h4 class="mb-0">Clientes</h4>
+                                    </div>
+                                    <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
+                                        <img class="bi bi-briefcase fs-4"
+                                            src="{% static 'assets/images/svg/people.svg' %}">
+                                    </div>
+                                </div>
+                                <!-- project number -->
+                                <div>
+                                    <h1 class="fw-bold">{{total_clientes}}</h1>
+                                    {% if clientes_em_atraso > 0%}
+                                    <span class="me-2"><span class="text-dark me-2">{{clientes_em_atraso}}</span><span
+                                            class="text-danger">Em atraso</span></span>
+                                    {% else %}
+                                    <span class="me-2"><span class="text-dark me-2">{{clientes_em_atraso}}</span>Em
+                                        atraso</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6">
+                        <!-- card -->
+                        <div class="card ">
+                            <!-- card body -->
+                            <div class="card-body">
+                                <!-- heading -->
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h4 class="mb-0">Recebido no mês</h4>
+                                    </div>
+                                    <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
+                                        <img class="bi bi-briefcase fs-4"
+                                            src="{% static 'assets/images/svg/wallet2.svg' %}">
+                                    </div>
+                                </div>
+                                <!-- project number -->
+                                <div>
+                                    <h1 class="fw-bold">{{valor_total_pago}}</h1>
+                                    <p class="mb-0"><span class="text-dark me-2">{{valor_total_pago_qtd}}</span>Pago(s)
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6">
+                        <!-- card -->
+                        <div class="card ">
+                            <!-- card body -->
+                            <div class="card-body">
+                                <!-- heading -->
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h4 class="mb-0">À receber no mês</h4>
+                                    </div>
+                                    <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
+                                        <img class="bi bi-briefcase fs-4"
+                                            src="{% static 'assets/images/svg/cash-coin.svg' %}">
+                                    </div>
+                                </div>
+                                <!-- project number -->
+                                <div>
+                                    <h1 class="fw-bold">{{valor_total_receber}}</h1>
+                                    <p class="mb-0"><span class="text-dark me-2">{{valor_total_receber_qtd}}</span>À
+                                        vencer</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6">
+                        <!-- card -->
+                        <div class="card ">
+                            <!-- card body -->
+                            <div class="card-body">
+                                <!-- heading -->
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h4 class="mb-0">Percentual de pagantes mês</h4>
+                                    </div>
+                                    <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
+                                        <img class="bi bi-briefcase fs-4"
+                                            src="{% static 'assets/images/svg/percent.svg' %}">
+                                    </div>
+                                </div>
+                                <!-- project number -->
+                                <div>
+                                    <h1 class="fw-bold">100%</h1>
+                                    <p class="mb-0"><span class="text-success me-2">Clientes em dia</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- row  -->
+                <div class="row mt-6">
+                    <div class="col-md-12 col-12">
+                        <!-- card  -->
+                        <div class="card">
+                            <!-- campo de pesquisa  -->
+                            <form method="GET">
+                                <div class="input-group mb-3 card-header bg-white py-4">
+                                    <input type="text" name="q" class="form-control" placeholder="Pesquisar" aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput">
+                                    <button class="btn btn-outline-secondary" type="submit" id="button-pesquisar">Buscar</button>
+                                </div>
+                            </form>
+                            <!-- TABELA  -->
+                            <div class="table-responsive">
+                                <table class="table text-nowrap mb-0 table-hover" id="myTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="fw-bold text-center">Nome</th>
+                                            <th class="fw-bold text-center">Data adesão</th>
+                                            <th class="fw-bold text-center">Telefone</th>
+                                            <th class="fw-bold text-center">Quem indicou</th>
+                                            <th class="fw-bold text-center">Dispositivo</th>
+                                            <th class="fw-bold text-center">Sistema</th>
+                                            <th class="fw-bold text-center">Data pgto.</th>
+                                            <th class="fw-bold text-center">Tipo pgto.</th>
+                                            <th class="fw-bold text-center">Plano</th>
+                                            <th class="fw-bold text-center">Qtd. telas</th>
+                                            <th class="fw-bold text-center">Último pgto.</th>
+                                            <th class="fw-bold text-center">Próximo pgto.</th>
+                                            <th colspan="2"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- COMEÇO DA LINHA -->
+                                        <tr>
+                                            {% for cliente in object_list %}
+                                        <tr>
+                                            <td class="align-middle">
+                                                <div class="d-flex align-items-center">
+                                                    <div>
+                                                        <div class="icon-shape icon-md border p-1 rounded-circle">
+                                                            <img src="{% static 'assets/images/logo-apps/'|add:cliente.servidor.nome|lower|add:'.png' %}"
+                                                                class="rounded-circle">
+                                                        </div>
+                                                    </div>
+                                                    <div class="ms-3 lh-1">
+                                                        <h5 class=" mb-1 text-capitalize"> <a href="#"
+                                                                class="text-inherit">{{cliente.nome}}</a></h5>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{cliente.data_adesao|date:'d/m/Y'}}</td>
+                                            <td>{{cliente.telefone}}</td>
+                                            {% if cliente.indicado_por %}
+                                            <td class="text-capitalize">{{cliente.indicado_por}}</td>
+                                            {% else %}
+                                            <td></td>
+                                            {% endif %}
+
+                                            <td>{{cliente.dispositivo}}</td>
+                                            <td class="text-capitalize">{{cliente.sistema}}</td>
+                                            <td>{{cliente.data_pagamento}}</td>
+                                            <td>{{cliente.forma_pgto}}</td>
+                                            <td>{{cliente.plano}}</td>
+                                            <td>{{cliente.telas}}</td>
+
+                                            {% if cliente.ultimo_pagamento %}
+                                            <td>{{cliente.ultimo_pagamento|date:'d/m/Y'}}</td>
+                                            {% else %}
+                                            <td></td>
+                                            {% endif %}
+
+                                            {% for mensalidade in cliente.mensalidade_set.all %}
+                                            {% if mensalidade.dt_pagamento is None or not mensalidade.pgto %}
+                                            {% if hoje > mensalidade.dt_vencimento %}
+                                            <td class="align-middle"><span class="badge bg-danger">{{ mensalidade.valor
+                                                    }} [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
+                                            {% else %}
+                                            <td class="align-middle"><span class="badge bg-info">{{ mensalidade.valor }}
+                                                    [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
+                                            {% endif %}
+                                            <td>
+                                                <form method="post"
+                                                    action="{% url 'pagar_mensalidade' mensalidade.pk %}">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-primary"
+                                                        value="{{ mensalidade.pk }}">Pagar mensalidade</button>
+                                                </form>
+                                            </td>
+                                            <td><button class="btn btn-outline-danger"
+                                                    onclick="window.location.href='{% url 'cancelar_cliente' cliente.pk %}'">Cancelar
+                                                    cliente</button></td>
+                                            {% endif %}
+                                            {% endfor %}
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="13" class="text-center">Não há registros.</td>
+                                            </tr>
+                                        </tr>
+                                        {% endfor %}
+                                        </tr>
+                                        <!-- TÉRMINO DA LINHA -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <!-- card footer  -->
+                            <div class="card-footer bg-white text-center">
+                                <!-- nav paginator -->
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination  justify-content-end">
+                                      {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                          <a class="page-link" href="?page={{ page_obj.previous_page_number }}" tabindex="-1" aria-label="Anterior">
+                                            <span aria-hidden="true">&laquo;</span>
+                                          </a>
+                                        </li>
+                                      {% endif %}
+                                  
+                                      {% for page in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == page %}
+                                          <li class="page-item active"><a class="page-link" href="#">{{ page }} <span class="sr-only"></span></a></li>
+                                        {% elif page > page_obj.number|add:'-3' and page < page_obj.number|add:'3' %}
+                                          <li class="page-item"><a class="page-link" href="?page={{ page }}">{{ page }}</a></li>
+                                        {% endif %}
+                                      {% endfor %}
+                                  
+                                      {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                          <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Próximo">
+                                            <span aria-hidden="true">&raquo;</span>
+                                          </a>
+                                        </li>
+                                      {% endif %}
+                                    </ul>
+                                  </nav>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                <!-- row  -->
+
+                <!-- Scripts -->
+                {% include 'partials/scripts.html' %}
+
+</body>
+
+<style>
+.page-item.active .page-link {
+  background-color: rgb(12, 20, 28);
+  border-color: rgb(12, 20, 28);
+}
+
+.page-link {
+    color: #333;
+}
+
+.page-link:hover {
+    color: #666;
+}
+
+#searchInput {
+    border-radius: 5px 5px 5px 5px;
+}
+
+#button-pesquisar {
+    display: none;
+}
+
+</style>
+
+</html>

@@ -23,10 +23,11 @@ def atualiza_ultimo_pagamento(sender, instance, **kwargs):
 @receiver(post_save, sender=Cliente)
 def criar_mensalidade(sender, instance, created, **kwargs):
     if created:
-        data_atual = datetime.now().date()
-        dia = definir_dia_pagamento(data_atual.day)
-        mes = data_atual.month
-        ano = data_atual.year
+        
+        data_pagamento = instance.data_pagamento
+        dia = definir_dia_pagamento(data_pagamento)
+        mes = datetime.now().date().month
+        ano = datetime.now().date().year
         vencimento = datetime(ano, mes, dia)
 
         # Define o mês/ano de vencimento de acordo com o plano do cliente
