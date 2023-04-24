@@ -4,15 +4,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cadastros', '0002_alter_plano_nome'),
+        ("cadastros", "0002_alter_plano_nome"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='plano',
-            name='nome',
-            field=models.CharField(choices=[('Mensal', 'Mensal'), ('Semestral', 'Semestral'), ('Anual', 'Anual')], default='Mensal', max_length=255, unique=True, verbose_name='Nome do plano'),
+            model_name="plano",
+            name="nome",
+            field=models.CharField(
+                choices=[
+                    ("Mensal", "Mensal"),
+                    ("Semestral", "Semestral"),
+                    ("Anual", "Anual"),
+                ],
+                default="Mensal",
+                max_length=255,
+                unique=True,
+                verbose_name="Nome do plano",
+            ),
         ),
     ]

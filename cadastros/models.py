@@ -22,20 +22,13 @@ def definir_dia_pagamento(dia_adesao):
 
 # Cadastro de novos servidores
 class Servidor(models.Model):
+    CLUB = "CLUB"
+    PLAY = "PlayON"
+    ALPHA = "ALPHA"
+    SEVEN = "SEVEN"
+    FIVE = "FIVE"
 
-    CLUB = 'CLUB'
-    PLAY = 'PlayON'
-    ALPHA = 'ALPHA'
-    SEVEN = 'SEVEN'
-    FIVE = 'FIVE'
-
-    CHOICES = (
-        (CLUB, CLUB),
-        (PLAY, PLAY),
-        (ALPHA, ALPHA),
-        (SEVEN, SEVEN),
-        (FIVE, FIVE)
-    )
+    CHOICES = ((CLUB, CLUB), (PLAY, PLAY), (ALPHA, ALPHA), (SEVEN, SEVEN), (FIVE, FIVE))
 
     nome = models.CharField(max_length=255, choices=CHOICES, unique=True)
     logotipo = models.CharField(max_length=255, unique=True, null=True, blank=True)
@@ -49,15 +42,11 @@ class Servidor(models.Model):
 
 # Tipos de pagamentos disponíveis no sistema
 class Tipos_pgto(models.Model):
-    PIX = 'PIX'
-    CARTAO = 'Cartão de Crédito'
-    BOLETO = 'Boleto'
+    PIX = "PIX"
+    CARTAO = "Cartão de Crédito"
+    BOLETO = "Boleto"
 
-    CHOICES = (
-        (PIX, PIX),
-        (CARTAO, CARTAO),
-        (BOLETO, BOLETO)
-    )
+    CHOICES = ((PIX, PIX), (CARTAO, CARTAO), (BOLETO, BOLETO))
 
     nome = models.CharField(max_length=255, choices=CHOICES, default=PIX, unique=True)
 
@@ -87,29 +76,27 @@ class Aplicativo(models.Model):
 
 # Quantidade de telas que o cliente utilizará em seu plano
 class Qtd_tela(models.Model):
-    telas = models.PositiveSmallIntegerField('Quantidade de telas', unique=True)
+    telas = models.PositiveSmallIntegerField("Quantidade de telas", unique=True)
 
     class Meta:
         verbose_name_plural = "Quantidade de telas"
 
     def __str__(self):
         return "{} tela(s)".format(self.telas)
-    
+
 
 # Planos de mensalidades ofertados
 class Plano(models.Model):
-    MENSAL = 'Mensal'
-    SEMESTRAL = 'Semestral'
-    ANUAL = 'Anual'
+    MENSAL = "Mensal"
+    SEMESTRAL = "Semestral"
+    ANUAL = "Anual"
 
-    CHOICES = (
-        (MENSAL, MENSAL),
-        (SEMESTRAL, SEMESTRAL),
-        (ANUAL, ANUAL)
+    CHOICES = ((MENSAL, MENSAL), (SEMESTRAL, SEMESTRAL), (ANUAL, ANUAL))
+
+    nome = models.CharField(
+        "Nome do plano", max_length=255, choices=CHOICES, default=MENSAL
     )
-
-    nome = models.CharField('Nome do plano', max_length=255, choices=CHOICES, default=MENSAL)
-    valor = models.DecimalField('Valor', max_digits=5, decimal_places=2)
+    valor = models.DecimalField("Valor", max_digits=5, decimal_places=2)
 
     def __str__(self):
         return "{} - {}".format(self.nome, self.valor)
@@ -122,20 +109,32 @@ class Cliente(models.Model):
     sistema = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, default=None)
     nome = models.CharField(max_length=255)
     telefone = models.CharField(max_length=15)
-    indicado_por = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True)
-    data_pagamento = models.IntegerField('Data de pagamento',default=None, blank=True, null=True)
-    forma_pgto = models.ForeignKey(Tipos_pgto, on_delete=models.CASCADE, default=1, verbose_name='Forma de pagamento')
+    indicado_por = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    data_pagamento = models.IntegerField(
+        "Data de pagamento", default=None, blank=True, null=True
+    )
+    forma_pgto = models.ForeignKey(
+        Tipos_pgto,
+        on_delete=models.CASCADE,
+        default=1,
+        verbose_name="Forma de pagamento",
+    )
     plano = models.ForeignKey(Plano, on_delete=models.CASCADE, default=1)
     telas = models.ForeignKey(Qtd_tela, on_delete=models.CASCADE, default=1)
-    data_adesao = models.DateField('Data de adesão', default=datetime.now().date())
-    data_cancelamento = models.DateField('Data de cancelamento', blank=True, null=True)
-    ultimo_pagamento = models.DateField('Último pagamento realizado', blank=True, null=True)
-    cancelado = models.BooleanField('Cancelado', default=False)
-
+    data_adesao = models.DateField("Data de adesão", default=datetime.now().date())
+    data_cancelamento = models.DateField("Data de cancelamento", blank=True, null=True)
+    ultimo_pagamento = models.DateField(
+        "Último pagamento realizado", blank=True, null=True
+    )
+    cancelado = models.BooleanField("Cancelado", default=False)
 
     def save(self, *args, **kwargs):
         if self.ultimo_pagamento:
             dia_adesao = self.ultimo_pagamento.day
+        elif self.data_pagamento:
+            dia_adesao = self.data_pagamento
         else:
             dia_adesao = self.data_adesao.day
 
@@ -148,8 +147,6 @@ class Cliente(models.Model):
         self.formatar_telefone()
 
         super().save(*args, **kwargs)
-
-
 
     def definir_data_cancelamento(self):
         if self.pk:
@@ -172,21 +169,30 @@ class Cliente(models.Model):
 # Cadastro das mensalidades de cada cliente
 class Mensalidade(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT)
-    valor = models.DecimalField('Valor', max_digits=5, decimal_places=2, default=None)
-    dt_vencimento = models.DateField('Data de vencimento', default=datetime.now().date()+ timezone.timedelta(days=30))
-    dt_pagamento = models.DateField('Data de pagamento', default=None, null=True, blank=True)
-    pgto = models.BooleanField('Pago',default=False)
+    valor = models.DecimalField("Valor", max_digits=5, decimal_places=2, default=None)
+    dt_vencimento = models.DateField(
+        "Data de vencimento",
+        default=datetime.now().date() + timezone.timedelta(days=30),
+    )
+    dt_pagamento = models.DateField(
+        "Data de pagamento", default=None, null=True, blank=True
+    )
+    pgto = models.BooleanField("Pago", default=False)
     cancelado = models.BooleanField(default=False)
 
     def __str__(self):
-        return str('[{}] {} - {}'.format(self.dt_vencimento.strftime('%d/%m/%Y'), self.valor, self.cliente))
+        return str(
+            "[{}] {} - {}".format(
+                self.dt_vencimento.strftime("%d/%m/%Y"), self.valor, self.cliente
+            )
+        )
 
 
 class PlanoIndicacao(models.Model):
     nome = models.CharField(max_length=255)
     TIPOS_PLANO = [
-        ('desconto', 'Desconto na mensalidade'),
-        ('dinheiro', 'Valor em dinheiro'),
+        ("desconto", "Desconto na mensalidade"),
+        ("dinheiro", "Valor em dinheiro"),
     ]
     tipo_plano = models.CharField(max_length=10, choices=TIPOS_PLANO, unique=True)
     valor = models.DecimalField(max_digits=6, decimal_places=2)
@@ -200,11 +206,20 @@ class PlanoIndicacao(models.Model):
 
 
 class ContaDoAplicativo(models.Model):
-    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='conta_aplicativo')
-    app = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, related_name='aplicativos', verbose_name='Aplicativo')
-    device_id = models.CharField('ID', max_length=255, blank=True, null=True)
-    email = models.EmailField('E-mail', max_length=255, blank=True, null=True, unique=True)
-    device_key = models.CharField('Senha', max_length=255, unique=True)
+    cliente = models.ForeignKey(
+        Cliente, on_delete=models.CASCADE, related_name="conta_aplicativo"
+    )
+    app = models.ForeignKey(
+        Aplicativo,
+        on_delete=models.CASCADE,
+        related_name="aplicativos",
+        verbose_name="Aplicativo",
+    )
+    device_id = models.CharField("ID", max_length=255, blank=True, null=True)
+    email = models.EmailField(
+        "E-mail", max_length=255, blank=True, null=True, unique=True
+    )
+    device_key = models.CharField("Senha", max_length=255, unique=True)
 
     def save(self, *args, **kwargs):
         # Verifica se o valor está no formato desejado
@@ -218,7 +233,9 @@ class ContaDoAplicativo(models.Model):
             # Remove o caractere ':' do final se houver
             self.device_id = self.device_id[:-1]
         # Adiciona ':' a cada 2 caracteres
-        self.device_id = ":".join([self.device_id[i:i+2] for i in range(0, len(self.device_id), 2)])
+        self.device_id = ":".join(
+            [self.device_id[i : i + 2] for i in range(0, len(self.device_id), 2)]
+        )
         super(ContaDoAplicativo, self).save(*args, **kwargs)
 
     class Meta:

@@ -14,34 +14,34 @@
 // Main js
 //
 
-
 'use strict';
-(function() {
+(function () {
 
-    // Menu toggle for admin dashboard
+  // Menu toggle for admin dashboard
 
-    if ($("#nav-toggle").length) {
-        $("#nav-toggle").on("click", function(e) {
-            e.preventDefault();
-            $("#db-wrapper").toggleClass("toggled");
-        });
+  if ($("#nav-toggle").length) {
+    $("#nav-toggle").on("click", function (e) {
+      console.log("clicou no menu")
+      e.preventDefault();
+      $("#db-wrapper").toggleClass("toggled");
+    });
 
-    }
-
-
-
-
-    //  slimscroll for sidebar nav
-
-    if ($(".nav-scroller").length) {
-        $(".nav-scroller").slimScroll({
-            height: "97%",
-        });
-    }
+  }
 
 
 
-      // Notification dropdown scroll List
+
+  //  slimscroll for sidebar nav
+
+  if ($(".nav-scroller").length) {
+    $(".nav-scroller").slimScroll({
+      height: "97%",
+    });
+  }
+
+
+
+  // Notification dropdown scroll List
 
   if ($('.notification-list-scroll').length) {
     $(".notification-list-scroll").slimScroll({
@@ -65,52 +65,52 @@
 
   if ($('[data-bs-toggle="popover"]').length) {
     var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
-var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
-  return new bootstrap.Popover(popoverTriggerEl)
-})
+    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+      return new bootstrap.Popover(popoverTriggerEl)
+    })
   }
 
-    // Scrollspy
+  // Scrollspy
 
-    if ($('[data-bs-spy="scroll"]').length) {
-      var dataSpyList = [].slice.call(document.querySelectorAll('[data-bs-spy="scroll"]'))
-dataSpyList.forEach(function (dataSpyEl) {
-  bootstrap.ScrollSpy.getInstance(dataSpyEl)
-    .refresh()
-})
+  if ($('[data-bs-spy="scroll"]').length) {
+    var dataSpyList = [].slice.call(document.querySelectorAll('[data-bs-spy="scroll"]'))
+    dataSpyList.forEach(function (dataSpyEl) {
+      bootstrap.ScrollSpy.getInstance(dataSpyEl)
+        .refresh()
+    })
 
-    }
+  }
 
-    // Toast
+  // Toast
 
-    if ($('.toast').length) {
+  if ($('.toast').length) {
 
     var toastElList = [].slice.call(document.querySelectorAll('.toast'))
-var toastList = toastElList.map(function (toastEl) {
-  return new bootstrap.Toast(toastEl)
-})
+    var toastList = toastElList.map(function (toastEl) {
+      return new bootstrap.Toast(toastEl)
+    })
 
-    }
+  }
 
 
-// Perfomance Chart
+  // Perfomance Chart
 
-    if ($("#perfomanceChart").length) {
+  if ($("#perfomanceChart").length) {
     var options = {
-        series: [100, 78, 89],
-        chart: {
+      series: [100, 78, 89],
+      chart: {
         height: 320,
         type: 'radialBar',
       },
       colors: ['#28a745', '#ffc107', '#dc3545'],
       stroke: {
-  lineCap: "round",
-},
+        lineCap: "round",
+      },
       plotOptions: {
 
         radialBar: {
           startAngle: -168,
-        endAngle: -450,
+          endAngle: -450,
           hollow: {
 
             size: '55%',
@@ -118,29 +118,30 @@ var toastList = toastElList.map(function (toastEl) {
           track: {
 
 
-            background: 'transaprent',},
+            background: 'transaprent',
+          },
           dataLabels: {
-              show: false,
+            show: false,
 
           }
         }
       },
 
-      };
+    };
 
-      var chart = new ApexCharts(document.querySelector("#perfomanceChart"), options);
-      chart.render();
+    var chart = new ApexCharts(document.querySelector("#perfomanceChart"), options);
+    chart.render();
 
-    }
+  }
 
 
 
-// offcanvas
-if ($(".offcanvas").length) {
-  var offcanvasElementList = [].slice.call(document.querySelectorAll('.offcanvas'))
-var offcanvasList = offcanvasElementList.map(function (offcanvasEl) {
-  return new bootstrap.Offcanvas(offcanvasEl)
-})
+  // offcanvas
+  if ($(".offcanvas").length) {
+    var offcanvasElementList = [].slice.call(document.querySelectorAll('.offcanvas'))
+    var offcanvasList = offcanvasElementList.map(function (offcanvasEl) {
+      return new bootstrap.Offcanvas(offcanvasEl)
+    })
 
   }
 

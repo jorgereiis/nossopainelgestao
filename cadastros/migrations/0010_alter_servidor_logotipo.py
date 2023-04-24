@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cadastros', '0009_servidor_logotipo_alter_cliente_data_adesao_and_more'),
+        ("cadastros", "0009_servidor_logotipo_alter_cliente_data_adesao_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='servidor',
-            name='logotipo',
+            model_name="servidor",
+            name="logotipo",
             field=models.CharField(max_length=255),
         ),
     ]

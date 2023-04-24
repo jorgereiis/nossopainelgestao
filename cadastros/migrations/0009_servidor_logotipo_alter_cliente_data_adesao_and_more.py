@@ -5,31 +5,44 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cadastros', '0008_alter_contadoaplicativo_options_and_more'),
+        ("cadastros", "0008_alter_contadoaplicativo_options_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='servidor',
-            name='logotipo',
-            field=models.CharField(default='club.png', max_length=255, unique=True),
+            model_name="servidor",
+            name="logotipo",
+            field=models.CharField(default="club.png", max_length=255, unique=True),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='cliente',
-            name='data_adesao',
-            field=models.DateField(default=datetime.date(2023, 4, 20), verbose_name='Data de adesão'),
+            model_name="cliente",
+            name="data_adesao",
+            field=models.DateField(
+                default=datetime.date(2023, 4, 20), verbose_name="Data de adesão"
+            ),
         ),
         migrations.AlterField(
-            model_name='mensalidade',
-            name='dt_vencimento',
-            field=models.DateField(default=datetime.date(2023, 5, 20), verbose_name='Data de vencimento'),
+            model_name="mensalidade",
+            name="dt_vencimento",
+            field=models.DateField(
+                default=datetime.date(2023, 5, 20), verbose_name="Data de vencimento"
+            ),
         ),
         migrations.AlterField(
-            model_name='servidor',
-            name='nome',
-            field=models.CharField(choices=[('CLUB', 'CLUB'), ('PlayON', 'PlayON'), ('ALPHA', 'ALPHA'), ('SEVEN', 'SEVEN'), ('FIVE', 'FIVE')], max_length=255, unique=True),
+            model_name="servidor",
+            name="nome",
+            field=models.CharField(
+                choices=[
+                    ("CLUB", "CLUB"),
+                    ("PlayON", "PlayON"),
+                    ("ALPHA", "ALPHA"),
+                    ("SEVEN", "SEVEN"),
+                    ("FIVE", "FIVE"),
+                ],
+                max_length=255,
+                unique=True,
+            ),
         ),
     ]

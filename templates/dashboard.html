@@ -33,22 +33,22 @@
                                             <img src="{% static 'assets/images/svg/list.svg' %}"> Cadastros
                                         </button>
                                         <div class="dropdown-menu">
-                                            <li><button class="dropdown-item" type="button">Novo cliente</button></li>
-                                            <li><button class="dropdown-item" type="button">...</button></li>
-                                            <li><button class="dropdown-item" type="button">...</button></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro' %}">Cadastrar cliente</a></li>
+                                            <li><a class="dropdown-item" href="">...</a></li>
+                                            <li><a class="dropdown-item" href="">...</a></li>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6">
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card -->
                         <div class="card ">
                             <!-- card body -->
                             <div class="card-body">
                                 <!-- heading -->
-                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3 objeto">
                                     <div>
                                         <h4 class="mb-0">Clientes</h4>
                                     </div>
@@ -62,7 +62,7 @@
                                     <h1 class="fw-bold">{{total_clientes}}</h1>
                                     {% if clientes_em_atraso > 0%}
                                     <span class="me-2"><span class="text-dark me-2">{{clientes_em_atraso}}</span><span
-                                            class="text-danger">Em atraso</span></span>
+                                            class="bi bi-arrow-down-short text-danger">Em atraso</span></span>
                                     {% else %}
                                     <span class="me-2"><span class="text-dark me-2">{{clientes_em_atraso}}</span>Em
                                         atraso</span>
@@ -71,7 +71,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6">
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card -->
                         <div class="card ">
                             <!-- card body -->
@@ -95,7 +95,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6">
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card -->
                         <div class="card ">
                             <!-- card body -->
@@ -113,16 +113,19 @@
                                 <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold">{{valor_total_receber}}</h1>
-                                    <p class="mb-0"><span class="text-dark me-2">{{valor_total_receber_qtd}}</span>À
-                                        vencer</p>
+                                    {% if valor_total_receber_qtd > 0 %}
+                                    <p class="mb-0 "><i class="bi bi-exclamation-triangle text-warning me-2"></i><span class="text-dark">{{valor_total_receber_qtd}}</span> vencem em até 7 dias</p>
+                                    {% else %}
+                                    <p class="mb-0 "><span class="text-dark me-2">{{valor_total_receber_qtd}}</span> sem vencimentos</p>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
                     </div>
-                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6">
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card -->
-                        <div class="card ">
+                        <div class="card">
                             <!-- card body -->
                             <div class="card-body">
                                 <!-- heading -->
@@ -159,26 +162,19 @@
                             <!-- TABELA  -->
                             <div class="table-responsive">
                                 <table class="table text-nowrap mb-0 table-hover" id="myTable">
-                                    <thead class="table-light">
+                                    <thead class="table-light ">
                                         <tr>
                                             <th class="fw-bold text-center">Nome</th>
                                             <th class="fw-bold text-center">Data adesão</th>
-                                            <th class="fw-bold text-center">Telefone</th>
-                                            <th class="fw-bold text-center">Quem indicou</th>
                                             <th class="fw-bold text-center">Dispositivo</th>
-                                            <th class="fw-bold text-center">Sistema</th>
-                                            <th class="fw-bold text-center">Data pgto.</th>
-                                            <th class="fw-bold text-center">Tipo pgto.</th>
-                                            <th class="fw-bold text-center">Plano</th>
-                                            <th class="fw-bold text-center">Qtd. telas</th>
+                                            <th class="fw-bold text-center">Aplicativo</th>
                                             <th class="fw-bold text-center">Último pgto.</th>
                                             <th class="fw-bold text-center">Próximo pgto.</th>
-                                            <th colspan="2"></th>
+                                            <th colspan="1"></th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <!-- COMEÇO DA LINHA -->
-                                        <tr>
                                             {% for cliente in object_list %}
                                         <tr>
                                             <td class="align-middle">
@@ -190,30 +186,19 @@
                                                         </div>
                                                     </div>
                                                     <div class="ms-3 lh-1">
-                                                        <h5 class=" mb-1 text-capitalize"> <a href="#"
+                                                        <h5 class=" mb-1 text-capitalize small"> <a href="#"
                                                                 class="text-inherit">{{cliente.nome}}</a></h5>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td>{{cliente.data_adesao|date:'d/m/Y'}}</td>
-                                            <td>{{cliente.telefone}}</td>
-                                            {% if cliente.indicado_por %}
-                                            <td class="text-capitalize">{{cliente.indicado_por}}</td>
-                                            {% else %}
-                                            <td></td>
-                                            {% endif %}
-
-                                            <td>{{cliente.dispositivo}}</td>
-                                            <td class="text-capitalize">{{cliente.sistema}}</td>
-                                            <td>{{cliente.data_pagamento}}</td>
-                                            <td>{{cliente.forma_pgto}}</td>
-                                            <td>{{cliente.plano}}</td>
-                                            <td>{{cliente.telas}}</td>
+                                            <td class="small">{{cliente.data_adesao|date:'d/m/Y'}}</td>
+                                            <td class="small">{{cliente.dispositivo}}</td>
+                                            <td class="text-capitalize small">{{cliente.sistema}}</td>
 
                                             {% if cliente.ultimo_pagamento %}
-                                            <td>{{cliente.ultimo_pagamento|date:'d/m/Y'}}</td>
+                                            <td class="small">{{cliente.ultimo_pagamento|date:'d/m/Y'}}</td>
                                             {% else %}
-                                            <td></td>
+                                            <td class="small"></td>
                                             {% endif %}
 
                                             {% for mensalidade in cliente.mensalidade_set.all %}
@@ -222,20 +207,29 @@
                                             <td class="align-middle"><span class="badge bg-danger">{{ mensalidade.valor
                                                     }} [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                             {% else %}
-                                            <td class="align-middle"><span class="badge bg-info">{{ mensalidade.valor }}
+                                            <td class="align-middle text-primary"><span class="badge bg-info">{{ mensalidade.valor }}
                                                     [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                             {% endif %}
+                                            <!-- Dropdown da tabela -->
                                             <td>
-                                                <form method="post"
-                                                    action="{% url 'pagar_mensalidade' mensalidade.pk %}">
-                                                    {% csrf_token %}
-                                                    <button type="submit" class="btn btn-primary"
-                                                        value="{{ mensalidade.pk }}">Pagar mensalidade</button>
-                                                </form>
-                                            </td>
-                                            <td><button class="btn btn-outline-danger"
-                                                    onclick="window.location.href='{% url 'cancelar_cliente' cliente.pk %}'">Cancelar
-                                                    cliente</button></td>
+                                                <div class="dropdown dropend">
+                                                  <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                                                  </button>
+                                                  <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
+                                                    <li>
+                                                      <form method="post" action="{% url 'pagar_mensalidade' mensalidade.pk %}">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="dropdown-item" value="{{ mensalidade.pk }}">Pagar mensalidade</button>
+                                                      </form>
+                                                    </li>
+                                                    <li>
+                                                      <button class="dropdown-item " onclick="window.location.href='{% url 'cancelar_cliente' cliente.pk %}'">Cancelar cliente</button>
+                                                    </li>
+                                                  </ul>
+                                                </div>
+                                              </td>
+                                              
                                             {% endif %}
                                             {% endfor %}
                                             {% empty %}
@@ -261,6 +255,10 @@
                                           </a>
                                         </li>
                                       {% endif %}
+
+                                      {% if page_obj.number > 3 %}
+                                        <li class="page-item"><a class="page-link" href="?page=1">Primeira</a></li>
+                                      {% endif %}
                                   
                                       {% for page in page_obj.paginator.page_range %}
                                         {% if page_obj.number == page %}
@@ -269,6 +267,10 @@
                                           <li class="page-item"><a class="page-link" href="?page={{ page }}">{{ page }}</a></li>
                                         {% endif %}
                                       {% endfor %}
+
+                                      {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
+                                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a></li>
+                                      {% endif %}
                                   
                                       {% if page_obj.has_next %}
                                         <li class="page-item">
@@ -277,6 +279,7 @@
                                           </a>
                                         </li>
                                       {% endif %}
+                                      
                                     </ul>
                                   </nav>
                             </div>
@@ -313,6 +316,14 @@
     display: none;
 }
 
+.objeto {
+  transition: transform 0.3s ease;
+}
+
+.objeto:hover {
+  transform: translateY(-5px);
+}
 </style>
 
 </html>
+

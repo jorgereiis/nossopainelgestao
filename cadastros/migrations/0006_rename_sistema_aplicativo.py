@@ -4,14 +4,13 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cadastros', '0005_alter_planoindicacao_tipo_plano_contadoaplicativo'),
+        ("cadastros", "0005_alter_planoindicacao_tipo_plano_contadoaplicativo"),
     ]
 
     operations = [
         migrations.RenameModel(
-            old_name='Sistema',
-            new_name='Aplicativo',
+            old_name="Sistema",
+            new_name="Aplicativo",
         ),
     ]

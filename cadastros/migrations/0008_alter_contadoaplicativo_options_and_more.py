@@ -5,24 +5,30 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cadastros', '0007_alter_contadoaplicativo_options_and_more'),
+        ("cadastros", "0007_alter_contadoaplicativo_options_and_more"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='contadoaplicativo',
-            options={'verbose_name': 'Conta do aplicativo', 'verbose_name_plural': 'Contas dos aplicativos'},
+            name="contadoaplicativo",
+            options={
+                "verbose_name": "Conta do aplicativo",
+                "verbose_name_plural": "Contas dos aplicativos",
+            },
         ),
         migrations.AlterField(
-            model_name='cliente',
-            name='data_adesao',
-            field=models.DateField(default=datetime.date(2023, 4, 19), verbose_name='Data de adesão'),
+            model_name="cliente",
+            name="data_adesao",
+            field=models.DateField(
+                default=datetime.date(2023, 4, 19), verbose_name="Data de adesão"
+            ),
         ),
         migrations.AlterField(
-            model_name='mensalidade',
-            name='dt_vencimento',
-            field=models.DateField(default=datetime.date(2023, 5, 19), verbose_name='Data de vencimento'),
+            model_name="mensalidade",
+            name="dt_vencimento",
+            field=models.DateField(
+                default=datetime.date(2023, 5, 19), verbose_name="Data de vencimento"
+            ),
         ),
     ]
