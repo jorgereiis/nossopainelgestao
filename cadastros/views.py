@@ -139,70 +139,8 @@ def cancelar_cliente(request, cliente_id):
 def Login(request):
     return render(request, "login.html")
 
-
-def CadastroCliente(request):
-    # Recebendo os dados da requisição para criar um novo cliente
-    if request.method == 'POST':
-        indicador = None
-        nome = request.POST.get('nome')
-        sobrenome = request.POST.get('sobrenome')
-        dispositivo = request.POST.get('dispositivo')
-        sistema = request.POST.get('sistema')
-        indicador_nome = request.POST.get('indicador_list')
-        if indicador_nome == None or indicador_nome == "" or indicador_nome == " ":
-            indicador_nome = None
-        else:
-            indicador = Cliente.objects.get(nome=indicador_nome)
-        servidor = request.POST.get('servidor')
-        forma_pgto = request.POST.get('forma_pgto')
-        plano = request.POST.get('plano')
-        lista = plano.split("-")
-        nome_do_plano = lista[0]
-        valor_do_plano = float(lista[1].replace(',', '.'))
-        telas = request.POST.get('telas')
-        data_pagamento = request.POST.get('data_pagamento')
-
-        cliente = Cliente(
-            nome=(nome + " " + sobrenome),
-            dispositivo=Dispositivo.objects.get(nome=dispositivo),
-            sistema=Aplicativo.objects.get(nome=sistema),
-            indicado_por=indicador,
-            servidor=Servidor.objects.get(nome=servidor),
-            forma_pgto=Tipos_pgto.objects.get(nome=forma_pgto),
-            plano=Plano.objects.get(nome=nome_do_plano, valor=valor_do_plano),
-            telas=Qtd_tela.objects.get(telas=telas),
-            data_pagamento=data_pagamento,
-        )
-        cliente.save()
-
-        return redirect('cadastro')
-
-    # Criando os queryset para exibir os dados nos campos do fomulário
-    servidor_queryset = Servidor.objects.all()
-    dispositivo_queryset = Dispositivo.objects.all()
-    sistema_queryset = Aplicativo.objects.all()
-    indicador_por_queryset = Cliente.objects.all()
-    forma_pgto_queryset = Tipos_pgto.objects.all()
-    plano_queryset = Plano.objects.all()
-    telas_queryset = Qtd_tela.objects.all()
-
-    return render(
-        request,
-        'pages/cadastro-cliente.html',
-        {
-            'servidores': servidor_queryset,
-            'dispositivos': dispositivo_queryset,
-            'sistemas': sistema_queryset,
-            'indicadores': indicador_por_queryset,
-            'formas_pgtos': forma_pgto_queryset,
-            'planos': plano_queryset,
-            'telas': telas_queryset,
-        },
-    )
-
-
 def ImportarClientes(request):
-    if request.method == "POST" and request.FILES["arquivo"]:
+    if request.method == "POST" and 'importar' in request.POST and request.FILES["arquivo"]:
         arquivo_csv = request.FILES["arquivo"].read().decode("utf-8").splitlines()
 
         # Verifica o delimitador utilizado no arquivo .csv
@@ -280,6 +218,71 @@ def ImportarClientes(request):
         "pages/cadastro-cliente.html",
         {"mensagem": "Arquivo CSV importado com sucesso."},
     )
+
+
+def CadastroCliente(request):
+    print('>>>>>>>>>>>>>>>>>>>>> ',request.POST)
+    # Recebendo os dados da requisição para criar um novo cliente
+    if request.method == 'POST' and 'cadastrar' in request.POST:
+        indicador = None
+        nome = request.POST.get('nome')
+        sobrenome = request.POST.get('sobrenome')
+        dispositivo = request.POST.get('dispositivo')
+        sistema = request.POST.get('sistema')
+        indicador_nome = request.POST.get('indicador_list')
+        if indicador_nome == None or indicador_nome == "" or indicador_nome == " ":
+            indicador_nome = None
+        else:
+            indicador = Cliente.objects.get(nome=indicador_nome)
+        servidor = request.POST.get('servidor')
+        forma_pgto = request.POST.get('forma_pgto')
+        plano = request.POST.get('plano')
+        lista = plano.split("-")
+        nome_do_plano = lista[0]
+        valor_do_plano = float(lista[1].replace(',', '.'))
+        telas = request.POST.get('telas')
+        data_pagamento = request.POST.get('data_pagamento')
+
+        cliente = Cliente(
+            nome=(nome + " " + sobrenome),
+            dispositivo=Dispositivo.objects.get(nome=dispositivo),
+            sistema=Aplicativo.objects.get(nome=sistema),
+            indicado_por=indicador,
+            servidor=Servidor.objects.get(nome=servidor),
+            forma_pgto=Tipos_pgto.objects.get(nome=forma_pgto),
+            plano=Plano.objects.get(nome=nome_do_plano, valor=valor_do_plano),
+            telas=Qtd_tela.objects.get(telas=telas),
+            data_pagamento=data_pagamento,
+        )
+        cliente.save()
+
+        return redirect('cadastro')
+
+    # Criando os queryset para exibir os dados nos campos do fomulário
+    servidor_queryset = Servidor.objects.all()
+    dispositivo_queryset = Dispositivo.objects.all()
+    sistema_queryset = Aplicativo.objects.all()
+    indicador_por_queryset = Cliente.objects.all()
+    forma_pgto_queryset = Tipos_pgto.objects.all()
+    plano_queryset = Plano.objects.all()
+    telas_queryset = Qtd_tela.objects.all()
+
+    return render(
+        request,
+        'pages/cadastro-cliente.html',
+        {
+            'servidores': servidor_queryset,
+            'dispositivos': dispositivo_queryset,
+            'sistemas': sistema_queryset,
+            'indicadores': indicador_por_queryset,
+            'formas_pgtos': forma_pgto_queryset,
+            'planos': plano_queryset,
+            'telas': telas_queryset,
+        },
+    )
+
+
+
 
 
 def Teste(request):
