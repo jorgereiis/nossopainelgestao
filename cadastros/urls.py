@@ -1,5 +1,13 @@
 from django.urls import path
-from .views import Login, pagar_mensalidade, cancelar_cliente, TabelaDashboard, Teste, Cadastro
+from .views import (
+    Login,
+    pagar_mensalidade,
+    cancelar_cliente,
+    TabelaDashboard,
+    CadastroCliente,
+    ImportarClientes,
+    Teste,
+)
 
 urlpatterns = [
     path(
@@ -11,7 +19,8 @@ urlpatterns = [
         "cancelar_cliente/<int:cliente_id>", cancelar_cliente, name="cancelar_cliente"
     ),
     path("dashboard/", TabelaDashboard.as_view(), name="dashboard"),
+    path("cadastro/", CadastroCliente, name="cadastro"),
+    path("cadastro/", ImportarClientes),
     path("teste/", Teste, name="teste"),
     path("", Login, name="login"),
-    path("cadastro/", Cadastro, name="cadastro")
 ]

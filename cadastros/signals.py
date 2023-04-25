@@ -33,7 +33,6 @@ def criar_mensalidade(sender, instance, created, **kwargs):
         vencimento = datetime(ano, mes, dia)
 
         if vencimento.day <= datetime.now().day:
-
             # Define o mês/ano de vencimento de acordo com o plano do cliente
             if instance.plano.nome == Plano.CHOICES[0][0]:
                 vencimento += relativedelta(months=1)
@@ -41,7 +40,6 @@ def criar_mensalidade(sender, instance, created, **kwargs):
                 vencimento += relativedelta(months=6)
             elif instance.plano.nome == Plano.CHOICES[2][0]:
                 vencimento += relativedelta(years=1)
-        
 
         Mensalidade.objects.create(
             cliente=instance, valor=instance.plano.valor, dt_vencimento=vencimento

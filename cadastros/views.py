@@ -15,15 +15,18 @@ from datetime import datetime, timedelta
 from django.shortcuts import redirect
 from django.utils.timezone import now
 from django.shortcuts import render
+from django.utils import timezone
 from django.db.models import Sum
+from django.db.models import Q
 import locale
+import json
 import csv
 
 
 class TabelaDashboard(ListView):
     model = Cliente
     template_name = "dashboard.html"
-    paginate_by = 10
+    paginate_by = 15
 
     def get_queryset(self):
         query = self.request.GET.get("q")
@@ -64,7 +67,7 @@ class TabelaDashboard(ListView):
             ).aggregate(valor_total=Sum("valor"))["valor_total"]
             or 0
         )
-        locale.setlocale(locale.LC_ALL, "")
+        locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
         valor_total_pago = locale.currency(
             valor_total_pago, grouping=True, symbol=False
         )
@@ -84,7 +87,7 @@ class TabelaDashboard(ListView):
             or 0
         )
         valor_total_receber = format_currency(valor_total_receber, moeda)
-        hoje = now().date()
+        hoje = timezone.now().date()
         proxima_semana = hoje + timedelta(days=7)
         valor_total_receber_qtd = Mensalidade.objects.filter(
             cancelado=False,
@@ -92,6 +95,7 @@ class TabelaDashboard(ListView):
             dt_vencimento__lt=proxima_semana,
             pgto=False,
         ).count()
+
         context.update(
             {
                 "hoje": hoje,
@@ -136,36 +140,101 @@ def Login(request):
     return render(request, "login.html")
 
 
-def Cadastro(request):
-    return render(request, "pages/cadastro.html")
+def CadastroCliente(request):
+    # Recebendo os dados da requisição para criar um novo cliente
+    if request.method == 'POST':
+        indicador = None
+        nome = request.POST.get('nome')
+        sobrenome = request.POST.get('sobrenome')
+        dispositivo = request.POST.get('dispositivo')
+        sistema = request.POST.get('sistema')
+        indicador_nome = request.POST.get('indicador_list')
+        if indicador_nome == None or indicador_nome == "" or indicador_nome == " ":
+            indicador_nome = None
+        else:
+            indicador = Cliente.objects.get(nome=indicador_nome)
+        servidor = request.POST.get('servidor')
+        forma_pgto = request.POST.get('forma_pgto')
+        plano = request.POST.get('plano')
+        lista = plano.split("-")
+        nome_do_plano = lista[0]
+        valor_do_plano = float(lista[1].replace(',', '.'))
+        telas = request.POST.get('telas')
+        data_pagamento = request.POST.get('data_pagamento')
+
+        cliente = Cliente(
+            nome=(nome + " " + sobrenome),
+            dispositivo=Dispositivo.objects.get(nome=dispositivo),
+            sistema=Aplicativo.objects.get(nome=sistema),
+            indicado_por=indicador,
+            servidor=Servidor.objects.get(nome=servidor),
+            forma_pgto=Tipos_pgto.objects.get(nome=forma_pgto),
+            plano=Plano.objects.get(nome=nome_do_plano, valor=valor_do_plano),
+            telas=Qtd_tela.objects.get(telas=telas),
+            data_pagamento=data_pagamento,
+        )
+        cliente.save()
+
+        return redirect('cadastro')
+
+    # Criando os queryset para exibir os dados nos campos do fomulário
+    servidor_queryset = Servidor.objects.all()
+    dispositivo_queryset = Dispositivo.objects.all()
+    sistema_queryset = Aplicativo.objects.all()
+    indicador_por_queryset = Cliente.objects.all()
+    forma_pgto_queryset = Tipos_pgto.objects.all()
+    plano_queryset = Plano.objects.all()
+    telas_queryset = Qtd_tela.objects.all()
+
+    return render(
+        request,
+        'pages/cadastro-cliente.html',
+        {
+            'servidores': servidor_queryset,
+            'dispositivos': dispositivo_queryset,
+            'sistemas': sistema_queryset,
+            'indicadores': indicador_por_queryset,
+            'formas_pgtos': forma_pgto_queryset,
+            'planos': plano_queryset,
+            'telas': telas_queryset,
+        },
+    )
 
 
-def Teste(request):
+def ImportarClientes(request):
     if request.method == "POST" and request.FILES["arquivo"]:
         arquivo_csv = request.FILES["arquivo"].read().decode("utf-8").splitlines()
-        
-        # Verifica o delimitador utilizado no arquivo
+
+        # Verifica o delimitador utilizado no arquivo .csv
         for delimitador in [',', ';']:
             try:
                 leitor_csv = csv.reader(arquivo_csv, delimiter=delimitador)
                 primeira_linha = next(leitor_csv)
-                if len(primeira_linha) == 11:
+                if len(primeira_linha) == 12:
                     break
             except csv.Error:
                 pass
-        
+
         leitor_csv = csv.reader(arquivo_csv, delimiter=delimitador)
         for x, linha in enumerate(leitor_csv):
             if x == 0:
-                continue  # Pula a primeira linha
-            
+                continue  # Pula a primeira linha do arquivo .csv e considera os dados a partir da segunda
+
+            nome = linha[3].title()
+            telefone = linha[4]
+
+            # Verifica se já existe um cliente com esse nome ou telefone
+            cliente_existente = Cliente.objects.filter(
+                Q(nome__iexact=nome) | Q(telefone=telefone)
+            ).exists()
+            if cliente_existente:
+                continue  # Pula essa linha do arquivo e vai para a próxima
+
             servidor, created = Servidor.objects.get_or_create(nome=linha[0])
             dispositivo, created = Dispositivo.objects.get_or_create(nome=linha[1])
             sistema, created = Aplicativo.objects.get_or_create(nome=linha[2])
-            nome = linha[3].title()
-            telefone = linha[4]
-            indicado_por = None
 
+            indicado_por = None
             if linha[5]:
                 indicado_por = Cliente.objects.filter(nome__iexact=linha[5]).first()
 
@@ -176,9 +245,20 @@ def Teste(request):
             data_pagamento = int(linha[6]) if linha[6] else None
             forma_pgto_nome = linha[7] if linha[7] else "PIX"
             forma_pgto, created = Tipos_pgto.objects.get_or_create(nome=forma_pgto_nome)
-            plano = Plano.objects.get(valor=float(linha[8]))
-            telas = Qtd_tela.objects.get(telas=int(linha[9]))
-            data_adesao = datetime.strptime(linha[10], "%d/%m/%Y").date()
+            tipo_plano = linha[9].capitalize() if linha[9] != None else None
+
+            if tipo_plano == '' or tipo_plano == None:
+                plano_queryset = Plano.objects.filter(
+                    valor=int(linha[8]), nome='Mensal'
+                )
+            else:
+                plano_queryset = Plano.objects.filter(
+                    valor=int(linha[8]), nome=tipo_plano
+                )
+
+            plano = plano_queryset.first()
+            telas = Qtd_tela.objects.get(telas=int(linha[10]))
+            data_adesao = datetime.strptime(linha[11], "%d/%m/%Y").date()
 
             novo_cliente = Cliente(
                 servidor=servidor,
@@ -194,7 +274,21 @@ def Teste(request):
                 data_adesao=data_adesao,
             )
             novo_cliente.save()
-        return render(
-            request, "teste.html", {"mensagem": "Arquivo CSV importado com sucesso."}
-        )
-    return render(request, "teste.html")
+
+    return render(
+        request,
+        "pages/cadastro-cliente.html",
+        {"mensagem": "Arquivo CSV importado com sucesso."},
+    )
+
+
+def Teste(request):
+    indicador_por_queryset = Cliente.objects.all()
+
+    return render(
+        request,
+        'teste.html',
+        {
+            'indicadores': indicador_por_queryset,
+        },
+    )

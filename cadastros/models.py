@@ -244,3 +244,18 @@ class ContaDoAplicativo(models.Model):
 
     def __str__(self):
         return super().__str__()
+
+
+"""
+<div class="mb-3 row">
+<label for="servidor" class="col-sm-4 col-form-label
+form-label">Servidor</label>
+
+<div class="col-md-8 col-12">
+<select class="form-select" id="servidor">
+{% for servidor in servidores %}
+<option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
+{% endfor %}
+</select>                          
+</div>
+</div>"""

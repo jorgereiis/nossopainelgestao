@@ -1,0 +1,217 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Cadastro de clientes | Nosso Painel - Gestão IPTV</title>
+</head>
+
+<body class="bg-light">
+  <div id="db-wrapper">
+    <!-- navbar vertical -->
+    {% include 'partials/navbar-vertical.html' %}
+    <!-- page content -->
+    <div id="page-content">
+      {% include 'partials/header.html' %}
+      <!-- Container fluid -->
+      <div class="container-fluid p-6">
+        <div class="row">
+          <div class="col-lg-12 col-md-12 col-12">
+            <!-- Page header -->
+
+            <div class="border-bottom pb-4 mb-4">
+              <h3 class="mb-0 fw-bold">Cadastro de novos clientes</h3>
+
+            </div>
+            <!-- col importar -->
+            <div class="row mb-8">
+              <div class="col-md-3 mb-3 mb-md-0">
+                <!-- heading importar -->
+                <h4 class="mb-0">Importar contatos em massa</h4>
+                <p class="mb-0 fs-5 text-muted">Importe aqui a sua planilha .csv contendo os dados dos seus clientes.
+                </p>
+                <p class="mb-0 fs-5 text-muted">Baixe e preencha a planilha de acordo com a identificação das colunas.
+                </p>
+                <p><a href="{% static 'download/upload.csv' %}">Baixei aqui! <img class="mb-0 fs-5 text-muted"
+                      src="{% static 'assets/images/svg/filetype-csv.svg' %}"></a></p>
+              </div>
+              <div class="col-md-9">
+                <!-- dropzone input importar -->
+                <form method="post" enctype="multipart/form-data">
+                  <div class="dropzone mb-3 border-dashed">
+                    {% csrf_token %}
+                    <div class="fallback">
+                      <input name="arquivo" type="file" accept=".csv" capture=".csv" />
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-outline-white">Importar</button>
+                </form>
+              </div>
+            </div>
+            <!-- col -->
+          </div>
+          <div class="row mb-8">
+            <div class="col-xl-3 col-lg-4 col-md-12 col-12">
+              <div class="mb-4 mb-lg-0">
+                <h4 class="mb-1">Cadastre aqui o seu novo cliente</h4>
+                <p class="mb-0 fs-5 text-muted">Preencha todos os dados corretamente. </p>
+              </div>
+
+            </div>
+
+            <div class="col-xl-9 col-lg-8 col-md-12 col-12">
+              <!-- card -->
+              <div class="card">
+                <!-- card body -->
+                <div class="card-body">
+                  <div class=" mb-6">
+                    <h4 class="mb-1">Formulário de cadastro</h4>
+                  </div>
+
+                  <form method="POST" action="{% url 'cadastro' %}">
+                    <!-- row -->
+                      {% csrf_token %}
+                    <div class="mb-3 row">
+                      <label for="fullName" class="col-sm-4 col-form-label
+                          form-label">Nome completo</label>
+                      <div class="col-sm-4 mb-3 mb-lg-0">
+                        <input type="text" class="form-control" placeholder="Nome" id="nome" name="nome" required>
+                      </div>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" placeholder="Sobrenome" id="sobrenome" name="sobrenome" required>
+                      </div>
+                    </div>
+
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="dispositivo" class="col-sm-4 col-form-label
+                          form-label">Dispositivo</label>
+
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="dispositivo" name="dispositivo">
+                          {% for dispositivo in dispositivos %}
+                          <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="aplicativo" class="col-sm-4 col-form-label
+                          form-label">Aplicativo</label>
+
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="sistema" name="sistema">
+                          {% for sistema in sistemas %}
+                          <option value="{{ sistema.nome }}">{{ sistema.nome }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="indicado_por" class="col-sm-4 col-form-label
+                              form-label">Inidicador por</label>
+
+                      <div class="col-md-8 col-12">
+                        <input type="text" class="form-control" placeholder="Indicado por" id="indicado_por"
+                          list="indicador-options" name="indicador_list">
+                      </div>
+                      <!-- Definindo o datalist -->
+                      <datalist id="indicador-options">
+                        {% for indicador in indicadores %}
+                        <option value="{{ indicador.nome }}">
+                          {% endfor %}
+                      </datalist>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="servidor" class="col-sm-4 col-form-label
+                          form-label">Servidor</label>
+
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="servidor" name="servidor">
+                          {% for servidor in servidores %}
+                          <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="forma_pgto" class="col-sm-4 col-form-label
+                          form-label">Forma de pagamento</label>
+
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="forma_pgto" name="forma_pgto">
+                          {% for forma_pgto in formas_pgtos %}
+                          <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="plano" class="col-sm-4 col-form-label
+                          form-label">Planos</label>
+
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="plano" name="plano">
+                          {% for plano in planos %}
+                          <option value="{{ plano.nome }}-{{plano.valor}}">{{ plano.nome }} - {{ plano.valor }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="telas" class="col-sm-4 col-form-label
+                          form-label">Qtd. telas</label>
+
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="telas" name="telas">
+                          {% for tela in telas %}
+                          <option value="{{ tela.telas }}">{{ tela.telas }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="data_pagamento" class="col-sm-4 col-form-label form-label">Data de pagamento mensal
+                        <span class="text-muted"></span></label>
+                      <div class="col-md-8 col-12">
+                        <input type="number" class="form-control" placeholder="Dia" id="data_pagamento" min="1" max="31" name="data_pagamento"
+                          required>
+                      </div>
+                    </div>
+                    <div class="offset-md-4 col-md-8 mt-4">
+                      <button type="submit" class="btn btn-primary"> Cadastrar</button>
+                    </div>
+                </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Scripts -->
+      {% include 'partials/scripts.html' %}
+
+</body>
+
+</html>
+
+<script>
+  const input = document.querySelector('input[name="indicado_list"]');
+  input.addEventListener('change', (event) => {
+      const value = event.target.value;
+      input.value = value;
+  });
+
+</script>
