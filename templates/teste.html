@@ -9,32 +9,90 @@
 </head>
 
 <body>
-    <!-- row -->
-    <div class="mb-3 row">
-        <label for="indicado_por" class="col-sm-4 col-form-label
-                                form-label">Inidicador por</label>
-
-        <div class="col-md-8 col-12">
-            <input type="text" class="form-control" placeholder="Indicado por" id="indicado_por"
-                list="indicador-options" name="indicador_list" required>
-        </div>
-        <!-- Definindo o datalist -->
-        <datalist id="indicador-options">
-            {% for indicador in indicadores %}
-            <option value="{{ indicador.nome }}">
-                {% endfor %}
-        </datalist>
-    </div>
-
+    <table id="appsTable"
+        class="table table-bordered dt-responsive nowrap table-striped align-middle dataTable no-footer dtr-inline collapsed"
+        style="width: 100%;" aria-describedby="appsTable_info">
+        <thead class="text-muted table-light" style="width:100%">
+            <tr class="text-uppercase" style="width:100%">
+                <th scope="col" style="width: 74.4px;" class="sorting" tabindex="0" aria-controls="appsTable"
+                    rowspan="1" colspan="1" aria-label="Id: activate to sort column ascending">Id</th>
+                <th style="width: 54.4px;" class="dt-center sorting" tabindex="0" aria-controls="appsTable" rowspan="1"
+                    colspan="1" aria-label=": activate to sort column ascending"></th>
+                <th scope="col" style="width: 42.4px;" class="sorting" tabindex="0" aria-controls="appsTable"
+                    rowspan="1" colspan="1" aria-sort="descending"
+                    aria-label="App Id: activate to sort column ascending">App Id</th>
+                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
+                    style="width: 55.4px;" aria-label="Cliente: activate to sort column ascending">Cliente</th>
+                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
+                    style="width: 94.4px;" aria-label="MAC: activate to sort column ascending">MAC</th>
+                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
+                    style="width: 67.4px;" aria-label="CODE OTP: activate to sort column ascending">CODE OTP</th>
+                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
+                    style="width: 632.4px;" aria-label="PlayList: activate to sort column ascending">PlayList</th>
+                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
+                    style="width: 62.4px;" aria-label="Revenda: activate to sort column ascending">Revenda</th>
+                <th class="dt-center sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
+                    style="width: 0px; display: none;" aria-label="Notas: activate to sort column ascending">Notas</th>
+                <th class="dt-center sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
+                    style="width: 0px; display: none;" aria-label="Aparelho: activate to sort column ascending">Aparelho
+                </th>
+                <th class="dt-center sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
+                    style="width: 0px; display: none;" aria-label="Tipo: activate to sort column ascending">Tipo</th>
+                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
+                    style="width: 0px; display: none;" aria-label="Criação: activate to sort column ascending">Criação
+                </th>
+                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
+                    style="width: 0px; display: none;" aria-label="Vencimento: activate to sort column ascending">
+                    Vencimento</th>
+                <th class="sorting_disabled" rowspan="1" colspan="1" style="width: 85.8px;" aria-label=""></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr id="22275" class="odd dt-hasChild parent">
+                <td class="dtr-control" style="" id="DETALHES"><a href="">NOME</a></td>
+                <td class=" dt-center"><a href="javascript:void(0)" class="fs-4 clienteinfo me-1" id="show-user"
+                        data-bs-toggle="tooltip" data-bs-placement="top" title="Informações do Cliente"
+                        data-bs-trigger="hover" data-remote="22275" data-name="0b:b9:03:48:b9:e7"
+                        data-url="https://pro.offx.me/showclienteapp/22275"><i
+                            class="ri-file-info-line text-info"></i></a><a href="javascript:void(0)"
+                        class="fs-4 acesso me-2" id="show-user-acesso" data-bs-toggle="tooltip" data-bs-placement="top"
+                        title="Informações de Acesso" data-bs-trigger="hover" data-remote="50317"
+                        data-name="0b:b9:03:48:b9:e7" data-url="https://pro.offx.me/showacessoapp/50317"><i
+                            class="ri-video-line text-dark"></i></a></td>
+                <td class="sorting_1">50317</td>
+                <td>24600868</td>
+                <td>0b:b9:03:48:b9:e7</td>
+                <td>675763</td>
+                <td>http://playon.3225928.net/get.php?username=24600868&amp;password=1791328&amp;type=m3u_plus&amp;output=ts
+                </td>
+                <td>jorgereiis</td>
+                <td class=" dt-center" style="display: none;">Francisca Lima</td>
+                <td class=" dt-center" style="display: none;">Roku</td>
+                <td class=" dt-center" style="display: none;">TESTE 7 DIAS</td>
+                <td style="display: none;">25/04/2023</td>
+                <td style="display: none;">02/05/2023</td>
+                <td>
+                </td>
+            </tr>
+            <tr class="child" id="EXIBIR-DETALHES">
+                <td class="child" colspan="9">
+                    <ul data-dtr-index="0" class="dtr-details">
+                        <li class="dt-center" data-dtr-index="8" data-dt-row="0" data-dt-column="8"><span
+                                class="dtr-title">Notas</span> <span class="dtr-data">Francisca Lima</span></li>
+                        <li class="dt-center" data-dtr-index="9" data-dt-row="0" data-dt-column="9"><span
+                                class="dtr-title">Aparelho</span> <span class="dtr-data">Roku</span></li>
+                        <li class="dt-center" data-dtr-index="10" data-dt-row="0" data-dt-column="10"><span
+                                class="dtr-title">Tipo</span> <span class="dtr-data">TESTE 7 DIAS</span></li>
+                        <li data-dtr-index="11" data-dt-row="0" data-dt-column="11"><span
+                                class="dtr-title">Criação</span> <span class="dtr-data">25/04/2023</span></li>
+                        <li data-dtr-index="12" data-dt-row="0" data-dt-column="12"><span
+                                class="dtr-title">Vencimento</span> <span class="dtr-data">02/05/2023</span></li>
+                    </ul>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    {% include 'partials/scripts.html' %}
 </body>
 
 </html>
-
-<script>
-    const input = document.querySelector('input[name="indicado_list"]');
-    input.addEventListener('change', (event) => {
-        const value = event.target.value;
-        input.value = value;
-    });
-
-</script>

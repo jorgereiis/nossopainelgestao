@@ -13,7 +13,6 @@ from babel.numbers import format_currency
 from .models import Cliente, Mensalidade
 from datetime import datetime, timedelta
 from django.shortcuts import redirect
-from django.utils.timezone import now
 from django.shortcuts import render
 from django.utils import timezone
 from django.db.models import Sum
@@ -28,6 +27,7 @@ class TabelaDashboard(ListView):
     template_name = "dashboard.html"
     paginate_by = 15
 
+    # QUERY PARA O CAMPO DE PESQUISA DO DASHBOARD
     def get_queryset(self):
         query = self.request.GET.get("q")
         queryset = (
@@ -44,9 +44,16 @@ class TabelaDashboard(ListView):
             queryset = queryset.filter(nome__icontains=query)
         return queryset
 
+    # FUNÇÃO PARA RETORNAR RESULTADOS DAS QUERY UTILIZADAS NO DASHBOARD
     def get_context_data(self, **kwargs):
+        moeda = "BRL"
+        hoje = timezone.localtime().date()
+        ano_atual = timezone.localtime().year
+        proxima_semana = hoje + timedelta(days=7)
         context = super().get_context_data(**kwargs)
-        hoje = now().date()
+        total_clientes = self.get_queryset().count()
+        mes_atual = timezone.localtime().date().month
+
         clientes_em_atraso = Cliente.objects.filter(
             cancelado=False,
             mensalidade__cancelado=False,
@@ -54,10 +61,7 @@ class TabelaDashboard(ListView):
             mensalidade__pgto=False,
             mensalidade__dt_vencimento__lt=hoje,
         ).count()
-        total_clientes = self.get_queryset().count()
-        ano_atual = now().year
-        mes_atual = now().month
-        moeda = "BRL"
+
         valor_total_pago = (
             Mensalidade.objects.filter(
                 cancelado=False,
@@ -67,16 +71,19 @@ class TabelaDashboard(ListView):
             ).aggregate(valor_total=Sum("valor"))["valor_total"]
             or 0
         )
+
         locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
         valor_total_pago = locale.currency(
             valor_total_pago, grouping=True, symbol=False
         )
+
         valor_total_pago_qtd = Mensalidade.objects.filter(
             cancelado=False,
             dt_pagamento__year=ano_atual,
             dt_pagamento__month=mes_atual,
             pgto=True,
         ).count()
+
         valor_total_receber = (
             Mensalidade.objects.filter(
                 cancelado=False,
@@ -87,8 +94,7 @@ class TabelaDashboard(ListView):
             or 0
         )
         valor_total_receber = format_currency(valor_total_receber, moeda)
-        hoje = timezone.now().date()
-        proxima_semana = hoje + timedelta(days=7)
+
         valor_total_receber_qtd = Mensalidade.objects.filter(
             cancelado=False,
             dt_vencimento__gte=hoje,
@@ -96,15 +102,31 @@ class TabelaDashboard(ListView):
             pgto=False,
         ).count()
 
+        novos_clientes_qtd = (
+            Cliente.objects.filter(
+                cancelado=False,
+                data_adesao__year=ano_atual,
+                data_adesao__month=mes_atual,
+            )
+        ).count()
+
+        clientes_cancelados_qtd = Cliente.objects.filter(
+            cancelado=True,
+            data_adesao__year=ano_atual,
+            data_adesao__month=mes_atual,
+        ).count()
+
         context.update(
             {
                 "hoje": hoje,
                 "total_clientes": total_clientes,
                 "valor_total_pago": valor_total_pago,
+                "novos_clientes_qtd": novos_clientes_qtd,
                 "clientes_em_atraso": clientes_em_atraso,
                 "valor_total_receber": valor_total_receber,
                 "valor_total_pago_qtd": valor_total_pago_qtd,
                 "valor_total_receber_qtd": valor_total_receber_qtd,
+                "clientes_cancelados_qtd": clientes_cancelados_qtd,
             }
         )
         return context
@@ -115,7 +137,7 @@ def pagar_mensalidade(request, mensalidade_id):
     mensalidade = get_object_or_404(Mensalidade, pk=mensalidade_id)
 
     # realiza as modificações na mensalidade
-    mensalidade.dt_pagamento = datetime.now().date()
+    mensalidade.dt_pagamento = timezone.localtime().date()
     mensalidade.pgto = True
     mensalidade.save()
 
@@ -139,8 +161,13 @@ def cancelar_cliente(request, cliente_id):
 def Login(request):
     return render(request, "login.html")
 
+
 def ImportarClientes(request):
-    if request.method == "POST" and 'importar' in request.POST and request.FILES["arquivo"]:
+    if (
+        request.method == "POST"
+        and 'importar' in request.POST
+        and request.FILES["arquivo"]
+    ):
         arquivo_csv = request.FILES["arquivo"].read().decode("utf-8").splitlines()
 
         # Verifica o delimitador utilizado no arquivo .csv
@@ -215,13 +242,12 @@ def ImportarClientes(request):
 
     return render(
         request,
-        "pages/cadastro-cliente.html",
+        "pages/importar-cliente.html",
         {"mensagem": "Arquivo CSV importado com sucesso."},
     )
 
 
 def CadastroCliente(request):
-    print('>>>>>>>>>>>>>>>>>>>>> ',request.POST)
     # Recebendo os dados da requisição para criar um novo cliente
     if request.method == 'POST' and 'cadastrar' in request.POST:
         indicador = None
@@ -241,7 +267,11 @@ def CadastroCliente(request):
         nome_do_plano = lista[0]
         valor_do_plano = float(lista[1].replace(',', '.'))
         telas = request.POST.get('telas')
-        data_pagamento = request.POST.get('data_pagamento')
+        data_pagamento = (
+            int(request.POST.get('data_pagamento'))
+            if request.POST.get('data_pagamento')
+            else None
+        )
 
         cliente = Cliente(
             nome=(nome + " " + sobrenome),
@@ -256,7 +286,7 @@ def CadastroCliente(request):
         )
         cliente.save()
 
-        return redirect('cadastro')
+        return redirect('cadastro-cliente')
 
     # Criando os queryset para exibir os dados nos campos do fomulário
     servidor_queryset = Servidor.objects.all()
@@ -280,9 +310,6 @@ def CadastroCliente(request):
             'telas': telas_queryset,
         },
     )
-
-
-
 
 
 def Teste(request):

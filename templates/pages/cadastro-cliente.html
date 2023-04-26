@@ -20,38 +20,12 @@
         <div class="row">
           <div class="col-lg-12 col-md-12 col-12">
             <!-- Page header -->
-
             <div class="border-bottom pb-4 mb-4">
               <h3 class="mb-0 fw-bold">Cadastro de novos clientes</h3>
 
             </div>
-            <!-- col importar -->
-            <div class="row mb-8">
-              <div class="col-md-3 mb-3 mb-md-0">
-                <!-- heading importar -->
-                <h4 class="mb-0">Importar contatos em massa</h4>
-                <p class="mb-0 fs-5 text-muted">Importe aqui a sua planilha .csv contendo os dados dos seus clientes.
-                </p>
-                <p class="mb-0 fs-5 text-muted">Baixe e preencha a planilha de acordo com a identificação das colunas.
-                </p>
-                <p><a href="{% static 'download/upload.csv' %}">Baixei aqui! <img class="mb-0 fs-5 text-muted"
-                      src="{% static 'assets/images/svg/filetype-csv.svg' %}"></a></p>
-              </div>
-              <div class="col-md-9">
-                <!-- dropzone input importar -->
-                <form method="post" enctype="multipart/form-data">
-                  <div class="dropzone mb-3 border-dashed">
-                    {% csrf_token %}
-                    <div class="fallback">
-                      <input name="arquivo" type="file" accept=".csv" capture=".csv" />
-                    </div>
-                  </div>
-                  <button type="submit" class="btn btn-outline-white" name="importar">Importar</button>
-                </form>
-              </div>
-            </div>
-            <!-- col -->
           </div>
+           <!-- col -->
           <div class="row mb-8">
             <div class="col-xl-3 col-lg-4 col-md-12 col-12">
               <div class="mb-4 mb-lg-0">
@@ -70,7 +44,7 @@
                     <h4 class="mb-1">Formulário de cadastro</h4>
                   </div>
 
-                  <form method="POST" action="{% url 'cadastro' %}">
+                  <form method="POST">
                     <!-- row -->
                       {% csrf_token %}
                     <div class="mb-3 row">
@@ -184,12 +158,11 @@
                       <label for="data_pagamento" class="col-sm-4 col-form-label form-label">Data de pagamento mensal
                         <span class="text-muted"></span></label>
                       <div class="col-md-8 col-12">
-                        <input type="number" class="form-control" placeholder="Dia" id="data_pagamento" min="1" max="31" name="data_pagamento"
-                          required>
+                        <input type="number" class="form-control" placeholder="Dia" id="data_pagamento" min="1" max="31" name="data_pagamento">
                       </div>
                     </div>
                     <div class="offset-md-4 col-md-8 mt-4">
-                      <button type="submit" class="btn btn-primary" name="Cadastrar"> Cadastrar</button>
+                      <button type="submit" class="btn btn-primary" name="cadastrar"> Cadastrar</button>
                     </div>
                 </div>
                 </form>

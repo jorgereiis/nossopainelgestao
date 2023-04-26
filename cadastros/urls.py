@@ -19,8 +19,8 @@ urlpatterns = [
         "cancelar_cliente/<int:cliente_id>", cancelar_cliente, name="cancelar_cliente"
     ),
     path("dashboard/", TabelaDashboard.as_view(), name="dashboard"),
-    path("cadastro/", CadastroCliente, name="cadastro"),
-    path("cadastro/", ImportarClientes),
+    path("cadastro/", CadastroCliente, name="cadastro-cliente"),
+    path("importar/", ImportarClientes, name="importar-cliente"),
     path("teste/", Teste, name="teste"),
     path("", Login, name="login"),
 ]

@@ -33,8 +33,8 @@
                                             <img src="{% static 'assets/images/svg/list.svg' %}"> Cadastros
                                         </button>
                                         <div class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="{% url 'cadastro' %}">Cadastrar cliente</a></li>
-                                            <li><a class="dropdown-item" href="">...</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-cliente' %}">Cadastrar Cliente</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'importar-cliente' %}">Importar Clientes</a></li>
                                             <li><a class="dropdown-item" href="">...</a></li>
                                         </div>
                                     </div>
@@ -53,8 +53,7 @@
                                         <h4 class="mb-0">Clientes</h4>
                                     </div>
                                     <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
-                                        <img class="bi bi-briefcase fs-4"
-                                            src="{% static 'assets/images/svg/people.svg' %}">
+                                        <img class="bi bi-people fs-4" src="">
                                     </div>
                                 </div>
                                 <!-- project number -->
@@ -82,14 +81,13 @@
                                         <h4 class="mb-0">Recebido no mês</h4>
                                     </div>
                                     <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
-                                        <img class="bi bi-briefcase fs-4"
-                                            src="{% static 'assets/images/svg/wallet2.svg' %}">
+                                        <img class="bi bi-wallet2 fs-4"src="">
                                     </div>
                                 </div>
                                 <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold">{{valor_total_pago}}</h1>
-                                    <p class="mb-0"><span class="text-dark me-2">{{valor_total_pago_qtd}}</span>Pago(s)
+                                    <p class="mb-0"><span class="text-dark me-2">{{valor_total_pago_qtd}}</span>Pago(s) neste mês
                                     </p>
                                 </div>
                             </div>
@@ -106,8 +104,7 @@
                                         <h4 class="mb-0">À receber no mês</h4>
                                     </div>
                                     <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
-                                        <img class="bi bi-briefcase fs-4"
-                                            src="{% static 'assets/images/svg/cash-coin.svg' %}">
+                                        <img class="bi bi-cash-coin fs-4" src="">
                                     </div>
                                 </div>
                                 <!-- project number -->
@@ -131,17 +128,24 @@
                                 <!-- heading -->
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <div>
-                                        <h4 class="mb-0">Percentual de pagantes mês</h4>
+                                        <h4 class="mb-0">Adesões/cancelamentos</h4>
                                     </div>
                                     <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
-                                        <img class="bi bi-briefcase fs-4"
-                                            src="{% static 'assets/images/svg/percent.svg' %}">
+                                        <img class="bi bi-graph-up-arrow fs-4" src="">
                                     </div>
                                 </div>
                                 <!-- project number -->
                                 <div>
-                                    <h1 class="fw-bold">100%</h1>
-                                    <p class="mb-0"><span class="text-success me-2">Clientes em dia</span></p>
+                                    {% if novos_clientes_qtd > clientes_cancelados_qtd %}
+                                    <h1 class="fw-bold">{{novos_clientes_qtd}}</h1>
+                                    <p class="mb-0"><i class="bi bi-arrow-up-short"></i><span class="text-success me-2">Novos clientes chegando</span></p>
+                                    {% elif novos_clientes_qtd < clientes_cancelados_qtd %}
+                                    <h1 class="fw-bold">{{novos_clientes_qtd}}</h1>
+                                    <p class="mb-0"><span class="bi bi-arrow-down-short text-danger">Clientes cancelando</span></p>
+                                    {% else %}
+                                    <h1 class="fw-bold">{{novos_clientes_qtd}}</h1>
+                                    <p class="mb-0"><span class="text-dark me-2">Novos clientes</span></p>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -204,8 +208,7 @@
                                             {% for mensalidade in cliente.mensalidade_set.all %}
                                             {% if mensalidade.dt_pagamento is None or not mensalidade.pgto %}
                                             {% if hoje > mensalidade.dt_vencimento %}
-                                            <td class="align-middle"><span class="badge bg-danger">{{ mensalidade.valor
-                                                    }} [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
+                                            <td class="align-middle"><span class="badge bg-danger">{{ mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                             {% else %}
                                             <td class="align-middle text-primary"><span class="badge bg-info">{{ mensalidade.valor }}
                                                     [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>

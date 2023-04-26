@@ -123,7 +123,9 @@ class Cliente(models.Model):
     )
     plano = models.ForeignKey(Plano, on_delete=models.CASCADE, default=1)
     telas = models.ForeignKey(Qtd_tela, on_delete=models.CASCADE, default=1)
-    data_adesao = models.DateField("Data de adesão", default=datetime.now().date())
+    data_adesao = models.DateField(
+        "Data de adesão", default=timezone.localtime().date()
+    )
     data_cancelamento = models.DateField("Data de cancelamento", blank=True, null=True)
     ultimo_pagamento = models.DateField(
         "Último pagamento realizado", blank=True, null=True
@@ -132,15 +134,12 @@ class Cliente(models.Model):
 
     def save(self, *args, **kwargs):
         if self.ultimo_pagamento:
-            dia_adesao = self.ultimo_pagamento.day
-        elif self.data_pagamento:
-            dia_adesao = self.data_pagamento
-        else:
-            dia_adesao = self.data_adesao.day
+            dia = self.ultimo_pagamento.day
+            self.data_pagamento = definir_dia_pagamento(dia)
 
-        dia_pagamento = definir_dia_pagamento(dia_adesao)
-
-        self.data_pagamento = dia_pagamento
+        elif self.data_adesao and self.data_pagamento == None:
+            dia = self.data_adesao.day
+            self.data_pagamento = definir_dia_pagamento(dia)
 
         self.definir_data_cancelamento()
 
@@ -172,7 +171,7 @@ class Mensalidade(models.Model):
     valor = models.DecimalField("Valor", max_digits=5, decimal_places=2, default=None)
     dt_vencimento = models.DateField(
         "Data de vencimento",
-        default=datetime.now().date() + timezone.timedelta(days=30),
+        default=timezone.localtime().date() + timezone.timedelta(days=30),
     )
     dt_pagamento = models.DateField(
         "Data de pagamento", default=None, null=True, blank=True

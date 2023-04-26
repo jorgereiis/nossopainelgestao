@@ -26,13 +26,22 @@ def atualiza_ultimo_pagamento(sender, instance, **kwargs):
 @receiver(post_save, sender=Cliente)
 def criar_mensalidade(sender, instance, created, **kwargs):
     if created:
-        data_pagamento = instance.data_pagamento
-        dia = definir_dia_pagamento(data_pagamento)
-        mes = datetime.now().date().month
-        ano = datetime.now().date().year
-        vencimento = datetime(ano, mes, dia)
+        if instance.ultimo_pagamento:
+            dia = instance.ultimo_pagamento.day
+            dia_pagamento = definir_dia_pagamento(dia)
 
-        if vencimento.day <= datetime.now().day:
+        elif instance.data_adesao and instance.data_pagamento == None:
+            dia = instance.data_adesao.day
+            dia_pagamento = definir_dia_pagamento(dia)
+
+        else:
+            dia_pagamento = instance.data_pagamento
+
+        mes = timezone.localtime().date().month
+        ano = timezone.localtime().date().year
+        vencimento = datetime(ano, mes, dia_pagamento)
+
+        if vencimento.day <= timezone.localtime().date().day:
             # Define o mês/ano de vencimento de acordo com o plano do cliente
             if instance.plano.nome == Plano.CHOICES[0][0]:
                 vencimento += relativedelta(months=1)
@@ -51,7 +60,7 @@ def criar_mensalidade(sender, instance, created, **kwargs):
 def criar_nova_mensalidade(sender, instance, **kwargs):
     if instance.dt_pagamento and instance.pgto:
         dia_vencimento = instance.dt_vencimento.day
-        dia_atual = datetime.now().day
+        dia_atual = timezone.localtime().date().day
 
         # Verifica se o dia do vencimento da mensalidade anterior é maior que o dia atual.
         # Se verdadeiro, define a variável `novo_vencimento` como a mesma da mensalidade anterior.
