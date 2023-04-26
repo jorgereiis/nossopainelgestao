@@ -190,7 +190,7 @@
                                                         </div>
                                                     </div>
                                                     <div class="ms-3 lh-1">
-                                                        <h5 class=" mb-1 text-capitalize small"> <a href="#"
+                                                        <h5 class="mb-1 text-capitalize small"> <a onclick="toggleDetails({{cliente.id}})"
                                                                 class="text-inherit">{{cliente.nome}}</a></h5>
                                                     </div>
                                                 </div>
@@ -240,8 +240,23 @@
                                                 <td colspan="13" class="text-center">Não há registros.</td>
                                             </tr>
                                         </tr>
-                                        {% endfor %}
+                                        <tr class="child" id="{{cliente.id}}" style="display: none;">
+                                            <td class="child" colspan="9">
+                                                <ul data-dtr-index="0" class="dtr-details">
+                                                    <li class="dt-center" data-dtr-index="8" data-dt-row="0" data-dt-column="8"><span
+                                                            class="dtr-title">Notas</span> <span class="dtr-data">Francisca Lima</span></li>
+                                                    <li class="dt-center" data-dtr-index="9" data-dt-row="0" data-dt-column="9"><span
+                                                            class="dtr-title">Aparelho</span> <span class="dtr-data">Roku</span></li>
+                                                    <li class="dt-center" data-dtr-index="10" data-dt-row="0" data-dt-column="10"><span
+                                                            class="dtr-title">Tipo</span> <span class="dtr-data">TESTE 7 DIAS</span></li>
+                                                    <li data-dtr-index="11" data-dt-row="0" data-dt-column="11"><span
+                                                            class="dtr-title">Criação</span> <span class="dtr-data">25/04/2023</span></li>
+                                                    <li data-dtr-index="12" data-dt-row="0" data-dt-column="12"><span
+                                                            class="dtr-title">Vencimento</span> <span class="dtr-data">02/05/2023</span></li>
+                                                </ul>
+                                            </td>
                                         </tr>
+                                        {% endfor %}
                                         <!-- TÉRMINO DA LINHA -->
                                     </tbody>
                                 </table>
@@ -330,3 +345,17 @@
 
 </html>
 
+<script>
+    var showDetails = {};
+  
+    function toggleDetails(itemId) {
+      var detailsRow = document.getElementById(itemId);
+      if (showDetails[itemId]) {
+        detailsRow.style.display = "none";
+        showDetails[itemId] = false;
+      } else {
+        detailsRow.style.display = "";
+        showDetails[itemId] = true;
+      }
+    }
+  </script>

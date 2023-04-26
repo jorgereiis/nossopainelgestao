@@ -74,7 +74,7 @@
                 <td>
                 </td>
             </tr>
-            <tr class="child" id="EXIBIR-DETALHES">
+            <tr class="child" id="EXIBIR-DETALHES" style="display: none;">
                 <td class="child" colspan="9">
                     <ul data-dtr-index="0" class="dtr-details">
                         <li class="dt-center" data-dtr-index="8" data-dt-row="0" data-dt-column="8"><span
@@ -96,3 +96,12 @@
 </body>
 
 </html>
+
+<script>
+    const detalhes = document.querySelector('#DETALHES');
+    const exibirDetalhes = document.querySelector('#EXIBIR-DETALHES');
+
+    detalhes.addEventListener('click', () => {
+        exibirDetalhes.style.display = 'table-row';
+    });
+</script>
