@@ -6,4 +6,5 @@ class CadastrosConfig(AppConfig):
     name = "cadastros"
 
     def ready(self):
-        import cadastros.signals
+        import cadastros.signals, cadastros.utils
+

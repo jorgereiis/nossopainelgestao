@@ -34,6 +34,7 @@ class ClienteAdmin(admin.ModelAdmin):
         "servidor",
         'forma_pgto',
         'data_pagamento',
+        'cancelado',
     )
 
     search_fields = (
@@ -47,9 +48,17 @@ class MensalidadeAdmin(admin.ModelAdmin):
         "cliente",
         "dt_vencimento",
         "dt_pagamento",
+        "dt_cancelamento",
         "valor",
         "pgto",
         "cancelado",
+    )
+
+    list_filter = (
+        'dt_vencimento',
+        'dt_pagamento',
+        'pgto',
+        'cancelado',
     )
 
     search_fields = (

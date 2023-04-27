@@ -156,6 +156,7 @@ class Cliente(models.Model):
                 mensalidades = self.mensalidade_set.all()
                 for mensalidade in mensalidades:
                     mensalidade.cancelado = True
+                    mensalidade.dt_cancelamento = timezone.localtime().date()
                     mensalidade.save()
 
     def formatar_telefone(self):
@@ -171,12 +172,13 @@ class Mensalidade(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT)
     valor = models.DecimalField("Valor", max_digits=5, decimal_places=2, default=None)
     dt_vencimento = models.DateField(
-        "Data de vencimento",
+        "Data do vencimento",
         default=timezone.localtime().date() + timezone.timedelta(days=30),
     )
     dt_pagamento = models.DateField(
-        "Data de pagamento", default=None, null=True, blank=True
+        "Data do pagamento", default=None, null=True, blank=True
     )
+    dt_cancelamento = models.DateField("Data do cancelamento", default=None, null=True, blank=True)
     pgto = models.BooleanField("Pago", default=False)
     cancelado = models.BooleanField(default=False)
 
@@ -244,18 +246,3 @@ class ContaDoAplicativo(models.Model):
 
     def __str__(self):
         return super().__str__()
-
-
-"""
-<div class="mb-3 row">
-<label for="servidor" class="col-sm-4 col-form-label
-form-label">Servidor</label>
-
-<div class="col-md-8 col-12">
-<select class="form-select" id="servidor">
-{% for servidor in servidores %}
-<option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
-{% endfor %}
-</select>                          
-</div>
-</div>"""

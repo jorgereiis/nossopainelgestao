@@ -18,7 +18,6 @@ from django.utils import timezone
 from django.db.models import Sum
 from django.db.models import Q
 import locale
-import json
 import csv
 
 
@@ -112,8 +111,8 @@ class TabelaDashboard(ListView):
 
         clientes_cancelados_qtd = Cliente.objects.filter(
             cancelado=True,
-            data_adesao__year=ano_atual,
-            data_adesao__month=mes_atual,
+            data_cancelamento__year=ano_atual,
+            data_cancelamento__month=mes_atual,
         ).count()
 
         context.update(
@@ -151,6 +150,7 @@ def cancelar_cliente(request, cliente_id):
 
     # realiza as modificações no cliente
     cliente.cancelado = True
+    cliente.data_cancelamento = timezone.localtime().date()
     cliente.save()
 
     # redireciona para a página anterior
@@ -162,6 +162,7 @@ def Login(request):
     return render(request, "login.html")
 
 
+# IMPORTAR CLIENTES
 def ImportarClientes(request):
     if (
         request.method == "POST"
@@ -310,6 +311,16 @@ def CadastroCliente(request):
             'telas': telas_queryset,
         },
     )
+
+
+def CadastroFormaPagamento(request):
+
+    formas_pgto = Tipos_pgto.objects.all()
+
+
+    return render(request, 'pages/cadastro-forma-pagamento.html', {
+        'formas_pgto': formas_pgto,
+    })
 
 
 def Teste(request):

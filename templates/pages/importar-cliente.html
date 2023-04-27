@@ -25,14 +25,14 @@
                             <h3 class="mb-0 fw-bold">Importe os dados dos seus clientes e comece a gerenciá-los de forma inteligente.</h3>
                         </div>
                         <!-- col importar -->
-                        <div class="row mb-8">
+                        <div class="row mb-20">
                             <div  class="col-md-3 mb-3 mb-md-0">
                                 <!-- dropzone input importar -->
                                 <form method="post" enctype="multipart/form-data">
                                     <div class="dropzone mb-3 border-dashed">
                                         {% csrf_token %}
                                         <div class="fallback">
-                                            <input name="arquivo" type="file" accept=".csv" capture=".csv" />
+                                            <input name="arquivo" type="file" accept=".csv" capture=".csv" class="w-100"/>
                                         </div>
                                     </div>
                                     <button type="submit" class="btn btn-outline-white"

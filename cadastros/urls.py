@@ -6,6 +6,7 @@ from .views import (
     TabelaDashboard,
     CadastroCliente,
     ImportarClientes,
+    CadastroFormaPagamento,
     Teste,
 )
 
@@ -22,5 +23,6 @@ urlpatterns = [
     path("cadastro/", CadastroCliente, name="cadastro-cliente"),
     path("importar/", ImportarClientes, name="importar-cliente"),
     path("teste/", Teste, name="teste"),
+    path("forma-pagamento/", CadastroFormaPagamento, name="forma-pagamento"),
     path("", Login, name="login"),
 ]

@@ -26,15 +26,16 @@
                                 <div class="mb-2 mb-lg-0">
                                     <h2 class="mb-0  text-white">Dashboard</h2>
                                 </div>
-                                <!-- Dropdown Cadastros -->
+                                <!-- Dropdown Opções -->
                                 <div class="btn-group">
                                     <div class="dropdown">
                                         <button class="btn btn-light mb-2 dropdown-toggle" data-bs-toggle="dropdown">
-                                            <img src="{% static 'assets/images/svg/list.svg' %}"> Cadastros
+                                            <img src="{% static 'assets/images/svg/list.svg' %}"> Opções
                                         </button>
                                         <div class="dropdown-menu">
                                             <li><a class="dropdown-item" href="{% url 'cadastro-cliente' %}">Cadastrar Cliente</a></li>
                                             <li><a class="dropdown-item" href="{% url 'importar-cliente' %}">Importar Clientes</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'forma-pagamento' %}">Formas de Pagamento</a></li>
                                             <li><a class="dropdown-item" href="">...</a></li>
                                         </div>
                                     </div>
