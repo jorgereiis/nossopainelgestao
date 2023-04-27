@@ -131,6 +131,7 @@ class Cliente(models.Model):
         "Último pagamento realizado", blank=True, null=True
     )
     cancelado = models.BooleanField("Cancelado", default=False)
+    notas = models.TextField("Notas", blank=True, null=True)
 
     def save(self, *args, **kwargs):
         if self.ultimo_pagamento:

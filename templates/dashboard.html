@@ -128,24 +128,22 @@
                                 <!-- heading -->
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <div>
-                                        <h4 class="mb-0">Adesões/cancelamentos</h4>
+                                        <h5 class="mb-0">Adesões e cancelamentos neste mês</h5>
                                     </div>
                                     <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
                                         <img class="bi bi-graph-up-arrow fs-4" src="">
                                     </div>
                                 </div>
                                 <!-- project number -->
-                                <div>
-                                    {% if novos_clientes_qtd > clientes_cancelados_qtd %}
-                                    <h1 class="fw-bold">{{novos_clientes_qtd}}</h1>
-                                    <p class="mb-0"><i class="bi bi-arrow-up-short"></i><span class="text-success me-2">Novos clientes chegando</span></p>
-                                    {% elif novos_clientes_qtd < clientes_cancelados_qtd %}
-                                    <h1 class="fw-bold">{{novos_clientes_qtd}}</h1>
-                                    <p class="mb-0"><span class="bi bi-arrow-down-short text-danger">Clientes cancelando</span></p>
-                                    {% else %}
-                                    <h1 class="fw-bold">{{novos_clientes_qtd}}</h1>
-                                    <p class="mb-0"><span class="text-dark me-2">Novos clientes</span></p>
-                                    {% endif %}
+                                <div  class="d-flex">
+                                    <div style="display: flex; flex-direction: column; mr-0">
+                                        <h2 class="fw-bold mb-0">{{novos_clientes_qtd}}</h2>
+                                        <h2 class="fw-bold mb-0">{{clientes_cancelados_qtd}}</h2>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <p class="mb-5"><i class="bi bi-arrow-up-short text-success"></i><span class="text-success ms-2">Novos</span></p>
+                                        <p class="mb-0"><i class="bi bi-arrow-down-short text-danger"></i><span class="ms-2 text-danger">Cancelados</span></p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -166,7 +164,7 @@
                             <!-- TABELA  -->
                             <div class="table-responsive">
                                 <table class="table text-nowrap mb-0 table-hover" id="myTable">
-                                    <thead class="table-light ">
+                                    <thead class="table-light">
                                         <tr>
                                             <th class="fw-bold text-center">Nome</th>
                                             <th class="fw-bold text-center">Data adesão</th>
@@ -178,10 +176,10 @@
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        {% for cliente in object_list %}
                                         <!-- COMEÇO DA LINHA -->
-                                            {% for cliente in object_list %}
-                                        <tr>
-                                            <td class="align-middle">
+                                        <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent">
+                                            <td class="dtr-control align-middle" style="cursor: pointer;" id="DETALHES-{{ forloop.counter }}">
                                                 <div class="d-flex align-items-center">
                                                     <div>
                                                         <div class="icon-shape icon-md border p-1 rounded-circle">
@@ -190,27 +188,25 @@
                                                         </div>
                                                     </div>
                                                     <div class="ms-3 lh-1">
-                                                        <h5 class="mb-1 text-capitalize small"> <a onclick="toggleDetails({{cliente.id}})"
-                                                                class="text-inherit">{{cliente.nome}}</a></h5>
+                                                        <h5 class="text-capitalize small" class="text-inherit" onmouseover="this.style.color='#624BFF'" onmouseout="this.style.color=''">{{cliente.nome}}</h5>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td class="small">{{cliente.data_adesao|date:'d/m/Y'}}</td>
-                                            <td class="small">{{cliente.dispositivo}}</td>
-                                            <td class="text-capitalize small">{{cliente.sistema}}</td>
-
+                                            <td class="small text-center">{{cliente.data_adesao|date:'d/m/Y'}}</td>
+                                            <td class="small text-center">{{cliente.dispositivo}}</td>
+                                            <td class="text-capitalize small text-center">{{cliente.sistema}}</td>
                                             {% if cliente.ultimo_pagamento %}
-                                            <td class="small">{{cliente.ultimo_pagamento|date:'d/m/Y'}}</td>
+                                            <td class="small text-center">{{cliente.ultimo_pagamento|date:'d/m/Y'}}</td>
                                             {% else %}
-                                            <td class="small"></td>
+                                            <td class="small text-center"></td>
                                             {% endif %}
 
                                             {% for mensalidade in cliente.mensalidade_set.all %}
                                             {% if mensalidade.dt_pagamento is None or not mensalidade.pgto %}
                                             {% if hoje > mensalidade.dt_vencimento %}
-                                            <td class="align-middle"><span class="badge bg-danger">{{ mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
+                                            <td class="align-middle text-center"><span class="badge bg-danger">{{ mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                             {% else %}
-                                            <td class="align-middle text-primary"><span class="badge bg-info">{{ mensalidade.valor }}
+                                            <td class="align-middle text-primary text-center"><span class="badge bg-info">{{ mensalidade.valor }}
                                                     [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                             {% endif %}
                                             <!-- Dropdown da tabela -->
@@ -235,29 +231,31 @@
                                               
                                             {% endif %}
                                             {% endfor %}
-                                            {% empty %}
-                                            <tr>
-                                                <td colspan="13" class="text-center">Não há registros.</td>
-                                            </tr>
+                                            
                                         </tr>
-                                        <tr class="child" id="{{cliente.id}}" style="display: none;">
-                                            <td class="child" colspan="9">
-                                                <ul data-dtr-index="0" class="dtr-details">
-                                                    <li class="dt-center" data-dtr-index="8" data-dt-row="0" data-dt-column="8"><span
-                                                            class="dtr-title">Notas</span> <span class="dtr-data">Francisca Lima</span></li>
-                                                    <li class="dt-center" data-dtr-index="9" data-dt-row="0" data-dt-column="9"><span
-                                                            class="dtr-title">Aparelho</span> <span class="dtr-data">Roku</span></li>
-                                                    <li class="dt-center" data-dtr-index="10" data-dt-row="0" data-dt-column="10"><span
-                                                            class="dtr-title">Tipo</span> <span class="dtr-data">TESTE 7 DIAS</span></li>
-                                                    <li data-dtr-index="11" data-dt-row="0" data-dt-column="11"><span
-                                                            class="dtr-title">Criação</span> <span class="dtr-data">25/04/2023</span></li>
-                                                    <li data-dtr-index="12" data-dt-row="0" data-dt-column="12"><span
-                                                            class="dtr-title">Vencimento</span> <span class="dtr-data">02/05/2023</span></li>
+                                        <tr class="child" id="exibir-detalhes-{{ forloop.counter }}" style="display: none;">
+                                            <td class="child small" colspan="8">
+                                                <ul data-dtr-index="0" class="list-group list-group-flush">
+                                                    <li class="list-group-item" style="list-style-type: armenian;"><span class="title">Telefone:</span><span>{{cliente.telefone}}</span></li>
+                                                    {% if cliente.indicado_por == None %}
+                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Indicado por: </span> <span>Ninguém</span></li>
+                                                    {% else %}
+                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Indicado por: </span> <span>{{cliente.indicado_por}}</span></li>
+                                                    {% endif %}
+                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Data de pagamento: </span> <span>Dia {{cliente.data_pagamento}} de cada mês</span></li>
+                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Forma de pagamento: </span> <span>{{cliente.forma_pgto}}</span></li>
+                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Plano: </span><span>{{cliente.plano}}</span></li>
+                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Qtd. telas: </span> <span>{{cliente.telas}}</span></li>
+                                                    {% if cliente.notas == None %}
+                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Notas: </span> <span></span></li>
+                                                    {% else %}
+                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Notas: </span> <span>{{cliente.notas}}</span></li>
+                                                    {% endif %}
                                                 </ul>
                                             </td>
                                         </tr>
-                                        {% endfor %}
                                         <!-- TÉRMINO DA LINHA -->
+                                        {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
@@ -341,21 +339,29 @@
 .objeto:hover {
   transform: translateY(-5px);
 }
+
+
+span.title {
+    font-weight: bold;
+}
+
+.child span {
+  width: 120px;
+}
 </style>
 
 </html>
 
 <script>
-    var showDetails = {};
-  
-    function toggleDetails(itemId) {
-      var detailsRow = document.getElementById(itemId);
-      if (showDetails[itemId]) {
-        detailsRow.style.display = "none";
-        showDetails[itemId] = false;
-      } else {
-        detailsRow.style.display = "";
-        showDetails[itemId] = true;
-      }
-    }
+    // seleciona todos os elementos de classe "dtr-control" que têm um id que começa com "DETALHES-"
+    document.querySelectorAll('.dtr-control[id^="DETALHES-"]').forEach(function (element) {
+        // adiciona um manipulador de eventos para o elemento clicado
+        element.addEventListener('click', function () {
+            // obtém o valor do contador de iteração do id
+            var id = this.id.split('-')[1];
+            // obtém o elemento filho correspondente e alterna sua exibição
+            var child = document.getElementById('exibir-detalhes-' + id);
+            child.style.display = child.style.display === 'none' ? 'table-row' : 'none';
+        });
+    });
   </script>

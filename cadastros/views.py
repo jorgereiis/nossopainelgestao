@@ -313,12 +313,12 @@ def CadastroCliente(request):
 
 
 def Teste(request):
-    indicador_por_queryset = Cliente.objects.all()
+    clientes = Cliente.objects.all()
 
     return render(
         request,
         'teste.html',
         {
-            'indicadores': indicador_por_queryset,
+            'clientes': clientes,
         },
     )

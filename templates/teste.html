@@ -25,31 +25,12 @@
                     style="width: 55.4px;" aria-label="Cliente: activate to sort column ascending">Cliente</th>
                 <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
                     style="width: 94.4px;" aria-label="MAC: activate to sort column ascending">MAC</th>
-                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
-                    style="width: 67.4px;" aria-label="CODE OTP: activate to sort column ascending">CODE OTP</th>
-                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
-                    style="width: 632.4px;" aria-label="PlayList: activate to sort column ascending">PlayList</th>
-                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
-                    style="width: 62.4px;" aria-label="Revenda: activate to sort column ascending">Revenda</th>
-                <th class="dt-center sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
-                    style="width: 0px; display: none;" aria-label="Notas: activate to sort column ascending">Notas</th>
-                <th class="dt-center sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
-                    style="width: 0px; display: none;" aria-label="Aparelho: activate to sort column ascending">Aparelho
-                </th>
-                <th class="dt-center sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
-                    style="width: 0px; display: none;" aria-label="Tipo: activate to sort column ascending">Tipo</th>
-                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
-                    style="width: 0px; display: none;" aria-label="Criação: activate to sort column ascending">Criação
-                </th>
-                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
-                    style="width: 0px; display: none;" aria-label="Vencimento: activate to sort column ascending">
-                    Vencimento</th>
-                <th class="sorting_disabled" rowspan="1" colspan="1" style="width: 85.8px;" aria-label=""></th>
             </tr>
         </thead>
         <tbody>
-            <tr id="22275" class="odd dt-hasChild parent">
-                <td class="dtr-control" style="" id="DETALHES"><a href="">NOME</a></td>
+            {% for cliente in clientes %}
+            <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent">
+                <td class="dtr-control" style="cursor: pointer;" id="DETALHES-{{ forloop.counter }}">{{cliente.nome}} - {{ forloop.counter }}</td>
                 <td class=" dt-center"><a href="javascript:void(0)" class="fs-4 clienteinfo me-1" id="show-user"
                         data-bs-toggle="tooltip" data-bs-placement="top" title="Informações do Cliente"
                         data-bs-trigger="hover" data-remote="22275" data-name="0b:b9:03:48:b9:e7"
@@ -62,34 +43,18 @@
                 <td class="sorting_1">50317</td>
                 <td>24600868</td>
                 <td>0b:b9:03:48:b9:e7</td>
-                <td>675763</td>
-                <td>http://playon.3225928.net/get.php?username=24600868&amp;password=1791328&amp;type=m3u_plus&amp;output=ts
-                </td>
-                <td>jorgereiis</td>
-                <td class=" dt-center" style="display: none;">Francisca Lima</td>
-                <td class=" dt-center" style="display: none;">Roku</td>
-                <td class=" dt-center" style="display: none;">TESTE 7 DIAS</td>
-                <td style="display: none;">25/04/2023</td>
-                <td style="display: none;">02/05/2023</td>
-                <td>
-                </td>
             </tr>
-            <tr class="child" id="EXIBIR-DETALHES" style="display: none;">
+            <tr class="child" id="exibir-detalhes-{{ forloop.counter }}" style="display: none;">
                 <td class="child" colspan="9">
                     <ul data-dtr-index="0" class="dtr-details">
                         <li class="dt-center" data-dtr-index="8" data-dt-row="0" data-dt-column="8"><span
                                 class="dtr-title">Notas</span> <span class="dtr-data">Francisca Lima</span></li>
                         <li class="dt-center" data-dtr-index="9" data-dt-row="0" data-dt-column="9"><span
                                 class="dtr-title">Aparelho</span> <span class="dtr-data">Roku</span></li>
-                        <li class="dt-center" data-dtr-index="10" data-dt-row="0" data-dt-column="10"><span
-                                class="dtr-title">Tipo</span> <span class="dtr-data">TESTE 7 DIAS</span></li>
-                        <li data-dtr-index="11" data-dt-row="0" data-dt-column="11"><span
-                                class="dtr-title">Criação</span> <span class="dtr-data">25/04/2023</span></li>
-                        <li data-dtr-index="12" data-dt-row="0" data-dt-column="12"><span
-                                class="dtr-title">Vencimento</span> <span class="dtr-data">02/05/2023</span></li>
                     </ul>
                 </td>
             </tr>
+            {% endfor %}
         </tbody>
     </table>
     {% include 'partials/scripts.html' %}
@@ -98,10 +63,15 @@
 </html>
 
 <script>
-    const detalhes = document.querySelector('#DETALHES');
-    const exibirDetalhes = document.querySelector('#EXIBIR-DETALHES');
-
-    detalhes.addEventListener('click', () => {
-        exibirDetalhes.style.display = 'table-row';
+    // seleciona todos os elementos de classe "dtr-control" que têm um id que começa com "DETALHES-"
+    document.querySelectorAll('.dtr-control[id^="DETALHES-"]').forEach(function (element) {
+        // adiciona um manipulador de eventos para o elemento clicado
+        element.addEventListener('click', function () {
+            // obtém o valor do contador de iteração do id
+            var id = this.id.split('-')[1];
+            // obtém o elemento filho correspondente e alterna sua exibição
+            var child = document.getElementById('exibir-detalhes-' + id);
+            child.style.display = child.style.display === 'none' ? 'table-row' : 'none';
+        });
     });
 </script>
