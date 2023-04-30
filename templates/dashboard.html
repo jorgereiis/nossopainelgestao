@@ -5,7 +5,7 @@
 
 <head>
     {% include 'partials/head.html' %}
-    <title>Dashboard | Nosso Painel -  Gestão IPTV</title>
+    <title>Dashboard | Nosso Painel - Gestão IPTV</title>
 </head>
 
 <body class="bg-light">
@@ -24,7 +24,7 @@
                         <div>
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="mb-2 mb-lg-0">
-                                    <h2 class="mb-0  text-white">Dashboard</h2>
+                                    <h2 class="mb-0  text-white">Dashboard <i class="bi bi-eye" id="eye"></i></h2>
                                 </div>
                                 <!-- Dropdown Opções -->
                                 <div class="btn-group">
@@ -33,14 +33,30 @@
                                             <img src="{% static 'assets/images/svg/list.svg' %}"> Opções
                                         </button>
                                         <div class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="{% url 'cadastro-cliente' %}"><img src="{% static 'assets/images/svg/person-plus.svg' %}"> Novo Cliente</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'importar-cliente' %}"><img src="{% static 'assets/images/svg/upload.svg' %}"> Importar Clientes</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'cadastro-aplicativos' %}"><li><img src="{% static 'assets/images/svg/app-indicator.svg' %}"> Aplicativos</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'cadastro-dispositivos' %}"><img src="{% static 'assets/images/svg/display.svg' %}"> Dispositivos</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'forma-pagamento' %}"><img src="{% static 'assets/images/svg/credit-card.svg' %}"> Formas de Pagamento</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'plano-indicacao' %}"><img src="{% static 'assets/images/svg/award.svg' %}"> Planos de Indicação</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'cadastro-plano-mensal' %}"><img src="{% static 'assets/images/svg/piggy-bank.svg' %}"> Planos Mensais</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'servidores' %}"><img src="{% static 'assets/images/svg/hdd-stack.svg' %}"> Servidores</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-cliente' %}"><img
+                                                        src="{% static 'assets/images/svg/person-plus.svg' %}"> Novo
+                                                    Cliente</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'importar-cliente' %}"><img
+                                                        src="{% static 'assets/images/svg/upload.svg' %}"> Importar
+                                                    Clientes</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-aplicativos' %}">
+                                            <li><img src="{% static 'assets/images/svg/app-indicator.svg' %}">
+                                                Aplicativos</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-dispositivos' %}"><img
+                                                        src="{% static 'assets/images/svg/display.svg' %}">
+                                                    Dispositivos</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'forma-pagamento' %}"><img
+                                                        src="{% static 'assets/images/svg/credit-card.svg' %}"> Formas
+                                                    de Pagamento</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'plano-indicacao' %}"><img
+                                                        src="{% static 'assets/images/svg/award.svg' %}"> Planos de
+                                                    Indicação</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-plano-mensal' %}"><img
+                                                        src="{% static 'assets/images/svg/piggy-bank.svg' %}"> Planos
+                                                    Mensais</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'servidores' %}"><img
+                                                        src="{% static 'assets/images/svg/hdd-stack.svg' %}">
+                                                    Servidores</a></li>
                                         </div>
                                     </div>
                                 </div>
@@ -63,12 +79,14 @@
                                 </div>
                                 <!-- project number -->
                                 <div>
-                                    <h1 class="fw-bold">{{total_clientes}}</h1>
+                                    <h1 class="fw-bold values1_h1">{{total_clientes}}</h1>
                                     {% if clientes_em_atraso > 0%}
-                                    <span class="me-2"><span class="text-dark me-2">{{clientes_em_atraso}}</span><span
+                                    <span class="me-2 ms-auto"><span
+                                            class="text-dark me-2 values1_span">{{clientes_em_atraso}}</span><span
                                             class="bi bi-arrow-down-short text-danger">Em atraso</span></span>
                                     {% else %}
-                                    <span class="me-2"><span class="text-dark me-2">{{clientes_em_atraso}}</span>Em
+                                    <span class="me-2 ms-auto"><span
+                                            class="text-dark me-2 values1_span">{{clientes_em_atraso}}</span>Em
                                         atraso</span>
                                     {% endif %}
                                 </div>
@@ -81,18 +99,19 @@
                             <!-- card body -->
                             <div class="card-body">
                                 <!-- heading -->
-                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3 objeto">
                                     <div>
                                         <h4 class="mb-0">Recebido no mês</h4>
                                     </div>
                                     <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
-                                        <img class="bi bi-wallet2 fs-4"src="">
+                                        <img class="bi bi-wallet2 fs-4" src="">
                                     </div>
                                 </div>
                                 <!-- project number -->
                                 <div>
-                                    <h1 class="fw-bold">{{valor_total_pago}}</h1>
-                                    <p class="mb-0"><span class="text-dark me-2">{{valor_total_pago_qtd}}</span>Pago(s) neste mês
+                                    <h1 class="fw-bold values2_h1">{{valor_total_pago}}</h1>
+                                    <p class="mb-0"><span class="text-dark me-2 values2_span">{{valor_total_pago_qtd}}</span>Pago(s)
+                                        neste mês
                                     </p>
                                 </div>
                             </div>
@@ -104,7 +123,7 @@
                             <!-- card body -->
                             <div class="card-body">
                                 <!-- heading -->
-                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3 objeto">
                                     <div>
                                         <h4 class="mb-0">À receber no mês</h4>
                                     </div>
@@ -114,16 +133,19 @@
                                 </div>
                                 <!-- project number -->
                                 <div>
-                                    <h1 class="fw-bold">{{valor_total_receber}}</h1>
+                                    <h1 class="fw-bold values3_h1">{{valor_total_receber}}</h1>
                                     {% if valor_total_receber_qtd > 0 %}
-                                    <p class="mb-0 "><i class="bi bi-exclamation-triangle text-warning me-2"></i><span class="text-dark">{{valor_total_receber_qtd}}</span> vencem em até 7 dias</p>
+                                    <p class="mb-0 "><i class="bi bi-exclamation-triangle text-warning me-2"></i><span
+                                            class="text-dark values3_span">{{valor_total_receber_qtd}}</span> vencem em até 7 dias
+                                    </p>
                                     {% else %}
-                                    <p class="mb-0 "><span class="text-dark me-2">{{valor_total_receber_qtd}}</span> sem vencimentos</p>
+                                    <p class="mb-0 "><span class="text-dark me-2 values3_span">{{valor_total_receber_qtd}}</span> sem
+                                        vencimentos</p>
                                     {% endif %}
                                 </div>
                             </div>
                         </div>
-
+                        
                     </div>
                     <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card -->
@@ -131,7 +153,7 @@
                             <!-- card body -->
                             <div class="card-body">
                                 <!-- heading -->
-                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3 objeto">
                                     <div>
                                         <h5 class="mb-0">Adesões e cancelamentos neste mês</h5>
                                     </div>
@@ -140,14 +162,16 @@
                                     </div>
                                 </div>
                                 <!-- project number -->
-                                <div  class="d-flex">
+                                <div class="d-flex">
                                     <div style="display: flex; flex-direction: column; mr-0">
                                         <h2 class="fw-bold mb-0">{{novos_clientes_qtd}}</h2>
                                         <h2 class="fw-bold mb-0">{{clientes_cancelados_qtd}}</h2>
                                     </div>
                                     <div style="display: flex; flex-direction: column;">
-                                        <p class="mb-5"><i class="bi bi-arrow-up-short text-success"></i><span class="text-success ms-2">Novos</span></p>
-                                        <p class="mb-0"><i class="bi bi-arrow-down-short text-danger"></i><span class="ms-2 text-danger">Cancelados</span></p>
+                                        <p class="mb-5"><i class="bi bi-arrow-up-short text-success"></i><span
+                                                class="text-success ms-2">Novos</span></p>
+                                        <p class="mb-0"><i class="bi bi-arrow-down-short text-danger"></i><span
+                                                class="ms-2 text-danger">Cancelados</span></p>
                                     </div>
                                 </div>
                             </div>
@@ -162,8 +186,11 @@
                             <!-- campo de pesquisa  -->
                             <form method="GET">
                                 <div class="input-group mb-3 card-header bg-white py-4">
-                                    <input type="text" name="q" class="form-control" placeholder="Pesquisar" aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput" autocomplete="off">
-                                    <button class="btn btn-outline-secondary" type="submit" id="button-pesquisar">Buscar</button>
+                                    <input type="text" name="q" class="form-control" placeholder="Pesquisar"
+                                        aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput"
+                                        autocomplete="off">
+                                    <button class="btn btn-outline-secondary" type="submit"
+                                        id="button-pesquisar">Buscar</button>
                                 </div>
                             </form>
                             <!-- TABELA  -->
@@ -184,7 +211,8 @@
                                         {% for cliente in object_list %}
                                         <!-- COMEÇO DA LINHA -->
                                         <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent">
-                                            <td class="dtr-control align-middle" style="cursor: pointer;" id="DETALHES-{{ forloop.counter }}">
+                                            <td class="dtr-control align-middle" style="cursor: pointer;"
+                                                id="DETALHES-{{ forloop.counter }}">
                                                 <div class="d-flex align-items-center">
                                                     <div>
                                                         <div class="icon-shape icon-md border p-1 rounded-circle">
@@ -193,7 +221,9 @@
                                                         </div>
                                                     </div>
                                                     <div class="ms-3 lh-1">
-                                                        <h5 class="text-capitalize small" class="text-inherit" onmouseover="this.style.color='#624BFF'" onmouseout="this.style.color=''">{{cliente.nome}}</h5>
+                                                        <h5 class="text-capitalize small" class="text-inherit"
+                                                            onmouseover="this.style.color='#624BFF'"
+                                                            onmouseout="this.style.color=''">{{cliente.nome}}</h5>
                                                     </div>
                                                 </div>
                                             </td>
@@ -209,52 +239,82 @@
                                             {% for mensalidade in cliente.mensalidade_set.all %}
                                             {% if mensalidade.dt_pagamento is None or not mensalidade.pgto %}
                                             {% if hoje > mensalidade.dt_vencimento %}
-                                            <td class="align-middle text-center"><span class="badge bg-danger">{{ mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
+                                            <td class="align-middle text-center"><span class="badge bg-danger">{{
+                                                    mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y'
+                                                    }}]</span></td>
                                             {% else %}
-                                            <td class="align-middle text-primary text-center"><span class="badge bg-info">{{ mensalidade.valor }}
+                                            <td class="align-middle text-primary text-center"><span
+                                                    class="badge bg-info">{{ mensalidade.valor }}
                                                     [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                             {% endif %}
                                             <!-- Dropdown da tabela -->
                                             <td>
                                                 <div class="dropdown dropend">
-                                                  <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                                                    <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
-                                                  </button>
-                                                  <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
-                                                    <li>
-                                                      <form method="post" action="{% url 'pagar_mensalidade' mensalidade.pk %}">
-                                                        {% csrf_token %}
-                                                        <button type="submit" class="dropdown-item" value="{{ mensalidade.pk }}">Pagar mensalidade</button>
-                                                      </form>
-                                                    </li>
-                                                    <li>
-                                                      <button class="dropdown-item " onclick="window.location.href='{% url 'cancelar_cliente' cliente.pk %}'">Cancelar cliente</button>
-                                                    </li>
-                                                  </ul>
+                                                    <button
+                                                        class="btn btn-icon btn-white rounded-circle btn-dashed ms-2"
+                                                        type="button" id="dropdownMenuButton" data-bs-toggle="dropdown"
+                                                        aria-expanded="false">
+                                                        <img
+                                                            src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                                                    </button>
+                                                    <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
+                                                        <li>
+                                                            <form method="post"
+                                                                action="{% url 'pagar_mensalidade' mensalidade.pk %}">
+                                                                {% csrf_token %}
+                                                                <button type="submit" class="dropdown-item"
+                                                                    value="{{ mensalidade.pk }}">Pagar
+                                                                    mensalidade</button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <button class="dropdown-item "
+                                                                onclick="window.location.href='{% url 'cancelar_cliente' cliente.pk %}'">Cancelar
+                                                                cliente</button>
+                                                        </li>
+                                                    </ul>
                                                 </div>
-                                              </td>
-                                              
+                                            </td>
+
                                             {% endif %}
                                             {% endfor %}
-                                            
+
                                         </tr>
-                                        <tr class="child" id="exibir-detalhes-{{ forloop.counter }}" style="display: none;">
+                                        <tr class="child" id="exibir-detalhes-{{ forloop.counter }}"
+                                            style="display: none;">
                                             <td class="child small" colspan="8">
                                                 <ul data-dtr-index="0" class="list-group list-group-flush">
-                                                    <li class="list-group-item" style="list-style-type: armenian;"><span class="title">Telefone: </span><span>{{cliente.telefone}}</span></li>
+                                                    <li class="list-group-item" style="list-style-type: armenian;"><span
+                                                            class="title">Telefone:
+                                                        </span><span>{{cliente.telefone}}</span></li>
                                                     {% if cliente.indicado_por == None %}
-                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Indicado por: </span> <span>Ninguém</span></li>
+                                                    <li class="list-group-item" style="list-style-type: none;"><span
+                                                            class="title">Indicado por: </span> <span>Ninguém</span>
+                                                    </li>
                                                     {% else %}
-                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Indicado por: </span> <span>{{cliente.indicado_por}}</span></li>
+                                                    <li class="list-group-item" style="list-style-type: none;"><span
+                                                            class="title">Indicado por: </span>
+                                                        <span>{{cliente.indicado_por}}</span></li>
                                                     {% endif %}
-                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Data de pagamento: </span> <span>Dia {{cliente.data_pagamento}} de cada mês</span></li>
-                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Forma de pagamento: </span> <span>{{cliente.forma_pgto}}</span></li>
-                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Plano: </span><span>{{cliente.plano}}</span></li>
-                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Qtd. telas: </span> <span>{{cliente.telas}}</span></li>
+                                                    <li class="list-group-item" style="list-style-type: none;"><span
+                                                            class="title">Data de pagamento: </span> <span>Dia
+                                                            {{cliente.data_pagamento}} de cada mês</span></li>
+                                                    <li class="list-group-item" style="list-style-type: none;"><span
+                                                            class="title">Forma de pagamento: </span>
+                                                        <span>{{cliente.forma_pgto}}</span></li>
+                                                    <li class="list-group-item" style="list-style-type: none;"><span
+                                                            class="title">Plano: </span><span>{{cliente.plano}}</span>
+                                                    </li>
+                                                    <li class="list-group-item" style="list-style-type: none;"><span
+                                                            class="title">Qtd. telas: </span>
+                                                        <span>{{cliente.telas}}</span></li>
                                                     {% if cliente.notas == None %}
-                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Notas: </span> <span></span></li>
+                                                    <li class="list-group-item" style="list-style-type: none;"><span
+                                                            class="title">Notas: </span> <span></span></li>
                                                     {% else %}
-                                                    <li class="list-group-item" style="list-style-type: none;"><span class="title">Notas: </span> <span>{{cliente.notas}}</span></li>
+                                                    <li class="list-group-item" style="list-style-type: none;"><span
+                                                            class="title">Notas: </span> <span>{{cliente.notas}}</span>
+                                                    </li>
                                                     {% endif %}
                                                 </ul>
                                             </td>
@@ -269,40 +329,45 @@
                                 <!-- nav paginator -->
                                 <nav aria-label="Page navigation">
                                     <ul class="pagination  justify-content-end">
-                                      {% if page_obj.has_previous %}
+                                        {% if page_obj.has_previous %}
                                         <li class="page-item">
-                                          <a class="page-link" href="?page={{ page_obj.previous_page_number }}" tabindex="-1" aria-label="Anterior">
-                                            <span aria-hidden="true">&laquo;</span>
-                                          </a>
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}"
+                                                tabindex="-1" aria-label="Anterior">
+                                                <span aria-hidden="true">&laquo;</span>
+                                            </a>
                                         </li>
-                                      {% endif %}
-
-                                      {% if page_obj.number > 3 %}
-                                        <li class="page-item"><a class="page-link" href="?page=1">Primeira</a></li>
-                                      {% endif %}
-                                  
-                                      {% for page in page_obj.paginator.page_range %}
-                                        {% if page_obj.number == page %}
-                                          <li class="page-item active"><a class="page-link" href="#">{{ page }} <span class="sr-only"></span></a></li>
-                                        {% elif page > page_obj.number|add:'-3' and page < page_obj.number|add:'3' %}
-                                          <li class="page-item"><a class="page-link" href="?page={{ page }}">{{ page }}</a></li>
                                         {% endif %}
-                                      {% endfor %}
 
-                                      {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
-                                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a></li>
-                                      {% endif %}
-                                  
-                                      {% if page_obj.has_next %}
-                                        <li class="page-item">
-                                          <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Próximo">
-                                            <span aria-hidden="true">&raquo;</span>
-                                          </a>
-                                        </li>
-                                      {% endif %}
-                                      
+                                        {% if page_obj.number > 3 %}
+                                        <li class="page-item"><a class="page-link" href="?page=1">Primeira</a></li>
+                                        {% endif %}
+
+                                        {% for page in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == page %}
+                                        <li class="page-item active"><a class="page-link" href="#">{{ page }} <span
+                                                    class="sr-only"></span></a></li>
+                                        {% elif page > page_obj.number|add:'-3' and page < page_obj.number|add:'3' %}
+                                            <li class="page-item"><a class="page-link" href="?page={{ page }}">{{ page
+                                                }}</a></li>
+                                            {% endif %}
+                                            {% endfor %}
+
+                                            {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %} <li
+                                                class="page-item"><a class="page-link"
+                                                    href="?page={{ page_obj.paginator.num_pages }}">Última</a></li>
+                                                {% endif %}
+
+                                                {% if page_obj.has_next %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}"
+                                                        aria-label="Próximo">
+                                                        <span aria-hidden="true">&raquo;</span>
+                                                    </a>
+                                                </li>
+                                                {% endif %}
+
                                     </ul>
-                                  </nav>
+                                </nav>
                             </div>
                         </div>
 
@@ -316,43 +381,47 @@
 </body>
 
 <style>
-.page-item.active .page-link {
-  background-color: rgb(12, 20, 28);
-  border-color: rgb(12, 20, 28);
-}
+    .page-item.active .page-link {
+        background-color: rgb(12, 20, 28);
+        border-color: rgb(12, 20, 28);
+    }
 
-.page-link {
-    color: #333;
-}
+    .page-link {
+        color: #333;
+    }
 
-.page-link:hover {
-    color: #666;
-}
+    .page-link:hover {
+        color: #666;
+    }
 
-#searchInput {
-    border-radius: 5px 5px 5px 5px;
-}
+    #searchInput {
+        border-radius: 5px 5px 5px 5px;
+    }
 
-#button-pesquisar {
-    display: none;
-}
+    #button-pesquisar {
+        display: none;
+    }
 
-.objeto {
-  transition: transform 0.3s ease;
-}
+    .objeto {
+        transition: transform 0.3s ease;
+    }
 
-.objeto:hover {
-  transform: translateY(-5px);
-}
+    .objeto:hover {
+        transform: translateY(-5px);
+    }
 
 
-span.title {
-    font-weight: bold;
-}
+    span.title {
+        font-weight: bold;
+    }
 
-.child span {
-  width: 120px;
-}
+    .child span {
+        width: 120px;
+    }
+
+    #eye {
+        cursor: pointer;
+    }
 </style>
 
 </html>
@@ -369,4 +438,79 @@ span.title {
             child.style.display = child.style.display === 'none' ? 'table-row' : 'none';
         });
     });
-  </script>
+</script>
+
+<script>
+const eyeIcon = document.getElementById("eye");
+const values1_h1 = document.querySelectorAll(".values1_h1");
+const values1_span = document.querySelectorAll(".values1_span");
+const values2_h1 = document.querySelectorAll(".values2_h1");
+const values2_span = document.querySelectorAll(".values2_span");
+const values3_h1 = document.querySelectorAll(".values3_h1");
+const values3_span = document.querySelectorAll(".values3_span");
+
+// Carrega a classe salva no localStorage
+if (localStorage.getItem("eyeClass")) {
+  eyeIcon.classList.add(localStorage.getItem("eyeClass"));
+}
+
+eyeIcon.addEventListener("click", function() {
+  if (eyeIcon.classList.contains("bi-eye")) {
+    eyeIcon.classList.remove("bi-eye");
+    eyeIcon.classList.add("bi-eye-slash");
+    for (let i = 0; i < values1_h1.length; i++) {
+      values1_h1[i].style.height = "43px";
+      values1_h1[i].textContent = "****";
+    }
+    for (let i = 0; i < values1_span.length; i++) {
+      values1_span[i].textContent = "*";
+    }
+    for (let i = 0; i < values2_h1.length; i++) {
+      values2_h1[i].style.height = "43px";
+      values2_h1[i].textContent = "****";
+    }
+    for (let i = 0; i < values2_span.length; i++) {
+      values2_span[i].textContent = "*";
+    }
+    for (let i = 0; i < values3_h1.length; i++) {
+      values3_h1[i].style.height = "43px";
+      values3_h1[i].textContent = "****";
+    }
+    for (let i = 0; i < values3_span.length; i++) {
+      values3_span[i].textContent = "*";
+    }
+
+    // Salva a classe atual no localStorage
+    localStorage.setItem("eyeClass", "bi-eye-slash");
+
+  } else {
+    eyeIcon.classList.remove("bi-eye-slash");
+    eyeIcon.classList.add("bi-eye");
+    for (let i = 0; i < values1_h1.length; i++) {
+      values1_h1[i].style.height = "auto";
+      values1_h1[i].textContent = "{{total_clientes}}";
+    }
+    for (let i = 0; i < values1_span.length; i++) {
+      values1_span[i].textContent = "{{clientes_em_atraso}}";
+    }
+    for (let i = 0; i < values2_h1.length; i++) {
+      values2_h1[i].style.height = "auto";
+      values2_h1[i].textContent = "{{valor_total_pago}}";
+    }
+    for (let i = 0; i < values2_span.length; i++) {
+      values2_span[i].textContent = "{{valor_total_pago_qtd}}";
+    }
+    for (let i = 0; i < values3_h1.length; i++) {
+      values3_h1[i].style.height = "auto";
+      values3_h1[i].textContent = "{{valor_total_receber}}";
+    }
+    for (let i = 0; i < values3_span.length; i++) {
+      values3_span[i].textContent = "{{valor_total_receber_qtd}}";
+    }
+
+    // Salva a classe atual no localStorage
+    localStorage.setItem("eyeClass", "bi-eye");
+  }
+
+});
+</script>

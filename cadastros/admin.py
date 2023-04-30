@@ -62,8 +62,7 @@ class MensalidadeAdmin(admin.ModelAdmin):
     )
 
     search_fields = (
-        'cliente',
-        'dt_vencimento',
+        'cliente__nome',
     )
 
 class PlanoAdmin(admin.ModelAdmin):
