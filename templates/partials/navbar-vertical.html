@@ -3,7 +3,7 @@
 <!-- Sidebar -->
 <nav class="navbar-vertical navbar">
     <div class="nav-scroller">
-        
+
         <!-- Brand logo -->
         <a class="navbar-brand" href="{% url 'dashboard' %}">
             <h2 class="text-white">Meu Painel</h2>
@@ -12,7 +12,7 @@
         <!-- Navbar nav -->
         <ul class="navbar-nav flex-column" id="sideNavbar">
             <li class="nav-item">
-                <a class="nav-link has-arrow @@if (context.page ===  'dashboard') { active }"
+                <a class="nav-link has-arrow {%if context.page ==  'dashboard'%}active{% endif %}"
                     href="{% url 'dashboard' %}">
                     <i data-feather="home" class="nav-icon icon-xs me-2"></i> Dashboard
                 </a>
@@ -25,20 +25,92 @@
 
             <!-- Nav item -->
             <li class="nav-item">
-                <a class="nav-link has-arrow {% if page_group != 'pages' %}collapsed{% endif %}" href="#!"
-                data-bs-toggle="collapse" data-bs-target="#navPages" aria-expanded="false" aria-controls="navPages">
-               <i data-feather="layers" class="nav-icon icon-xs me-2"></i> Relatórios
-               </a>
-               
-               <div id="navPages" class="collapse {% if page_group == 'pages' %}show{% endif %}"
-                   data-bs-parent="#sideNavbar">
-                   <ul class="nav flex-column">
-                       <li class="nav-item">
-                           <a class="nav-link {% if page == 'profile' %}active{% endif %}"
-                               href="">...</a>
-                       </li>
-                   </ul>
-               </div> 
+                <a class="nav-link has-arrow {% if context != 'relatorio1' %}collapsed{% endif %}" href="#!"
+                    data-bs-toggle="collapse" data-bs-target="#navPages" aria-expanded="false" aria-controls="navPages">
+                    <i data-feather="layers" class="nav-icon icon-xs me-2"></i> Relatórios
+                </a>
+
+                <div id="navPages" class="collapse {% if page_group == 'pages' %}show{% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'profile' %}active{% endif %}" href="">...</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link has-arrow {% if context != 'cadastro-aplicativos' %}collapsed{% endif %}" href="#!"
+                    data-bs-toggle="collapse" data-bs-target="#navPages" aria-expanded="false" aria-controls="navPages">
+                    <i data-feather="layers" class="nav-icon icon-xs me-2"></i> Cadastros
+                </a>
+
+                <div id="navPages" class="collapse {% if page == 'cadastro-aplicativos' %}show{% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'cadastro-aplicativos' %}active{% endif %}" href="">...</a>
+                        </li>
+                    </ul>
+                </div>
+                <div id="navPages" class="collapse {% if page == 'pages' %}show{% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'profile' %}active{% endif %}" href="">...</a>
+                        </li>
+                    </ul>
+                </div>
+                <div id="navPages" class="collapse {% if page == 'pages' %}show{% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'profile' %}active{% endif %}" href="">...</a>
+                        </li>
+                    </ul>
+                </div>
+                <div id="navPages" class="collapse {% if page == 'pages' %}show{% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'profile' %}active{% endif %}" href="">...</a>
+                        </li>
+                    </ul>
+                </div>
+                <div id="navPages" class="collapse {% if page == 'pages' %}show{% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'profile' %}active{% endif %}" href="">...</a>
+                        </li>
+                    </ul>
+                </div>
+                <div id="navPages" class="collapse {% if page == 'pages' %}show{% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'profile' %}active{% endif %}" href="">...</a>
+                        </li>
+                    </ul>
+                </div>
+                <div id="navPages" class="collapse {% if page == 'pages' %}show{% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'profile' %}active{% endif %}" href="">...</a>
+                        </li>
+                    </ul>
+                </div>
+                <div id="navPages" class="collapse {% if page == 'pages' %}show{% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'profile' %}active{% endif %}" href="">...</a>
+                        </li>
+                    </ul>
+                </div>
+
+            </li>
         </ul>
     </div>
 </nav>

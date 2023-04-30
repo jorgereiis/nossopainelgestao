@@ -33,10 +33,14 @@
                                             <img src="{% static 'assets/images/svg/list.svg' %}"> Opções
                                         </button>
                                         <div class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="{% url 'cadastro-cliente' %}">Cadastrar Cliente</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'importar-cliente' %}">Importar Clientes</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'forma-pagamento' %}">Formas de Pagamento</a></li>
-                                            <li><a class="dropdown-item" href="">...</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-cliente' %}"><img src="{% static 'assets/images/svg/person-plus.svg' %}"> Novo Cliente</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'importar-cliente' %}"><img src="{% static 'assets/images/svg/upload.svg' %}"> Importar Clientes</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-aplicativos' %}"><li><img src="{% static 'assets/images/svg/app-indicator.svg' %}"> Aplicativos</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-dispositivos' %}"><img src="{% static 'assets/images/svg/display.svg' %}"> Dispositivos</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'forma-pagamento' %}"><img src="{% static 'assets/images/svg/credit-card.svg' %}"> Formas de Pagamento</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'plano-indicacao' %}"><img src="{% static 'assets/images/svg/award.svg' %}"> Planos de Indicação</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-plano-mensal' %}"><img src="{% static 'assets/images/svg/piggy-bank.svg' %}"> Planos Mensais</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'servidores' %}"><img src="{% static 'assets/images/svg/hdd-stack.svg' %}"> Servidores</a></li>
                                         </div>
                                     </div>
                                 </div>
@@ -158,7 +162,7 @@
                             <!-- campo de pesquisa  -->
                             <form method="GET">
                                 <div class="input-group mb-3 card-header bg-white py-4">
-                                    <input type="text" name="q" class="form-control" placeholder="Pesquisar" aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput">
+                                    <input type="text" name="q" class="form-control" placeholder="Pesquisar" aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput" autocomplete="off">
                                     <button class="btn btn-outline-secondary" type="submit" id="button-pesquisar">Buscar</button>
                                 </div>
                             </form>

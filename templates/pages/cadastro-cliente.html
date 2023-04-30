@@ -5,7 +5,7 @@
 
 <head>
   {% include 'partials/head.html' %}
-  <title>Cadastro de clientes | Nosso Painel - Gestão IPTV</title>
+  <title>Novo cliente | Nosso Painel - Gestão IPTV</title>
 </head>
 
 <body class="bg-light">
@@ -25,7 +25,7 @@
 
             </div>
           </div>
-           <!-- col -->
+          <!-- col -->
           <div class="row mb-8">
             <div class="col-xl-3 col-lg-4 col-md-12 col-12">
               <div class="mb-4 mb-lg-0">
@@ -35,7 +35,7 @@
 
             </div>
 
-            <div class="col-xl-9 col-lg-8 col-md-12 col-12">
+            <div class="col-xl-9 col-lg-8 col-md-12 col-12" id="div-principal">
               <!-- card -->
               <div class="card">
                 <!-- card body -->
@@ -46,53 +46,31 @@
 
                   <form method="POST">
                     <!-- row -->
-                      {% csrf_token %}
+                    {% csrf_token %}
                     <div class="mb-3 row">
                       <label for="fullName" class="col-sm-4 col-form-label
                           form-label">Nome completo</label>
                       <div class="col-sm-4 mb-3 mb-lg-0">
-                        <input type="text" class="form-control" placeholder="Nome" id="nome" name="nome" required>
+                        <input type="text" class="form-control" placeholder="Nome" id="nome" name="nome" autocomplete="off" required>
                       </div>
                       <div class="col-sm-4">
-                        <input type="text" class="form-control" placeholder="Sobrenome" id="sobrenome" name="sobrenome" required>
+                        <input type="text" class="form-control" placeholder="Sobrenome" id="sobrenome" name="sobrenome" autocomplete="off" required>
                       </div>
                     </div>
-
-                    <!-- row -->
                     <div class="mb-3 row">
-                      <label for="dispositivo" class="col-sm-4 col-form-label
-                          form-label">Dispositivo</label>
-
+                      <label for="telefone" class="col-sm-4 col-form-label
+                          form-label">Telefone</label>
                       <div class="col-md-8 col-12">
-                        <select class="form-select" id="dispositivo" name="dispositivo">
-                          {% for dispositivo in dispositivos %}
-                          <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
-                          {% endfor %}
-                        </select>
-                      </div>
-                    </div>
-
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="aplicativo" class="col-sm-4 col-form-label
-                          form-label">Aplicativo</label>
-
-                      <div class="col-md-8 col-12">
-                        <select class="form-select" id="sistema" name="sistema">
-                          {% for sistema in sistemas %}
-                          <option value="{{ sistema.nome }}">{{ sistema.nome }}</option>
-                          {% endfor %}
-                        </select>
+                        <input type="text" class="form-control" placeholder="Telefone" id="telefone" name="telefone" autocomplete="off" maxlength="13" required>
                       </div>
                     </div>
                     <!-- row -->
                     <div class="mb-3 row">
                       <label for="indicado_por" class="col-sm-4 col-form-label
                               form-label">Inidicador por</label>
-
                       <div class="col-md-8 col-12">
                         <input type="text" class="form-control" placeholder="Indicado por" id="indicado_por"
-                          list="indicador-options" name="indicador_list">
+                          list="indicador-options" name="indicador_list" autocomplete="off">
                       </div>
                       <!-- Definindo o datalist -->
                       <datalist id="indicador-options">
@@ -105,7 +83,6 @@
                     <div class="mb-3 row">
                       <label for="servidor" class="col-sm-4 col-form-label
                           form-label">Servidor</label>
-
                       <div class="col-md-8 col-12">
                         <select class="form-select" id="servidor" name="servidor">
                           {% for servidor in servidores %}
@@ -118,7 +95,6 @@
                     <div class="mb-3 row">
                       <label for="forma_pgto" class="col-sm-4 col-form-label
                           form-label">Forma de pagamento</label>
-
                       <div class="col-md-8 col-12">
                         <select class="form-select" id="forma_pgto" name="forma_pgto">
                           {% for forma_pgto in formas_pgtos %}
@@ -131,7 +107,6 @@
                     <div class="mb-3 row">
                       <label for="plano" class="col-sm-4 col-form-label
                           form-label">Planos</label>
-
                       <div class="col-md-8 col-12">
                         <select class="form-select" id="plano" name="plano">
                           {% for plano in planos %}
@@ -158,11 +133,38 @@
                       <label for="data_pagamento" class="col-sm-4 col-form-label form-label">Data de pagamento mensal
                         <span class="text-muted"></span></label>
                       <div class="col-md-8 col-12">
-                        <input type="number" class="form-control" placeholder="Dia" id="data_pagamento" min="1" max="31" name="data_pagamento">
+                        <input type="number" class="form-control" placeholder="Dia" id="data_pagamento" min="1" max="31"
+                          name="data_pagamento">
                       </div>
                     </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="dispositivo" class="col-sm-4 col-form-label
+                          form-label">Dispositivo</label>
+
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="dispositivo" name="dispositivo">
+                          {% for dispositivo in dispositivos %}
+                          <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row" id="teste">
+                      <label for="aplicativo" class="col-sm-4 col-form-label
+                          form-label">Aplicativo</label>
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="sistema" name="sistema">
+                          {% for sistema in sistemas %}
+                          <option value="{{ sistema.nome }}">{{ sistema.nome }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    </div>
                     <div class="offset-md-4 col-md-8 mt-4">
-                      <button type="submit" class="btn btn-primary" name="cadastrar"> Cadastrar</button>
+                      <button type="submit" class="btn btn-primary" name="cadastrar" id="cadastrar"> Cadastrar</button>
                     </div>
                 </div>
                 </form>
@@ -181,10 +183,46 @@
 </html>
 
 <script>
-  const input = document.querySelector('input[name="indicado_list"]');
-  input.addEventListener('change', (event) => {
-      const value = event.target.value;
-      input.value = value;
+  const input1 = document.querySelector('input[name="indicado_list"]');
+  input1.addEventListener('change', (event) => {
+    const value = event.target.value;
+    input1.value = value;
   });
+</script>
 
+<script>
+$(document).ready(function() {
+  // Ao mudar o valor do select com id "sistema"
+  $('#sistema').change(function() {
+    // Se o valor selecionado for igual a "duplex, duplecast ou metaplayer"
+    if ($(this).val().toLowerCase() === 'duplexplay' ||
+        $(this).val().toLowerCase() === 'duplex play' ||
+        $(this).val().toLowerCase() === 'duplecast' ||
+        $(this).val().toLowerCase() === 'duple cast' ||
+        $(this).val().toLowerCase() === 'metaplayer' ||
+        $(this).val().toLowerCase() === 'meta player'){
+      // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
+      $('#divEmail').remove();
+      $('#divSenha2').remove();
+      $('#divID').remove();
+      $('#divSenha').remove();
+      $('#teste').after('<div class="mb-3 row" id="divSenha"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device Key" id="Senha" name="devicekey" required></div>');
+      $('#teste').after('<div class="mb-3 row" id="divID"><label for="ID" class="col-sm-4 col-form-label form-label">ID do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device ID" id="ID" name="deviceid" required></div>');
+    } else if ($(this).val().toLowerCase() === 'clouddy'){
+      // Se o valor selecionado não for igual a "clouddy",
+      // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
+      $('#divID').remove();
+      $('#divSenha').remove();
+      $('#divEmail').remove();
+      $('#divSenha2').remove();
+      $('#teste').after('<div class="mb-3 row" id="divSenha2"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" required></div>');
+      $('#teste').after('<div class="mb-3 row" id="divEmail"><label for="Email" class="col-sm-4 col-form-label form-label">E-mail do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="E-mail" id="Email" name="email" required></div>');
+    } else {
+      $('#divID').remove();
+      $('#divSenha').remove();
+      $('#divEmail').remove();
+      $('#divSenha2').remove();
+    }
+  });
+});
 </script>

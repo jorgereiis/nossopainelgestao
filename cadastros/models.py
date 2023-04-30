@@ -1,5 +1,4 @@
 from django.db import models
-from datetime import datetime
 from django.utils import timezone
 
 
@@ -190,6 +189,9 @@ class Mensalidade(models.Model):
         )
 
 
+from django.core.validators import MinValueValidator
+
+
 class PlanoIndicacao(models.Model):
     nome = models.CharField(max_length=255)
     TIPOS_PLANO = [
@@ -197,7 +199,7 @@ class PlanoIndicacao(models.Model):
         ("dinheiro", "Valor em dinheiro"),
     ]
     tipo_plano = models.CharField(max_length=10, choices=TIPOS_PLANO, unique=True)
-    valor = models.DecimalField(max_digits=6, decimal_places=2)
+    valor = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
     ativo = models.BooleanField(default=True)
 
     class Meta:
@@ -205,6 +207,7 @@ class PlanoIndicacao(models.Model):
 
     def __str__(self):
         return self.nome
+
 
 
 class ContaDoAplicativo(models.Model):

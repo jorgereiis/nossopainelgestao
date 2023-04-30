@@ -1,77 +1,132 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
 </head>
-
 <body>
-    <table id="appsTable"
-        class="table table-bordered dt-responsive nowrap table-striped align-middle dataTable no-footer dtr-inline collapsed"
-        style="width: 100%;" aria-describedby="appsTable_info">
-        <thead class="text-muted table-light" style="width:100%">
-            <tr class="text-uppercase" style="width:100%">
-                <th scope="col" style="width: 74.4px;" class="sorting" tabindex="0" aria-controls="appsTable"
-                    rowspan="1" colspan="1" aria-label="Id: activate to sort column ascending">Id</th>
-                <th style="width: 54.4px;" class="dt-center sorting" tabindex="0" aria-controls="appsTable" rowspan="1"
-                    colspan="1" aria-label=": activate to sort column ascending"></th>
-                <th scope="col" style="width: 42.4px;" class="sorting" tabindex="0" aria-controls="appsTable"
-                    rowspan="1" colspan="1" aria-sort="descending"
-                    aria-label="App Id: activate to sort column ascending">App Id</th>
-                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
-                    style="width: 55.4px;" aria-label="Cliente: activate to sort column ascending">Cliente</th>
-                <th class="sorting" tabindex="0" aria-controls="appsTable" rowspan="1" colspan="1"
-                    style="width: 94.4px;" aria-label="MAC: activate to sort column ascending">MAC</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for cliente in clientes %}
-            <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent">
-                <td class="dtr-control" style="cursor: pointer;" id="DETALHES-{{ forloop.counter }}">{{cliente.nome}} - {{ forloop.counter }}</td>
-                <td class=" dt-center"><a href="javascript:void(0)" class="fs-4 clienteinfo me-1" id="show-user"
-                        data-bs-toggle="tooltip" data-bs-placement="top" title="Informações do Cliente"
-                        data-bs-trigger="hover" data-remote="22275" data-name="0b:b9:03:48:b9:e7"
-                        data-url="https://pro.offx.me/showclienteapp/22275"><i
-                            class="ri-file-info-line text-info"></i></a><a href="javascript:void(0)"
-                        class="fs-4 acesso me-2" id="show-user-acesso" data-bs-toggle="tooltip" data-bs-placement="top"
-                        title="Informações de Acesso" data-bs-trigger="hover" data-remote="50317"
-                        data-name="0b:b9:03:48:b9:e7" data-url="https://pro.offx.me/showacessoapp/50317"><i
-                            class="ri-video-line text-dark"></i></a></td>
-                <td class="sorting_1">50317</td>
-                <td>24600868</td>
-                <td>0b:b9:03:48:b9:e7</td>
-            </tr>
-            <tr class="child" id="exibir-detalhes-{{ forloop.counter }}" style="display: none;">
-                <td class="child" colspan="9">
-                    <ul data-dtr-index="0" class="dtr-details">
-                        <li class="dt-center" data-dtr-index="8" data-dt-row="0" data-dt-column="8"><span
-                                class="dtr-title">Notas</span> <span class="dtr-data">Francisca Lima</span></li>
-                        <li class="dt-center" data-dtr-index="9" data-dt-row="0" data-dt-column="9"><span
-                                class="dtr-title">Aparelho</span> <span class="dtr-data">Roku</span></li>
-                    </ul>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% include 'partials/scripts.html' %}
+    <div id="codigoNovoAqui" class="offset-md-4 col-md-8 mt-4">
+        <button type="submit" class="btn btn-primary" name="cadastrar">Cadastrar</button>
+    </div>
 </body>
-
 </html>
 
 <script>
-    // seleciona todos os elementos de classe "dtr-control" que têm um id que começa com "DETALHES-"
-    document.querySelectorAll('.dtr-control[id^="DETALHES-"]').forEach(function (element) {
-        // adiciona um manipulador de eventos para o elemento clicado
-        element.addEventListener('click', function () {
-            // obtém o valor do contador de iteração do id
-            var id = this.id.split('-')[1];
-            // obtém o elemento filho correspondente e alterna sua exibição
-            var child = document.getElementById('exibir-detalhes-' + id);
-            child.style.display = child.style.display === 'none' ? 'table-row' : 'none';
-        });
+    // verificar a condição aqui
+    var condicao = true;
+    
+    // se a condição for verdadeira, inserir o código novo
+    if (condicao) {
+      var codigoNovo = document.createElement("div");
+      codigoNovo.innerHTML = `
+      <!-- row -->
+        <div class="mb-3 row" id="divID">
+        <label for="ID" class="col-sm-4 col-form-label
+            form-label">ID do Aplicativo</label>
+        <div class="col-md-8 col-12">
+            <input type="text" class="form-control" placeholder="Device ID" id="ID" name="ID">
+        </div>
+        </div>
+        <!-- row -->
+        <div class="mb-3 row" id="divSenha">
+        <label for="ID" class="col-sm-4 col-form-label
+            form-label">Senha do Aplicativo</label>
+        <div class="col-md-8 col-12">
+            <input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha">
+        </div>
+        </div>
+        <!-- row -->
+        <div class="mb-3 row" id="divEmail">
+        <label for="ID" class="col-sm-4 col-form-label
+            form-label">E-mail do Clouddy</label>
+        <div class="col-md-8 col-12">
+            <input type="text" class="form-control" placeholder="E-mail" id="Email" name="email">
+        </div>
+        </div>
+      `;
+      var container = document.getElementById("codigoNovoAqui");
+      container.parentNode.insertBefore(codigoNovo, container.nextSibling);
+    }
+  </script>
+  
+
+                      <!-- row -->
+                      <div class="mb-3 row" id="divID">
+                        <label for="ID" class="col-sm-4 col-form-label
+                            form-label">ID do Aplicativo</label>
+                        <div class="col-md-8 col-12">
+                          <input type="text" class="form-control" placeholder="Device ID" id="ID" name="ID">
+                        </div>
+                      </div>
+                      <!-- row -->
+                      <div class="mb-3 row" id="divSenha">
+                        <label for="ID" class="col-sm-4 col-form-label
+                            form-label">Senha do Aplicativo</label>
+                        <div class="col-md-8 col-12">
+                          <input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha">
+                        </div>
+                      </div>
+                      <!-- row -->
+                      <div class="mb-3 row" id="divEmail">
+                        <label for="ID" class="col-sm-4 col-form-label
+                            form-label">E-mail do Clouddy</label>
+                        <div class="col-md-8 col-12">
+                          <input type="text" class="form-control" placeholder="E-mail" id="Email" name="email">
+                        </div>
+                      </div>
+
+
+
+
+
+<script>
+    // Pega o select pelo id
+    const selectValue = document.getElementById("sistema");
+
+    // Pega o input pelo id da div
+    const divID = document.getElementById("divID");
+    const divEmail = document.getElementById("divEmail");
+    const divSenha = document.getElementById("divSenha");
+    const inputID = document.getElementById("ID");
+    const inputEmail = document.getElementById("Email");
+    const inputSenha = document.getElementById("Senha");
+
+    // Adiciona um listener para escutar quando o valor do select mudar//
+    selectValue.addEventListener("change", function () {
+    // Verifica se o valor do select contém uma das palavras predefinidas ignorando o case
+    if (this.value.toLowerCase().includes("duplexplay") ||
+        this.value.toLowerCase().includes("duplex play")||
+        this.value.toLowerCase().includes("metaplayer") ||
+        this.value.toLowerCase().includes("meta player")||
+        this.value.toLowerCase().includes("duplecast") ||
+        this.value.toLowerCase().includes("duple cast")
+        ) {
+        // Se contém, exibe as div com os inputs e torna-o obrigatório
+        divID.style.visibility = "visible";
+        inputID.required = true;
+        divSenha.style.visibility = "visible";
+        inputSenha.required = true;
+        divEmail.style.visibility = "hidden";
+        inputEmail.required = false;
+    } 
+    else if (this.value.toLowerCase().includes("clouddy")){
+        divEmail.style.visibility = "visible";
+        inputEmail.required = true;
+        divSenha.style.visibility = "visible";
+        inputSenha.required = true;
+        divID.style.visibility = "hidden";
+        inputID.required = false;
+    }
+    else {
+        // Caso contrário, oculta o input e torna-o não obrigatório
+        divID.style.visibility = "hidden";
+        inputID.required = false;
+        divEmail.style.visibility = "hidden";
+        inputEmail.required = false;
+        divSenha.style.visibility = "hidden";
+        inputSenha.required = false;
+    }
     });
 </script>

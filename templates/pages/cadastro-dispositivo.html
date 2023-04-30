@@ -1,0 +1,133 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Dispositivos | Nosso Painel - Gestão IPTV</title>
+</head>
+
+<body class="bg-light">
+  <div id="db-wrapper">
+    <!-- navbar vertical -->
+    {% include 'partials/navbar-vertical.html' %}
+    <!-- page content -->
+    <div id="page-content">
+      {% include 'partials/header.html' %}
+      <!-- Container fluid -->
+      <div class="container-fluid p-6">
+        <div class="row">
+          <div class="col-lg-12 col-md-12 col-12">
+            <!-- Page header -->
+            <div class="border-bottom pb-4 mb-4">
+              <h3 class="mb-0 fw-bold">Cadastro de Dispositivos</h3>
+
+            </div>
+          </div>
+          <!-- col -->
+          <div class="row mb-8">
+            <div class="col-xl-3 col-lg-4 col-md-12 col-12">
+              <div class="mb-4 mb-lg-0">
+                <h4 class="mb-1">Crie aqui o seu Dispositivo</h4>
+                <p class="mb-0 fs-5 text-muted">Preencha os dados corretamente.</p>
+              </div>
+
+            </div>
+
+            <div class="col-xl-8 col-lg-8 col-md-12 col-12">
+              <!-- card -->
+              <div class="card">
+                <!-- card body -->
+                <div class="card-body">
+                  <div class=" mb-5">
+                    <h4 class="mb-1">Formulário de cadastro</h4>
+                  </div>
+
+                  <form method="POST">
+                    <!-- row -->
+                    {% csrf_token %}
+                    <div class="mb-3 row">
+                      <label for="fullName" class="col-sm-2 col-form-label
+                          form-label">Descrição</label>
+                      <div class="col-sm-10 mb-3 mb-lg-0">
+                        <input type="text" class="form-control" placeholder="Nome do servidor/painel..." id="nome" name="nome" required>
+                      </div>
+                    </div>
+                    <div class="offset-md-2 col-md-8 mt-4">
+                      <button type="submit" class="btn btn-primary" name="cadastrar"> Cadastrar</button>
+                    </div>
+                </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+
+          <div class="row mb-8">
+            <div class="col-md-12 col-12">
+                <div class="mb-lg-6 border-bottom pb-4 mb-4">
+                    <h4 class="mb-1">Cadastros existentes</h4>
+                </div>
+            </div>
+            <br>
+
+            <div class="col-md-4 mx-auto">
+                <!-- card -->
+                <div class="card">
+                    <div class="table-responsive">
+                      <table class="table table-sm text-nowrap mb-0 table-hover text-center" id="myTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="fw-bold text-center">Dispositivos</th>
+                                <th class="fw-bold text-center">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dispositivo in dispositivos %}
+                            <!-- COMEÇO DA LINHA -->
+                            <tr>
+                                <td class="align-middle">
+                                    <div class="">
+                                        <div class="">
+                                            <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'" onmouseout="this.style.color=''">{{dispositivo.nome}}</h5>
+                                        </div>
+                                    </div>
+                                </td>
+                                <!-- Dropdown da tabela -->
+                                <td>
+                                    <div class="dropdown">
+                                      <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                                      </button>
+                                      <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
+                                        <li>
+                                          <button class="dropdown-item">Editar</button>
+                                        </li>
+                                        <li>
+                                          <button class="dropdown-item">Deletar</button>
+                                        </li>
+                                      </ul>
+                                    </div>
+                                  </td>
+                                {% endfor %}
+                                
+                            </tr>
+                            <!-- TÉRMINO DA LINHA -->
+                        </tbody>
+                    </table>
+                      </div>
+                </div>
+            </div>
+
+        </div>
+
+        </div>
+      </div>
+
+      <!-- Scripts -->
+      {% include 'partials/scripts.html' %}
+
+</body>
+
+</html>

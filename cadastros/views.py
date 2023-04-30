@@ -6,11 +6,14 @@ from .models import (
     Tipos_pgto,
     Plano,
     Qtd_tela,
+    Mensalidade,
+    PlanoIndicacao,
+    ContaDoAplicativo,
 )
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect
 from django.views.generic.list import ListView
-from babel.numbers import format_currency
-from .models import Cliente, Mensalidade
+from babel.numbers import format_currency 
 from datetime import datetime, timedelta
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -255,6 +258,7 @@ def CadastroCliente(request):
         nome = request.POST.get('nome')
         sobrenome = request.POST.get('sobrenome')
         dispositivo = request.POST.get('dispositivo')
+        telefone = request.POST.get('telefone')
         sistema = request.POST.get('sistema')
         indicador_nome = request.POST.get('indicador_list')
         if indicador_nome == None or indicador_nome == "" or indicador_nome == " ":
@@ -276,6 +280,7 @@ def CadastroCliente(request):
 
         cliente = Cliente(
             nome=(nome + " " + sobrenome),
+            telefone=(telefone),
             dispositivo=Dispositivo.objects.get(nome=dispositivo),
             sistema=Aplicativo.objects.get(nome=sistema),
             indicado_por=indicador,
@@ -292,7 +297,7 @@ def CadastroCliente(request):
     # Criando os queryset para exibir os dados nos campos do fomulário
     servidor_queryset = Servidor.objects.all()
     dispositivo_queryset = Dispositivo.objects.all()
-    sistema_queryset = Aplicativo.objects.all()
+    sistema_queryset = Aplicativo.objects.filter().order_by('nome')
     indicador_por_queryset = Cliente.objects.all()
     forma_pgto_queryset = Tipos_pgto.objects.all()
     plano_queryset = Plano.objects.all()
@@ -313,6 +318,52 @@ def CadastroCliente(request):
     )
 
 
+def CadastroPlanoMensal(request):
+
+    planos_mensalidades = Plano.objects.all()
+
+    return render(request, "pages/cadastro-plano-mensal.html", {"planos_mensalidades": planos_mensalidades})
+
+
+def CadastroServidor(request):
+
+    servidores = Servidor.objects.all()
+
+    return render(request, 'pages/cadastro-servidor.html', {'servidores': servidores})
+
+
+def CadastroPlanoIndicacao(request):
+
+    planos = PlanoIndicacao.objects.all()
+
+    if request.method == "POST":
+        nome = request.POST.get("nome")
+        tipo_plano = request.POST.get("tipo_plano")
+        valor = request.POST.get("valor")
+        ativo = request.POST.get("ativo")
+
+        # Criando o objeto PlanoIndicacao
+        plano = PlanoIndicacao(
+            nome=nome,
+            tipo_plano=tipo_plano,
+            valor=valor,
+            ativo=ativo,
+        )
+
+        try:
+            # Tentando salvar o objeto no banco de dados
+            plano.save()
+        except ValidationError as e:
+            # Capturando o erro de validação e renderizando a página novamente com a mensagem de erro
+            return render(request, "pages/plano-indicacao.html", {"error_message": e})
+
+        return render(request, "pages/plano-indicacao.html", {"success_message": "Plano de indicação cadastrado com sucesso!"})
+
+    return render(request, "pages/cadastro-plano-indicacao.html", {"planos": planos})
+
+
+
+
 def CadastroFormaPagamento(request):
 
     formas_pgto = Tipos_pgto.objects.all()
@@ -321,6 +372,22 @@ def CadastroFormaPagamento(request):
     return render(request, 'pages/cadastro-forma-pagamento.html', {
         'formas_pgto': formas_pgto,
     })
+
+
+def CadastroDispositivo(request):
+
+    dispositivos = Dispositivo.objects.all()
+
+    return render(request, 'pages/cadastro-dispositivo.html', {'dispositivos': dispositivos})
+
+
+def CadastroAplicativo(request):
+    path = request.path
+    page = path.split('/')[1] if len(path.split('/')) > 1 else None
+
+    aplicativos = Aplicativo.objects.all()
+
+    return render(request, "pages/cadastro-aplicativo.html", {"aplicativos": aplicativos, "page": page})
 
 
 def Teste(request):

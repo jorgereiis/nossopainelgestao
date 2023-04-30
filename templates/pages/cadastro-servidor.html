@@ -5,7 +5,7 @@
 
 <head>
   {% include 'partials/head.html' %}
-  <title>Formas de Pagamento | Nosso Painel - Gestão IPTV</title>
+  <title>Servidores | Nosso Painel - Gestão IPTV</title>
 </head>
 
 <body class="bg-light">
@@ -21,7 +21,7 @@
           <div class="col-lg-12 col-md-12 col-12">
             <!-- Page header -->
             <div class="border-bottom pb-4 mb-4">
-              <h3 class="mb-0 fw-bold">Cadastro de Forma de Pagamento</h3>
+              <h3 class="mb-0 fw-bold">Cadastro de Servidores</h3>
 
             </div>
           </div>
@@ -29,7 +29,7 @@
           <div class="row mb-8">
             <div class="col-xl-3 col-lg-4 col-md-12 col-12">
               <div class="mb-4 mb-lg-0">
-                <h4 class="mb-1">Crie aqui as Formas de Pagamento</h4>
+                <h4 class="mb-1">Crie aqui o seu Servidor</h4>
                 <p class="mb-0 fs-5 text-muted">Preencha os dados corretamente.</p>
               </div>
 
@@ -51,7 +51,7 @@
                       <label for="fullName" class="col-sm-2 col-form-label
                           form-label">Descrição</label>
                       <div class="col-sm-10 mb-3 mb-lg-0">
-                        <input type="text" class="form-control" placeholder="PIX, Boleto, Cartão de Crédito..." id="nome" name="nome" required>
+                        <input type="text" class="form-control" placeholder="Nome do servidor/painel..." id="nome" name="nome" required>
                       </div>
                     </div>
                     <div class="offset-md-2 col-md-8 mt-4">
@@ -79,18 +79,18 @@
                       <table class="table table-sm text-nowrap mb-0 table-hover text-center" id="myTable">
                         <thead class="table-light">
                             <tr>
-                                <th class="fw-bold text-center">Forma de Pagamento</th>
+                                <th class="fw-bold text-center">Servidores</th>
                                 <th class="fw-bold text-center">Ação</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for forma_pgto in formas_pgto %}
+                            {% for servidor in servidores %}
                             <!-- COMEÇO DA LINHA -->
                             <tr>
                                 <td class="align-middle">
                                     <div class="">
                                         <div class="">
-                                            <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'" onmouseout="this.style.color=''">{{forma_pgto.nome}}</h5>
+                                            <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'" onmouseout="this.style.color=''">{{servidor.nome}}</h5>
                                         </div>
                                     </div>
                                 </td>
