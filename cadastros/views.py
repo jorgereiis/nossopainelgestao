@@ -277,6 +277,7 @@ def CadastroCliente(request):
             if request.POST.get('data_pagamento')
             else None
         )
+        notas = request.POST.get('notas')
 
         cliente = Cliente(
             nome=(nome + " " + sobrenome),
@@ -289,6 +290,7 @@ def CadastroCliente(request):
             plano=Plano.objects.get(nome=nome_do_plano, valor=valor_do_plano),
             telas=Qtd_tela.objects.get(telas=telas),
             data_pagamento=data_pagamento,
+            notas=notas
         )
         cliente.save()
 

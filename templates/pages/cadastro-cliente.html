@@ -51,17 +51,20 @@
                       <label for="fullName" class="col-sm-4 col-form-label
                           form-label">Nome completo</label>
                       <div class="col-sm-4 mb-3 mb-lg-0">
-                        <input type="text" class="form-control" placeholder="Nome" id="nome" name="nome" autocomplete="off" required>
+                        <input type="text" class="form-control" placeholder="Nome" id="nome" name="nome"
+                          autocomplete="off" required>
                       </div>
                       <div class="col-sm-4">
-                        <input type="text" class="form-control" placeholder="Sobrenome" id="sobrenome" name="sobrenome" autocomplete="off" required>
+                        <input type="text" class="form-control" placeholder="Sobrenome" id="sobrenome" name="sobrenome"
+                          autocomplete="off" required>
                       </div>
                     </div>
                     <div class="mb-3 row">
                       <label for="telefone" class="col-sm-4 col-form-label
                           form-label">Telefone</label>
                       <div class="col-md-8 col-12">
-                        <input type="text" class="form-control" placeholder="Telefone" id="telefone" name="telefone" autocomplete="off" maxlength="13" required>
+                        <input type="text" class="form-control" placeholder="Telefone" id="telefone" name="telefone"
+                          autocomplete="off" maxlength="13" required>
                       </div>
                     </div>
                     <!-- row -->
@@ -162,21 +165,29 @@
                         </select>
                       </div>
                     </div>
-                    </div>
-                    <div class="offset-md-4 col-md-8 mt-4">
-                      <button type="submit" class="btn btn-primary" name="cadastrar" id="cadastrar"> Cadastrar</button>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="notas" class="col-sm-4 col-form-label form-label">Anotações
+                        <span class="text-muted"></span></label>
+                      <div class="col-md-8 col-12">
+                        <textarea type="text" class="form-control" placeholder="Detalhes sobre o cliente..." id="notas" name="notas"></textarea>
+                      </div>
                     </div>
                 </div>
-                </form>
+                <div class="offset-md-4 mb-4">
+                  <button type="submit" class="btn btn-primary" name="cadastrar" id="cadastrar"> Cadastrar</button>
+                </div>
               </div>
+              </form>
             </div>
           </div>
-
         </div>
-      </div>
 
-      <!-- Scripts -->
-      {% include 'partials/scripts.html' %}
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    {% include 'partials/scripts.html' %}
 
 </body>
 
@@ -191,38 +202,38 @@
 </script>
 
 <script>
-$(document).ready(function() {
-  // Ao mudar o valor do select com id "sistema"
-  $('#sistema').change(function() {
-    // Se o valor selecionado for igual a "duplex, duplecast ou metaplayer"
-    if ($(this).val().toLowerCase() === 'duplexplay' ||
+  $(document).ready(function () {
+    // Ao mudar o valor do select com id "sistema"
+    $('#sistema').change(function () {
+      // Se o valor selecionado for igual a "duplex, duplecast ou metaplayer"
+      if ($(this).val().toLowerCase() === 'duplexplay' ||
         $(this).val().toLowerCase() === 'duplex play' ||
         $(this).val().toLowerCase() === 'duplecast' ||
         $(this).val().toLowerCase() === 'duple cast' ||
         $(this).val().toLowerCase() === 'metaplayer' ||
-        $(this).val().toLowerCase() === 'meta player'){
-      // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
-      $('#divEmail').remove();
-      $('#divSenha2').remove();
-      $('#divID').remove();
-      $('#divSenha').remove();
-      $('#teste').after('<div class="mb-3 row" id="divSenha"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device Key" id="Senha" name="devicekey" required></div>');
-      $('#teste').after('<div class="mb-3 row" id="divID"><label for="ID" class="col-sm-4 col-form-label form-label">ID do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device ID" id="ID" name="deviceid" required></div>');
-    } else if ($(this).val().toLowerCase() === 'clouddy'){
-      // Se o valor selecionado não for igual a "clouddy",
-      // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
-      $('#divID').remove();
-      $('#divSenha').remove();
-      $('#divEmail').remove();
-      $('#divSenha2').remove();
-      $('#teste').after('<div class="mb-3 row" id="divSenha2"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" required></div>');
-      $('#teste').after('<div class="mb-3 row" id="divEmail"><label for="Email" class="col-sm-4 col-form-label form-label">E-mail do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="E-mail" id="Email" name="email" required></div>');
-    } else {
-      $('#divID').remove();
-      $('#divSenha').remove();
-      $('#divEmail').remove();
-      $('#divSenha2').remove();
-    }
+        $(this).val().toLowerCase() === 'meta player') {
+        // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
+        $('#divEmail').remove();
+        $('#divSenha2').remove();
+        $('#divID').remove();
+        $('#divSenha').remove();
+        $('#teste').after('<div class="mb-3 row" id="divSenha"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device Key" id="Senha" name="devicekey" required></div>');
+        $('#teste').after('<div class="mb-3 row" id="divID"><label for="ID" class="col-sm-4 col-form-label form-label">ID do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device ID" id="ID" name="deviceid" required></div>');
+      } else if ($(this).val().toLowerCase() === 'clouddy') {
+        // Se o valor selecionado não for igual a "clouddy",
+        // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
+        $('#divID').remove();
+        $('#divSenha').remove();
+        $('#divEmail').remove();
+        $('#divSenha2').remove();
+        $('#teste').after('<div class="mb-3 row" id="divSenha2"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" required></div>');
+        $('#teste').after('<div class="mb-3 row" id="divEmail"><label for="Email" class="col-sm-4 col-form-label form-label">E-mail do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="E-mail" id="Email" name="email" required></div>');
+      } else {
+        $('#divID').remove();
+        $('#divSenha').remove();
+        $('#divEmail').remove();
+        $('#divSenha2').remove();
+      }
+    });
   });
-});
 </script>

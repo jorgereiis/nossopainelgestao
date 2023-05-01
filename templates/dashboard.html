@@ -110,7 +110,8 @@
                                 <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold values2_h1">{{valor_total_pago}}</h1>
-                                    <p class="mb-0"><span class="text-dark me-2 values2_span">{{valor_total_pago_qtd}}</span>Pago(s)
+                                    <p class="mb-0"><span
+                                            class="text-dark me-2 values2_span">{{valor_total_pago_qtd}}</span>Pago(s)
                                         neste mês
                                     </p>
                                 </div>
@@ -136,16 +137,18 @@
                                     <h1 class="fw-bold values3_h1">{{valor_total_receber}}</h1>
                                     {% if valor_total_receber_qtd > 0 %}
                                     <p class="mb-0 "><i class="bi bi-exclamation-triangle text-warning me-2"></i><span
-                                            class="text-dark values3_span">{{valor_total_receber_qtd}}</span> vencem em até 7 dias
+                                            class="text-dark values3_span">{{valor_total_receber_qtd}}</span> vencem em
+                                        até 7 dias
                                     </p>
                                     {% else %}
-                                    <p class="mb-0 "><span class="text-dark me-2 values3_span">{{valor_total_receber_qtd}}</span> sem
+                                    <p class="mb-0 "><span
+                                            class="text-dark me-2 values3_span">{{valor_total_receber_qtd}}</span> sem
                                         vencimentos</p>
                                     {% endif %}
                                 </div>
                             </div>
                         </div>
-                        
+
                     </div>
                     <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card -->
@@ -294,20 +297,23 @@
                                                     {% else %}
                                                     <li class="list-group-item" style="list-style-type: none;"><span
                                                             class="title">Indicado por: </span>
-                                                        <span>{{cliente.indicado_por}}</span></li>
+                                                        <span>{{cliente.indicado_por}}</span>
+                                                    </li>
                                                     {% endif %}
                                                     <li class="list-group-item" style="list-style-type: none;"><span
                                                             class="title">Data de pagamento: </span> <span>Dia
                                                             {{cliente.data_pagamento}} de cada mês</span></li>
                                                     <li class="list-group-item" style="list-style-type: none;"><span
                                                             class="title">Forma de pagamento: </span>
-                                                        <span>{{cliente.forma_pgto}}</span></li>
+                                                        <span>{{cliente.forma_pgto}}</span>
+                                                    </li>
                                                     <li class="list-group-item" style="list-style-type: none;"><span
                                                             class="title">Plano: </span><span>{{cliente.plano}}</span>
                                                     </li>
                                                     <li class="list-group-item" style="list-style-type: none;"><span
                                                             class="title">Qtd. telas: </span>
-                                                        <span>{{cliente.telas}}</span></li>
+                                                        <span>{{cliente.telas}}</span>
+                                                    </li>
                                                     {% if cliente.notas == None %}
                                                     <li class="list-group-item" style="list-style-type: none;"><span
                                                             class="title">Notas: </span> <span></span></li>
@@ -441,76 +447,127 @@
 </script>
 
 <script>
-const eyeIcon = document.getElementById("eye");
-const values1_h1 = document.querySelectorAll(".values1_h1");
-const values1_span = document.querySelectorAll(".values1_span");
-const values2_h1 = document.querySelectorAll(".values2_h1");
-const values2_span = document.querySelectorAll(".values2_span");
-const values3_h1 = document.querySelectorAll(".values3_h1");
-const values3_span = document.querySelectorAll(".values3_span");
+    const eyeIcon = document.getElementById("eye");
+    const values1_h1 = document.querySelectorAll(".values1_h1");
+    const values1_span = document.querySelectorAll(".values1_span");
+    const values2_h1 = document.querySelectorAll(".values2_h1");
+    const values2_span = document.querySelectorAll(".values2_span");
+    const values3_h1 = document.querySelectorAll(".values3_h1");
+    const values3_span = document.querySelectorAll(".values3_span");
 
-// Carrega a classe salva no localStorage
-if (localStorage.getItem("eyeClass")) {
-  eyeIcon.classList.add(localStorage.getItem("eyeClass"));
-}
+    // Carrega a classe salva no localStorage para manter o "olho" habilitado ou desabilitado
+    if (localStorage.getItem("eyeClass") == "bi-eye") {
+        eyeIcon.classList.remove("bi-eye-slash");
+        eyeIcon.classList.add("bi-eye");
+        
+        for (let i = 0; i < values1_h1.length; i++) {
+            values1_h1[i].style.height = "auto";
+            values1_h1[i].textContent = "{{total_clientes}}";
+        }
+        for (let i = 0; i < values1_span.length; i++) {
+            values1_span[i].textContent = "{{clientes_em_atraso}}";
+        }
+        for (let i = 0; i < values2_h1.length; i++) {
+            values2_h1[i].style.height = "auto";
+            values2_h1[i].textContent = "{{valor_total_pago}}";
+        }
+        for (let i = 0; i < values2_span.length; i++) {
+            values2_span[i].textContent = "{{valor_total_pago_qtd}}";
+        }
+        for (let i = 0; i < values3_h1.length; i++) {
+            values3_h1[i].style.height = "auto";
+            values3_h1[i].textContent = "{{valor_total_receber}}";
+        }
+        for (let i = 0; i < values3_span.length; i++) {
+            values3_span[i].textContent = "{{valor_total_receber_qtd}}";
+        }
+    } else if (localStorage.getItem("eyeClass") == "bi-eye-slash"){
+        eyeIcon.classList.remove("bi-eye");
+        eyeIcon.classList.add("bi-eye-slash");
 
-eyeIcon.addEventListener("click", function() {
-  if (eyeIcon.classList.contains("bi-eye")) {
-    eyeIcon.classList.remove("bi-eye");
-    eyeIcon.classList.add("bi-eye-slash");
-    for (let i = 0; i < values1_h1.length; i++) {
-      values1_h1[i].style.height = "43px";
-      values1_h1[i].textContent = "****";
-    }
-    for (let i = 0; i < values1_span.length; i++) {
-      values1_span[i].textContent = "*";
-    }
-    for (let i = 0; i < values2_h1.length; i++) {
-      values2_h1[i].style.height = "43px";
-      values2_h1[i].textContent = "****";
-    }
-    for (let i = 0; i < values2_span.length; i++) {
-      values2_span[i].textContent = "*";
-    }
-    for (let i = 0; i < values3_h1.length; i++) {
-      values3_h1[i].style.height = "43px";
-      values3_h1[i].textContent = "****";
-    }
-    for (let i = 0; i < values3_span.length; i++) {
-      values3_span[i].textContent = "*";
-    }
-
-    // Salva a classe atual no localStorage
-    localStorage.setItem("eyeClass", "bi-eye-slash");
-
-  } else {
-    eyeIcon.classList.remove("bi-eye-slash");
-    eyeIcon.classList.add("bi-eye");
-    for (let i = 0; i < values1_h1.length; i++) {
-      values1_h1[i].style.height = "auto";
-      values1_h1[i].textContent = "{{total_clientes}}";
-    }
-    for (let i = 0; i < values1_span.length; i++) {
-      values1_span[i].textContent = "{{clientes_em_atraso}}";
-    }
-    for (let i = 0; i < values2_h1.length; i++) {
-      values2_h1[i].style.height = "auto";
-      values2_h1[i].textContent = "{{valor_total_pago}}";
-    }
-    for (let i = 0; i < values2_span.length; i++) {
-      values2_span[i].textContent = "{{valor_total_pago_qtd}}";
-    }
-    for (let i = 0; i < values3_h1.length; i++) {
-      values3_h1[i].style.height = "auto";
-      values3_h1[i].textContent = "{{valor_total_receber}}";
-    }
-    for (let i = 0; i < values3_span.length; i++) {
-      values3_span[i].textContent = "{{valor_total_receber_qtd}}";
+        for (let i = 0; i < values1_h1.length; i++) {
+            values1_h1[i].style.height = "43px";
+            values1_h1[i].textContent = "****";
+        }
+        for (let i = 0; i < values1_span.length; i++) {
+            values1_span[i].textContent = "*";
+        }
+        for (let i = 0; i < values2_h1.length; i++) {
+            values2_h1[i].style.height = "43px";
+            values2_h1[i].textContent = "****";
+        }
+        for (let i = 0; i < values2_span.length; i++) {
+            values2_span[i].textContent = "*";
+        }
+        for (let i = 0; i < values3_h1.length; i++) {
+            values3_h1[i].style.height = "43px";
+            values3_h1[i].textContent = "****";
+        }
+        for (let i = 0; i < values3_span.length; i++) {
+            values3_span[i].textContent = "*";
+        }
     }
 
-    // Salva a classe atual no localStorage
-    localStorage.setItem("eyeClass", "bi-eye");
-  }
+    // muda a exibição das informações de acordo com o clique no "olho"
+    eyeIcon.addEventListener("click", function () {
+        if (eyeIcon.classList.contains("bi-eye")) {
+            eyeIcon.classList.remove("bi-eye");
+            eyeIcon.classList.add("bi-eye-slash");
+            
+            for (let i = 0; i < values1_h1.length; i++) {
+                values1_h1[i].style.height = "43px";
+                values1_h1[i].textContent = "****";
+            }
+            for (let i = 0; i < values1_span.length; i++) {
+                values1_span[i].textContent = "*";
+            }
+            for (let i = 0; i < values2_h1.length; i++) {
+                values2_h1[i].style.height = "43px";
+                values2_h1[i].textContent = "****";
+            }
+            for (let i = 0; i < values2_span.length; i++) {
+                values2_span[i].textContent = "*";
+            }
+            for (let i = 0; i < values3_h1.length; i++) {
+                values3_h1[i].style.height = "43px";
+                values3_h1[i].textContent = "****";
+            }
+            for (let i = 0; i < values3_span.length; i++) {
+                values3_span[i].textContent = "*";
+            }
 
-});
+            // Salva a classe atual no localStorage
+            localStorage.setItem("eyeClass", "bi-eye-slash");
+
+        } else {
+            eyeIcon.classList.remove("bi-eye-slash");
+            eyeIcon.classList.add("bi-eye");
+
+            for (let i = 0; i < values1_h1.length; i++) {
+                values1_h1[i].style.height = "auto";
+                values1_h1[i].textContent = "{{total_clientes}}";
+            }
+            for (let i = 0; i < values1_span.length; i++) {
+                values1_span[i].textContent = "{{clientes_em_atraso}}";
+            }
+            for (let i = 0; i < values2_h1.length; i++) {
+                values2_h1[i].style.height = "auto";
+                values2_h1[i].textContent = "{{valor_total_pago}}";
+            }
+            for (let i = 0; i < values2_span.length; i++) {
+                values2_span[i].textContent = "{{valor_total_pago_qtd}}";
+            }
+            for (let i = 0; i < values3_h1.length; i++) {
+                values3_h1[i].style.height = "auto";
+                values3_h1[i].textContent = "{{valor_total_receber}}";
+            }
+            for (let i = 0; i < values3_span.length; i++) {
+                values3_span[i].textContent = "{{valor_total_receber_qtd}}";
+            }
+
+            // Salva a classe atual no localStorage
+            localStorage.setItem("eyeClass", "bi-eye");
+        }
+
+    });
 </script>
