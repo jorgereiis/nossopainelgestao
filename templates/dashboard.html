@@ -242,9 +242,7 @@
                                             {% for mensalidade in cliente.mensalidade_set.all %}
                                             {% if mensalidade.dt_pagamento is None or not mensalidade.pgto %}
                                             {% if hoje > mensalidade.dt_vencimento %}
-                                            <td class="align-middle text-center"><span class="badge bg-danger">{{
-                                                    mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y'
-                                                    }}]</span></td>
+                                            <td class="align-middle text-center"><span class="badge bg-danger">{{mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y'}}]</span></td>
                                             {% else %}
                                             <td class="align-middle text-primary text-center"><span
                                                     class="badge bg-info">{{ mensalidade.valor }}
