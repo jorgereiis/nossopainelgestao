@@ -254,7 +254,6 @@ def ImportarClientes(request):
         {"mensagem": "Arquivo CSV importado com sucesso."},
     )
 
-
 def CadastroCliente(request):
     # Recebendo os dados da requisição para criar um novo cliente
     if request.method == 'POST' and 'cadastrar' in request.POST:
@@ -298,6 +297,17 @@ def CadastroCliente(request):
         )
         cliente.save()
 
+        if request.POST.get('senha'):
+
+            dados_do_app = ContaDoAplicativo(
+                cliente=Cliente.objects.get(nome=nome + " " + sobrenome),
+                app=Aplicativo.objects.get(nome=sistema),
+                device_id=request.POST.get('id'),
+                email=request.POST.get('email'),
+                device_key=request.POST.get('senha')
+            )
+            dados_do_app.save()
+
         return redirect('cadastro-cliente')
 
     # Criando os queryset para exibir os dados nos campos do fomulário
@@ -327,6 +337,17 @@ def CadastroCliente(request):
 def CadastroPlanoMensal(request):
 
     planos_mensalidades = Plano.objects.all()
+
+    print('>>>>>>>>>>>>>>>>>>>>>>>>>> ', request.POST.get('nome'))
+
+    if request.method == 'POST':
+        print('>>>>>>>>>>>>>>', nome)
+
+        plano = Plano(
+            nome=request.POST.get('nome'),
+            valor=int(request.POST.get('valor'))
+        )
+        #plano.save()
 
     return render(request, "pages/cadastro-plano-mensal.html", {"planos_mensalidades": planos_mensalidades})
 
@@ -375,7 +396,7 @@ def CadastroServidor(request):
             return render(request, "pages/cadastro-servidor.html", {'servidores': servidores, "error_message": "Não foi possível cadastrar '{}'. <p>ERRO: [{}]</p>".format(nome, erro)})
         except Exception as e:
             # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
-            return render(request, "pages/cadastro-servidor.html", {'servidores': servidores, "error_message": "Servidor '{}' já existe!".format(nome)})
+            return render(request, "pages/cadastro-servidor.html", {'servidores': servidores, "error_message": "Já existe um servidor com este nome!".format(nome)})
 
         # Retornando msg de sucesso caso seja feito o cadastro
         return render(request, 'pages/cadastro-servidor.html', {'servidores': servidores, "success_message": "Novo servidor cadastrado com sucesso!"})

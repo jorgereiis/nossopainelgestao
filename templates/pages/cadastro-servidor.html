@@ -23,27 +23,7 @@
             <div class="border-bottom pb-4 mb-4">
               <h3 class="mb-0 fw-bold">Cadastro de Servidores</h3>
             </div>
-
-            <!-- Alert success -->
           </div>
-          {% if success_message %}
-          <div class="alert alert-success text-center">
-            {{ success_message }}
-          </div>
-          <!-- Alert error -->
-          {% elif error_message %}
-          <div class="alert alert-danger text-center">
-            {{ error_message }}
-          </div>
-          {% elif error_delete %}
-          <div class="alert alert-danger text-center">
-            {{error_delete}}
-          </div>
-          {% elif success_update == True %}
-          <div class="alert alert-success text-center">
-            Alteração realizada!
-          </div>
-          {% endif %}
 
           <!-- col -->
           <div class="row mb-8">
@@ -202,6 +182,80 @@
       <!-- Scripts -->
       {% include 'partials/scripts.html' %}
 
+      <!-- Alert success -->
+      {% if success_message %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/servidores';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'success',
+            title: 'Cadastro realizado!',
+            text: '{{success_message}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      {% elif success_update == True %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/servidores';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'success',
+            title: 'Edição de cadastro',
+            text: '{success_update}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      <!-- Alert error -->
+      {% elif error_message %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/servidores';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: '{{error_message}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      {% elif error_delete %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/servidores';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: '{{error_delete}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+      {% endif %}
 </body>
 
 </html>
