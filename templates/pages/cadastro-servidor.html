@@ -192,7 +192,7 @@
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
-            title: 'Cadastro realizado!',
+            title: 'Cadastro realizado',
             text: '{{success_message}}',
             didClose: function () {
               window.location.href = newUrl;
@@ -210,8 +210,8 @@
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
-            title: 'Edição de cadastro',
-            text: '{success_update}}',
+            title: 'Cadastro atualizado',
+            text: 'Servidor editado com sucesso!',
             didClose: function () {
               window.location.href = newUrl;
             }
@@ -231,24 +231,6 @@
             icon: 'error',
             title: 'Oops...',
             text: '{{error_message}}',
-            didClose: function () {
-              window.location.href = newUrl;
-            }
-          });
-        });
-      </script>
-
-      {% elif error_delete %}
-      <script>
-        console.log(window.location.origin)
-        $(document).ready(function () {
-          var currentUrl = window.location.origin;
-          var newPath = '/servidores';
-          var newUrl = currentUrl + newPath;
-          swal.fire({
-            icon: 'error',
-            title: 'Oops...',
-            text: '{{error_delete}}',
             didClose: function () {
               window.location.href = newUrl;
             }

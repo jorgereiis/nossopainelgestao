@@ -338,24 +338,38 @@ def CadastroPlanoMensal(request):
 
     planos_mensalidades = Plano.objects.all()
 
-    print('>>>>>>>>>>>>>>>>>>>>>>>>>> ', request.POST.get('nome'))
-
     if request.method == 'POST':
-        print('>>>>>>>>>>>>>>', nome)
+
 
         plano = Plano(
             nome=request.POST.get('nome'),
             valor=int(request.POST.get('valor'))
         )
-        #plano.save()
+
+        # Tratando possíveis erros
+        try:
+            plano.save()
+        except ValidationError as erro:
+            # Capturando o erro de validação e renderizando a página novamente com a mensagem de erro
+            return render(request, "pages/cadastro-plano-mensal.html", {'planos_mensalidades': planos_mensalidades, "error_message": "Não foi possível cadastrar este novo plano. <p>ERRO: [{}]</p>".format(nome, erro)})
+        except Exception as e:
+            # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
+            return render(request, "pages/cadastro-plano-mensal.html", {'planos_mensalidades': planos_mensalidades, "error_message": "Já existe um plano com este nome!"})
+
+        # Retornando msg de sucesso caso seja feito o cadastro
+        return render(request, "pages/cadastro-plano-mensal.html", {'planos_mensalidades': planos_mensalidades, "success_message": "Novo plano cadastrado com sucesso!"})
 
     return render(request, "pages/cadastro-plano-mensal.html", {"planos_mensalidades": planos_mensalidades})
 
 
 def DeletePlanoMensal(request, pk):
-    plano_mensal = get_object_or_404(Plano, pk=pk)
-    plano_mensal.delete()
-
+    try:
+        plano_mensal = get_object_or_404(Plano, pk=pk)
+        plano_mensal.delete()
+    except ProtectedError as e:
+        error_msg = 'Este Plano não pode ser excluído porque está relacionado com algum cliente.'
+        return HttpResponseBadRequest(json.dumps({'error_delete': error_msg}), content_type='application/json')
+    
     return redirect('cadastro-plano-mensal')
 
 
@@ -366,13 +380,18 @@ def EditarPlanoMensal(request, plano_id):
 
     if request.method == "POST":
         nome = request.POST.get("nome")
-
-        if nome:
+        valor = request.POST.get("valor")
+        if nome and valor:
             plano_mensal.nome = nome
+            plano_mensal.valor = valor
             plano_mensal.save()
 
             return render(request, "pages/cadastro-plano-mensal.html", {"planos_mensalidades": planos_mensalidades, "success_update": True})
+        
 
+        else:
+            return render(request, "pages/cadastro-plano-mensal.html", {"planos_mensalidades": planos_mensalidades, "error_message": "Erro ao tentar editar este plano."})
+    
     return redirect("cadastro-plano-mensal")
 
 
@@ -393,10 +412,10 @@ def CadastroServidor(request):
             servidor.save()
         except ValidationError as erro:
             # Capturando o erro de validação e renderizando a página novamente com a mensagem de erro
-            return render(request, "pages/cadastro-servidor.html", {'servidores': servidores, "error_message": "Não foi possível cadastrar '{}'. <p>ERRO: [{}]</p>".format(nome, erro)})
+            return render(request, "pages/cadastro-servidor.html", {'servidores': servidores, "error_message": "Não foi possível cadastrar este novo servidor. <p>ERRO: [{}]</p>".format(nome, erro)})
         except Exception as e:
             # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
-            return render(request, "pages/cadastro-servidor.html", {'servidores': servidores, "error_message": "Já existe um servidor com este nome!".format(nome)})
+            return render(request, "pages/cadastro-servidor.html", {'servidores': servidores, "error_message": "Já existe um servidor com este nome!"})
 
         # Retornando msg de sucesso caso seja feito o cadastro
         return render(request, 'pages/cadastro-servidor.html', {'servidores': servidores, "success_message": "Novo servidor cadastrado com sucesso!"})
