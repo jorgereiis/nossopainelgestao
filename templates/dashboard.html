@@ -242,13 +242,9 @@
                                             {% for mensalidade in cliente.mensalidade_set.all %}
                                             {% if mensalidade.dt_pagamento is None or not mensalidade.pgto %}
                                             {% if hoje > mensalidade.dt_vencimento %}
-                                            <td class="align-middle text-center"><span class="badge bg-danger">{{
-                                                    mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y'
-                                                    }}]</span></td>
+                                            <td class="align-middle text-center"><span class="badge bg-danger">{{mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y'}}]</span></td>
                                             {% else %}
-                                            <td class="align-middle text-primary text-center"><span
-                                                    class="badge bg-info">{{ mensalidade.valor }}
-                                                    [{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
+                                            <td class="align-middle text-primary text-center"><span class="badge bg-info">{{ mensalidade.valor }}[{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                             {% endif %}
                                             <!-- Dropdown da tabela -->
                                             <td>
@@ -459,7 +455,7 @@
     if (localStorage.getItem("eyeClass") == "bi-eye") {
         eyeIcon.classList.remove("bi-eye-slash");
         eyeIcon.classList.add("bi-eye");
-        
+
         for (let i = 0; i < values1_h1.length; i++) {
             values1_h1[i].style.height = "auto";
             values1_h1[i].textContent = "{{total_clientes}}";
@@ -481,7 +477,7 @@
         for (let i = 0; i < values3_span.length; i++) {
             values3_span[i].textContent = "{{valor_total_receber_qtd}}";
         }
-    } else if (localStorage.getItem("eyeClass") == "bi-eye-slash"){
+    } else if (localStorage.getItem("eyeClass") == "bi-eye-slash") {
         eyeIcon.classList.remove("bi-eye");
         eyeIcon.classList.add("bi-eye-slash");
 
@@ -513,7 +509,7 @@
         if (eyeIcon.classList.contains("bi-eye")) {
             eyeIcon.classList.remove("bi-eye");
             eyeIcon.classList.add("bi-eye-slash");
-            
+
             for (let i = 0; i < values1_h1.length; i++) {
                 values1_h1[i].style.height = "43px";
                 values1_h1[i].textContent = "****";

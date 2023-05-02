@@ -10,9 +10,11 @@ from .models import (
     PlanoIndicacao,
     ContaDoAplicativo,
 )
+from django.shortcuts import get_object_or_404, redirect, HttpResponseRedirect, reverse
+from django.db.models.deletion import ProtectedError
 from django.core.exceptions import ValidationError
-from django.shortcuts import get_object_or_404, redirect
 from django.views.generic.list import ListView
+from django.http import HttpResponseBadRequest
 from babel.numbers import format_currency 
 from datetime import datetime, timedelta
 from django.shortcuts import redirect
@@ -21,7 +23,9 @@ from django.utils import timezone
 from django.db.models import Sum
 from django.db.models import Q
 import locale
+import json
 import csv
+
 
 
 class TabelaDashboard(ListView):
@@ -327,11 +331,84 @@ def CadastroPlanoMensal(request):
     return render(request, "pages/cadastro-plano-mensal.html", {"planos_mensalidades": planos_mensalidades})
 
 
+def DeletePlanoMensal(request, pk):
+    plano_mensal = get_object_or_404(Plano, pk=pk)
+    plano_mensal.delete()
+
+    return redirect('cadastro-plano-mensal')
+
+
+def EditarPlanoMensal(request, plano_id):
+    plano_mensal = get_object_or_404(Plano, pk=plano_id)
+
+    planos_mensalidades = Plano.objects.all()
+
+    if request.method == "POST":
+        nome = request.POST.get("nome")
+
+        if nome:
+            plano_mensal.nome = nome
+            plano_mensal.save()
+
+            return render(request, "pages/cadastro-plano-mensal.html", {"planos_mensalidades": planos_mensalidades, "success_update": True})
+
+    return redirect("cadastro-plano-mensal")
+
+
 def CadastroServidor(request):
 
     servidores = Servidor.objects.all()
 
+    if request.method == "POST":
+        nome = request.POST.get("nome")
+
+        # Criando o objeto PlanoIndicacao
+        servidor = Servidor(
+            nome=nome,
+        )
+
+        # Tratando possíveis erros
+        try:
+            servidor.save()
+        except ValidationError as erro:
+            # Capturando o erro de validação e renderizando a página novamente com a mensagem de erro
+            return render(request, "pages/cadastro-servidor.html", {'servidores': servidores, "error_message": "Não foi possível cadastrar '{}'. <p>ERRO: [{}]</p>".format(nome, erro)})
+        except Exception as e:
+            # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
+            return render(request, "pages/cadastro-servidor.html", {'servidores': servidores, "error_message": "Servidor '{}' já existe!".format(nome)})
+
+        # Retornando msg de sucesso caso seja feito o cadastro
+        return render(request, 'pages/cadastro-servidor.html', {'servidores': servidores, "success_message": "Novo servidor cadastrado com sucesso!"})
+    
     return render(request, 'pages/cadastro-servidor.html', {'servidores': servidores})
+
+
+def DeleteServidor(request, pk):
+    try:
+        servidor = get_object_or_404(Servidor, pk=pk)
+        servidor.delete()
+    except ProtectedError as e:
+        error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
+        return HttpResponseBadRequest(json.dumps({'error_delete': error_msg}), content_type='application/json')
+    else:
+        return redirect('servidores')
+
+
+def EditarServidor(request, servidor_id):
+    servidor = get_object_or_404(Servidor, pk=servidor_id)
+
+    servidores = Servidor.objects.all()
+
+    if request.method == "POST":
+        nome = request.POST.get("nome")
+
+        if nome:
+            servidor.nome = nome
+            servidor.save()
+
+            return render(request, "pages/cadastro-servidor.html", {"servidores": servidores, "success_update": True})
+
+    return redirect("servidores")
 
 
 def CadastroPlanoIndicacao(request):
@@ -362,8 +439,6 @@ def CadastroPlanoIndicacao(request):
         return render(request, "pages/plano-indicacao.html", {"success_message": "Plano de indicação cadastrado com sucesso!"})
 
     return render(request, "pages/cadastro-plano-indicacao.html", {"planos": planos})
-
-
 
 
 def CadastroFormaPagamento(request):
