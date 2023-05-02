@@ -351,7 +351,7 @@ def CadastroPlanoMensal(request):
             plano.save()
         except ValidationError as erro:
             # Capturando o erro de validação e renderizando a página novamente com a mensagem de erro
-            return render(request, "pages/cadastro-plano-mensal.html", {'planos_mensalidades': planos_mensalidades, "error_message": "Não foi possível cadastrar este novo plano. <p>ERRO: [{}]</p>".format(nome, erro)})
+            return render(request, "pages/cadastro-plano-mensal.html", {'planos_mensalidades': planos_mensalidades, "error_message": "Não foi possível cadastrar este novo plano. <p>ERRO: [{}]</p>"})
         except Exception as e:
             # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
             return render(request, "pages/cadastro-plano-mensal.html", {'planos_mensalidades': planos_mensalidades, "error_message": "Já existe um plano com este nome!"})
