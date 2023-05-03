@@ -42,6 +42,7 @@ class ClienteAdmin(admin.ModelAdmin):
         'telefone',
     )
 
+
 class MensalidadeAdmin(admin.ModelAdmin):
     list_display = (
         "id",
@@ -61,9 +62,8 @@ class MensalidadeAdmin(admin.ModelAdmin):
         'cancelado',
     )
 
-    search_fields = (
-        'cliente__nome',
-    )
+    search_fields = ('cliente__nome',)
+
 
 class PlanoAdmin(admin.ModelAdmin):
     list_display = ("nome", "valor")

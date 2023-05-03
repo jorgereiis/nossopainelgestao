@@ -27,7 +27,7 @@
           </div>
           <!-- col -->
           <div class="row mb-8">
-            <div class="col-xl-3 col-lg-4 col-md-12 col-12">
+            <div class="col-xl-4 col-lg-4 col-md-12 col-12">
               <div class="mb-4 mb-lg-0">
                 <h4 class="mb-1">Crie aqui o seu Dispositivo</h4>
                 <p class="mb-0 fs-5 text-muted">Preencha os dados corretamente.</p>
@@ -35,7 +35,7 @@
 
             </div>
 
-            <div class="col-xl-8 col-lg-8 col-md-12 col-12">
+            <div class="col-xl-6 col-lg-8 col-md-12 col-12">
               <!-- card -->
               <div class="card">
                 <!-- card body -->
@@ -73,6 +73,59 @@
             </div>
             <br>
 
+            <!-- Modal de confirmação de exclusão -->
+            <div class="modal fade" id="confirm-delete-modal" tabindex="-1" role="dialog"
+              aria-labelledby="confirm-delete-label">
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h4 class="modal-title" id="confirm-delete-label">Confirmar exclusão</h4>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                    <p>Tem certeza que deseja excluir o aplicativo <span id="aplicativo-nome"></span>?</p>
+                  </div>
+                  <div class="modal-footer">
+                    <div class="mensagem-erro" id="mensagem-erro"></div>
+                    <form method="POST" id="delete-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="aplicativo_id" id="aplicativo-id">
+                      <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                      <button type="submit" class="btn btn-danger">Excluir</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal de edição de aplicativo -->
+            <div class="modal fade" id="edit-aplicativo-modal" tabindex="-1" role="dialog"
+              aria-labelledby="edit-aplicativo-label">
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h4 class="modal-title" id="edit-aplicativo-label">Editar Aplicativo</h4>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
+                  </div>
+                  <div class="modal-body">
+                    <form method="POST" id="edit-aplicativo-form">
+                      {% csrf_token %}
+                      <div class="form-group">
+                        <label for="aplicativo-nome">Nome do aplicativo</label>
+                        <input type="text" class="form-control" id="aplicativo-nome" name="nome">
+                      </div>
+                      <input type="hidden" name="aplicativo_id" id="aplicativo-id">
+                    </form>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="edit-aplicativo-form" class="btn btn-primary">Salvar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="col-md-4 mx-auto">
               <!-- card -->
               <div class="card">
@@ -105,10 +158,13 @@
                             </button>
                             <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
                               <li>
-                                <button class="dropdown-item">Editar</button>
+                                <button class="dropdown-item" data-aplicativo="{{aplicativo.id}}"
+                                  data-nome="{{aplicativo.nome}}" onclick="exibirModalEdicao(this)">Editar</button>
                               </li>
                               <li>
-                                <button class="dropdown-item">Deletar</button>
+                                <button class="dropdown-item" data-aplicativo="{{aplicativo.id}}"
+                                  data-nome="{{aplicativo.nome}}"
+                                  onclick="exibirModalConfirmacaoExclusao(this)">Excluir</button>
                               </li>
                             </ul>
                           </div>
@@ -131,6 +187,123 @@
       <!-- Scripts -->
       {% include 'partials/scripts.html' %}
 
+      {% if success_message %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/cadastro-aplicativos';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'success',
+            title: 'Cadastro realizado',
+            text: '{{success_message}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      {% elif success_update == True %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/cadastro-aplicativos';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'success',
+            title: 'Cadastro atualizado',
+            text: 'Aplicativo editado com sucesso!',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      <!-- Alert error -->
+      {% elif error_message %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/cadastro-aplicativos';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: '{{error_message}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+      {% endif %}
+
 </body>
 
 </html>
+
+<script>
+  function exibirModalConfirmacaoExclusao(botao) {
+    var aplicativo_id = $(botao).data('aplicativo');
+    var aplicativo_nome = $(botao).data('nome');
+    $('#confirm-delete-modal #aplicativo-id').val(aplicativo_id);
+    $('#confirm-delete-modal #aplicativo-nome').text(aplicativo_nome);
+    $('#confirm-delete-modal').modal('show');
+
+    // Ouve o envio do formulário
+    $('#delete-form').on('submit', function (event) {
+      event.preventDefault(); // Impede o envio padrão do formulário
+
+      // Obtém o ID do servidor a ser excluído
+      var aplicativo_id = $('#aplicativo-id').val();
+
+      // Faz a solicitação DELETE para a URL apropriada
+      $.ajax({
+        url: '/deletar_aplicativo/' + aplicativo_id + '/',
+        method: 'DELETE',
+        beforeSend: function (xhr) {
+          xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+        },
+        success: function (response) {
+          // Fecha o modal e recarrega a página
+          $('#confirm-delete-modal').modal('hide');
+          window.location.reload();
+        },
+        error: function (response) {
+          // Lida com o erro de exclusão
+          var mensagem_erro = response.responseJSON.error_delete;
+          $('#mensagem-erro').text(mensagem_erro);
+        }
+      });
+    });
+  }
+
+  $('#confirm-delete-modal').on('click', '.btn-close, .btn-secondary', function () {
+    $('#confirm-delete-modal').modal('hide');
+  });
+
+</script>
+
+<script>
+  function exibirModalEdicao(botao) {
+    const aplicativoId = botao.dataset.aplicativo;
+    const aplicativoNome = botao.dataset.nome;
+
+    const form = document.querySelector("#edit-aplicativo-form");
+    form.action = `/editar_aplicativo/${aplicativoId}/`;
+    form.querySelector("#aplicativo-nome").value = aplicativoNome;
+    form.querySelector("#aplicativo-id").value = aplicativoId;
+
+    const modal = new bootstrap.Modal(document.querySelector("#edit-aplicativo-modal"));
+    modal.show();
+  }
+
+  $('#edit-aplicativo-modal').on('click', '.btn-close, .btn-secondary', function () {
+    $('#edit-aplicativo-modal').modal('hide');
+  });
+</script>

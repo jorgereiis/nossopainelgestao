@@ -8,7 +8,6 @@ from .views import (
     ImportarClientes,
     CadastroFormaPagamento,
     CadastroServidor,
-    CadastroPlanoIndicacao,
     CadastroPlanoMensal,
     CadastroDispositivo,
     CadastroAplicativo,
@@ -16,6 +15,11 @@ from .views import (
     EditarServidor,
     DeletePlanoMensal,
     EditarPlanoMensal,
+    DeleteAplicativo,
+    DeleteFormaPagamento,
+    EditarAplicativo,
+    EditarDispositivo,
+    DeleteDispositivo,
     Teste,
 )
 
@@ -31,12 +35,28 @@ urlpatterns = [
     path("editar_plano/<int:plano_id>/", EditarPlanoMensal, name="editar-plano-mensal"),
     path('editar_servidor/<int:servidor_id>/', EditarServidor, name='editar_servidor'),
     path("plano-mensalidade/", CadastroPlanoMensal, name="cadastro-plano-mensal"),
-    path("cadastro-aplicativos/",CadastroAplicativo, name="cadastro-aplicativos"),
+    path("cadastro-aplicativos/", CadastroAplicativo, name="cadastro-aplicativos"),
+    path(
+        "editar_aplicativo/<int:aplicativo_id>/",
+        EditarAplicativo,
+        name="editar-aplicativo",
+    ),
     path('deletar_servidor/<int:pk>/', DeleteServidor, name='deletar_servidor'),
-    path('deletar_plano_mensal/<int:pk>/',DeletePlanoMensal, name='deletar-plano-mensal'),
+    path(
+        'deletar_plano_mensal/<int:pk>/', DeletePlanoMensal, name='deletar-plano-mensal'
+    ),
     path("forma-pagamento/", CadastroFormaPagamento, name="forma-pagamento"),
-    path("plano-indicacao/", CadastroPlanoIndicacao, name="plano-indicacao"),
     path("dispositivos/", CadastroDispositivo, name="cadastro-dispositivos"),
+    path("deletar_aplicativo/<int:pk>/", DeleteAplicativo, name="deletar-aplicativo"),
+    path("deletar_formapgto/<int:pk>/", DeleteFormaPagamento, name="deletar-formapgto"),
+    path(
+        "editar_dispositivo/<int:dispositivo_id>/",
+        EditarDispositivo,
+        name="editar-dispositivo",
+    ),
+    path(
+        "deletar_dispositivo/<int:pk>/", DeleteDispositivo, name="deletar-dispositivo"
+    ),
     path("dashboard/", TabelaDashboard.as_view(), name="dashboard"),
     path("importar/", ImportarClientes, name="importar-cliente"),
     path("cadastro/", CadastroCliente, name="cadastro-cliente"),
@@ -44,4 +64,3 @@ urlpatterns = [
     path("teste/", Teste, name="teste"),
     path("", Login, name="login"),
 ]
-

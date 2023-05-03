@@ -27,7 +27,7 @@
           </div>
           <!-- col -->
           <div class="row mb-8">
-            <div class="col-xl-3 col-lg-4 col-md-12 col-12">
+            <div class="col-xl-4 col-lg-4 col-md-12 col-12">
               <div class="mb-4 mb-lg-0">
                 <h4 class="mb-1">Crie aqui as Formas de Pagamento</h4>
                 <p class="mb-0 fs-5 text-muted">Preencha os dados corretamente.</p>
@@ -35,7 +35,7 @@
 
             </div>
 
-            <div class="col-xl-8 col-lg-8 col-md-12 col-12">
+            <div class="col-xl-4 col-lg-5 col-md-5 col-5">
               <!-- card -->
               <div class="card">
                 <!-- card body -->
@@ -48,10 +48,13 @@
                     <!-- row -->
                     {% csrf_token %}
                     <div class="mb-3 row">
-                      <label for="fullName" class="col-sm-2 col-form-label
-                          form-label">Descrição</label>
-                      <div class="col-sm-10 mb-3 mb-lg-0">
-                        <input type="text" class="form-control" placeholder="PIX, Boleto, Cartão de Crédito..." id="nome" name="nome" required>
+                      <label for="nome" class="col-sm-2 col-form-label form-label">Nome</label>
+                      <div class="col-md-5 col-5">
+                        <select class="form-select" id="nome" name="nome">
+                          <option value="PIX">PIX</option>
+                          <option value="Cartão de Crédito">Cartão de Crédito</option>
+                          <option value="Boleto">Boleto</option>
+                        </select>
                       </div>
                     </div>
                     <div class="offset-md-2 col-md-8 mt-4">
@@ -66,61 +69,88 @@
 
           <div class="row mb-8">
             <div class="col-md-12 col-12">
-                <div class="mb-lg-6 border-bottom pb-4 mb-4">
-                    <h4 class="mb-1">Cadastros existentes</h4>
-                </div>
+              <div class="mb-lg-6 border-bottom pb-4 mb-4">
+                <h4 class="mb-1">Cadastros existentes</h4>
+              </div>
             </div>
             <br>
 
-            <div class="col-md-4 mx-auto">
-                <!-- card -->
-                <div class="card">
-                    <div class="table-responsive">
-                      <table class="table table-sm text-nowrap mb-0 table-hover text-center" id="myTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="fw-bold text-center">Forma de Pagamento</th>
-                                <th class="fw-bold text-center">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for forma_pgto in formas_pgto %}
-                            <!-- COMEÇO DA LINHA -->
-                            <tr>
-                                <td class="align-middle">
-                                    <div class="">
-                                        <div class="">
-                                            <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'" onmouseout="this.style.color=''">{{forma_pgto.nome}}</h5>
-                                        </div>
-                                    </div>
-                                </td>
-                                <!-- Dropdown da tabela -->
-                                <td>
-                                    <div class="dropdown">
-                                      <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
-                                      </button>
-                                      <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
-                                        <li>
-                                          <button class="dropdown-item">Editar</button>
-                                        </li>
-                                        <li>
-                                          <button class="dropdown-item">Deletar</button>
-                                        </li>
-                                      </ul>
-                                    </div>
-                                  </td>
-                                {% endfor %}
-                                
-                            </tr>
-                            <!-- TÉRMINO DA LINHA -->
-                        </tbody>
-                    </table>
-                      </div>
+            <!-- Modal de confirmação de exclusão -->
+            <div class="modal fade" id="confirm-delete-modal" tabindex="-1" role="dialog"
+              aria-labelledby="confirm-delete-label">
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h4 class="modal-title" id="confirm-delete-label">Confirmar exclusão</h4>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                    <p>Tem certeza que deseja excluir esta Forma de Pagamento <span id="formapgto-nome"></span>?</p>
+                  </div>
+                  <div class="modal-footer">
+                    <div class="mensagem-erro" id="mensagem-erro"></div>
+                    <form method="POST" id="delete-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="formapgto_id" id="formapgto-id">
+                      <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                      <button type="submit" class="btn btn-danger">Excluir</button>
+                    </form>
+                  </div>
                 </div>
+              </div>
             </div>
 
-        </div>
+            <div class="col-md-4 mx-auto">
+              <!-- card -->
+              <div class="card">
+                <div class="table-responsive">
+                  <table class="table table-sm text-nowrap mb-0 table-hover text-center" id="myTable">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="fw-bold text-center">Forma de Pagamento</th>
+                        <th class="fw-bold text-center">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for forma_pgto in formas_pgto %}
+                      <!-- COMEÇO DA LINHA -->
+                      <tr>
+                        <td class="align-middle">
+                          <div class="">
+                            <div class="">
+                              <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
+                                onmouseout="this.style.color=''">{{forma_pgto.nome}}</h5>
+                            </div>
+                          </div>
+                        </td>
+
+                        <!-- Dropdown da tabela -->
+                        <td>
+                          <div class="dropdown">
+                            <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button"
+                              id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                              <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                            </button>
+                            <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
+                              <li>
+                                <button class="dropdown-item" data-formapgto="{{forma_pgto.id}}"
+                                  data-nome="{{forma_pgto.nome}}"
+                                  onclick="exibirModalConfirmacaoExclusao(this)">Excluir</button>
+                              </li>
+                            </ul>
+                          </div>
+                        </td>
+                      </tr>
+                      <!-- TÉRMINO DA LINHA -->
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
 
         </div>
       </div>
@@ -128,6 +158,104 @@
       <!-- Scripts -->
       {% include 'partials/scripts.html' %}
 
+      <!-- Alert success -->
+      {% if success_message %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/forma-pagamento';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'success',
+            title: 'Cadastro realizado',
+            text: '{{success_message}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      {% elif success_update == True %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/forma-pagamento';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'success',
+            title: 'Cadastro atualizado',
+            text: 'Servidor editado com sucesso!',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      <!-- Alert error -->
+      {% elif error_message %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/forma-pagamento';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: '{{error_message}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+      {% endif %}
 </body>
 
 </html>
+
+<script>
+  function exibirModalConfirmacaoExclusao(botao) {
+    var formapgto_id = $(botao).data('formapgto');
+    var formapgto_nome = $(botao).data('nome');
+    $('#confirm-delete-modal #formapgto-id').val(formapgto_id);
+    $('#confirm-delete-modal #formapgto-nome').text(formapgto_nome);
+    $('#confirm-delete-modal').modal('show');
+
+    // Ouve o envio do formulário
+    $('#delete-form').on('submit', function (event) {
+      event.preventDefault(); // Impede o envio padrão do formulário
+
+      // Obtém o ID do servidor a ser excluído
+      var formapgto_id = $('#formapgto-id').val();
+
+      // Faz a solicitação DELETE para a URL apropriada
+      $.ajax({
+        url: '/deletar_formapgto/' + formapgto_id + '/',
+        method: 'DELETE',
+        beforeSend: function (xhr) {
+          xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+        },
+        success: function (response) {
+          // Fecha o modal e recarrega a página
+          $('#confirm-delete-modal').modal('hide');
+          window.location.reload();
+        },
+        error: function (response) {
+          // Lida com o erro de exclusão
+          var mensagem_erro = response.responseJSON.error_delete;
+          $('#mensagem-erro').text(mensagem_erro);
+        }
+      });
+    });
+  }
+
+  $('#confirm-delete-modal').on('click', '.btn-close, .btn-secondary', function () {
+    $('#confirm-delete-modal').modal('hide');
+  });
+
+</script>

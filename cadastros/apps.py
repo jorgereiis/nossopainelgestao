@@ -7,4 +7,3 @@ class CadastrosConfig(AppConfig):
 
     def ready(self):
         import cadastros.signals, cadastros.utils
-
