@@ -107,7 +107,7 @@ class Cliente(models.Model):
     dispositivo = models.ForeignKey(Dispositivo, on_delete=models.CASCADE, default=None)
     sistema = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, default=None)
     nome = models.CharField(max_length=255)
-    telefone = models.CharField(max_length=15)
+    telefone = models.CharField(max_length=15, unique=True)
     indicado_por = models.ForeignKey(
         "self", on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -223,26 +223,28 @@ class ContaDoAplicativo(models.Model):
         verbose_name="Aplicativo",
     )
     device_id = models.CharField("ID", max_length=255, blank=True, null=True)
-    email = models.EmailField(
-        "E-mail", max_length=255, blank=True, null=True, unique=True
-    )
-    device_key = models.CharField("Senha", max_length=255, unique=True)
+    email = models.EmailField("E-mail", max_length=255, blank=True, null=True)
+    device_key = models.CharField("Senha", max_length=255)
 
     def save(self, *args, **kwargs):
         # Verifica se o valor está no formato desejado
-        if len(self.device_id) % 2 != 0:
-            # Adiciona um caractere no final se o tamanho for ímpar
-            self.device_id += "X"
-        if self.device_id[0] == ":":
-            # Remove o caractere ':' do começo se houver
-            self.device_id = self.device_id[1:]
-        if self.device_id[-1] == ":":
-            # Remove o caractere ':' do final se houver
-            self.device_id = self.device_id[:-1]
-        # Adiciona ':' a cada 2 caracteres
-        self.device_id = ":".join(
-            [self.device_id[i : i + 2] for i in range(0, len(self.device_id), 2)]
-        )
+        if self.device_id:
+            if len(self.device_id) % 2 != 0:
+                # Adiciona um caractere no final se o tamanho for ímpar
+                if not self.device_id:
+                    self.device_id = "X"
+                else:
+                    self.device_id += "X"
+            if self.device_id[0] == ":":
+                # Remove o caractere ':' do começo se houver
+                self.device_id = self.device_id[1:]
+            if self.device_id[-1] == ":":
+                # Remove o caractere ':' do final se houver
+                self.device_id = self.device_id[:-1]
+            # Adiciona ':' a cada 2 caracteres
+            self.device_id = ":".join(
+                [self.device_id[i : i + 2] for i in range(0, len(self.device_id), 2)]
+            )
         super(ContaDoAplicativo, self).save(*args, **kwargs)
 
     class Meta:
