@@ -267,10 +267,10 @@ def CadastroCliente(request):
     # Recebendo os dados da requisição para criar um novo cliente
     if request.method == 'POST' and 'cadastrar' in request.POST:
         indicador = None
+        plano = request.POST.get('plano')
         lista = plano.split("-")
         nome_do_plano = lista[0]
         nome = request.POST.get('nome')
-        plano = request.POST.get('plano')
         telas = request.POST.get('telas')
         notas = request.POST.get('notas')
         sistema = request.POST.get('sistema')
@@ -361,7 +361,6 @@ def CadastroCliente(request):
             },
         )
     
-
     return render(
         request,
         "pages/cadastro-cliente.html",
