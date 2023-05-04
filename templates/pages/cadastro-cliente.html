@@ -87,7 +87,7 @@
                       <label for="servidor" class="col-sm-4 col-form-label
                           form-label">Servidor</label>
                       <div class="col-md-8 col-12">
-                        <select class="form-select" id="servidor" name="servidor">
+                        <select class="form-select" id="servidor" name="servidor" required>
                           {% for servidor in servidores %}
                           <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
                           {% endfor %}
@@ -99,7 +99,7 @@
                       <label for="forma_pgto" class="col-sm-4 col-form-label
                           form-label">Forma de pagamento</label>
                       <div class="col-md-8 col-12">
-                        <select class="form-select" id="forma_pgto" name="forma_pgto">
+                        <select class="form-select" id="forma_pgto" name="forma_pgto" required>
                           {% for forma_pgto in formas_pgtos %}
                           <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
                           {% endfor %}
@@ -111,7 +111,7 @@
                       <label for="plano" class="col-sm-4 col-form-label
                           form-label">Planos</label>
                       <div class="col-md-8 col-12">
-                        <select class="form-select" id="plano" name="plano">
+                        <select class="form-select" id="plano" name="plano" required>
                           {% for plano in planos %}
                           <option value="{{ plano.nome }}-{{plano.valor}}">{{ plano.nome }} - {{ plano.valor }}</option>
                           {% endfor %}
@@ -124,7 +124,7 @@
                           form-label">Qtd. telas</label>
 
                       <div class="col-md-8 col-12">
-                        <select class="form-select" id="telas" name="telas">
+                        <select class="form-select" id="telas" name="telas" required>
                           {% for tela in telas %}
                           <option value="{{ tela.telas }}">{{ tela.telas }}</option>
                           {% endfor %}
@@ -146,7 +146,7 @@
                           form-label">Dispositivo</label>
 
                       <div class="col-md-8 col-12">
-                        <select class="form-select" id="dispositivo" name="dispositivo">
+                        <select class="form-select" id="dispositivo" name="dispositivo" required>
                           {% for dispositivo in dispositivos %}
                           <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
                           {% endfor %}
@@ -158,7 +158,7 @@
                       <label for="aplicativo" class="col-sm-4 col-form-label
                           form-label">Aplicativo</label>
                       <div class="col-md-8 col-12">
-                        <select class="form-select" id="sistema" name="sistema">
+                        <select class="form-select" id="sistema" name="sistema" required>
                           {% for sistema in sistemas %}
                           <option value="{{ sistema.nome }}">{{ sistema.nome }}</option>
                           {% endfor %}
@@ -170,7 +170,8 @@
                       <label for="notas" class="col-sm-4 col-form-label form-label">Anotações
                         <span class="text-muted"></span></label>
                       <div class="col-md-8 col-12">
-                        <textarea type="text" class="form-control" placeholder="Detalhes sobre o cliente..." id="notas" name="notas"></textarea>
+                        <textarea type="text" class="form-control" placeholder="Detalhes sobre o cliente..." id="notas"
+                          name="notas"></textarea>
                       </div>
                     </div>
                 </div>
@@ -189,6 +190,62 @@
     <!-- Scripts -->
     {% include 'partials/scripts.html' %}
 
+    {% if success_message %}
+    <script>
+      console.log(window.location.origin)
+      $(document).ready(function () {
+        var currentUrl = window.location.origin;
+        var newPath = '/cadastro';
+        var newUrl = currentUrl + newPath;
+        swal.fire({
+          icon: 'success',
+          title: 'Cadastro realizado',
+          text: '{{success_message}}',
+          didClose: function () {
+            window.location.href = newUrl;
+          }
+        });
+      });
+    </script>
+
+    {% elif success_update == True %}
+    <script>
+      console.log(window.location.origin)
+      $(document).ready(function () {
+        var currentUrl = window.location.origin;
+        var newPath = '/cadastro';
+        var newUrl = currentUrl + newPath;
+        swal.fire({
+          icon: 'success',
+          title: 'Cadastro atualizado',
+          text: 'Aplicativo editado com sucesso!',
+          didClose: function () {
+            window.location.href = newUrl;
+          }
+        });
+      });
+    </script>
+
+    <!-- Alert error -->
+    {% elif error_message %}
+    <script>
+      console.log(window.location.origin)
+      $(document).ready(function () {
+        var currentUrl = window.location.origin;
+        var newPath = '/cadastro';
+        var newUrl = currentUrl + newPath;
+        swal.fire({
+          icon: 'error',
+          title: 'Oops...',
+          text: '{{error_message}}',
+          didClose: function () {
+            window.location.href = newUrl;
+          }
+        });
+      });
+    </script>
+    {% endif %}
+
 </body>
 
 </html>
@@ -202,16 +259,14 @@
 </script>
 
 <script>
+  //INSERÇÃO DE NOVOS CAMPOS NA TABELA DE ACORDO COM O APLICATIVO ESCOLHIDO
   $(document).ready(function () {
     // Ao mudar o valor do select com id "sistema"
     $('#sistema').change(function () {
       // Se o valor selecionado for igual a "duplex, duplecast ou metaplayer"
-      if ($(this).val().toLowerCase() === 'duplexplay' ||
-        $(this).val().toLowerCase() === 'duplex play' ||
-        $(this).val().toLowerCase() === 'duplecast' ||
-        $(this).val().toLowerCase() === 'duple cast' ||
-        $(this).val().toLowerCase() === 'metaplayer' ||
-        $(this).val().toLowerCase() === 'meta player') {
+      if ($(this).val().toLowerCase().replace(/\s/g, "") === 'duplexplay' ||
+        $(this).val().toLowerCase().replace(/\s/g, "") === 'duplecast' ||
+        $(this).val().toLowerCase().replace(/\s/g, "") === 'metaplayer') {
         // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
         $('#divEmail').remove();
         $('#divSenha2').remove();
@@ -219,7 +274,7 @@
         $('#divSenha').remove();
         $('#teste').after('<div class="mb-3 row" id="divSenha"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha" required></div>');
         $('#teste').after('<div class="mb-3 row" id="divID"><label for="ID" class="col-sm-4 col-form-label form-label">ID do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device ID" id="ID" name="id" required></div>');
-      } else if ($(this).val().toLowerCase() === 'clouddy') {
+      } else if ($(this).val().toLowerCase().replace(/\s/g, "") === 'clouddy') {
         // Se o valor selecionado não for igual a "clouddy",
         // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
         $('#divID').remove();
@@ -227,7 +282,7 @@
         $('#divEmail').remove();
         $('#divSenha2').remove();
         $('#teste').after('<div class="mb-3 row" id="divSenha2"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" required></div>');
-        $('#teste').after('<div class="mb-3 row" id="divEmail"><label for="Email" class="col-sm-4 col-form-label form-label">E-mail do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="E-mail" id="Email" name="email" required></div>');
+        $('#teste').after('<div class="mb-3 row" id="divEmail"><label for="Email" class="col-sm-4 col-form-label form-label">E-mail do Aplicativo</label><div class="col-md-8 col-12"><input type="email" class="form-control" placeholder="E-mail" id="Email" name="email" required></div>');
       } else {
         $('#divID').remove();
         $('#divSenha').remove();

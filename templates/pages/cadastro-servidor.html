@@ -27,14 +27,14 @@
 
           <!-- col -->
           <div class="row mb-8">
-            <div class="col-xl-3 col-lg-4 col-md-12 col-12">
+            <div class="col-xl-4 col-lg-4 col-md-12 col-12">
               <div class="mb-4 mb-lg-0">
                 <h4 class="mb-1">Crie aqui o seu Servidor</h4>
                 <p class="mb-0 fs-5 text-muted">Preencha os dados corretamente.</p>
               </div>
             </div>
 
-            <div class="col-xl-8 col-lg-8 col-md-12 col-12">
+            <div class="col-xl-4 col-lg-8 col-md-12 col-12">
               <!-- card -->
               <div class="card">
                 <!-- card body -->
@@ -47,14 +47,14 @@
                     <!-- row -->
                     {% csrf_token %}
                     <div class="mb-3 row">
-                      <label for="fullName" class="col-sm-2 col-form-label
+                      <label for="fullName" class="col-sm-3 col-form-label
                           form-label">Descrição</label>
-                      <div class="col-sm-10 mb-3 mb-lg-0">
+                      <div class="col-sm-7 mb-3 mb-lg-0">
                         <input type="text" class="form-control" placeholder="Nome do servidor/painel..." id="nome"
                           name="nome" required>
                       </div>
                     </div>
-                    <div class="offset-md-2 col-md-8 mt-4">
+                    <div class="offset-md-3 col-md-8 mt-4">
                       <button type="submit" class="btn btn-primary" name="cadastrar"> Cadastrar</button>
                     </div>
                 </div>

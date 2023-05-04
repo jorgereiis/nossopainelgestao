@@ -22,17 +22,19 @@
                         <!-- Page header -->
 
                         <div class="border-bottom pb-4 mb-4">
-                            <h3 class="mb-0 fw-bold">Importe os dados dos seus clientes e comece a gerenciá-los de forma inteligente.</h3>
+                            <h3 class="mb-0 fw-bold">Importe os dados dos seus clientes e comece a gerenciá-los de forma
+                                inteligente.</h3>
                         </div>
                         <!-- col importar -->
                         <div class="row mb-20">
-                            <div  class="col-md-3 mb-3 mb-md-0">
+                            <div class="col-md-3 mb-3 mb-md-0">
                                 <!-- dropzone input importar -->
                                 <form method="post" enctype="multipart/form-data">
                                     <div class="dropzone mb-3 border-dashed">
                                         {% csrf_token %}
                                         <div class="fallback">
-                                            <input name="arquivo" type="file" accept=".csv" capture=".csv" class="w-100"/>
+                                            <input name="arquivo" type="file" accept=".csv" capture=".csv"
+                                                class="w-100" />
                                         </div>
                                     </div>
                                     <button type="submit" class="btn btn-outline-white"
@@ -48,7 +50,8 @@
                                 <p class="mb-0 fs-5 text-muted">Baixe o modelo, preencha e envie.
                                 </p>
                                 <p><a href="{% static 'download/upload.csv' %}">Baixei aqui!
-                                    <img class="mb-0 fs-5 text-muted" src="{% static 'assets/images/svg/filetype-csv.svg' %}"></a></p>
+                                        <img class="mb-0 fs-5 text-muted"
+                                            src="{% static 'assets/images/svg/filetype-csv.svg' %}"></a></p>
                             </div>
                         </div>
                         <!-- col -->
@@ -58,11 +61,21 @@
                             <div class="mb-lg-6 border-bottom pb-4 mb-4">
                                 <h4 class="mb-1">Instruções sobre a importação</h4>
                             </div>
-                            <p class="mb-1 fs-5 text-muted"><i class="bi bi-exclamation-triangle text-warning me-2"></i><span class="text-dark">Preencha as informações de cada coluna existente na planilha conforme mostrado no layout.</span></p>
-                            <p class="mb-0 text-muted small">- O número do telefone deve seguir o padrão mostrado, contendo prefixo do país + DDD + número, sem parêntese, traços ou qualquer outro caractere especial;</p>
-                            <p class="mb-0 text-muted small">- Se a data de pagamento estiver em branco no arquivo, será definida uma data entre 5, 10, 15, 20, 25 e 30, que seja mais a próxima do dia da importação;</p>
-                            <p class="mb-0 text-muted small">- Se ainda não tiver chego a data do vencimento para o cliente neste mês, será criada uma mensalidade em aberto para ele. Se já tiver passado, o sistema criará para o próximo mês.</p>
-                            <p class="mb-0 text-muted small">- (<span class="text-danger">*</span>) Campos obrigatórios.</p>
+                            <p class="mb-1 fs-5 text-muted"><i
+                                    class="bi bi-exclamation-triangle text-warning me-2"></i><span
+                                    class="text-dark">Preencha as informações de cada coluna existente na planilha
+                                    conforme mostrado no layout.</span></p>
+                            <p class="mb-0 text-muted small">- O número do telefone deve seguir o padrão mostrado,
+                                contendo prefixo do país + DDD + número, sem parêntese, traços ou qualquer outro
+                                caractere especial;</p>
+                            <p class="mb-0 text-muted small">- Se a data de pagamento estiver em branco no arquivo, será
+                                definida uma data entre 5, 10, 15, 20, 25 e 30, que seja mais a próxima do dia da
+                                importação;</p>
+                            <p class="mb-0 text-muted small">- Se ainda não tiver chego a data do vencimento para o
+                                cliente neste mês, será criada uma mensalidade em aberto para ele. Se já tiver passado,
+                                o sistema criará para o próximo mês.</p>
+                            <p class="mb-0 text-muted small">- (<span class="text-danger">*</span>) Campos obrigatórios.
+                            </p>
                             <p></p>
                         </div>
                         <br>
@@ -78,54 +91,54 @@
                                 </div>
                                 <div class="table-responsive">
                                     <table class="table text-nowrap mb-0 table-hover">
-                                      <thead>
-                                        <tr>
-                                          <th scope="col">servidor <span class="text-danger">*</span></th>
-                                          <th scope="col">dispositivo <span class="text-danger">*</span></th>
-                                          <th scope="col">sistema <span class="text-danger">*</span></th>
-                                          <th scope="col">nome <span class="text-danger">*</span></th>
-                                          <th scope="col">telefone <span class="text-danger">*</span></th>
-                                          <th scope="col">indicado_por</th>
-                                          <th scope="col">data_pagamento</th>
-                                          <th scope="col">forma_pgto <span class="text-danger">*</span></th>
-                                          <th scope="col">plano <span class="text-danger">*</span></th>
-                                          <th scope="col">tipo_plano <span class="text-danger">*</span></th>
-                                          <th scope="col">telas <span class="text-danger">*</span></th>
-                                          <th scope="col">data_adesao <span class="text-danger">*</span></th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        <tr>
-                                          <td class="small">CLUB</td>
-                                          <td class="small">TV LG</td>
-                                          <td class="small">DuplexPlay</td>
-                                          <td class="small">João Silva</td>
-                                          <td class="small">5583988881122</td>
-                                          <td class="small">Marcio Silva</td>
-                                          <td class="small">5</td>
-                                          <td class="small">PIX</td>
-                                          <td class="small">35</td>
-                                          <td class="small">Mensal</td>
-                                          <td class="small">1</td>
-                                          <td class="small">06/01/2023</td>
-                                        </tr>
-                                        <tr>
-                                          <td class="small">PLAY</td>
-                                          <td class="small">TV Samsung</td>
-                                          <td class="small">Smart STB</td>
-                                          <td class="small">Maria Silva</td>
-                                          <td class="small">5511999993344</td>
-                                          <td class="small">João Silva</td>
-                                          <td class="small">10</td>
-                                          <td class="small">Boleto</td>
-                                          <td class="small">180</td>
-                                          <td class="small">Semestral</td>
-                                          <td class="small">2</td>
-                                          <td class="small">11/01/2023</td>
-                                        </tr>
-                                      </tbody>
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">servidor <span class="text-danger">*</span></th>
+                                                <th scope="col">dispositivo <span class="text-danger">*</span></th>
+                                                <th scope="col">sistema <span class="text-danger">*</span></th>
+                                                <th scope="col">nome <span class="text-danger">*</span></th>
+                                                <th scope="col">telefone <span class="text-danger">*</span></th>
+                                                <th scope="col">indicado_por</th>
+                                                <th scope="col">data_pagamento</th>
+                                                <th scope="col">forma_pgto <span class="text-danger">*</span></th>
+                                                <th scope="col">plano <span class="text-danger">*</span></th>
+                                                <th scope="col">tipo_plano <span class="text-danger">*</span></th>
+                                                <th scope="col">telas <span class="text-danger">*</span></th>
+                                                <th scope="col">data_adesao <span class="text-danger">*</span></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td class="small">CLUB</td>
+                                                <td class="small">TV LG</td>
+                                                <td class="small">DuplexPlay</td>
+                                                <td class="small">João Silva</td>
+                                                <td class="small">5583988881122</td>
+                                                <td class="small">Marcio Silva</td>
+                                                <td class="small">5</td>
+                                                <td class="small">PIX</td>
+                                                <td class="small">35</td>
+                                                <td class="small">Mensal</td>
+                                                <td class="small">1</td>
+                                                <td class="small">06/01/2023</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="small">PLAY</td>
+                                                <td class="small">TV Samsung</td>
+                                                <td class="small">Smart STB</td>
+                                                <td class="small">Maria Silva</td>
+                                                <td class="small">5511999993344</td>
+                                                <td class="small">João Silva</td>
+                                                <td class="small">10</td>
+                                                <td class="small">Boleto</td>
+                                                <td class="small">180</td>
+                                                <td class="small">Semestral</td>
+                                                <td class="small">2</td>
+                                                <td class="small">11/01/2023</td>
+                                            </tr>
+                                        </tbody>
                                     </table>
-                                  </div>
+                                </div>
                             </div>
                         </div>
 
@@ -135,6 +148,61 @@
                 <!-- Scripts -->
                 {% include 'partials/scripts.html' %}
 
+                <!-- Alert success -->
+                {% if success_message %}
+                <script>
+                    console.log(window.location.origin)
+                    $(document).ready(function () {
+                        var currentUrl = window.location.origin;
+                        var newPath = '/importar';
+                        var newUrl = currentUrl + newPath;
+                        swal.fire({
+                            icon: 'success',
+                            title: 'Cadastro realizado',
+                            text: '{{success_message}}',
+                            didClose: function () {
+                                window.location.href = newUrl;
+                            }
+                        });
+                    });
+                </script>
+
+                <!-- Alert error -->
+                {% elif error_message %}
+                <script>
+                    console.log(window.location.origin)
+                    $(document).ready(function () {
+                        var currentUrl = window.location.origin;
+                        var newPath = '/importar';
+                        var newUrl = currentUrl + newPath;
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Oops...',
+                            text: '{{error_message}}',
+                            didClose: function () {
+                                window.location.href = newUrl;
+                            }
+                        });
+                    });
+                </script>
+                {% endif %}
+
 </body>
 
 </html>
+
+<script>
+    function carregar() {
+        Swal.fire({
+            title: 'Carregando',
+            html: 'Por favor, aguarde...',
+            timerProgressBar: true,
+            onBeforeOpen: () => {
+                Swal.showLoading()
+            },
+            onClose: () => {
+                Swal.hideLoading()
+            }
+        })
+    }
+</script>

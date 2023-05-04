@@ -267,10 +267,10 @@ def CadastroCliente(request):
     # Recebendo os dados da requisição para criar um novo cliente
     if request.method == 'POST' and 'cadastrar' in request.POST:
         indicador = None
+        nome = request.POST.get('nome')
         plano = request.POST.get('plano')
         lista = plano.split("-")
         nome_do_plano = lista[0]
-        nome = request.POST.get('nome')
         telas = request.POST.get('telas')
         notas = request.POST.get('notas')
         sistema = request.POST.get('sistema')
@@ -306,61 +306,41 @@ def CadastroCliente(request):
         )
         try:
             cliente.save()
-
-            if request.POST.get('senha'):
-                dados_do_app = ContaDoAplicativo(
-                    device_id=request.POST.get('id'),
-                    email=request.POST.get('email'),
-                    device_key=request.POST.get('senha'),
-                    app=Aplicativo.objects.get(nome=sistema),
-                    cliente=Cliente.objects.get(nome=nome + " " + sobrenome),
-                )
-                dados_do_app.save()
-
         except ValidationError as erro:
-            # Capturando o erro de validação e renderizando a página novamente com a mensagem de erro
             return render(
                 request,
                 "pages/cadastro-cliente.html",
                 {
-                    'servidores': servidor_queryset,
-                    'dispositivos': dispositivo_queryset,
-                    'sistemas': sistema_queryset,
-                    'indicadores': indicador_por_queryset,
-                    'formas_pgtos': forma_pgto_queryset,
-                    'planos': plano_queryset,
-                    'telas': telas_queryset,
-                    "error_message": "Não foi possível cadastrar este novo plano. <p>ERRO: [{}]</p>".format(
-                        erro
-                    ),
+                    "error_message": "Não foi possível cadastrar cliente!"
                 },
             )
         except Exception as e:
-            # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
             return render(
                 request,
                 "pages/cadastro-cliente.html",
                 {
-                    'servidores': servidor_queryset,
-                    'dispositivos': dispositivo_queryset,
-                    'sistemas': sistema_queryset,
-                    'indicadores': indicador_por_queryset,
-                    'formas_pgtos': forma_pgto_queryset,
-                    'planos': plano_queryset,
-                    'telas': telas_queryset,
-                    "error_message": "Já existe um plano com este nome!",
+                    "error_message": "Já existe um cliente com o telefone informado!",
                 },
             )
+        
+        check_sistema = sistema.lower().replace(" ", "")
+        if check_sistema == "clouddy" or check_sistema == "duplexplay" or check_sistema == "duplecast" or check_sistema == "metaplayer":
+            dados_do_app = ContaDoAplicativo(
+                device_id=request.POST.get('id'),
+                email=request.POST.get('email'),
+                device_key=request.POST.get('senha'),
+                app=Aplicativo.objects.get(nome=sistema),
+                cliente=cliente,
+            )
+            dados_do_app.save()
 
-        # Retornando msg de sucesso caso seja feito o cadastro
         return render(
             request,
             "pages/cadastro-cliente.html",
             {
-                "success_message": "Novo plano cadastrado com sucesso!",
+                "success_message": "Novo cliente cadastrado com sucesso!",
             },
         )
-    
     return render(
         request,
         "pages/cadastro-cliente.html",
