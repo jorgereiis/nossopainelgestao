@@ -38,7 +38,7 @@
                                         </div>
                                     </div>
                                     <button type="submit" class="btn btn-outline-white"
-                                        name="importar">Importar</button>
+                                        name="importar" onclick="carregar()">Importar</button>
                                 </form>
                             </div>
                             <div class="col-md-9">
@@ -157,15 +157,17 @@
                         var newPath = '/importar';
                         var newUrl = currentUrl + newPath;
                         swal.fire({
-                            icon: 'success',
-                            title: 'Cadastro realizado',
-                            text: '{{success_message}}',
+                            icon: 'info',
+                            title: 'Importação concluída!',
+                            html: '<p>Resumo</p><hr><strong>Total importados:</strong> {{num_linhas_importadas}} <br><strong>Total não importados:</strong> {{num_linhas_nao_importadas}} <br><br><strong>Clientes não importados:</strong> <br>{% for nome in nomes_nao_importados%}-> {{nome}} <br>{% endfor %}',
                             didClose: function () {
                                 window.location.href = newUrl;
                             }
                         });
                     });
                 </script>
+
+                
 
                 <!-- Alert error -->
                 {% elif error_message %}

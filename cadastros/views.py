@@ -25,6 +25,7 @@ from django.db.models import Q
 import locale
 import json
 import csv
+import time
 
 
 class TabelaDashboard(ListView):
@@ -170,12 +171,29 @@ def Login(request):
 
 # IMPORTAR CLIENTES
 def ImportarClientes(request):
-    if (
-        request.method == "POST"
-        and 'importar' in request.POST
-        and request.FILES["arquivo"]
-    ):
-        arquivo_csv = request.FILES["arquivo"].read().decode("utf-8").splitlines()
+    num_linhas_importadas = 0 
+    num_linhas_nao_importadas = 0 
+    nomes_nao_importados = []
+    if request.method == "POST" and 'importar' in request.POST:
+        try:
+            arquivo_csv = request.FILES["arquivo"].read().decode("utf-8").splitlines()
+        except:
+            return render(
+                request,
+                "pages/importar-cliente.html",
+                {"error_message": "Nenhum arquivo selecionado."},
+            )
+        
+        # Verifica se o arquivo selecionado é um arquivo CSV válido
+        try:
+            leitor_csv = csv.reader(arquivo_csv)
+            primeira_linha = next(leitor_csv)
+        except:
+            return render(
+                request,
+                "pages/importar-cliente.html",
+                {"error_message": "1. O arquivo selecionado não é um arquivo CSV válido."},
+            )
 
         # Verifica o delimitador utilizado no arquivo .csv
         for delimitador in [',', ';']:
@@ -186,8 +204,18 @@ def ImportarClientes(request):
                     break
             except csv.Error:
                 pass
+        else:
+            return render(
+                request,
+                "pages/importar-cliente.html",
+                {"error_message": "O arquivo selecionado tem um formato inválido."},
+            )
 
         leitor_csv = csv.reader(arquivo_csv, delimiter=delimitador)
+        num_linhas_importadas = 0  # Inicializa o contador de linhas importadas
+        num_linhas_nao_importadas = 0  # Inicializa o contador de linhas não importadas
+        nomes_nao_importados = []  # Inicializa a lista de nomes de clientes não importados
+
         for x, linha in enumerate(leitor_csv):
             if x == 0:
                 continue  # Pula a primeira linha do arquivo .csv e considera os dados a partir da segunda
@@ -200,6 +228,8 @@ def ImportarClientes(request):
                 Q(nome__iexact=nome) | Q(telefone=telefone)
             ).exists()
             if cliente_existente:
+                num_linhas_nao_importadas += 1
+                nomes_nao_importados.append(nome)  # Adiciona o nome do cliente não importado à lista
                 continue  # Pula essa linha do arquivo e vai para a próxima
 
             servidor, created = Servidor.objects.get_or_create(nome=linha[0])
@@ -246,11 +276,22 @@ def ImportarClientes(request):
                 data_adesao=data_adesao,
             )
             novo_cliente.save()
+            num_linhas_importadas += 1  # Incrementa o contador de linhas importadas com sucesso
+        time.sleep(2)
+        return render(
+            request,
+            "pages/importar-cliente.html",
+            {
+                "success_message": "Importação concluída!",
+                "num_linhas_importadas": num_linhas_importadas,
+                "num_linhas_nao_importadas": num_linhas_nao_importadas,
+                "nomes_nao_importados": nomes_nao_importados,
+                },
+        )
 
     return render(
         request,
         "pages/importar-cliente.html",
-        {"mensagem": "Arquivo CSV importado com sucesso."},
     )
 
 
