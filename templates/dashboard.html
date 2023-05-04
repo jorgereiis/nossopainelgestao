@@ -239,9 +239,11 @@
                                             {% for mensalidade in cliente.mensalidade_set.all %}
                                             {% if mensalidade.dt_pagamento is None or not mensalidade.pgto %}
                                             {% if hoje > mensalidade.dt_vencimento %}
-                                            <td class="align-middle text-center"><span class="badge bg-danger">{{mensalidade.valor }} [{{ mensalidade.dt_vencimento|date:'d/m/Y'}}]</span></td>
+                                            <td class="align-middle text-center"><span
+                                                    class="badge bg-danger">{{mensalidade.valor }} [{{mensalidade.dt_vencimento|date:'d/m/Y'}}]</span></td>
                                             {% else %}
-                                            <td class="align-middle text-primary text-center"><span class="badge bg-info">{{ mensalidade.valor }}[{{ mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
+                                            <td class="align-middle text-primary text-center"><span
+                                                    class="badge bg-info">{{ mensalidade.valor }}[{{mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                             {% endif %}
                                             <!-- Dropdown da tabela -->
                                             <td>
@@ -278,7 +280,7 @@
                                         </tr>
                                         <tr class="child" id="exibir-detalhes-{{ forloop.counter }}"
                                             style="display: none;">
-                                            <td class="child small" colspan="8">
+                                            <td class="child small" colspan="3">
                                                 <ul data-dtr-index="0" class="list-group list-group-flush">
                                                     <li class="list-group-item" style="list-style-type: armenian;"><span
                                                             class="title">Telefone:
@@ -309,13 +311,28 @@
                                                     </li>
                                                     {% if cliente.notas == None %}
                                                     <li class="list-group-item" style="list-style-type: none;"><span
-                                                            class="title">Notas: </span> <span></span></li>
+                                                            class="title">Notas: </span> <span class="mb-10"></span></li>
                                                     {% else %}
                                                     <li class="list-group-item" style="list-style-type: none;"><span
                                                             class="title">Notas: </span> <span>{{cliente.notas}}</span>
                                                     </li>
                                                     {% endif %}
                                                 </ul>
+                                            </td>
+                                            <td class="child small" colspan="4">
+                                                {% for conta in cliente.conta_aplicativo.all %}
+                                                    <ul data-dtr-index="0" class="list-group list-group-flush">
+                                                        <li class="list-group-item" style="list-style-type: none;">
+                                                            <span class="title">App: </span><span>{{conta.app}}</span><br>
+                                                            {% if conta.device_id %}
+                                                            <span class="title">Device ID: </span><span>{{conta.device_id}}</span><br>
+                                                            {% else %}
+                                                            <span class="title">E-mail: </span><span>{{conta.email}}</span><br>
+                                                            {% endif %}
+                                                            <span class="title">Device Key: </span><span>{{conta.device_key}}</span>
+                                                        </li>
+                                                    </ul>
+                                                {% endfor %}
                                             </td>
                                         </tr>
                                         <!-- TÉRMINO DA LINHA -->
@@ -346,7 +363,7 @@
                                         <li class="page-item active"><a class="page-link" href="#">{{ page }} <span
                                                     class="sr-only"></span></a></li>
                                         {% elif page > page_obj.number|add:'-3' and page < page_obj.number|add:'3' %}
-                                            <li class="page-item"><a class="page-link" href="?page={{ page }}">{{ page }}</a></li>
+                                            <li class="page-item"><a class="page-link" href="?page={{ page }}">{{ page}}</a></li>
                                             {% endif %}
                                             {% endfor %}
 
@@ -375,6 +392,61 @@
 
                 <!-- Scripts -->
                 {% include 'partials/scripts.html' %}
+                {% if success_message_invoice %}
+                <script>
+                    console.log(window.location.origin)
+                    $(document).ready(function () {
+                        var currentUrl = window.location.origin;
+                        var newPath = '/dashboard';
+                        var newUrl = currentUrl + newPath;
+                        swal.fire({
+                            icon: 'success',
+                            title: 'Pago!',
+                            html: '<span style="font-size: 20px">🤑</span><br>{{success_message_invoice}}<br>Consulte as mensalidades desse cliente para mais detalhes.',
+                            didClose: function () {
+                                window.location.href = newUrl;
+                            }
+                        });
+                    });
+                </script>
+
+                {% elif success_message_cancel %}
+                <script>
+                    console.log(window.location.origin)
+                    $(document).ready(function () {
+                        var currentUrl = window.location.origin;
+                        var newPath = '/dashboard';
+                        var newUrl = currentUrl + newPath;
+                        swal.fire({
+                            icon: 'info',
+                            title: 'Cancelado!',
+                            html: '<span style="font-size: 20px">😮</span><br>{{success_message_cancel}}<br>Caso queira reativar, basta acessar a listagem dos seus clientes.',
+                            didClose: function () {
+                                window.location.href = newUrl;
+                            }
+                        });
+                    });
+                </script>
+
+                <!-- Alert error -->
+                {% elif error_message %}
+                <script>
+                    console.log(window.location.origin)
+                    $(document).ready(function () {
+                        var currentUrl = window.location.origin;
+                        var newPath = '/dashboard';
+                        var newUrl = currentUrl + newPath;
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Oops...',
+                            text: '{{error_message}}',
+                            didClose: function () {
+                                window.location.href = newUrl;
+                            }
+                        });
+                    });
+                </script>
+                {% endif %}
 
 </body>
 

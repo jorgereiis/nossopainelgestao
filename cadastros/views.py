@@ -145,10 +145,12 @@ def pagar_mensalidade(request, mensalidade_id):
     # realiza as modificações na mensalidade
     mensalidade.dt_pagamento = timezone.localtime().date()
     mensalidade.pgto = True
-    mensalidade.save()
-
+    try:
+        mensalidade.save()
+    except:
+        return render(request, "dashboard.html", {"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."})
     # redireciona para a página anterior
-    return redirect("dashboard")
+    return render(request, "dashboard.html", {"success_message_invoice": "Mensalidade paga!"})
 
 
 # AÇÃO PARA CANCELAMENTO DE CLIENTE
@@ -158,10 +160,13 @@ def cancelar_cliente(request, cliente_id):
     # realiza as modificações no cliente
     cliente.cancelado = True
     cliente.data_cancelamento = timezone.localtime().date()
-    cliente.save()
+    try:
+        cliente.save()
+    except:
+        return render(request, "dashboard.html", {"error_message": "Ocorreu um erro ao tentar cancelar esse cliente."})
 
     # redireciona para a página anterior
-    return redirect("dashboard")
+    return render(request, "dashboard.html", {"success_message_cancel": "Eita! mais um cliente cancelado?! "})
 
 
 # PÁGINA DE LOGIN
@@ -192,7 +197,7 @@ def ImportarClientes(request):
             return render(
                 request,
                 "pages/importar-cliente.html",
-                {"error_message": "1. O arquivo selecionado não é um arquivo CSV válido."},
+                {"error_message": "O arquivo selecionado não é um arquivo CSV válido."},
             )
 
         # Verifica o delimitador utilizado no arquivo .csv
@@ -200,7 +205,7 @@ def ImportarClientes(request):
             try:
                 leitor_csv = csv.reader(arquivo_csv, delimiter=delimitador)
                 primeira_linha = next(leitor_csv)
-                if len(primeira_linha) == 12:
+                if len(primeira_linha) == 15:
                     break
             except csv.Error:
                 pass
@@ -208,7 +213,7 @@ def ImportarClientes(request):
             return render(
                 request,
                 "pages/importar-cliente.html",
-                {"error_message": "O arquivo selecionado tem um formato inválido."},
+                {"error_message": "O arquivo selecionado não possui a quantidade de colunas corretas. Confira o layout e configure o arquivo .csv de acordo."},
             )
 
         leitor_csv = csv.reader(arquivo_csv, delimiter=delimitador)
@@ -220,8 +225,8 @@ def ImportarClientes(request):
             if x == 0:
                 continue  # Pula a primeira linha do arquivo .csv e considera os dados a partir da segunda
 
-            nome = linha[3].title()
-            telefone = linha[4]
+            nome = linha[6].title()
+            telefone = linha[7]
 
             # Verifica se já existe um cliente com esse nome ou telefone
             cliente_existente = Cliente.objects.filter(
@@ -237,30 +242,30 @@ def ImportarClientes(request):
             sistema, created = Aplicativo.objects.get_or_create(nome=linha[2])
 
             indicado_por = None
-            if linha[5]:
-                indicado_por = Cliente.objects.filter(nome__iexact=linha[5]).first()
+            if linha[8]:
+                indicado_por = Cliente.objects.filter(nome__iexact=linha[8]).first()
 
                 if indicado_por is None:
                     # Caso o cliente indicado não exista, o campo indicado_por ficará em branco
                     indicado_por = None
 
-            data_pagamento = int(linha[6]) if linha[6] else None
-            forma_pgto_nome = linha[7] if linha[7] else "PIX"
+            data_pagamento = int(linha[9]) if linha[9] else None
+            forma_pgto_nome = linha[10] if linha[10] else "PIX"
             forma_pgto, created = Tipos_pgto.objects.get_or_create(nome=forma_pgto_nome)
-            tipo_plano = linha[9].capitalize() if linha[9] != None else None
+            tipo_plano = linha[12].capitalize() if linha[12] != None else None
 
             if tipo_plano == '' or tipo_plano == None:
                 plano_queryset = Plano.objects.filter(
-                    valor=int(linha[8]), nome='Mensal'
+                    valor=int(linha[11]), nome='Mensal'
                 )
             else:
                 plano_queryset = Plano.objects.filter(
-                    valor=int(linha[8]), nome=tipo_plano
+                    valor=int(linha[11]), nome=tipo_plano
                 )
 
             plano = plano_queryset.first()
-            telas = Qtd_tela.objects.get(telas=int(linha[10]))
-            data_adesao = datetime.strptime(linha[11], "%d/%m/%Y").date()
+            telas = Qtd_tela.objects.get(telas=int(linha[13]))
+            data_adesao = datetime.strptime(linha[14], "%d/%m/%Y").date()
 
             novo_cliente = Cliente(
                 servidor=servidor,
@@ -276,6 +281,21 @@ def ImportarClientes(request):
                 data_adesao=data_adesao,
             )
             novo_cliente.save()
+
+            check_sistema = linha[2].lower().replace(" ", "")
+            if check_sistema == "clouddy" or check_sistema == "duplexplay" or check_sistema == "duplecast" or check_sistema == "metaplayer":
+                linha[3] = linha[3].lower().replace(" ", "") if linha[3] != None else None
+                linha[4] = linha[4].lower().replace(" ", "") if linha[4] != None else None
+                linha[5] = linha[5].lower().replace(" ", "") if linha[5] != None else None
+                dados_do_app = ContaDoAplicativo(
+                    device_id=linha[3],
+                    email=linha[4],
+                    device_key=linha[5],
+                    app=Aplicativo.objects.filter(nome__iexact=check_sistema).first(),
+                    cliente=novo_cliente,
+                )
+                dados_do_app.save()
+
             num_linhas_importadas += 1  # Incrementa o contador de linhas importadas com sucesso
         time.sleep(2)
         return render(
