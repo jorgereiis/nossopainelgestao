@@ -178,6 +178,61 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Modal de confirmação de cancelamento de cliente -->
+                <div class="modal fade" id="confirm-cancelamento-modal" tabindex="-1" role="dialog"
+                    aria-labelledby="confirm-cancelamento-label">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h4 class="modal-title" id="confirm-cancelamento-label">Confirmar cancelamento</h4>
+                                <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Tem certeza que deseja cancelar o cliente <strong><span
+                                            id="cliente-nome"></span></strong>?</p>
+                            </div>
+                            <div class="modal-footer">
+                                <div class="mensagem-erro" id="mensagem-erro"></div>
+                                <form method="POST" id="cancelamento-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="cliente_id" id="cliente-id">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+                                    <button type="submit" class="btn btn-danger">Cancelar cliente</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de confirmação de pagamento -->
+                <div class="modal fade" id="confirm-pagamento-modal" tabindex="-1" role="dialog"
+                    aria-labelledby="confirm-pagamento-label">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h4 class="modal-title" id="confirm-pagamento-label">Confirmar pagamento</h4>
+                                <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Tem certeza que deseja pagar a mensalidade de <strong><span
+                                            id="cliente-nome"></span></strong>?</p>
+                            </div>
+                            <div class="modal-footer">
+                                <div class="mensagem-erro" id="mensagem-erro"></div>
+                                <form method="POST" id="pagamento-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="mensalidade_id" id="mensalidade-id">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+                                    <button type="submit" class="btn btn-primary">Pagar</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- row  -->
                 <div class="row mt-6">
                     <div class="col-md-12 col-12">
@@ -240,10 +295,11 @@
                                             {% if mensalidade.dt_pagamento is None or not mensalidade.pgto %}
                                             {% if hoje > mensalidade.dt_vencimento %}
                                             <td class="align-middle text-center"><span
-                                                    class="badge bg-danger">{{mensalidade.valor }} [{{mensalidade.dt_vencimento|date:'d/m/Y'}}]</span></td>
+                                                    class="badge bg-danger">{{mensalidade.valor }}
+                                                    [{{mensalidade.dt_vencimento|date:'d/m/Y'}}]</span></td>
                                             {% else %}
                                             <td class="align-middle text-primary text-center"><span
-                                                    class="badge bg-info">{{ mensalidade.valor }}[{{mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
+                                                    class="badge bg-info">{{ mensalidade.valor}}[{{mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                             {% endif %}
                                             <!-- Dropdown da tabela -->
                                             <td>
@@ -257,17 +313,16 @@
                                                     </button>
                                                     <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
                                                         <li>
-                                                            <form method="post"
-                                                                action="{% url 'pagar_mensalidade' mensalidade.pk %}">
-                                                                {% csrf_token %}
-                                                                <button type="submit" class="dropdown-item"
-                                                                    value="{{ mensalidade.pk }}">Pagar
-                                                                    mensalidade</button>
-                                                            </form>
+                                                            <button class="dropdown-item"
+                                                                data-mensalidade="{{mensalidade.id}}"
+                                                                data-nome="{{cliente.nome}}"
+                                                                onclick="exibirModalConfirmacaoPagamento(this)">Pagar
+                                                                mensalidade</button>
                                                         </li>
                                                         <li>
-                                                            <button class="dropdown-item "
-                                                                onclick="window.location.href='{% url 'cancelar_cliente' cliente.pk %}'">Cancelar
+                                                            <button class="dropdown-item" data-cliente="{{cliente.id}}"
+                                                                data-nome="{{cliente.nome}}"
+                                                                onclick="exibirModalConfirmacaoCancelamento(this)">Cancelar
                                                                 cliente</button>
                                                         </li>
                                                     </ul>
@@ -311,7 +366,8 @@
                                                     </li>
                                                     {% if cliente.notas == None %}
                                                     <li class="list-group-item" style="list-style-type: none;"><span
-                                                            class="title">Notas: </span> <span class="mb-10"></span></li>
+                                                            class="title">Notas: </span> <span class="mb-10"></span>
+                                                    </li>
                                                     {% else %}
                                                     <li class="list-group-item" style="list-style-type: none;"><span
                                                             class="title">Notas: </span> <span>{{cliente.notas}}</span>
@@ -321,17 +377,20 @@
                                             </td>
                                             <td class="child small" colspan="4">
                                                 {% for conta in cliente.conta_aplicativo.all %}
-                                                    <ul data-dtr-index="0" class="list-group list-group-flush">
-                                                        <li class="list-group-item" style="list-style-type: none;">
-                                                            <span class="title">App: </span><span>{{conta.app}}</span><br>
-                                                            {% if conta.device_id %}
-                                                            <span class="title">Device ID: </span><span>{{conta.device_id}}</span><br>
-                                                            {% else %}
-                                                            <span class="title">E-mail: </span><span>{{conta.email}}</span><br>
-                                                            {% endif %}
-                                                            <span class="title">Device Key: </span><span>{{conta.device_key}}</span>
-                                                        </li>
-                                                    </ul>
+                                                <ul data-dtr-index="0" class="list-group list-group-flush">
+                                                    <li class="list-group-item" style="list-style-type: none;">
+                                                        <span class="title">App: </span><span>{{conta.app}}</span><br>
+                                                        {% if conta.device_id %}
+                                                        <span class="title">Device ID:
+                                                        </span><span>{{conta.device_id}}</span><br>
+                                                        {% else %}
+                                                        <span class="title">E-mail:
+                                                        </span><span>{{conta.email}}</span><br>
+                                                        {% endif %}
+                                                        <span class="title">Device Key:
+                                                        </span><span>{{conta.device_key}}</span>
+                                                    </li>
+                                                </ul>
                                                 {% endfor %}
                                             </td>
                                         </tr>
@@ -363,7 +422,7 @@
                                         <li class="page-item active"><a class="page-link" href="#">{{ page }} <span
                                                     class="sr-only"></span></a></li>
                                         {% elif page > page_obj.number|add:'-3' and page < page_obj.number|add:'3' %}
-                                            <li class="page-item"><a class="page-link" href="?page={{ page }}">{{ page}}</a></li>
+                                            <li class="page-item"><a class="page-link" href="?page={{ page }}">{{page}}</a></li>
                                             {% endif %}
                                             {% endfor %}
 
@@ -394,36 +453,26 @@
                 {% include 'partials/scripts.html' %}
                 {% if success_message_invoice %}
                 <script>
+                    console.log("{{success_message_invoice}}")
                     console.log(window.location.origin)
                     $(document).ready(function () {
-                        var currentUrl = window.location.origin;
-                        var newPath = '/dashboard';
-                        var newUrl = currentUrl + newPath;
                         swal.fire({
                             icon: 'success',
                             title: 'Pago!',
                             html: '<span style="font-size: 20px">🤑</span><br>{{success_message_invoice}}<br>Consulte as mensalidades desse cliente para mais detalhes.',
-                            didClose: function () {
-                                window.location.href = newUrl;
-                            }
                         });
                     });
                 </script>
 
                 {% elif success_message_cancel %}
                 <script>
+                    console.log("{{success_message_cancel}}")
                     console.log(window.location.origin)
                     $(document).ready(function () {
-                        var currentUrl = window.location.origin;
-                        var newPath = '/dashboard';
-                        var newUrl = currentUrl + newPath;
                         swal.fire({
                             icon: 'info',
                             title: 'Cancelado!',
                             html: '<span style="font-size: 20px">😮</span><br>{{success_message_cancel}}<br>Caso queira reativar, basta acessar a listagem dos seus clientes.',
-                            didClose: function () {
-                                window.location.href = newUrl;
-                            }
                         });
                     });
                 </script>
@@ -431,18 +480,13 @@
                 <!-- Alert error -->
                 {% elif error_message %}
                 <script>
+                    console.log("{{error_message}}")
                     console.log(window.location.origin)
                     $(document).ready(function () {
-                        var currentUrl = window.location.origin;
-                        var newPath = '/dashboard';
-                        var newUrl = currentUrl + newPath;
                         swal.fire({
                             icon: 'error',
                             title: 'Oops...',
                             text: '{{error_message}}',
-                            didClose: function () {
-                                window.location.href = newUrl;
-                            }
                         });
                     });
                 </script>
@@ -634,5 +678,140 @@
             localStorage.setItem("eyeClass", "bi-eye");
         }
 
+    });
+</script>
+
+<script>
+    function exibirModalConfirmacaoCancelamento(botao) {
+        var cliente_id = $(botao).data('cliente');
+        var cliente_nome = $(botao).data('nome');
+        $('#confirm-cancelamento-modal #cliente-id').val(cliente_id);
+        $('#confirm-cancelamento-modal #cliente-nome').text(cliente_nome);
+        $('#confirm-cancelamento-modal').modal('show');
+
+        // Ouve o envio do formulário
+        $('#cancelamento-form').on('submit', function (event) {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            // Obtém o ID do cliente a ser cancelado
+            var cliente_id = $('#cliente-id').val();
+
+            // Faz a solicitação POST para a URL apropriada
+            $.ajax({
+                url: '/cancelar_cliente/' + cliente_id + '/',
+                method: 'POST',
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+                },
+                success: function (response) {
+                    // Verifica se a resposta contém a chave 'success_message_cancel'
+                    if ('success_message_cancel' in response) {
+                        // Fecha o modal e exibe mensagem de sucesso
+                        $('#confirm-cancelamento-modal').modal('hide');
+
+                        swal.fire({
+                            icon: 'info',
+                            title: 'Cancelado!',
+                            html: '<span style="font-size: 20px">😮</span><br>' + response.success_message_cancel + '<br>Caso queira reativar, basta acessar a listagem dos seus clientes.',
+                        }).then(function() {
+                            location.reload();
+                        });
+                    }
+
+                    if ('error_message' in response) {
+                        // Fecha o modal e exibe mensagem de sucesso
+                        $('#confirm-cancelamento-modal').modal('hide');
+
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Oops...',
+                            text: response.error_message,
+                        });
+                    }
+                },
+                error: function (response) {
+                    // Fecha o modal e exibe mensagem de erro
+                    $('#confirm-cancelamento-modal').modal('hide');
+
+                    swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'Ocorreu um erro ao tentar cancelar o cliente.',
+                    });
+                }
+            });
+        });
+    }
+
+    $('#confirm-cancelamento-modal').on('click', '.btn-close, .btn-secondary', function () {
+        $('#confirm-cancelamento-modal').modal('hide');
+    });
+</script>
+
+
+<script>
+    function exibirModalConfirmacaoPagamento(botao) {
+        var mensalidade_id = $(botao).data('mensalidade');
+        var cliente_nome = $(botao).data('nome');
+        $('#confirm-pagamento-modal #mensalidade-id').val(mensalidade_id);
+        $('#confirm-pagamento-modal #cliente-nome').text(cliente_nome);
+        $('#confirm-pagamento-modal').modal('show');
+
+        // Ouve o envio do formulário
+        $('#mensalidade-form').on('submit', function (event) {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            // Obtém o ID do mensalidade a ser cancelado
+            var mensalidade_id = $('#mensalidade-id').val();
+
+            // Faz a solicitação POST para a URL apropriada
+            $.ajax({
+                url: '/pagar_mensalidade/' + mensalidade_id + '/',
+                method: 'POST',
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+                },
+                success: function (response) {
+                    // Verifica se a resposta contém a chave 'success_message_invoice'
+                    if ('success_message_invoice' in response) {
+                        // Fecha o modal e exibe mensagem de sucesso
+                        $('#confirm-pagamento-modal').modal('hide');
+
+                        swal.fire({
+                            icon: 'success',
+                            title: 'Pago!',
+                            html: '<span style="font-size: 20px">🤑</span><br>{{success_message_invoice}}<br>Consulte as mensalidades desse cliente para mais detalhes.',
+                        }).then(function() {
+                            location.reload();
+                        });
+                    }
+
+                    if ('error_message' in response) {
+                        // Fecha o modal e exibe mensagem de sucesso
+                        $('#confirm-pagamento-modal').modal('hide');
+
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Oops...',
+                            text: response.error_message,
+                        });
+                    }
+                },
+                error: function (response) {
+                    // Fecha o modal e exibe mensagem de erro
+                    $('#confirm-pagamento-modal').modal('hide');
+
+                    swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'Ocorreu um erro ao tentar cancelar o cliente.',
+                    });
+                }
+            });
+        });
+    }
+
+    $('#confirm-pagamento-modal').on('click', '.btn-close, .btn-secondary', function () {
+        $('#confirm-pagamento-modal').modal('hide');
     });
 </script>

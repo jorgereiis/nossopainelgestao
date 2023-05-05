@@ -30,7 +30,7 @@ urlpatterns = [
         name="pagar_mensalidade",
     ),
     path(
-        "cancelar_cliente/<int:cliente_id>", cancelar_cliente, name="cancelar_cliente"
+        "cancelar_cliente/<int:cliente_id>/", cancelar_cliente, name="cancelar_cliente"
     ),
     path("editar_plano/<int:plano_id>/", EditarPlanoMensal, name="editar-plano-mensal"),
     path('editar_servidor/<int:servidor_id>/', EditarServidor, name='editar_servidor'),

@@ -18,6 +18,7 @@ from django.http import HttpResponseBadRequest
 from babel.numbers import format_currency
 from datetime import datetime, timedelta
 from django.shortcuts import redirect
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.db.models import Sum
@@ -133,6 +134,7 @@ class TabelaDashboard(ListView):
                 "valor_total_pago_qtd": valor_total_pago_qtd,
                 "valor_total_receber_qtd": valor_total_receber_qtd,
                 "clientes_cancelados_qtd": clientes_cancelados_qtd,
+                #"success_message_cancel": "teste",
             }
         )
         return context
@@ -148,9 +150,9 @@ def pagar_mensalidade(request, mensalidade_id):
     try:
         mensalidade.save()
     except:
-        return render(request, "dashboard.html", {"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."})
+        return JsonResponse({"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."})
     # redireciona para a página anterior
-    return render(request, "dashboard.html", {"success_message_invoice": "Mensalidade paga!"})
+    return JsonResponse({"success_message_invoice": "Mensalidade paga!"})
 
 
 # AÇÃO PARA CANCELAMENTO DE CLIENTE
@@ -162,11 +164,12 @@ def cancelar_cliente(request, cliente_id):
     cliente.data_cancelamento = timezone.localtime().date()
     try:
         cliente.save()
-    except:
-        return render(request, "dashboard.html", {"error_message": "Ocorreu um erro ao tentar cancelar esse cliente."})
+    except Exception as e:
+        return JsonResponse({"error_message": "Ocorreu um erro ao tentar cancelar esse cliente."}, status=500)
 
-    # redireciona para a página anterior
-    return render(request, "dashboard.html", {"success_message_cancel": "Eita! mais um cliente cancelado?! "})
+    # retorna a mensagem de sucesso como resposta JSON
+    return JsonResponse({"success_message_cancel": "Eita! mais um cliente cancelado?! "})
+
 
 
 # PÁGINA DE LOGIN
