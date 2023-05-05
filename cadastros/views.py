@@ -894,3 +894,8 @@ def Teste(request):
             'clientes': clientes,
         },
     )
+
+
+def ListaClientes(request):
+    clintes = Cliente.objects.all().order_by('nome')
+    return render(request, "pages/lista-clientes.html", {"clientes": clintes})

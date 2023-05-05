@@ -199,6 +199,7 @@ class PlanoIndicacao(models.Model):
         ("desconto", "Desconto na mensalidade"),
         ("dinheiro", "Valor em dinheiro"),
     ]
+    nome = models.CharField(max_length=255, default="Desconto na mensalidade")
     tipo_plano = models.CharField(max_length=10, choices=TIPOS_PLANO, unique=True)
     valor = models.DecimalField(
         max_digits=6, decimal_places=2, validators=[MinValueValidator(0)]

@@ -20,6 +20,7 @@ from .views import (
     EditarAplicativo,
     EditarDispositivo,
     DeleteDispositivo,
+    ListaClientes,
     Teste,
 )
 
@@ -61,6 +62,7 @@ urlpatterns = [
     path("importar/", ImportarClientes, name="importar-cliente"),
     path("cadastro/", CadastroCliente, name="cadastro-cliente"),
     path("servidores/", CadastroServidor, name='servidores'),
+    path("lista-clientes/", ListaClientes, name="lista-clientes"),
     path("teste/", Teste, name="teste"),
     path("", Login, name="login"),
 ]

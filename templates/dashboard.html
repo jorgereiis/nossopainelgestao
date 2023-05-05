@@ -451,47 +451,6 @@
 
                 <!-- Scripts -->
                 {% include 'partials/scripts.html' %}
-                {% if success_message_invoice %}
-                <script>
-                    console.log("{{success_message_invoice}}")
-                    console.log(window.location.origin)
-                    $(document).ready(function () {
-                        swal.fire({
-                            icon: 'success',
-                            title: 'Pago!',
-                            html: '<span style="font-size: 20px">🤑</span><br>{{success_message_invoice}}<br>Consulte as mensalidades desse cliente para mais detalhes.',
-                        });
-                    });
-                </script>
-
-                {% elif success_message_cancel %}
-                <script>
-                    console.log("{{success_message_cancel}}")
-                    console.log(window.location.origin)
-                    $(document).ready(function () {
-                        swal.fire({
-                            icon: 'info',
-                            title: 'Cancelado!',
-                            html: '<span style="font-size: 20px">😮</span><br>{{success_message_cancel}}<br>Caso queira reativar, basta acessar a listagem dos seus clientes.',
-                        });
-                    });
-                </script>
-
-                <!-- Alert error -->
-                {% elif error_message %}
-                <script>
-                    console.log("{{error_message}}")
-                    console.log(window.location.origin)
-                    $(document).ready(function () {
-                        swal.fire({
-                            icon: 'error',
-                            title: 'Oops...',
-                            text: '{{error_message}}',
-                        });
-                    });
-                </script>
-                {% endif %}
-
 </body>
 
 <style>
@@ -758,7 +717,7 @@
         $('#confirm-pagamento-modal').modal('show');
 
         // Ouve o envio do formulário
-        $('#mensalidade-form').on('submit', function (event) {
+        $('#pagamento-form').on('submit', function (event) {
             event.preventDefault(); // Impede o envio padrão do formulário
 
             // Obtém o ID do mensalidade a ser cancelado
@@ -780,7 +739,7 @@
                         swal.fire({
                             icon: 'success',
                             title: 'Pago!',
-                            html: '<span style="font-size: 20px">🤑</span><br>{{success_message_invoice}}<br>Consulte as mensalidades desse cliente para mais detalhes.',
+                            html: '<span style="font-size: 20px">🤑</span><br>' + response.success_message_invoice + '<br>Consulte as mensalidades desse cliente para mais detalhes.',
                         }).then(function() {
                             location.reload();
                         });
