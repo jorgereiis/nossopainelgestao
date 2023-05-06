@@ -133,11 +133,7 @@ class Cliente(models.Model):
     notas = models.TextField("Notas", blank=True, null=True)
 
     def save(self, *args, **kwargs):
-        if self.ultimo_pagamento:
-            dia = self.ultimo_pagamento.day
-            self.data_pagamento = definir_dia_pagamento(dia)
-
-        elif self.data_adesao and self.data_pagamento == None:
+        if self.data_adesao and self.data_pagamento == None:
             dia = self.data_adesao.day
             self.data_pagamento = definir_dia_pagamento(dia)
 

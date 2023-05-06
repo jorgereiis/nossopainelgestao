@@ -56,15 +56,19 @@ def criar_mensalidade(sender, instance, created, **kwargs):
         ano = timezone.localtime().date().year
         vencimento = datetime(ano, mes, dia_pagamento)
 
-        if vencimento.day <= timezone.localtime().date().day:
-            # Define o mês/ano de vencimento de acordo com o plano do cliente
+        """
+        # Se o dia de vencimento for menor do que a data de hoje,
+        # cria a primeira mensalidade com vencimento para o próximo mês
+        # ou para o mês de acordo com o plano mensal escolhido.
+        # Se não, cria para o mês atual.
+        if vencimento.day < timezone.localtime().date().day:
             if instance.plano.nome == Plano.CHOICES[0][0]:
                 vencimento += relativedelta(months=1)
             elif instance.plano.nome == Plano.CHOICES[1][0]:
                 vencimento += relativedelta(months=6)
             elif instance.plano.nome == Plano.CHOICES[2][0]:
                 vencimento += relativedelta(years=1)
-
+        """
         Mensalidade.objects.create(
             cliente=instance, valor=instance.plano.valor, dt_vencimento=vencimento
         )
@@ -74,36 +78,39 @@ def criar_mensalidade(sender, instance, created, **kwargs):
 @receiver(pre_save, sender=Mensalidade)
 def criar_nova_mensalidade(sender, instance, **kwargs):
     if instance.dt_pagamento and instance.pgto:
-        dia_vencimento = instance.dt_vencimento.day
-        dia_atual = timezone.localtime().date().day
+        data_vencimento_anterior = instance.dt_vencimento # recebe a data de vencimento da mensalidade que foi paga
+        data_atual = timezone.localtime().date() # recebe a data de hoje
 
-        # Verifica se o dia do vencimento da mensalidade anterior é maior que o dia atual.
-        # Se verdadeiro, define a variável `novo_vencimento` como a mesma da mensalidade anterior.
-        if dia_vencimento > dia_atual:
-            novo_vencimento = datetime(
-                instance.dt_vencimento.year,
-                instance.dt_vencimento.month,
-                dia_vencimento,
-            )
-        # Se não, define a variável tendo um nova data baseada no `dia_atual`
+        # Verifica se a data de vencimento da mensalidade anterior é maior que a data atual.
+        # Se verdadeiro, significa que a mensalidade anterior foi paga antecipada e 
+        # atribua à `nova_data_vencimento` o valor de `data_vencimento_anterior`
+        if data_vencimento_anterior > data_atual:
+            nova_data_vencimento = data_vencimento_anterior 
+        
+        # Se não, significa que a mensalidade foi paga em atraso e atribui à `nova_data_vencimento` o 
+        # resultado obtido da função `definir_dia_pagamento`
         else:
-            novo_dia_de_pagamento = definir_dia_pagamento(dia_atual)
-            novo_vencimento = datetime(
-                instance.dt_pagamento.year,
-                instance.dt_pagamento.month,
+            novo_dia_de_pagamento = definir_dia_renovacao(data_atual.day)
+            nova_data_vencimento = datetime(
+                data_vencimento_anterior.year,
+                data_vencimento_anterior.month,
                 novo_dia_de_pagamento,
             )
 
         # Define o mês/ano de vencimento de acordo com o plano do cliente
         if instance.cliente.plano.nome == Plano.CHOICES[0][0]:
-            novo_vencimento += relativedelta(months=1)
+            nova_data_vencimento += relativedelta(months=1)
         elif instance.cliente.plano.nome == Plano.CHOICES[1][0]:
-            novo_vencimento += relativedelta(months=6)
+            nova_data_vencimento += relativedelta(months=6)
         elif instance.cliente.plano.nome == Plano.CHOICES[2][0]:
-            novo_vencimento += relativedelta(years=1)
+            nova_data_vencimento += relativedelta(years=1)
 
         Mensalidade.objects.create(
             cliente=instance.cliente,
             valor=instance.cliente.plano.valor,
-            dt_vencimento=novo_vencimento,
+            dt_vencimento=nova_data_vencimento,
         )
+
+        # Atualiza a `data_pagamento` do cliente com o valor de `nova_data_vencimento` da mensalidade.
+        instance.cliente.data_pagamento = nova_data_vencimento.day
+        instance.cliente.save()
