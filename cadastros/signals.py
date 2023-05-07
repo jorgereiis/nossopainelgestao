@@ -19,7 +19,7 @@ def definir_dia_renovacao(dia):
         dia_pagamento = 25
     else:
         dia = 30
-    return dia
+    return dia_pagamento
 
 # Atualiza o `ultimo_pagamento` do cliente da mensalidade
 @receiver(post_save, sender=Mensalidade)
