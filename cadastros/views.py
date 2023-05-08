@@ -10,7 +10,7 @@ from .models import (
     PlanoIndicacao,
     ContaDoAplicativo,
 )
-from django.shortcuts import get_object_or_404, redirect, HttpResponseRedirect, reverse
+from django.shortcuts import get_object_or_404, redirect
 from django.db.models.deletion import ProtectedError
 from django.core.exceptions import ValidationError
 from django.views.generic.list import ListView
@@ -134,7 +134,6 @@ class TabelaDashboard(ListView):
                 "valor_total_pago_qtd": valor_total_pago_qtd,
                 "valor_total_receber_qtd": valor_total_receber_qtd,
                 "clientes_cancelados_qtd": clientes_cancelados_qtd,
-                #"success_message_cancel": "teste",
             }
         )
         return context
