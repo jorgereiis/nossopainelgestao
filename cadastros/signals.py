@@ -40,6 +40,10 @@ def atualiza_ultimo_pagamento(sender, instance, **kwargs):
 # CRIA NOVA MENSALIDADE QUANDO UM NOVO CLIENTE FOR CRIADO
 @receiver(post_save, sender=Cliente)
 def criar_mensalidade(sender, instance, created, **kwargs):
+    request = kwargs.get('request')
+    if request is not None and request.user.is_authenticated:
+        usuario = request.user
+        
     if created:
         if instance.ultimo_pagamento:
             dia = instance.ultimo_pagamento.day
@@ -69,8 +73,12 @@ def criar_mensalidade(sender, instance, created, **kwargs):
             elif instance.plano.nome == Plano.CHOICES[2][0]:
                 vencimento += relativedelta(years=1)
         """
+
         Mensalidade.objects.create(
-            cliente=instance, valor=instance.plano.valor, dt_vencimento=vencimento
+            cliente=instance,
+            valor=instance.plano.valor, 
+            dt_vencimento=vencimento,
+            usuario=instance.usuario,
         )
 
 
@@ -109,6 +117,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
             cliente=instance.cliente,
             valor=instance.cliente.plano.valor,
             dt_vencimento=nova_data_vencimento,
+            usuario=instance.request.user,
         )
 
         # Atualiza a `data_pagamento` do cliente com o valor de `nova_data_vencimento` da mensalidade.

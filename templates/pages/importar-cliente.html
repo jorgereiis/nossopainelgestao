@@ -26,19 +26,17 @@
                                 inteligente.</h3>
                         </div>
                         <!-- col importar -->
-                        <div class="row mb-20">
+                        <div class="row mb-7">
                             <div class="col-md-3 mb-3 mb-md-0">
                                 <!-- dropzone input importar -->
-                                <form method="post" enctype="multipart/form-data">
+                                <form method="post" enctype="multipart/form-data" id="form-importar">
                                     <div class="dropzone mb-3 border-dashed">
                                         {% csrf_token %}
                                         <div class="fallback">
-                                            <input name="arquivo" type="file" accept=".csv" capture=".csv"
-                                                class="w-100" />
+                                            <input name="arquivo" type="file" class="w-100" id="input-arquivo" accept=".xlsx" capture=".xlsx">
                                         </div>
                                     </div>
-                                    <button type="submit" class="btn btn-outline-white"
-                                        name="importar" onclick="carregar()">Importar</button>
+                                    <button type="submit" class="btn btn-primary" name="importar" onclick="carregar()" id="btn-importar" disabled>Importar</button>
                                 </form>
                             </div>
                             <div class="col-md-9">
@@ -49,15 +47,15 @@
 
                                 <p class="mb-0 fs-5 text-muted">Baixe o modelo, preencha e envie.
                                 </p>
-                                <p><a href="{% static 'download/upload.csv' %}">Baixei aqui!
+                                <p><a href="{% static 'download/upload.xlsx' %}">Baixei aqui!
                                         <img class="mb-0 fs-5 text-muted"
                                             src="{% static 'assets/images/svg/filetype-csv.svg' %}"></a></p>
                             </div>
                         </div>
                         <!-- col -->
                     </div>
-                    <div class="row mb-8">
-                        <div class="col-md-12 col-12">
+                    <div class="row">
+                        <div class="col-md-12 col-12 mb-2">
                             <div class="mb-lg-6 border-bottom pb-4 mb-4">
                                 <h4 class="mb-1">Instruções sobre a importação</h4>
                             </div>
@@ -71,12 +69,9 @@
                             <p class="mb-0 text-muted small">- Se a data de pagamento estiver em branco no arquivo, será
                                 definida uma data entre 5, 10, 15, 20, 25 e 30, que seja mais a próxima do dia da
                                 importação;</p>
-                            <p class="mb-0 text-muted small">- Se ainda não tiver chego a data do vencimento para o
-                                cliente neste mês, será criada uma mensalidade em aberto para ele. Se já tiver passado,
-                                o sistema criará para o próximo mês.</p>
+                            <p class="mb-0 text-muted small">- Para o campo 'tipo_plano', as única opções aceitas serão: Mensal, Semestral ou Anual. Caso seja informado um diferente, o cliente não será salvo.</p>
                             <p class="mb-0 text-muted small">- (<span class="text-danger">*</span>) Campos obrigatórios.
                             </p>
-                            <p></p>
                         </div>
                         <br>
 
@@ -96,16 +91,16 @@
                                                 <th scope="col">servidor <span class="text-danger">*</span></th>
                                                 <th scope="col">dispositivo <span class="text-danger">*</span></th>
                                                 <th scope="col">sistema <span class="text-danger">*</span></th>
-                                                <th scope="col">device_id <span class="text-danger">*</span></th>
-                                                <th scope="col">email <span class="text-danger">*</span></th>
-                                                <th scope="col">device_key <span class="text-danger">*</span></th>
+                                                <th scope="col">device_id</th>
+                                                <th scope="col">email</th>
+                                                <th scope="col">device_key</th>
                                                 <th scope="col">nome <span class="text-danger">*</span></th>
                                                 <th scope="col">telefone <span class="text-danger">*</span></th>
                                                 <th scope="col">indicado_por</th>
                                                 <th scope="col">data_pagamento</th>
                                                 <th scope="col">forma_pgto <span class="text-danger">*</span></th>
-                                                <th scope="col">plano <span class="text-danger">*</span></th>
                                                 <th scope="col">tipo_plano <span class="text-danger">*</span></th>
+                                                <th scope="col">plano_valor <span class="text-danger">*</span></th>
                                                 <th scope="col">telas <span class="text-danger">*</span></th>
                                                 <th scope="col">data_adesao <span class="text-danger">*</span></th>
                                             </tr>
@@ -118,13 +113,13 @@
                                                 <td class="small">11:11:11:11:11:11</td>
                                                 <td class="small"></td>
                                                 <td class="small">111111111111</td>
-                                                <td class="small">João Silva</td>
+                                                <td class="small">Cliente 1</td>
                                                 <td class="small">5583988881122</td>
                                                 <td class="small">Marcio Silva</td>
                                                 <td class="small">5</td>
                                                 <td class="small">PIX</td>
-                                                <td class="small">35</td>
                                                 <td class="small">Mensal</td>
+                                                <td class="small">35</td>
                                                 <td class="small">1</td>
                                                 <td class="small">06/01/2023</td>
                                             </tr>
@@ -135,15 +130,32 @@
                                                 <td class="small"></td>
                                                 <td class="small">email@email.com</td>
                                                 <td class="small">123456</td>
-                                                <td class="small">Maria Silva</td>
+                                                <td class="small">Cliente 2</td>
                                                 <td class="small">5511999993344</td>
                                                 <td class="small">João Silva</td>
                                                 <td class="small">10</td>
                                                 <td class="small">Boleto</td>
-                                                <td class="small">180</td>
                                                 <td class="small">Semestral</td>
+                                                <td class="small">180</td>
                                                 <td class="small">2</td>
                                                 <td class="small">11/01/2023</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="small">FIVE</td>
+                                                <td class="small">TV Roku</td>
+                                                <td class="small">MetaPlayer</td>
+                                                <td class="small">1a2b3c4d5e6f</td>
+                                                <td class="small"></td>
+                                                <td class="small">12345678</td>
+                                                <td class="small">Cliente 3</td>
+                                                <td class="small">5511999993344</td>
+                                                <td class="small">João Silva</td>
+                                                <td class="small">15</td>
+                                                <td class="small">Cartão de Crédito</td>
+                                                <td class="small">Anual</td>
+                                                <td class="small">300</td>
+                                                <td class="small">3</td>
+                                                <td class="small">15/03/2023</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -168,10 +180,11 @@
                         swal.fire({
                             icon: 'info',
                             title: 'Importação concluída!',
-                            html: '<p>Resumo</p><hr><strong>Total importados:</strong> {{num_linhas_importadas}} <br><strong>Total não importados:</strong> {{num_linhas_nao_importadas}} <br><br><strong>Clientes não importados:</strong> <br>{% for nome in nomes_nao_importados%}-> {{nome}} <br>{% endfor %}',
+                            html: '<p>Resumo</p><hr><strong>Total importados: </strong>{{num_linhas_importadas}}<br><strong>Total não importados: </strong>{{num_linhas_nao_importadas}}<hr><strong>Clientes já existentes:</strong><br>{% for nome in nomes_clientes_existentes%}-> {{nome}}<br>{% endfor %}<hr><strong>Clientes com erro ao importar:</strong><br>{% for nome in nomes_clientes_erro_importacao %}-> {{nome}}<br>{% endfor %}<hr>',
                             didClose: function () {
                                 window.location.href = newUrl;
-                            }
+                            },
+                            width: '40%',
                         });
                     });
                 </script>
@@ -216,4 +229,24 @@
             }
         })
     }
+</script>
+
+<script>
+    var inputArquivo = document.getElementById('input-arquivo');
+    var btnImportar = document.getElementById('btn-importar');
+    var formImportar = document.getElementById('form-importar');
+
+    inputArquivo.addEventListener('change', function() {
+        if (inputArquivo.files.length > 0) {
+            btnImportar.disabled = false;
+        } else {
+            btnImportar.disabled = true;
+        }
+    });
+
+    formImportar.addEventListener('submit', function(e) {
+        if (inputArquivo.files.length === 0) {
+            e.preventDefault();
+        }
+    });
 </script>

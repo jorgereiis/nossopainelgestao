@@ -1,38 +1,50 @@
-from .models import (
-    Cliente,
-    Servidor,
-    Dispositivo,
-    Aplicativo,
-    Tipos_pgto,
-    Plano,
-    Qtd_tela,
-    Mensalidade,
-    PlanoIndicacao,
-    ContaDoAplicativo,
-)
+from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo)
+from django.http import HttpResponseBadRequest, HttpResponseNotFound
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models.deletion import ProtectedError
 from django.core.exceptions import ValidationError
 from django.views.generic.list import ListView
-from django.http import HttpResponseBadRequest
+from django.db.utils import IntegrityError
 from babel.numbers import format_currency
 from datetime import datetime, timedelta
 from django.shortcuts import redirect
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Sum
 from django.db.models import Q
+import pandas as pd
 import locale
 import json
-import csv
 import time
+import re
+
+############################################ LOGIN VIEW ############################################
+
+# PÁGINA DE LOGIN
+def Login(request):
+    return render(request, "login.html")
+
+############################################ LIST VIEW ############################################
+
+@login_required
+def ListaClientes(request):
+    clintes = Cliente.objects.filter(usuario=request.user,).order_by('nome')
+    return render(request, "pages/lista-clientes.html", {"clientes": clintes})
 
 
-class TabelaDashboard(ListView):
+class TabelaDashboard(LoginRequiredMixin, ListView):
+    """
+        AÇÃO PARA LISTAGEM DE CLIENTES, SUAS MENSALIDADES E OUTRAS INFORMAÇÕES EXIBIDAS NO DASHBOARD
+    """
+    login_url = "login"
     model = Cliente
     template_name = "dashboard.html"
     paginate_by = 15
+
 
     # QUERY PARA O CAMPO DE PESQUISA DO DASHBOARD
     def get_queryset(self):
@@ -43,6 +55,7 @@ class TabelaDashboard(ListView):
                 mensalidade__cancelado=False,
                 mensalidade__dt_pagamento=None,
                 mensalidade__pgto=False,
+                usuario=self.request.user,
             )
             .order_by("mensalidade__dt_vencimento")
             .distinct()
@@ -67,6 +80,7 @@ class TabelaDashboard(ListView):
             mensalidade__dt_pagamento=None,
             mensalidade__pgto=False,
             mensalidade__dt_vencimento__lt=hoje,
+            usuario=self.request.user,
         ).count()
 
         valor_total_pago = (
@@ -74,6 +88,7 @@ class TabelaDashboard(ListView):
                 cancelado=False,
                 dt_pagamento__year=ano_atual,
                 dt_pagamento__month=mes_atual,
+                usuario=self.request.user,
                 pgto=True,
             ).aggregate(valor_total=Sum("valor"))["valor_total"]
             or 0
@@ -88,6 +103,7 @@ class TabelaDashboard(ListView):
             cancelado=False,
             dt_pagamento__year=ano_atual,
             dt_pagamento__month=mes_atual,
+            usuario=self.request.user,
             pgto=True,
         ).count()
 
@@ -96,6 +112,7 @@ class TabelaDashboard(ListView):
                 cancelado=False,
                 dt_vencimento__year=ano_atual,
                 dt_vencimento__month=mes_atual,
+                usuario=self.request.user,
                 pgto=False,
             ).aggregate(valor_total=Sum("valor"))["valor_total"]
             or 0
@@ -106,6 +123,7 @@ class TabelaDashboard(ListView):
             cancelado=False,
             dt_vencimento__gte=hoje,
             dt_vencimento__lt=proxima_semana,
+            usuario=self.request.user,
             pgto=False,
         ).count()
 
@@ -114,6 +132,7 @@ class TabelaDashboard(ListView):
                 cancelado=False,
                 data_adesao__year=ano_atual,
                 data_adesao__month=mes_atual,
+                usuario=self.request.user,
             )
         ).count()
 
@@ -121,6 +140,7 @@ class TabelaDashboard(ListView):
             cancelado=True,
             data_cancelamento__year=ano_atual,
             data_cancelamento__month=mes_atual,
+            usuario=self.request.user,
         ).count()
 
         context.update(
@@ -138,272 +158,495 @@ class TabelaDashboard(ListView):
         )
         return context
 
+############################################ UPDATE VIEW ############################################
 
 # AÇÃO DE PAGAR MENSALIDADE
+@login_required
 def pagar_mensalidade(request, mensalidade_id):
-    mensalidade = get_object_or_404(Mensalidade, pk=mensalidade_id)
 
-    # realiza as modificações na mensalidade
-    mensalidade.dt_pagamento = timezone.localtime().date()
-    mensalidade.pgto = True
-    try:
-        mensalidade.save()
-    except:
-        return JsonResponse({"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."})
-    # redireciona para a página anterior
-    return JsonResponse({"success_message_invoice": "Mensalidade paga!"})
+        mensalidade = Mensalidade.objects.filter(pk=mensalidade_id, usuario=request.user)
+
+        # realiza as modificações na mensalidade
+        mensalidade.dt_pagamento = timezone.localtime().date()
+        mensalidade.pgto = True
+        try:
+            mensalidade.save()
+        except Exception as erro:
+            return JsonResponse({"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."})
+        # redireciona para a página anterior
+        return JsonResponse({"success_message_invoice": "Mensalidade paga!"})
 
 
 # AÇÃO PARA CANCELAMENTO DE CLIENTE
+@login_required
 def cancelar_cliente(request, cliente_id):
-    cliente = get_object_or_404(Cliente, pk=cliente_id)
+    if request.user.is_authenticated:
+        cliente = Cliente.objects.filter(pk=cliente_id, usuario=request.user)
 
-    # realiza as modificações no cliente
-    cliente.cancelado = True
-    cliente.data_cancelamento = timezone.localtime().date()
-    try:
-        cliente.save()
-    except Exception as e:
-        return JsonResponse({"error_message": "Ocorreu um erro ao tentar cancelar esse cliente."}, status=500)
-
-    # retorna a mensagem de sucesso como resposta JSON
-    return JsonResponse({"success_message_cancel": "Eita! mais um cliente cancelado?! "})
-
-
-
-# PÁGINA DE LOGIN
-def Login(request):
-    return render(request, "login.html")
-
-
-# IMPORTAR CLIENTES
-def ImportarClientes(request):
-    num_linhas_importadas = 0 
-    num_linhas_nao_importadas = 0 
-    nomes_nao_importados = []
-    if request.method == "POST" and 'importar' in request.POST:
+        # realiza as modificações no cliente
+        cliente.cancelado = True
+        cliente.data_cancelamento = timezone.localtime().date()
         try:
-            arquivo_csv = request.FILES["arquivo"].read().decode("utf-8").splitlines()
-        except:
-            return render(
-                request,
-                "pages/importar-cliente.html",
-                {"error_message": "Nenhum arquivo selecionado."},
-            )
-        
-        # Verifica se o arquivo selecionado é um arquivo CSV válido
-        try:
-            leitor_csv = csv.reader(arquivo_csv)
-            primeira_linha = next(leitor_csv)
-        except:
-            return render(
-                request,
-                "pages/importar-cliente.html",
-                {"error_message": "O arquivo selecionado não é um arquivo CSV válido."},
-            )
+            cliente.save()
+        except Exception as erro:
+            return JsonResponse({"error_message": "Ocorreu um erro ao tentar cancelar esse cliente."}, status=500)
 
-        # Verifica o delimitador utilizado no arquivo .csv
-        for delimitador in [',', ';']:
+        # retorna a mensagem de sucesso como resposta JSON
+        return JsonResponse({"success_message_cancel": "Eita! mais um cliente cancelado?! "})
+    else:
+        redirect("login")
+
+
+# AÇÃO PARA EDITAR O OBJETO PLANO MENSAL
+@login_required
+def EditarPlanoAdesao(request, plano_id):
+    plano_mensal = get_object_or_404(Plano, pk=plano_id, usuario=request.user)
+
+    planos_mensalidades = Plano.objects.all().order_by('nome')
+
+    if request.method == "POST":
+        nome = request.POST.get("nome")
+        valor = request.POST.get("valor")
+
+        if nome and valor:
+            plano_mensal.nome = nome
+            plano_mensal.valor = valor
+
             try:
-                leitor_csv = csv.reader(arquivo_csv, delimiter=delimitador)
-                primeira_linha = next(leitor_csv)
-                if len(primeira_linha) == 15:
-                    break
-            except csv.Error:
-                pass
+                plano_mensal.save()
+
+            except ValidationError as erro1:
+                # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
+                return render(
+                    request,
+                    "pages/cadastro-plano-adesao.html",
+                    {
+                        'planos_mensalidades': planos_mensalidades,
+                        "error_message": "Já existe um plano com este nome!",
+                    },
+                )
+
+            except Exception as erro2:
+                # Capturando outros possíveis erros ao tentar salvar o servidor
+                return render(
+                    request,
+                    "pages/cadastro-plano-adesao.html",
+                    {
+                        'planos_mensalidades': planos_mensalidades,
+                        "error_message": "Ocorreu um erro ao salvar o plano. Verifique o log!",
+                    },
+                )
+            
+            return render(
+                request,
+                "pages/cadastro-plano-adesao.html",
+                {"planos_mensalidades": planos_mensalidades, "success_update": True},
+            )
+
         else:
             return render(
                 request,
-                "pages/importar-cliente.html",
-                {"error_message": "O arquivo selecionado não possui a quantidade de colunas corretas. Confira o layout e configure o arquivo .csv de acordo."},
-            )
-
-        leitor_csv = csv.reader(arquivo_csv, delimiter=delimitador)
-        num_linhas_importadas = 0  # Inicializa o contador de linhas importadas
-        num_linhas_nao_importadas = 0  # Inicializa o contador de linhas não importadas
-        nomes_nao_importados = []  # Inicializa a lista de nomes de clientes não importados
-
-        for x, linha in enumerate(leitor_csv):
-            if x == 0:
-                continue  # Pula a primeira linha do arquivo .csv e considera os dados a partir da segunda
-
-            nome = linha[6].title()
-            telefone = linha[7]
-
-            # Verifica se já existe um cliente com esse nome ou telefone
-            cliente_existente = Cliente.objects.filter(
-                Q(nome__iexact=nome) | Q(telefone=telefone)
-            ).exists()
-            if cliente_existente:
-                num_linhas_nao_importadas += 1
-                nomes_nao_importados.append(nome)  # Adiciona o nome do cliente não importado à lista
-                continue  # Pula essa linha do arquivo e vai para a próxima
-
-            servidor, created = Servidor.objects.get_or_create(nome=linha[0])
-            dispositivo, created = Dispositivo.objects.get_or_create(nome=linha[1])
-            sistema, created = Aplicativo.objects.get_or_create(nome=linha[2])
-
-            indicado_por = None
-            if linha[8]:
-                indicado_por = Cliente.objects.filter(nome__iexact=linha[8]).first()
-
-                if indicado_por is None:
-                    # Caso o cliente indicado não exista, o campo indicado_por ficará em branco
-                    indicado_por = None
-
-            data_pagamento = int(linha[9]) if linha[9] else None
-            forma_pgto_nome = linha[10] if linha[10] else "PIX"
-            forma_pgto, created = Tipos_pgto.objects.get_or_create(nome=forma_pgto_nome)
-            tipo_plano = linha[12].capitalize() if linha[12] != None else None
-
-            if tipo_plano == '' or tipo_plano == None:
-                plano_queryset = Plano.objects.filter(
-                    valor=int(linha[11]), nome='Mensal'
-                )
-            else:
-                plano_queryset = Plano.objects.filter(
-                    valor=int(linha[11]), nome=tipo_plano
-                )
-
-            plano = plano_queryset.first()
-            telas = Qtd_tela.objects.get(telas=int(linha[13]))
-            data_adesao = datetime.strptime(linha[14], "%d/%m/%Y").date()
-
-            novo_cliente = Cliente(
-                servidor=servidor,
-                dispositivo=dispositivo,
-                sistema=sistema,
-                nome=nome,
-                telefone=telefone,
-                indicado_por=indicado_por,
-                data_pagamento=data_pagamento,
-                forma_pgto=forma_pgto,
-                plano=plano,
-                telas=telas,
-                data_adesao=data_adesao,
-            )
-            novo_cliente.save()
-
-            check_sistema = linha[2].lower().replace(" ", "")
-            if check_sistema == "clouddy" or check_sistema == "duplexplay" or check_sistema == "duplecast" or check_sistema == "metaplayer":
-                linha[3] = linha[3].lower().replace(" ", "") if linha[3] != None else None
-                linha[4] = linha[4].lower().replace(" ", "") if linha[4] != None else None
-                linha[5] = linha[5].lower().replace(" ", "") if linha[5] != None else None
-                dados_do_app = ContaDoAplicativo(
-                    device_id=linha[3],
-                    email=linha[4],
-                    device_key=linha[5],
-                    app=Aplicativo.objects.filter(nome__iexact=check_sistema).first(),
-                    cliente=novo_cliente,
-                )
-                dados_do_app.save()
-
-            num_linhas_importadas += 1  # Incrementa o contador de linhas importadas com sucesso
-        time.sleep(2)
-        return render(
-            request,
-            "pages/importar-cliente.html",
-            {
-                "success_message": "Importação concluída!",
-                "num_linhas_importadas": num_linhas_importadas,
-                "num_linhas_nao_importadas": num_linhas_nao_importadas,
-                "nomes_nao_importados": nomes_nao_importados,
+                "pages/cadastro-plano-adesao.html",
+                {
+                    "planos_mensalidades": planos_mensalidades,
+                    "error_message": "O campo do valor não pode estar em branco.",
                 },
-        )
+            )
+
+    return redirect("cadastro-plano-mensal")
+
+
+# AÇÃO PARA EDITAR O OBJETO SERVIDOR
+@login_required
+def EditarServidor(request, servidor_id):
+    servidor = get_object_or_404(Servidor, pk=servidor_id, usuario=request.user)
+
+    servidores = Servidor.objects.filter(usuario=request.user).order_by('nome')
+
+    if request.method == "POST":
+        nome = request.POST.get("nome")
+
+        if nome:         
+            servidor.nome = nome
+            try:
+                servidor.save()
+
+            except ValidationError as erro1:
+                # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
+                return render(
+                    request,
+                    "pages/cadastro-servidor.html",
+                    {
+                        'servidores': servidores,
+                        "error_message": "Já existe um servidor com este nome!",
+                    },
+                )
+
+            except Exception as erro2:
+                # Capturando outros possíveis erros ao tentar salvar o servidor
+                return render(
+                    request,
+                    "pages/cadastro-servidor.html",
+                    {
+                        'servidores': servidores,
+                        "error_message": "Ocorreu um erro ao salvar o servidor. Verifique o log!",
+                    },
+                )
+            
+            return render(
+                request,
+                "pages/cadastro-servidor.html",
+                {"servidores": servidores, "success_update": True},
+            )
+
+    return redirect("servidores")
+
+
+# AÇÃO PARA EDITAR O OBJETO DISPOSITIVO
+@login_required
+def EditarDispositivo(request, dispositivo_id):
+    dispositivo = get_object_or_404(Dispositivo, pk=dispositivo_id, usuario=request.user)
+
+    dispositivos = Dispositivo.objects.filter(usuario=request.user).order_by('nome')
+
+    if request.method == "POST":
+        nome = request.POST.get("nome")
+
+        if nome:         
+            dispositivo.nome = nome
+            try:
+                dispositivo.save()
+
+            except ValidationError as erro1:
+                # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
+                return render(
+                    request,
+                    "pages/cadastro-dispositivo.html",
+                    {
+                        'dispositivos': dispositivos,
+                        "error_message": "Já existe um dispositivo com este nome!",
+                    },
+                )
+
+            except Exception as erro2:
+                # Capturando outros possíveis erros ao tentar salvar o dispositivo
+                return render(
+                    request,
+                    "pages/cadastro-dispositivo.html",
+                    {
+                        'dispositivos': dispositivos,
+                        "error_message": "Ocorreu um erro ao salvar o dispositivo. Verifique o log!",
+                    },
+                )
+            
+            return render(
+                request,
+                "pages/cadastro-dispositivo.html",
+                {"dispositivos": dispositivos, "success_update": True},
+            )
+
+    return redirect("dispositivos")
+
+
+# AÇÃO PARA EDITAR O OBJETO APLICATIVO
+@login_required
+def EditarAplicativo(request, aplicativo_id):
+    aplicativo = get_object_or_404(Aplicativo, pk=aplicativo_id, usuario=request.user)
+
+    aplicativos = Aplicativo.objects.filter(usuario=request.user).order_by('nome')
+
+    if request.method == "POST":
+        nome = request.POST.get("nome")
+
+        if nome:         
+            aplicativo.nome = nome
+            try:
+                aplicativo.save()
+
+            except ValidationError as erro1:
+                # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
+                return render(
+                    request,
+                    "pages/cadastro-aplicativo.html",
+                    {
+                        'aplicativos': aplicativos,
+                        "error_message": "Já existe um aplicativo com este nome!",
+                    },
+                )
+
+            except Exception as erro2:
+                # Capturando outros possíveis erros ao tentar salvar o aplicativo
+                return render(
+                    request,
+                    "pages/cadastro-aplicativo.html",
+                    {
+                        'aplicativos': aplicativos,
+                        "error_message": "Ocorreu um erro ao salvar o aplicativo. Verifique o log!",
+                    },
+                )
+            
+            return render(
+                request,
+                "pages/cadastro-aplicativo.html",
+                {"aplicativos": aplicativos, "success_update": True},
+            )
+
+    return redirect("cadastro-aplicativos")
+
+
+def Teste(request):
+    clientes = Cliente.objects.all()
 
     return render(
         request,
-        "pages/importar-cliente.html",
+        'teste.html',
+        {
+            'clientes': clientes,
+        },
     )
 
 
+############################################ CREATE VIEW ############################################
+
+@login_required
+def ImportarClientes(request):
+
+    num_linhas_importadas = 0  # Inicializa o contador de linhas importadas
+    num_linhas_nao_importadas = 0  # Inicializa o contador de linhas não importadas
+    nomes_clientes_existentes = []  # Inicializa a lista de nomes de clientes existentes não importados
+    nomes_clientes_erro_importacao = [] # Inicializa a lista de nomes de clientes que tiveram erro na importação
+    usuario_request = request.user # Usuário que fez a requisição
+
+    if request.method == "POST" and 'importar' in request.POST:
+        if not str(request.FILES['arquivo']).endswith('.xls') and not str(request.FILES['arquivo']).endswith('.xlsx'):
+            # se o arquivo não possui a extensão esperada (.xls/.xlsx), retorna erro ao usuário.
+            return render(request, "pages/importar-cliente.html",
+                {"error_message": "O arquivo não é uma planilha válida (.xls, .xlsx)."},)
+
+        try:
+            # realiza a leitura dos dados da planilha.
+            dados = pd.read_excel(request.FILES['arquivo'])
+        except Exception as erro1:
+            return render(request, "pages/importar-cliente.html",
+                {"error_message": "Erro ao tentar ler planilha. Verifique o arquivo e tente novamente."},)
+        
+        # transforma cada linha dos dados lidos da planilha em um dicionário para que seja iterado no loop FOR.
+        lista_de_objetos = dados.to_dict('records')
+
+        with transaction.atomic(): # Adicionando a transação atomica
+            i=0
+            for dado in lista_de_objetos:
+                i+=1
+                servidor_import = str(dado['servidor']).replace(" ", "") if str(dado['servidor']) != 'nan' else None
+                dispositivo_import = str(dado['dispositivo']) if str(dado['dispositivo']) != 'nan' else None
+                sistema_import = str(dado['sistema']) if str(dado['sistema']) != 'nan' else None
+                device_id_import = str(dado['device_id']).replace(" ", "") if dado['device_id'] != 'nan' else None
+                email_import = str(dado['email']).replace(" ", "") if str(dado['email']) != 'nan' else None
+                device_key_import = str(dado['device_key']).replace(" ", "").split('.')[0] if '.' in str(dado['device_key']) else None
+                nome_import = str(dado['nome']).title() if str(dado['nome']) != 'nan' else None
+                telefone_import = str(dado['telefone']).replace(" ", "") if str(dado['telefone']) != 'nan' else None
+                indicado_por_import = str(dado['indicado_por']) if str(dado['indicado_por']) != 'nan' else None
+                data_pagamento_import = int(dado['data_pagamento']) if dado['data_pagamento'] != 'nan' else None
+                forma_pgto_import = str(dado['forma_pgto']) if str(dado['forma_pgto']) != 'nan' else 'PIX'
+                tipo_plano_import = str(dado['tipo_plano']).replace(" ", "").title() if str(dado['tipo_plano']) != 'nan' else None
+                plano_valor_import = int(dado['plano_valor']) if str(dado['plano_valor']) != 'nan' else None
+                telas_import = str(dado['telas']).replace(" ", "") if str(dado['telas']) != 'nan' else None
+                data_adesao_import = dado['data_adesao'] if dado['data_adesao'] != 'nan' else None
+
+                if (servidor_import is None) or (dispositivo_import is None) or (sistema_import is None) or (nome_import is None) or (telefone_import is None) or (data_adesao_import is None) or (forma_pgto_import is None) or (plano_valor_import is None) or (tipo_plano_import is None):
+                    num_linhas_nao_importadas += 1
+                    nomes_clientes_erro_importacao.append('Linha {} da planilha - (há campos obrigatórios em branco)'.format(i))
+                    continue
+                
+                try:
+                    with transaction.atomic(): # Nova transação atomica para cada cliente importado
+                        
+                        # Verifica se já existe um cliente com esse nome ou telefone
+                        cliente_existente = Cliente.objects.filter(Q(nome__iexact=nome_import) | Q(telefone=telefone_import), usuario=usuario_request).exists()
+                        if cliente_existente:
+                            num_linhas_nao_importadas += 1 # incrementa mais 1 a contagem
+                            nomes_clientes_existentes.append('Linha {} da planilha - {}'.format(i, nome_import.title()))  # Adiciona o nome do cliente já existente
+                            continue # pula a inserção desse cliente
+                        
+                        servidor, created = Servidor.objects.get_or_create(nome=servidor_import, usuario=usuario_request)
+                        dispositivo, created = Dispositivo.objects.get_or_create(nome=dispositivo_import, usuario=usuario_request)
+                        sistema, created = Aplicativo.objects.get_or_create(nome=sistema_import, usuario=usuario_request)
+                        indicado_por = None
+                        if indicado_por_import:
+                            indicado_por = Cliente.objects.filter(nome__iexact=nome_import, usuario=usuario_request).first()
+                        data_pagamento = data_pagamento_import
+                        forma_pgto, created = Tipos_pgto.objects.get_or_create(nome=forma_pgto_import, usuario=usuario_request)
+                        plano, created = Plano.objects.get_or_create(nome=tipo_plano_import, valor=plano_valor_import, usuario=usuario_request)
+                        telas, created = Qtd_tela.objects.get_or_create(telas=int(telas_import))
+                        data_adesao = data_adesao_import
+
+                        novo_cliente = Cliente(
+                            servidor=servidor,
+                            dispositivo=dispositivo,
+                            sistema=sistema,
+                            nome=nome_import,
+                            telefone=telefone_import,
+                            indicado_por=indicado_por,
+                            data_pagamento=data_pagamento,
+                            forma_pgto=forma_pgto,
+                            plano=plano,
+                            telas=telas,
+                            data_adesao=data_adesao,
+                            usuario=usuario_request,
+                        )
+                        novo_cliente.save()
+
+                        check_sistema = sistema_import.lower().replace(" ", "")
+                        if check_sistema == "clouddy" or check_sistema == "duplexplay" or check_sistema == "duplecast" or check_sistema == "metaplayer":
+                            device_id = device_id_import
+                            email = email_import
+                            device_key = device_key_import
+                            dados_do_app = ContaDoAplicativo(
+                                device_id=device_id,
+                                email=email,
+                                device_key=device_key,
+                                app=Aplicativo.objects.filter(nome__iexact=check_sistema, usuario=usuario_request).first(),
+                                cliente=novo_cliente,
+                                usuario=usuario_request,
+                            )
+                            dados_do_app.save()
+
+                        num_linhas_importadas += 1  # Incrementa o contador de linhas importadas com sucesso
+                except Exception as erro2:
+                    # Se ocorrer um erro, apenas incrementa 1 a contagem e adiciona o nome do cliente a lista dos não importados, e continua para o próximo cliente.
+                    num_linhas_nao_importadas += 1
+                    nomes_clientes_erro_importacao.append('Linha {} da planilha - {}'.format(i, nome_import.title()))
+                    continue
+
+            time.sleep(2)
+            return render(
+                    request,
+                    "pages/importar-cliente.html",
+                    {
+                        "success_message": "Importação concluída!",
+                        "num_linhas_importadas": num_linhas_importadas,
+                        "num_linhas_nao_importadas": num_linhas_nao_importadas,
+                        "nomes_clientes_existentes": nomes_clientes_existentes,
+                        "nomes_clientes_erro_importacao": nomes_clientes_erro_importacao,
+                        },
+            )
+    
+    return render(request, "pages/importar-cliente.html")
+
+
+# AÇÃO PARA CRIAR NOVO CLIENTE ATRAVÉS DO FORMULÁRIO
+@login_required
 def CadastroCliente(request):
     # Criando os queryset para exibir os dados nos campos do fomulário
-    plano_queryset = Plano.objects.all()
+    plano_queryset = Plano.objects.filter(usuario=request.user)
     telas_queryset = Qtd_tela.objects.all()
-    forma_pgto_queryset = Tipos_pgto.objects.all()
-    servidor_queryset = Servidor.objects.all().order_by('nome')
-    sistema_queryset = Aplicativo.objects.filter().order_by('nome')
-    indicador_por_queryset = Cliente.objects.all().order_by('nome')
-    dispositivo_queryset = Dispositivo.objects.all().order_by('nome')
+    forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=request.user)
+    servidor_queryset = Servidor.objects.filter(usuario=request.user).order_by('nome')
+    sistema_queryset = Aplicativo.objects.filter(usuario=request.user).order_by('-nome')
+    indicador_por_queryset = Cliente.objects.filter(usuario=request.user).order_by('nome')
+    dispositivo_queryset = Dispositivo.objects.filter(usuario=request.user).order_by('nome')
+    usuario = request.user
 
     # Recebendo os dados da requisição para criar um novo cliente
     if request.method == 'POST' and 'cadastrar' in request.POST:
-        indicador = None
         nome = request.POST.get('nome')
-        plano = request.POST.get('plano')
-        lista = plano.split("-")
-        nome_do_plano = lista[0]
-        telas = request.POST.get('telas')
         notas = request.POST.get('notas')
-        sistema = request.POST.get('sistema')
         telefone = request.POST.get('telefone')
-        servidor = request.POST.get('servidor')
         sobrenome = request.POST.get('sobrenome')
-        forma_pgto = request.POST.get('forma_pgto')
-        dispositivo = request.POST.get('dispositivo')
-        valor_do_plano = float(lista[1].replace(',', '.'))
-        indicador_nome = request.POST.get('indicador_list')
-        if indicador_nome == None or indicador_nome == "" or indicador_nome == " ":
-            indicador_nome = None
-        else:
-            indicador = Cliente.objects.get(nome=indicador_nome)
-        data_pagamento = (
-            int(request.POST.get('data_pagamento'))
-            if request.POST.get('data_pagamento')
-            else None
-        )
+        indicador = request.POST.get('indicador_list')
+        lista_plano = request.POST.get('plano').split("-")
+        nome_do_plano = lista_plano[0]
+        valor_do_plano = float(lista_plano[1].replace(',', '.'))
+        plano, created = Plano.objects.get_or_create(nome=nome_do_plano, valor=valor_do_plano, usuario=usuario)
+        telas, created = Qtd_tela.objects.get_or_create(telas=request.POST.get('telas'))
+        sistema, created = Aplicativo.objects.get_or_create(nome=request.POST.get('sistema'), usuario=usuario)
+        servidor, created = Servidor.objects.get_or_create(nome=request.POST.get('servidor'), usuario=usuario)
+        forma_pgto, created = Tipos_pgto.objects.get_or_create(nome=request.POST.get('forma_pgto'), usuario=usuario)
+        dispositivo, created = Dispositivo.objects.get_or_create(nome=request.POST.get('dispositivo'), usuario=usuario)
+        data_pagamento = int(request.POST.get('data_pagamento')) if request.POST.get('data_pagamento') else None
+        valida_cliente_get = Cliente.objects.get(telefone=telefone)
+        valida_cliente_exists = Cliente.objects.filter(telefone=telefone)
 
-        cliente = Cliente(
-            nome=(nome + " " + sobrenome),
-            telefone=(telefone),
-            dispositivo=Dispositivo.objects.get(nome=dispositivo),
-            sistema=Aplicativo.objects.get(nome=sistema),
-            indicado_por=indicador,
-            servidor=Servidor.objects.get(nome=servidor),
-            forma_pgto=Tipos_pgto.objects.get(nome=forma_pgto),
-            plano=Plano.objects.get(nome=nome_do_plano, valor=valor_do_plano),
-            telas=Qtd_tela.objects.get(telas=telas),
-            data_pagamento=data_pagamento,
-            notas=notas,
-        )
-        try:
-            cliente.save()
-        except ValidationError as erro:
+        if indicador is None or indicador == "" or indicador == " ":
+            indicador = None
+        else:
+            indicador = Cliente.objects.get(nome=indicador, usuario=usuario)
+
+        if telefone is None or telefone == "" or telefone == " ":
             return render(
                 request,
                 "pages/cadastro-cliente.html",
                 {
-                    "error_message": "Não foi possível cadastrar cliente!"
-                },
-            )
-        except Exception as e:
-            return render(
-                request,
-                "pages/cadastro-cliente.html",
-                {
-                    "error_message": "Já existe um cliente com o telefone informado!",
+                    "error_message": "O campo telefone não pode estar em branco.",
                 },
             )
         
-        check_sistema = sistema.lower().replace(" ", "")
-        if check_sistema == "clouddy" or check_sistema == "duplexplay" or check_sistema == "duplecast" or check_sistema == "metaplayer":
-            dados_do_app = ContaDoAplicativo(
-                device_id=request.POST.get('id'),
-                email=request.POST.get('email'),
-                device_key=request.POST.get('senha'),
-                app=Aplicativo.objects.get(nome=sistema),
-                cliente=cliente,
-            )
-            dados_do_app.save()
+        elif not valida_cliente_exists.exists():
 
-        return render(
-            request,
-            "pages/cadastro-cliente.html",
-            {
-                "success_message": "Novo cliente cadastrado com sucesso!",
-            },
-        )
+            cliente = Cliente(
+                nome=(nome + " " + sobrenome),
+                telefone=(telefone),
+                dispositivo=dispositivo,
+                sistema=sistema,
+                indicado_por=indicador,
+                servidor=servidor,
+                forma_pgto=forma_pgto,
+                plano=plano,
+                telas=telas,
+                data_pagamento=data_pagamento,
+                notas=notas,
+                usuario=usuario,
+            )
+            try:
+                cliente.save()
+
+            except ValidationError as erro1:
+                return render(
+                    request,
+                    "pages/cadastro-cliente.html",
+                    {
+                        "error_message": "Não foi possível cadastrar cliente!"
+                    },
+                )
+            
+            except Exception as erro2:
+                return render(
+                    request,
+                    "pages/cadastro-cliente.html",
+                    {
+                        "error_message": "Não foi possível cadastrar cliente!",
+                    },
+                )
+            
+            check_sistema = request.POST.get('sistema').lower().replace(" ", "")
+            if check_sistema == "clouddy" or check_sistema == "duplexplay" or check_sistema == "duplecast" or check_sistema == "metaplayer":
+                dados_do_app = ContaDoAplicativo(
+                    device_id=request.POST.get('id'),
+                    email=request.POST.get('email'),
+                    device_key=request.POST.get('senha'),
+                    app=Aplicativo.objects.get(nome=sistema, usuario=usuario),
+                    cliente=cliente,
+                    usuario=usuario,
+                )
+                dados_do_app.save()
+
+            return render(
+                request,
+                "pages/cadastro-cliente.html",
+                {
+                    "success_message": "Novo cliente cadastrado com sucesso!" ,
+                },
+            )
+        
+        else:
+            return render(
+                request,
+                "pages/cadastro-cliente.html",
+                {
+                    "error_message": "Há um cliente cadastrado com o telefone informado! <br><br><strong>Nome:</strong> {} <br> <strong>Telefone:</strong> {}".format(valida_cliente_get.nome, valida_cliente_get.telefone),
+                },
+            )
+        
     return render(
         request,
         "pages/cadastro-cliente.html",
@@ -419,338 +662,195 @@ def CadastroCliente(request):
     )
 
 
-def CadastroPlanoMensal(request):
-    planos_mensalidades = Plano.objects.all()
-
-    if request.method == 'POST':
-        plano = Plano(
-            nome=request.POST.get('nome'), valor=int(request.POST.get('valor'))
-        )
-
-        # Tratando possíveis erros
-        try:
-            plano.save()
-        except ValidationError as erro:
-            # Capturando o erro de validação e renderizando a página novamente com a mensagem de erro
-            return render(
-                request,
-                "pages/cadastro-plano-mensal.html",
-                {
-                    'planos_mensalidades': planos_mensalidades,
-                    "error_message": "Não foi possível cadastrar este novo plano. <p>ERRO: [{}]</p>".format(
-                        erro
-                    ),
-                },
-            )
-        except Exception as e:
-            # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
-            return render(
-                request,
-                "pages/cadastro-plano-mensal.html",
-                {
-                    'planos_mensalidades': planos_mensalidades,
-                    "error_message": "Já existe um plano com este nome!",
-                },
-            )
-
-        # Retornando msg de sucesso caso seja feito o cadastro
-        return render(
-            request,
-            "pages/cadastro-plano-mensal.html",
-            {
-                'planos_mensalidades': planos_mensalidades,
-                "success_message": "Novo plano cadastrado com sucesso!",
-            },
-        )
-
-    return render(
-        request,
-        "pages/cadastro-plano-mensal.html",
-        {"planos_mensalidades": planos_mensalidades},
-    )
-
-
-def DeletePlanoMensal(request, pk):
-    try:
-        plano_mensal = get_object_or_404(Plano, pk=pk)
-        plano_mensal.delete()
-    except ProtectedError as e:
-        error_msg = 'Este Plano não pode ser excluído porque está relacionado com algum cliente.'
-        return HttpResponseBadRequest(
-            json.dumps({'error_delete': error_msg}), content_type='application/json'
-        )
-
-    return redirect('cadastro-plano-mensal')
-
-
-def EditarPlanoMensal(request, plano_id):
-    plano_mensal = get_object_or_404(Plano, pk=plano_id)
-
-    planos_mensalidades = Plano.objects.all()
+# AÇÃO PARA CRIAR NOVO OBJETO PLANO MENSAL
+@login_required
+def CadastroPlanoAdesao(request):
+    planos_mensalidades = Plano.objects.filter(usuario=request.user).order_by('nome')
+    usuario = request.user
 
     if request.method == "POST":
         nome = request.POST.get("nome")
-        valor = request.POST.get("valor")
-        if nome and valor:
-            plano_mensal.nome = nome
-            plano_mensal.valor = valor
+        print('>>>>>>>>>>>>>>> ', request.POST.get('nome'), request.POST.get('valor'))
+
+        if nome:
 
             try:
-                plano_mensal.save()
+                # Consultando o objeto requisitado. Caso não exista, será criado.
+                plano, created = Plano.objects.get_or_create(nome=request.POST.get('nome'), valor=int(request.POST.get('valor')), usuario=usuario)
 
+                if created:
+                    return render(
+                            request,
+                        'pages/cadastro-plano-adesao.html',
+                        {
+                            'planos_mensalidades': planos_mensalidades,
+                            "success_message": "Novo Plano cadastrada com sucesso!",
+                        },
+                    )
+                
+                else:
+                    return render(
+                            request,
+                        'pages/cadastro-plano-adesao.html',
+                        {
+                            'planos_mensalidades': planos_mensalidades,
+                            "error_message": "Já existe um Plano com este nome!",
+                        },
+                    )
+                
             except Exception as e:
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
+                print('>>>>>>>>>>>>> ', e)
                 return render(
                     request,
-                    "pages/cadastro-plano-mensal.html",
+                    "pages/cadastro-plano-adesao.html",
                     {
                         'planos_mensalidades': planos_mensalidades,
-                        "error_message": "Já existe um plano com este nome!",
+                        "error_message": "Não foi possível cadastrar este novo Plano. Verifique os logs!",
                     },
                 )
 
-            return render(
-                request,
-                "pages/cadastro-plano-mensal.html",
-                {"planos_mensalidades": planos_mensalidades, "success_update": True},
-            )
+    return render(
+        request, 'pages/cadastro-plano-adesao.html', {'planos_mensalidades': planos_mensalidades}
+    )
 
-        else:
-            return render(
-                request,
-                "pages/cadastro-plano-mensal.html",
-                {
-                    "planos_mensalidades": planos_mensalidades,
-                    "error_message": "Erro ao tentar editar este plano.",
-                },
-            )
-
-    return redirect("cadastro-plano-mensal")
-
-
+# AÇÃO PARA CRIAR NOVO OBJETO SERVIDOR
+@login_required
 def CadastroServidor(request):
-    servidores = Servidor.objects.all()
-
-    if request.method == "POST":
-        nome = request.POST.get("nome")
-
-        servidor = Servidor(
-            nome=nome,
-        )
-
-        # Tratando possíveis erros
-        try:
-            servidor.save()
-        except ValidationError as erro:
-            # Capturando o erro de validação e renderizando a página novamente com a mensagem de erro
-            return render(
-                request,
-                "pages/cadastro-servidor.html",
-                {
-                    'servidores': servidores,
-                    "error_message": "Não foi possível cadastrar este novo servidor. <p>ERRO: [{}]</p>".format(
-                        erro
-                    ),
-                },
-            )
-        except Exception as e:
-            # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
-            return render(
-                request,
-                "pages/cadastro-servidor.html",
-                {
-                    'servidores': servidores,
-                    "error_message": "Já existe um servidor com este nome!",
-                },
-            )
-
-        # Retornando msg de sucesso caso seja feito o cadastro
-        return render(
-            request,
-            'pages/cadastro-servidor.html',
-            {
-                'servidores': servidores,
-                "success_message": "Novo servidor cadastrado com sucesso!",
-            },
-        )
-
-    return render(request, 'pages/cadastro-servidor.html', {'servidores': servidores})
-
-
-def DeleteServidor(request, pk):
-    try:
-        servidor = get_object_or_404(Servidor, pk=pk)
-        servidor.delete()
-    except ProtectedError as e:
-        error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
-        return HttpResponseBadRequest(
-            json.dumps({'error_delete': error_msg}), content_type='application/json'
-        )
-    else:
-        return redirect('servidores')
-
-
-def EditarServidor(request, servidor_id):
-    servidor = get_object_or_404(Servidor, pk=servidor_id)
-
-    servidores = Servidor.objects.all()
+    servidores = Servidor.objects.filter(usuario=request.user).order_by('nome')
+    usuario = request.user
 
     if request.method == "POST":
         nome = request.POST.get("nome")
 
         if nome:
-            servidor.nome = nome
-            try:
-                servidor.save()
 
+            try:
+                # Consultando o objeto requisitado. Caso não exista, será criado.
+                servidor, created = Servidor.objects.get_or_create(nome=nome, usuario=usuario)
+
+                if created:
+                    return render(
+                            request,
+                        'pages/cadastro-servidor.html',
+                        {
+                            'servidores': servidores,
+                            "success_message": "Novo Servidor cadastrado com sucesso!",
+                        },
+                    )
+                
+                else:
+                    return render(
+                            request,
+                        'pages/cadastro-servidor.html',
+                        {
+                            'servidores': servidores,
+                            "error_message": "Já existe um Servidor com este nome!",
+                        },
+                    )
+                
             except Exception as e:
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
-                    "pages/cadastro-servidor.html",
+                    "'pages/cadastro-servidor.html",
                     {
                         'servidores': servidores,
-                        "error_message": "Já existe um servidor com este nome!",
+                        "error_message": "Não foi possível cadastrar este novo Servidor. Verifique os logs!",
                     },
                 )
 
-            return render(
-                request,
-                "pages/cadastro-servidor.html",
-                {"servidores": servidores, "success_update": True},
-            )
-
-    return redirect("servidores")
+    return render(
+        request, 'pages/cadastro-servidor.html', {'servidores': servidores}
+    )
 
 
-def DeleteFormaPagamento(request, pk):
-    try:
-        formapgto = get_object_or_404(Tipos_pgto, pk=pk)
-        formapgto.delete()
-    except ProtectedError as e:
-        error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
-        return HttpResponseBadRequest(
-            json.dumps({'error_delete': error_msg}), content_type='application/json'
-        )
-    else:
-        return redirect('forma-pagamento')
-
-
+# AÇÃO PARA CRIAR NOVO OBJETO FORMA DE PAGAMENTO (TIPOS_PGTO)
+@login_required
 def CadastroFormaPagamento(request):
-    formas_pgto = Tipos_pgto.objects.all()
+    formas_pgto = Tipos_pgto.objects.filter(usuario=request.user).order_by('nome')
+    usuario = request.user
 
     if request.method == "POST":
         nome = request.POST.get("nome")
 
-        formapgto = Tipos_pgto(
-            nome=nome,
-        )
+        if nome:
 
-        # Tratando possíveis erros
-        try:
-            formapgto.save()
-        except ValidationError as erro:
-            # Capturando o erro de validação e renderizando a página novamente com a mensagem de erro
-            return render(
-                request,
-                "pages/cadastro-forma-pagamento.html",
-                {
-                    'formas_pgto': formas_pgto,
-                    "error_message": "Não foi possível cadastrar esta nova Forma de Pagamento. <p>ERRO: [{}]</p>".format(
-                        erro
-                    ),
-                },
-            )
-        except Exception as e:
-            # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
-            return render(
-                request,
-                "pages/cadastro-forma-pagamento.html",
-                {
-                    'formas_pgto': formas_pgto,
-                    "error_message": "Já existe uma Forma de Pagamento com este nome!",
-                },
-            )
+            try:
+                # Consultando o objeto requisitado. Caso não exista, será criado.
+                formapgto, created = Tipos_pgto.objects.get_or_create(nome=nome, usuario=usuario)
 
-        # Retornando msg de sucesso caso seja feito o cadastro
-        return render(
-            request,
-            'pages/cadastro-forma-pagamento.html',
-            {
-                'formas_pgto': formas_pgto,
-                "success_message": "Nova Forma de Pagamento cadastrada com sucesso!",
-            },
-        )
+                if created:
+                    return render(
+                            request,
+                        'pages/cadastro-forma-pagamento.html',
+                        {
+                            'formas_pgto': formas_pgto,
+                            "success_message": "Nova Forma de Pagamento cadastrada com sucesso!",
+                        },
+                    )
+                
+                else:
+                    return render(
+                            request,
+                        'pages/cadastro-forma-pagamento.html',
+                        {
+                            'formas_pgto': formas_pgto,
+                            "error_message": "Já existe uma Forma de Pagamento com este nome!",
+                        },
+                    )
+                
+            except Exception as e:
+                # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
+                return render(
+                    request,
+                    "pages/cadastro-forma-pagamento.html",
+                    {
+                        'formas_pgto': formas_pgto,
+                        "error_message": "Não foi possível cadastrar esta nova Forma de Pagamento. Verifique os logs!",
+                    },
+                )
 
     return render(
         request, 'pages/cadastro-forma-pagamento.html', {'formas_pgto': formas_pgto}
     )
 
 
+# AÇÃO PARA CRIAR NOVO OBJETO DISPOSITIVO
+@login_required
 def CadastroDispositivo(request):
-    dispositivos = Dispositivo.objects.all().order_by('nome')
-
-    if request.method == "POST":
-        nome = request.POST.get("nome")
-
-        dispositivo = Dispositivo(
-            nome=nome,
-        )
-
-        # Tratando possíveis erros
-        try:
-            dispositivo.save()
-        except ValidationError as erro:
-            # Capturando o erro de validação e renderizando a página novamente com a mensagem de erro
-            return render(
-                request,
-                "pages/cadastro-dispositivo.html",
-                {
-                    'dispositivos': dispositivos,
-                    "error_message": "Não foi possível cadastrar este novo dispositivo. <p>ERRO: [{}]</p>".format(
-                        erro
-                    ),
-                },
-            )
-        except Exception as e:
-            # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
-            return render(
-                request,
-                "pages/cadastro-dispositivo.html",
-                {
-                    'dispositivos': dispositivos,
-                    "error_message": "Já existe um dispositivo com este nome!",
-                },
-            )
-
-        # Retornando msg de sucesso caso seja feito o cadastro
-        return render(
-            request,
-            'pages/cadastro-dispositivo.html',
-            {
-                'dispositivos': dispositivos,
-                "success_message": "Novo dispositivo cadastrado com sucesso!",
-            },
-        )
-
-    return render(
-        request, 'pages/cadastro-dispositivo.html', {'dispositivos': dispositivos}
-    )
-
-
-def EditarDispositivo(request, dispositivo_id):
-    dispositivo = get_object_or_404(Dispositivo, pk=dispositivo_id)
-
-    dispositivos = Dispositivo.objects.all().order_by('nome')
+    dispositivos = Dispositivo.objects.filter(usuario=request.user).order_by('nome')
+    usuario = request.user
 
     if request.method == "POST":
         nome = request.POST.get("nome")
 
         if nome:
-            dispositivo.nome = nome
 
             try:
-                dispositivo.save()
+                # Consultando o objeto requisitado. Caso não exista, será criado.
+                dispositivo, created = Dispositivo.objects.get_or_create(nome=nome, usuario=usuario)
+
+                if created:
+                    return render(
+                            request,
+                        "pages/cadastro-dispositivo.html",
+                        {
+                            'dispositivos': dispositivos,
+                            "success_message": "Novo Dispositivo cadastrado com sucesso!",
+                        },
+                    )
+                
+                else:
+                    return render(
+                            request,
+                        "pages/cadastro-dispositivo.html",
+                        {
+                            'dispositivos': dispositivos,
+                            "error_message": "Já existe um Dispositivo com este nome!",
+                        },
+                    )
+                
             except Exception as e:
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
@@ -758,46 +858,50 @@ def EditarDispositivo(request, dispositivo_id):
                     "pages/cadastro-dispositivo.html",
                     {
                         'dispositivos': dispositivos,
-                        "error_message": "Já existe um dispositivo com este nome!",
+                        "error_message": "Não foi possível cadastrar este novo Dispositivo. Verifique os logs!",
                     },
                 )
 
-            # Retornando msg de sucesso caso seja feito o cadastro
-            return render(
-                request,
-                "pages/cadastro-dispositivo.html",
-                {"dispositivos": dispositivos, "success_update": True},
-            )
-
-    return redirect("dispositivos")
+    return render(
+        request, "pages/cadastro-dispositivo.html", {'dispositivos': dispositivos}
+    )
 
 
-def DeleteDispositivo(request, pk):
-    try:
-        dispositivo = get_object_or_404(Dispositivo, pk=pk)
-        dispositivo.delete()
-    except ProtectedError as e:
-        error_msg = 'Este Dispositivo não pode ser excluído porque está relacionado com algum cliente.'
-        return HttpResponseBadRequest(
-            json.dumps({'error_delete': error_msg}), content_type='application/json'
-        )
-    else:
-        return redirect('cadastro-dispositivos')
-
-
-def EditarAplicativo(request, aplicativo_id):
-    aplicativo = get_object_or_404(Aplicativo, pk=aplicativo_id)
-
-    aplicativos = Aplicativo.objects.all().order_by('nome')
+# AÇÃO PARA CRIAR NOVO OBJETO APLICATIVO
+@login_required
+def CadastroAplicativo(request):
+    aplicativos = Aplicativo.objects.filter(usuario=request.user).order_by('nome')
+    usuario = request.user
 
     if request.method == "POST":
         nome = request.POST.get("nome")
 
         if nome:
-            aplicativo.nome = nome
 
             try:
-                aplicativo.save()
+                # Consultando o objeto requisitado. Caso não exista, será criado.
+                aplicativo, created = Aplicativo.objects.get_or_create(nome=nome, usuario=usuario)
+
+                if created:
+                    return render(
+                            request,
+                        "pages/cadastro-aplicativo.html",
+                        {
+                            'aplicativos': aplicativos,
+                            "success_message": "Novo Aplicativo cadastrado com sucesso!",
+                        },
+                    )
+                
+                else:
+                    return render(
+                            request,
+                        "pages/cadastro-aplicativo.html",
+                        {
+                            'aplicativos': aplicativos,
+                            "error_message": "Já existe um Aplicativo com este nome!",
+                        },
+                    )
+                
             except Exception as e:
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
@@ -805,24 +909,26 @@ def EditarAplicativo(request, aplicativo_id):
                     "pages/cadastro-aplicativo.html",
                     {
                         'aplicativos': aplicativos,
-                        "error_message": "Já existe um aplicativo com este nome!",
+                        "error_message": "Não foi possível cadastrar este novo Aplicativo. Verifique os logs!",
                     },
                 )
 
-            # Retornando msg de sucesso caso seja feito o cadastro
-            return render(
-                request,
-                "pages/cadastro-aplicativo.html",
-                {"aplicativos": aplicativos, "success_update": True},
-            )
-
-    return redirect("cadastro-aplicativos")
+    return render(
+        request, "pages/cadastro-aplicativo.html", {'aplicativos': aplicativos}
+    )
 
 
+############################################ DELETE VIEW ############################################
+
+@login_required
 def DeleteAplicativo(request, pk):
     try:
-        aplicativo = get_object_or_404(Aplicativo, pk=pk)
+        aplicativo = Aplicativo.objects.get(pk=pk, usuario=request.user)
         aplicativo.delete()
+    except Aplicativo.DoesNotExist:
+        return HttpResponseNotFound(
+            json.dumps({'error_delete': error_msg}), content_type='application/json'
+        )
     except ProtectedError as e:
         error_msg = 'Este Aplicativo não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
@@ -830,71 +936,75 @@ def DeleteAplicativo(request, pk):
         )
     else:
         return redirect('cadastro-aplicativos')
+    
 
+@login_required
+def DeleteDispositivo(request, pk):
+    try:
+        dispositivo = Dispositivo.objects.get(pk=pk, usuario=request.user)
+        dispositivo.delete()
+    except Dispositivo.DoesNotExist:
+        return HttpResponseNotFound(
+            json.dumps({'error_delete': error_msg}), content_type='application/json'
+        )
+    except ProtectedError as e:
+        error_msg = 'Este Dispositivo não pode ser excluído porque está relacionado com algum cliente.'
+        return HttpResponseBadRequest(
+            json.dumps({'error_delete': error_msg}), content_type='application/json'
+        )
+    else:
+        return redirect('cadastro-dispositivos')
+    
 
-def CadastroAplicativo(request):
-    aplicativos = Aplicativo.objects.all().order_by('nome')
+@login_required
+def DeleteFormaPagamento(request, pk):
+    try:
+        formapgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
+        formapgto.delete()
+    except Tipos_pgto.DoesNotExist:
+        return HttpResponseNotFound(
+            json.dumps({'error_delete': error_msg}), content_type='application/json'
+        )
+    except ProtectedError as e:
+        error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
+        return HttpResponseBadRequest(
+            json.dumps({'error_delete': error_msg}), content_type='application/json'
+        )
+    else:
+        return redirect('forma-pagamento')
+    
 
-    if request.method == "POST":
-        nome = request.POST.get("nome")
+@login_required
+def DeleteServidor(request, pk):
+    try:
+        servidor = Servidor.objects.get(pk=pk, usuario=request.user)
+        servidor.delete()
+    except Servidor.DoesNotExist:
+        return HttpResponseNotFound(
+            json.dumps({'error_delete': error_msg}), content_type='application/json'
+        )
+    except ProtectedError as e:
+        error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
+        return HttpResponseBadRequest(
+            json.dumps({'error_delete': error_msg}), content_type='application/json'
+        )
+    else:
+        return redirect('servidores')
+    
 
-        aplicativo = Aplicativo(
-            nome=nome,
+@login_required
+def DeletePlanoMensal(request, pk):
+    try:
+        plano_mensal = Plano.objects.get(pk=pk, usuario=request.user)
+        plano_mensal.delete()
+    except Plano.DoesNotExist:
+        return HttpResponseNotFound(
+            json.dumps({'error_delete': error_msg}), content_type='application/json'
+        )
+    except ProtectedError as e:
+        error_msg = 'Este Plano não pode ser excluído porque está relacionado com algum cliente.'
+        return HttpResponseBadRequest(
+            json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
 
-        # Tratando possíveis erros
-        try:
-            aplicativo.save()
-        except ValidationError as erro:
-            # Capturando o erro de validação e renderizando a página novamente com a mensagem de erro
-            return render(
-                request,
-                "pages/cadastro-aplicativo.html",
-                {
-                    'aplicativos': aplicativos,
-                    "error_message": "Não foi possível cadastrar este novo aplicativo. <p>ERRO: [{}]</p>".format(
-                        erro
-                    ),
-                },
-            )
-        except Exception as e:
-            # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
-            return render(
-                request,
-                "pages/cadastro-aplicativo.html",
-                {
-                    'aplicativos': aplicativos,
-                    "error_message": "Já existe um aplicativo com este nome!",
-                },
-            )
-
-        # Retornando msg de sucesso caso seja feito o cadastro
-        return render(
-            request,
-            'pages/cadastro-aplicativo.html',
-            {
-                'aplicativos': aplicativos,
-                "success_message": "Novo aplicativo cadastrado com sucesso!",
-            },
-        )
-
-    return render(
-        request, 'pages/cadastro-aplicativo.html', {'aplicativos': aplicativos}
-    )
-
-
-def Teste(request):
-    clientes = Cliente.objects.all()
-
-    return render(
-        request,
-        'teste.html',
-        {
-            'clientes': clientes,
-        },
-    )
-
-
-def ListaClientes(request):
-    clintes = Cliente.objects.all().order_by('nome')
-    return render(request, "pages/lista-clientes.html", {"clientes": clintes})
+    return redirect('cadastro-plano-mensal')

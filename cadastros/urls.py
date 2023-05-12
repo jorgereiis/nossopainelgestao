@@ -1,4 +1,5 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from .views import (
     Login,
     pagar_mensalidade,
@@ -8,13 +9,13 @@ from .views import (
     ImportarClientes,
     CadastroFormaPagamento,
     CadastroServidor,
-    CadastroPlanoMensal,
+    CadastroPlanoAdesao,
     CadastroDispositivo,
     CadastroAplicativo,
     DeleteServidor,
     EditarServidor,
     DeletePlanoMensal,
-    EditarPlanoMensal,
+    EditarPlanoAdesao,
     DeleteAplicativo,
     DeleteFormaPagamento,
     EditarAplicativo,
@@ -33,9 +34,9 @@ urlpatterns = [
     path(
         "cancelar_cliente/<int:cliente_id>/", cancelar_cliente, name="cancelar_cliente"
     ),
-    path("editar_plano/<int:plano_id>/", EditarPlanoMensal, name="editar-plano-mensal"),
+    path("editar_plano/<int:plano_id>/", EditarPlanoAdesao, name="editar-plano-mensal"),
     path('editar_servidor/<int:servidor_id>/', EditarServidor, name='editar_servidor'),
-    path("plano-mensalidade/", CadastroPlanoMensal, name="cadastro-plano-mensal"),
+    path("plano-mensalidade/", CadastroPlanoAdesao, name="cadastro-plano-mensal"),
     path("cadastro-aplicativos/", CadastroAplicativo, name="cadastro-aplicativos"),
     path(
         "editar_aplicativo/<int:aplicativo_id>/",
@@ -64,5 +65,8 @@ urlpatterns = [
     path("servidores/", CadastroServidor, name='servidores'),
     path("lista-clientes/", ListaClientes, name="lista-clientes"),
     path("teste/", Teste, name="teste"),
-    path("", Login, name="login"),
+    path("login/", auth_views.LoginView.as_view(
+        template_name = "login.html"
+    ), name="login"),
+    path("logout/", auth_views.LogoutView.as_view(), name="logout"),
 ]

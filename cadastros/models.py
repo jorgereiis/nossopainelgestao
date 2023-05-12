@@ -1,5 +1,7 @@
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
 
 
 # funcão para definir o dia de pagamento
@@ -29,8 +31,8 @@ class Servidor(models.Model):
 
     CHOICES = ((CLUB, CLUB), (PLAY, PLAY), (ALPHA, ALPHA), (SEVEN, SEVEN), (FIVE, FIVE))
 
-    nome = models.CharField(max_length=255, choices=CHOICES, unique=True)
-    logotipo = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    nome = models.CharField(max_length=255, choices=CHOICES)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     class Meta:
         verbose_name_plural = "Servidores"
@@ -47,7 +49,8 @@ class Tipos_pgto(models.Model):
 
     CHOICES = ((PIX, PIX), (CARTAO, CARTAO), (BOLETO, BOLETO))
 
-    nome = models.CharField(max_length=255, choices=CHOICES, default=PIX, unique=True)
+    nome = models.CharField(max_length=255, choices=CHOICES, default=PIX)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     class Meta:
         verbose_name = "Tipo de pagamento"
@@ -59,15 +62,16 @@ class Tipos_pgto(models.Model):
 
 # Dispositivos utilizados pelos clientes (TVs, TVBOX, celulares, etc.)
 class Dispositivo(models.Model):
-    nome = models.CharField(max_length=255, unique=True)
-    modelo = models.CharField(max_length=255, blank=True, null=True)
+    nome = models.CharField(max_length=255, null=False, blank=False)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def __str__(self):
         return self.nome
 
 
 class Aplicativo(models.Model):
-    nome = models.CharField(max_length=255, unique=True)
+    nome = models.CharField(max_length=255)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def __str__(self):
         return self.nome
@@ -96,6 +100,7 @@ class Plano(models.Model):
         "Nome do plano", max_length=255, choices=CHOICES, default=MENSAL
     )
     valor = models.DecimalField("Valor", max_digits=5, decimal_places=2)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def __str__(self):
         return "{} - {}".format(self.nome, self.valor)
@@ -107,7 +112,7 @@ class Cliente(models.Model):
     dispositivo = models.ForeignKey(Dispositivo, on_delete=models.CASCADE, default=None)
     sistema = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, default=None)
     nome = models.CharField(max_length=255)
-    telefone = models.CharField(max_length=15, unique=True)
+    telefone = models.CharField(max_length=15)
     indicado_por = models.ForeignKey(
         "self", on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -131,6 +136,7 @@ class Cliente(models.Model):
     )
     cancelado = models.BooleanField("Cancelado", default=False)
     notas = models.TextField("Notas", blank=True, null=True)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def save(self, *args, **kwargs):
         if self.data_adesao and self.data_pagamento == None:
@@ -178,6 +184,7 @@ class Mensalidade(models.Model):
     )
     pgto = models.BooleanField("Pago", default=False)
     cancelado = models.BooleanField(default=False)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def __str__(self):
         return str(
@@ -187,20 +194,18 @@ class Mensalidade(models.Model):
         )
 
 
-from django.core.validators import MinValueValidator
-
-
 class PlanoIndicacao(models.Model):
     TIPOS_PLANO = [
         ("desconto", "Desconto na mensalidade"),
         ("dinheiro", "Valor em dinheiro"),
     ]
     nome = models.CharField(max_length=255, default="Desconto na mensalidade")
-    tipo_plano = models.CharField(max_length=10, choices=TIPOS_PLANO, unique=True)
+    tipo_plano = models.CharField(max_length=10, choices=TIPOS_PLANO)
     valor = models.DecimalField(
         max_digits=6, decimal_places=2, validators=[MinValueValidator(0)]
     )
     ativo = models.BooleanField(default=True)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     class Meta:
         verbose_name_plural = "Planos de Indicação"
@@ -222,6 +227,7 @@ class ContaDoAplicativo(models.Model):
     device_id = models.CharField("ID", max_length=255, blank=True, null=True)
     email = models.EmailField("E-mail", max_length=255, blank=True, null=True)
     device_key = models.CharField("Senha", max_length=255, blank=True, null=True)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def save(self, *args, **kwargs):
         # Verifica se o valor está no formato desejado

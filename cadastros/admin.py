@@ -29,9 +29,11 @@ class ClienteAdmin(admin.ModelAdmin):
         "data_cancelamento",
         "ultimo_pagamento",
         "cancelado",
+        "usuario",
     )
     list_filter = (
         "servidor",
+        "usuario",
         'forma_pgto',
         'data_pagamento',
         'cancelado',
@@ -40,6 +42,7 @@ class ClienteAdmin(admin.ModelAdmin):
     search_fields = (
         'nome',
         'telefone',
+        "usuario",
     )
 
 
@@ -47,6 +50,7 @@ class MensalidadeAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "cliente",
+        "usuario",
         "dt_vencimento",
         "dt_pagamento",
         "dt_cancelamento",
@@ -60,9 +64,10 @@ class MensalidadeAdmin(admin.ModelAdmin):
         'dt_pagamento',
         'pgto',
         'cancelado',
+        "usuario",
     )
 
-    search_fields = ('cliente__nome',)
+    search_fields = ('cliente__nome', "usuario")
 
 
 class PlanoAdmin(admin.ModelAdmin):

@@ -1,7 +1,7 @@
 {% load static %}
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 
 <head>
   {% include 'partials/head.html' %}
@@ -64,7 +64,7 @@
                           form-label">Telefone</label>
                       <div class="col-md-8 col-12">
                         <input type="text" class="form-control" placeholder="Telefone" id="telefone" name="telefone"
-                          autocomplete="off" maxlength="13" required>
+                          autocomplete="off" minlength="12" maxlength="15" required>
                       </div>
                     </div>
                     <!-- row -->
@@ -200,7 +200,7 @@
         swal.fire({
           icon: 'success',
           title: 'Cadastro realizado',
-          text: '{{success_message}}',
+          html: '{{success_message|safe}}',
           didClose: function () {
             window.location.href = newUrl;
           }
@@ -237,7 +237,7 @@
         swal.fire({
           icon: 'error',
           title: 'Oops...',
-          text: '{{error_message}}',
+          html: '{{error_message|safe}}',
           didClose: function () {
             window.location.href = newUrl;
           }
@@ -272,8 +272,8 @@
         $('#divSenha2').remove();
         $('#divID').remove();
         $('#divSenha').remove();
-        $('#teste').after('<div class="mb-3 row" id="divSenha"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha" required></div>');
-        $('#teste').after('<div class="mb-3 row" id="divID"><label for="ID" class="col-sm-4 col-form-label form-label">ID do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device ID" id="ID" name="id" required></div>');
+        $('#teste').after('<div class="mb-3 row" id="divSenha"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha" minlength="6" required></div>');
+        $('#teste').after('<div class="mb-3 row" id="divID"><label for="ID" class="col-sm-4 col-form-label form-label">ID do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device ID" id="ID" name="id" minlength="12" maxlength="18" required></div>');
       } else if ($(this).val().toLowerCase().replace(/\s/g, "") === 'clouddy') {
         // Se o valor selecionado não for igual a "clouddy",
         // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
@@ -281,7 +281,7 @@
         $('#divSenha').remove();
         $('#divEmail').remove();
         $('#divSenha2').remove();
-        $('#teste').after('<div class="mb-3 row" id="divSenha2"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" required></div>');
+        $('#teste').after('<div class="mb-3 row" id="divSenha2"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" minlength="6" required></div>');
         $('#teste').after('<div class="mb-3 row" id="divEmail"><label for="Email" class="col-sm-4 col-form-label form-label">E-mail do Aplicativo</label><div class="col-md-8 col-12"><input type="email" class="form-control" placeholder="E-mail" id="Email" name="email" required></div>');
       } else {
         $('#divID').remove();
