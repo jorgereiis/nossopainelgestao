@@ -7,7 +7,7 @@ notes.txt
 bkp
 
 ### Django ###
-*.log
+
 *.pot
 *.pyc
 __pycache__/
