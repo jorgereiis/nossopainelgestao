@@ -166,7 +166,7 @@ def pagar_mensalidade(request, mensalidade_id):
 
         mensalidade = Mensalidade.objects.get(pk=mensalidade_id, usuario=request.user)
 
-        # realiza as modificações na mensalidade
+        # realiza as modificações na mensalidade paga
         mensalidade.dt_pagamento = timezone.localtime().date()
         mensalidade.pgto = True
         try:
