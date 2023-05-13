@@ -188,7 +188,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/servidores';
+          var newPath = '/cadastro-servidor';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -206,7 +206,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/servidores';
+          var newPath = '/cadastro-servidor';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -225,7 +225,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/servidores';
+          var newPath = '/cadastro-servidor';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'error',
@@ -259,7 +259,7 @@
 
       // Faz a solicitação DELETE para a URL apropriada
       $.ajax({
-        url: '/deletar_servidor/' + servidor_id + '/',
+        url: '/deletar-servidor/' + servidor_id + '/',
         method: 'DELETE',
         beforeSend: function (xhr) {
           xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
@@ -290,7 +290,7 @@
     const servidorNome = botao.dataset.nome;
 
     const form = document.querySelector("#edit-servidor-form");
-    form.action = `/editar_servidor/${servidorId}/`;
+    form.action = `/editar-servidor/${servidorId}/`;
     form.querySelector("#servidor-nome").value = servidorNome;
     form.querySelector("#servidor-id").value = servidorId;
 

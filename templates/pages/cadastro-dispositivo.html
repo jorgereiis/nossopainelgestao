@@ -192,7 +192,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/dispositivos';
+          var newPath = '/cadastro-dispositivo';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -210,7 +210,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/dispositivos';
+          var newPath = '/cadastro-dispositivo';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -229,7 +229,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/dispositivos';
+          var newPath = '/cadastro-dispositivo';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'error',
@@ -263,7 +263,7 @@
 
       // Faz a solicitação DELETE para a URL apropriada
       $.ajax({
-        url: '/deletar_dispositivo/' + dispositivo_id + '/',
+        url: '/deletar-dispositivo/' + dispositivo_id + '/',
         method: 'DELETE',
         beforeSend: function (xhr) {
           xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
@@ -294,7 +294,7 @@
     const dispositivoNome = botao.dataset.nome;
 
     const form = document.querySelector("#edit-dispositivo-form");
-    form.action = `/editar_dispositivo/${dispositivoId}/`;
+    form.action = `/editar-dispositivo/${dispositivoId}/`;
     form.querySelector("#dispositivo-nome").value = dispositivoNome;
     form.querySelector("#dispositivo-id").value = dispositivoId;
 

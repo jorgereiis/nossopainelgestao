@@ -6,21 +6,21 @@ from django.shortcuts import get_object_or_404, redirect
 from django.db.models.deletion import ProtectedError
 from django.core.exceptions import ValidationError
 from django.views.generic.list import ListView
-from django.db.utils import IntegrityError
 from babel.numbers import format_currency
-from datetime import datetime, timedelta
-from django.shortcuts import redirect
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Sum
 from django.db.models import Q
+from datetime import timedelta
 import pandas as pd
 import locale
 import json
 import time
-import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 ############################################ LOGIN VIEW ############################################
 
@@ -164,7 +164,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 @login_required
 def pagar_mensalidade(request, mensalidade_id):
 
-        mensalidade = Mensalidade.objects.filter(pk=mensalidade_id, usuario=request.user)
+        mensalidade = Mensalidade.objects.get(pk=mensalidade_id, usuario=request.user)
 
         # realiza as modificações na mensalidade
         mensalidade.dt_pagamento = timezone.localtime().date()
@@ -172,6 +172,7 @@ def pagar_mensalidade(request, mensalidade_id):
         try:
             mensalidade.save()
         except Exception as erro:
+            logger.error('[%s][USER][%s] [ERRO][%s]', timezone.localtime(), request.user, erro, exc_info=True)
             return JsonResponse({"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."})
         # redireciona para a página anterior
         return JsonResponse({"success_message_invoice": "Mensalidade paga!"})
@@ -181,7 +182,7 @@ def pagar_mensalidade(request, mensalidade_id):
 @login_required
 def cancelar_cliente(request, cliente_id):
     if request.user.is_authenticated:
-        cliente = Cliente.objects.filter(pk=cliente_id, usuario=request.user)
+        cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
 
         # realiza as modificações no cliente
         cliente.cancelado = True
@@ -189,6 +190,7 @@ def cancelar_cliente(request, cliente_id):
         try:
             cliente.save()
         except Exception as erro:
+            logger.error('[USER][%s] [ERRO][%s]', request.user, erro, exc_info=True)
             return JsonResponse({"error_message": "Ocorreu um erro ao tentar cancelar esse cliente."}, status=500)
 
         # retorna a mensagem de sucesso como resposta JSON
@@ -216,6 +218,7 @@ def EditarPlanoAdesao(request, plano_id):
                 plano_mensal.save()
 
             except ValidationError as erro1:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, erro1, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -227,6 +230,7 @@ def EditarPlanoAdesao(request, plano_id):
                 )
 
             except Exception as erro2:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o servidor
                 return render(
                     request,
@@ -253,7 +257,7 @@ def EditarPlanoAdesao(request, plano_id):
                 },
             )
 
-    return redirect("cadastro-plano-mensal")
+    return redirect("cadastro-plano-adesao")
 
 
 # AÇÃO PARA EDITAR O OBJETO SERVIDOR
@@ -272,6 +276,7 @@ def EditarServidor(request, servidor_id):
                 servidor.save()
 
             except ValidationError as erro1:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, erro1, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -283,6 +288,7 @@ def EditarServidor(request, servidor_id):
                 )
 
             except Exception as erro2:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o servidor
                 return render(
                     request,
@@ -299,7 +305,7 @@ def EditarServidor(request, servidor_id):
                 {"servidores": servidores, "success_update": True},
             )
 
-    return redirect("servidores")
+    return redirect("cadastro-servidor")
 
 
 # AÇÃO PARA EDITAR O OBJETO DISPOSITIVO
@@ -318,6 +324,7 @@ def EditarDispositivo(request, dispositivo_id):
                 dispositivo.save()
 
             except ValidationError as erro1:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, erro1, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -329,6 +336,7 @@ def EditarDispositivo(request, dispositivo_id):
                 )
 
             except Exception as erro2:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o dispositivo
                 return render(
                     request,
@@ -345,7 +353,7 @@ def EditarDispositivo(request, dispositivo_id):
                 {"dispositivos": dispositivos, "success_update": True},
             )
 
-    return redirect("dispositivos")
+    return redirect("cadastro-dispositivo")
 
 
 # AÇÃO PARA EDITAR O OBJETO APLICATIVO
@@ -364,6 +372,7 @@ def EditarAplicativo(request, aplicativo_id):
                 aplicativo.save()
 
             except ValidationError as erro1:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, erro1, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -375,6 +384,7 @@ def EditarAplicativo(request, aplicativo_id):
                 )
 
             except Exception as erro2:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o aplicativo
                 return render(
                     request,
@@ -391,7 +401,7 @@ def EditarAplicativo(request, aplicativo_id):
                 {"aplicativos": aplicativos, "success_update": True},
             )
 
-    return redirect("cadastro-aplicativos")
+    return redirect("cadastro-aplicativo")
 
 
 def Teste(request):
@@ -426,7 +436,9 @@ def ImportarClientes(request):
         try:
             # realiza a leitura dos dados da planilha.
             dados = pd.read_excel(request.FILES['arquivo'])
+        
         except Exception as erro1:
+            logger.error('[USER][%s] [ERRO][%s]', request.user, erro1, exc_info=True)
             return render(request, "pages/importar-cliente.html",
                 {"error_message": "Erro ao tentar ler planilha. Verifique o arquivo e tente novamente."},)
         
@@ -513,6 +525,7 @@ def ImportarClientes(request):
 
                         num_linhas_importadas += 1  # Incrementa o contador de linhas importadas com sucesso
                 except Exception as erro2:
+                    logger.error('[USER][%s] [ERRO][%s]', request.user, erro2, exc_info=True)
                     # Se ocorrer um erro, apenas incrementa 1 a contagem e adiciona o nome do cliente a lista dos não importados, e continua para o próximo cliente.
                     num_linhas_nao_importadas += 1
                     nomes_clientes_erro_importacao.append('Linha {} da planilha - {}'.format(i, nome_import.title()))
@@ -564,8 +577,7 @@ def CadastroCliente(request):
         forma_pgto, created = Tipos_pgto.objects.get_or_create(nome=request.POST.get('forma_pgto'), usuario=usuario)
         dispositivo, created = Dispositivo.objects.get_or_create(nome=request.POST.get('dispositivo'), usuario=usuario)
         data_pagamento = int(request.POST.get('data_pagamento')) if request.POST.get('data_pagamento') else None
-        valida_cliente_get = Cliente.objects.get(telefone=telefone)
-        valida_cliente_exists = Cliente.objects.filter(telefone=telefone)
+        valida_cliente_exists = Cliente.objects.filter(telefone=telefone).exists()
 
         if indicador is None or indicador == "" or indicador == " ":
             indicador = None
@@ -581,7 +593,7 @@ def CadastroCliente(request):
                 },
             )
         
-        elif not valida_cliente_exists.exists():
+        elif not valida_cliente_exists:
 
             cliente = Cliente(
                 nome=(nome + " " + sobrenome),
@@ -601,6 +613,7 @@ def CadastroCliente(request):
                 cliente.save()
 
             except ValidationError as erro1:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, erro1, exc_info=True)
                 return render(
                     request,
                     "pages/cadastro-cliente.html",
@@ -610,6 +623,7 @@ def CadastroCliente(request):
                 )
             
             except Exception as erro2:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, erro2, exc_info=True)
                 return render(
                     request,
                     "pages/cadastro-cliente.html",
@@ -639,6 +653,7 @@ def CadastroCliente(request):
             )
         
         else:
+            valida_cliente_get = Cliente.objects.get(telefone=telefone)
             return render(
                 request,
                 "pages/cadastro-cliente.html",
@@ -670,7 +685,6 @@ def CadastroPlanoAdesao(request):
 
     if request.method == "POST":
         nome = request.POST.get("nome")
-        print('>>>>>>>>>>>>>>> ', request.POST.get('nome'), request.POST.get('valor'))
 
         if nome:
 
@@ -699,8 +713,8 @@ def CadastroPlanoAdesao(request):
                     )
                 
             except Exception as e:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
-                print('>>>>>>>>>>>>> ', e)
                 return render(
                     request,
                     "pages/cadastro-plano-adesao.html",
@@ -750,6 +764,7 @@ def CadastroServidor(request):
                     )
                 
             except Exception as e:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -801,6 +816,7 @@ def CadastroFormaPagamento(request):
                     )
                 
             except Exception as e:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -852,6 +868,7 @@ def CadastroDispositivo(request):
                     )
                 
             except Exception as e:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -903,6 +920,7 @@ def CadastroAplicativo(request):
                     )
                 
             except Exception as e:
+                logger.error('[USER][%s] [ERRO][%s]', request.user, e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -925,17 +943,19 @@ def DeleteAplicativo(request, pk):
     try:
         aplicativo = Aplicativo.objects.get(pk=pk, usuario=request.user)
         aplicativo.delete()
-    except Aplicativo.DoesNotExist:
+    except Aplicativo.DoesNotExist as erro1:
+        logger.error('[USER][%s] [ERRO][%s]', request.user, erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
-    except ProtectedError as e:
+    except ProtectedError as erro2:
+        logger.error('[USER][%s] [ERRO][%s]', request.user, erro2, exc_info=True)
         error_msg = 'Este Aplicativo não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     else:
-        return redirect('cadastro-aplicativos')
+        return redirect('cadastro-aplicativo')
     
 
 @login_required
@@ -943,17 +963,19 @@ def DeleteDispositivo(request, pk):
     try:
         dispositivo = Dispositivo.objects.get(pk=pk, usuario=request.user)
         dispositivo.delete()
-    except Dispositivo.DoesNotExist:
+    except Dispositivo.DoesNotExist as erro1:
+        logger.error('[USER][%s] [ERRO][%s]', request.user, erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
-    except ProtectedError as e:
+    except ProtectedError as erro2:
+        logger.error('[USER][%s] [ERRO][%s]', request.user, erro2, exc_info=True)
         error_msg = 'Este Dispositivo não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     else:
-        return redirect('cadastro-dispositivos')
+        return redirect('cadastro-dispositivo')
     
 
 @login_required
@@ -961,17 +983,19 @@ def DeleteFormaPagamento(request, pk):
     try:
         formapgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
         formapgto.delete()
-    except Tipos_pgto.DoesNotExist:
+    except Tipos_pgto.DoesNotExist as erro1:
+        logger.error('[USER][%s] [ERRO][%s]', request.user, erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
-    except ProtectedError as e:
+    except ProtectedError as erro2:
+        logger.error('[USER][%s] [ERRO][%s]', request.user, erro2, exc_info=True)
         error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     else:
-        return redirect('forma-pagamento')
+        return redirect('cadastro-forma-pagamento')
     
 
 @login_required
@@ -979,32 +1003,36 @@ def DeleteServidor(request, pk):
     try:
         servidor = Servidor.objects.get(pk=pk, usuario=request.user)
         servidor.delete()
-    except Servidor.DoesNotExist:
+    except Servidor.DoesNotExist as erro1:
+        logger.error('[USER][%s] [ERRO][%s]', request.user, erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
-    except ProtectedError as e:
+    except ProtectedError as erro2:
+        logger.error('[USER][%s] [ERRO][%s]', request.user, erro2, exc_info=True)
         error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     else:
-        return redirect('servidores')
+        return redirect('cadastro-servidor')
     
 
 @login_required
-def DeletePlanoMensal(request, pk):
+def DeletePlanoAdesao(request, pk):
     try:
         plano_mensal = Plano.objects.get(pk=pk, usuario=request.user)
         plano_mensal.delete()
-    except Plano.DoesNotExist:
+    except Plano.DoesNotExist as erro1:
+        logger.error('[USER][%s] [ERRO][%s]', request.user, erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
-    except ProtectedError as e:
+    except ProtectedError as erro2:
+        logger.error('[USER][%s] [ERRO][%s]', request.user, erro2, exc_info=True)
         error_msg = 'Este Plano não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
 
-    return redirect('cadastro-plano-mensal')
+    return redirect('cadastro-plano-adesao')

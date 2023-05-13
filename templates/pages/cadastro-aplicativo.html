@@ -192,7 +192,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/cadastro-aplicativos';
+          var newPath = '/cadastro-aplicativo';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -210,7 +210,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/cadastro-aplicativos';
+          var newPath = '/cadastro-aplicativo';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -229,7 +229,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/cadastro-aplicativos';
+          var newPath = '/cadastro-aplicativo';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'error',
@@ -264,7 +264,7 @@
 
       // Faz a solicitação DELETE para a URL apropriada
       $.ajax({
-        url: '/deletar_aplicativo/' + aplicativo_id + '/',
+        url: '/deletar-aplicativo/' + aplicativo_id + '/',
         method: 'DELETE',
         beforeSend: function (xhr) {
           xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
@@ -295,7 +295,7 @@
     const aplicativoNome = botao.dataset.nome;
 
     const form = document.querySelector("#edit-aplicativo-form");
-    form.action = `/editar_aplicativo/${aplicativoId}/`;
+    form.action = `/editar-aplicativo/${aplicativoId}/`;
     form.querySelector("#aplicativo-nome").value = aplicativoNome;
     form.querySelector("#aplicativo-id").value = aplicativoId;
 

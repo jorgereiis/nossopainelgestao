@@ -195,7 +195,7 @@
       console.log(window.location.origin)
       $(document).ready(function () {
         var currentUrl = window.location.origin;
-        var newPath = '/cadastro';
+        var newPath = '/cadastro-cliente';
         var newUrl = currentUrl + newPath;
         swal.fire({
           icon: 'success',
@@ -213,7 +213,7 @@
       console.log(window.location.origin)
       $(document).ready(function () {
         var currentUrl = window.location.origin;
-        var newPath = '/cadastro';
+        var newPath = '/cadastro-cliente';
         var newUrl = currentUrl + newPath;
         swal.fire({
           icon: 'success',
@@ -232,7 +232,7 @@
       console.log(window.location.origin)
       $(document).ready(function () {
         var currentUrl = window.location.origin;
-        var newPath = '/cadastro';
+        var newPath = '/cadastro-cliente';
         var newUrl = currentUrl + newPath;
         swal.fire({
           icon: 'error',
@@ -245,6 +245,31 @@
       });
     </script>
     {% endif %}
+
+    <script>
+      $(document).ready(function () {
+        var currentUrl = window.location.origin;
+        var newPath = '/cadastro-cliente';
+        var newUrl = currentUrl + newPath;
+
+        // Verifica se já passou 30 minutos desde a última visualização
+        var lastViewed = localStorage.getItem('lastViewed');
+        if (lastViewed && (Date.now() - lastViewed < 30000)) {
+          return;
+        }
+
+        // Exibe o swal.fire e atualiza o armazenamento local
+        swal.fire({
+          icon: 'info',
+          title: 'Atenção!!',
+          html: 'Preencha todos os dados com atenção. <br><br>Ao informar o número de telefone, informe apenas os números no seguinte formato:<br>Ex. 5511988887777',
+          didClose: function () {
+            localStorage.setItem('lastViewed', Date.now());
+            window.location.href = newUrl;
+          }
+        });
+      });
+    </script>
 
 </body>
 

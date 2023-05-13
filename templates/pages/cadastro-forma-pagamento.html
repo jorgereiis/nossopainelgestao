@@ -164,7 +164,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/forma-pagamento';
+          var newPath = '/cadastro-forma-pagamento';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -182,7 +182,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/forma-pagamento';
+          var newPath = '/cadastro-forma-pagamento';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -201,7 +201,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/forma-pagamento';
+          var newPath = '/cadastro-forma-pagamento';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'error',
@@ -235,7 +235,7 @@
 
       // Faz a solicitação DELETE para a URL apropriada
       $.ajax({
-        url: '/deletar_formapgto/' + formapgto_id + '/',
+        url: '/deletar-formapgto/' + formapgto_id + '/',
         method: 'DELETE',
         beforeSend: function (xhr) {
           xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");

@@ -117,7 +117,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
             cliente=instance.cliente,
             valor=instance.cliente.plano.valor,
             dt_vencimento=nova_data_vencimento,
-            usuario=instance.request.user,
+            usuario=instance.usuario,
         )
 
         # Atualiza a `data_pagamento` do cliente com o valor de `nova_data_vencimento` da mensalidade.
