@@ -254,7 +254,7 @@
 
         // Verifica se já passou 30 minutos desde a última visualização
         var lastViewed = localStorage.getItem('lastViewed');
-        if (lastViewed && (Date.now() - lastViewed < 30000)) {
+        if (lastViewed && (Date.now() - lastViewed < 1800000)) {
           return;
         }
 

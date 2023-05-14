@@ -94,10 +94,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             or 0
         )
 
-        locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-        valor_total_pago = locale.currency(
-            valor_total_pago, grouping=True, symbol=False
-        )
+        valor_total_pago = format_currency(valor_total_pago, moeda)
 
         valor_total_pago_qtd = Mensalidade.objects.filter(
             cancelado=False,
@@ -552,7 +549,7 @@ def ImportarClientes(request):
 def CadastroCliente(request):
     # Criando os queryset para exibir os dados nos campos do fomulário
     plano_queryset = Plano.objects.filter(usuario=request.user)
-    telas_queryset = Qtd_tela.objects.all()
+    telas_queryset = Qtd_tela.objects.all().order_by('telas')
     forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=request.user)
     servidor_queryset = Servidor.objects.filter(usuario=request.user).order_by('nome')
     sistema_queryset = Aplicativo.objects.filter(usuario=request.user).order_by('-nome')
