@@ -1,7 +1,7 @@
 {% load static %}
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 
 <head>
     {% include 'partials/head.html' %}
@@ -20,18 +20,31 @@
                 <div class="row">
                     <div class="col-lg-12 col-md-12 col-12">
                         <!-- Page header -->
-                        <div class="border-bottom pb-4 mb-4">
-                            <h3 class="mb-0 fw-bold">Listagem de Clientes</h3>
+                        <div class="border-bottom pb-4 mb-4 d-flex justify-content-between align-items-center">
+                            <h3 class="mb-0 fw-bold">Listagem Total de Clientes</h3>
+                            <!-- Dropdown Opções -->
+                            <div class="btn-group">
+                                <div>
+                                    <div>
+                                        <a class="btn btn-outline-secondary" href="{% url 'cadastro-cliente' %}">
+                                            <img src="{% static 'assets/images/svg/person-plus.svg' %}"> Novo Cliente
+                                        </a>
+                                        <a class="btn btn-outline-secondary" href="{% url 'importar-cliente' %}">
+                                            <img src="{% static 'assets/images/svg/upload.svg' %}"> Importar Clientes
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- row  -->
-                    <div class="row d-flex justify-content-center">
-                        <div class="col-md-8 col-8">
+                    <div class="row mt-6 d-flex justify-content-center">
+                        <div class="col-md-12 col-12">
                             <!-- card  -->
                             <div class="card">
                                 <div class="d-flex justify-content-between align-items-center card-header bg-white py-4">
-                                    <h4 class="mb-0">Renovações</h4>
+                                    <h4 class="mb-0">Meus clientes ativos e cancelados</h4>
                                     <label for="paginate-by"></label>
                                     <select name="paginate_by" id="paginate-by" class="ms-auto mb-0 rounded border border-light-200 px-1 py-2 d-flex align-items-center me-1 g-rows-per-page-trigger bg-transparent">
                                     <option value="5"{% if page_obj.paginator.per_page == 5 %} selected{% endif %}>5</option>
@@ -101,36 +114,36 @@
                                                 <th class="fw-bold text-center">Data de adesão</th>
                                                 <th class="fw-bold text-center">Data de cancelamento</th>
                                                 <th class="fw-bold text-center">Status</th>
+                                                <th class="fw-bold text-center">Reativar</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {% for cliente in clientes %}
+                                            {% for cliente in object_list %}
                                             <!-- COMEÇO DA LINHA -->
-                                            <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent">
-                                                <td class="dtr-control align-middle" style="cursor: pointer;"
-                                                    id="DETALHES-{{ forloop.counter }}">
+                                            <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent align-middle">
+                                                <td class="dtr-control align-middle" style="cursor: pointer;" id="DETALHES-{{ forloop.counter }}">
                                                     <div class="d-flex align-items-center">
                                                         <div>
                                                             <div class="icon-shape icon-md border p-1 rounded-circle">
-                                                                <img src="{% static 'assets/images/logo-apps/'|add:cliente.servidor.nome|lower|add:'.png' %}"
-                                                                    class="rounded-circle">
+                                                                <img src="{% static 'assets/images/logo-apps/'|add:cliente.servidor.nome|lower|add:'.png' %}" class="rounded-circle">
                                                             </div>
                                                         </div>
                                                         <div class="ms-3 lh-1" style="max-width: 200px;">
-                                                            <h5 class="text-capitalize small" class="text-inherit"
-                                                                onmouseover="this.style.color='#624BFF'"
-                                                                onmouseout="this.style.color=''">{{cliente.nome}}</h5>
+                                                            <h5 class="text-capitalize small" class="text-inherit" onmouseover="this.style.color='#624BFF'" onmouseout="this.style.color=''">{{cliente.nome}}</h5>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td class="small text-center" style="max-width: 10px;">{{cliente.data_adesao|date:'d/m/Y'}}</td>
                                                 <td class="small text-center" style="max-width: 10px;">{{cliente.data_cancelamento|date:'d/m/Y'}}</td>
                                                 {% if cliente.cancelado %}
-                                                <td class="text-capitalize text-center" style="max-width: 10px;"><span
-                                                    class="badge bg-info">Em uso</span></td>
+                                                <td class="text-capitalize text-center" style="max-width: 200px;"><span class="badge bg-danger">Cancelado</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" class="toggle-switch" id="reativar-{{ cliente.id }}" onclick="reativarCliente({{ cliente.id }})">
+                                                    <label for="reativar-{{ cliente.id }}"></label>
+                                                </td>
                                                 {% else %}
-                                                <td class="text-capitalize text-center" style="max-width: 200px;"><span
-                                                    class="badge bg-danger">Cancelado</span></td>
+                                                <td class="text-capitalize text-center" style="max-width: 10px;"><span class="badge bg-info">Ativo</span></td>
+                                                <td class="text-center"></td>
                                                 {% endif %}
                                             </tr>
                                             <!-- TÉRMINO DA LINHA -->
@@ -138,6 +151,7 @@
                                         </tbody>
                                     </table>
                                 </div>
+
                                 <!-- card footer  -->
                                 <div class="card-footer bg-white text-center">
                                     <!-- nav paginator -->
@@ -160,9 +174,7 @@
                                             {% if page_obj.number == page %}
                                             <li class="page-item active"><a class="page-link" href="#">{{ page }} <span
                                                         class="sr-only"></span></a></li>
-                                            {% elif page > page_obj.number|add:'-3' and page < page_obj.number|add:'3'
-                                                %} <li class="page-item"><a class="page-link"
-                                                    href="?page={{ page }}">{{page}}</a></li>
+                                            {% elif page > page_obj.number|add:'-3' and page < page_obj.number|add:'3' %} <li class="page-item"><a class="page-link" href="?page={{ page }}">{{page}}</a></li>
                                                 {% endif %}
                                                 {% endfor %}
 
@@ -192,3 +204,105 @@
                     <!-- Scripts -->
                     {% include 'partials/scripts.html' %}
 </body>
+</html>
+
+<!-- CSS para os botões do paginator e botão do input de pesquisa -->
+<style>
+    .page-item.active .page-link {
+        background-color: rgb(12, 20, 28);
+        border-color: rgb(12, 20, 28);
+    }
+
+    .page-link {
+        color: #333;
+    }
+
+    .page-link:hover {
+        color: #666;
+    }
+
+    #searchInput {
+        border-radius: 5px 5px 5px 5px;
+    }
+
+    #button-pesquisar {
+        display: none;
+    }
+</style>
+
+<!-- CSS para o toggle usado para reativação do cliente -->
+<style>
+    .toggle-switch {
+        display: none;
+    }
+
+    .toggle-switch + label {
+        display: inline-block;
+        width: 40px;
+        height: 20px;
+        background-color: #ccc;
+        border-radius: 20px;
+        position: relative;
+        cursor: pointer;
+    }
+
+    .toggle-switch + label:before {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        background-color: #fff;
+        border-radius: 50%;
+        top: 2px;
+        left: 2px;
+        transition: all 0.3s;
+    }
+
+    .toggle-switch:checked + label {
+        background-color: #624BFF; /* Cor de fundo quando ativado */
+    }
+
+    .toggle-switch:checked + label:before {
+        transform: translateX(20px);
+    }
+</style>
+
+<script>
+    function reativarCliente(clienteId) {
+      var toggleSwitch = document.getElementById('reativar-' + clienteId);
+      
+      // Verifica se o toggle switch está marcado (valor "true")
+      if (toggleSwitch.checked) {
+        $.ajax({
+          url: '/reativar-cliente/' + clienteId + '/',
+          method: 'POST',
+          beforeSend: function (xhr) {
+            xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+          },
+          success: function (response) {
+            // Lida com a resposta da requisição
+            if (response.success_message_activate) {
+              swal.fire({
+                icon: 'success',
+                title: 'Reativação realizada.',
+                text: response.success_message_activate,
+                didClose: function () {
+                  window.location.href = '/listagem-clientes';
+                }
+              });
+            } else {
+              swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: 'Erro ao reativar o cliente.'
+              });
+            }
+          },
+          error: function (jqXHR, textStatus, errorThrown) {
+            console.log("Erro na requisição: " + textStatus + ", " + errorThrown);
+          }
+        });
+      }
+    }
+    </script>
+    

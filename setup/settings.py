@@ -57,6 +57,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    'setup.middleware.CheckUserLoggedInMiddleware',
 ]
 
 ROOT_URLCONF = "setup.urls"
@@ -143,6 +144,7 @@ LOGIN_URL = "login"
 
 # Session Configs
 SESSION_COOKIE_AGE = 1800  # tempo em segundos
+SESSION_SAVE_EVERY_REQUEST = True
 
 # Logger Configs
 LOGGING = {

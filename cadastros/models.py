@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 
 
+
 # funcão para definir o dia de pagamento
 def definir_dia_pagamento(dia_adesao):
     if dia_adesao in range(3, 8):
@@ -232,22 +233,19 @@ class ContaDoAplicativo(models.Model):
     def save(self, *args, **kwargs):
         # Verifica se o valor está no formato desejado
         if self.device_id:
-            if len(self.device_id) % 2 != 0:
-                # Adiciona um caractere no final se o tamanho for ímpar
-                if not self.device_id:
-                    self.device_id = "X"
-                else:
-                    self.device_id += "X"
             if self.device_id[0] == ":":
                 # Remove o caractere ':' do começo se houver
                 self.device_id = self.device_id[1:]
+
             if self.device_id[-1] == ":":
                 # Remove o caractere ':' do final se houver
                 self.device_id = self.device_id[:-1]
-            # Adiciona ':' a cada 2 caracteres
-            self.device_id = ":".join(
-                [self.device_id[i : i + 2] for i in range(0, len(self.device_id), 2)]
-            )
+
+            # Adiciona ':' a cada 2 caracteres se não houver ":"
+            if ":" not in self.device_id[2:-2]:
+                self.device_id = ":".join(
+                    [self.device_id[i : i + 2] for i in range(0, len(self.device_id), 2)]
+                )
         super(ContaDoAplicativo, self).save(*args, **kwargs)
 
     class Meta:

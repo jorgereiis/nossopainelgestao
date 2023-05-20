@@ -67,7 +67,7 @@ class MensalidadeAdmin(admin.ModelAdmin):
         "usuario",
     )
 
-    search_fields = ('cliente__nome', "usuario")
+    search_fields = ("cliente__nome",)
 
 
 class PlanoAdmin(admin.ModelAdmin):

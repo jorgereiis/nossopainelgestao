@@ -30,15 +30,11 @@
                                 <div class="btn-group">
                                     <div class="dropdown">
                                         <button class="btn btn-light mb-2 dropdown-toggle" data-bs-toggle="dropdown">
-                                            <img src="{% static 'assets/images/svg/list.svg' %}"> Opções
+                                            <img src="{% static 'assets/images/svg/list.svg' %}"> Menu
                                         </button>
                                         <div class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="{% url 'cadastro-cliente' %}"><img
-                                                        src="{% static 'assets/images/svg/person-plus.svg' %}"> Novo
-                                                    Cliente</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'importar-cliente' %}"><img
-                                                        src="{% static 'assets/images/svg/upload.svg' %}"> Importar
-                                                    Clientes</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'listagem-clientes' %}"><img
+                                                src="{% static 'assets/images/svg/people.svg' %}"> Clientes</a></li>
                                             <li><a class="dropdown-item" href="{% url 'cadastro-aplicativo' %}">
                                             <li><img src="{% static 'assets/images/svg/app-indicator.svg' %}">
                                                 Aplicativos</a></li>
@@ -318,7 +314,7 @@
                                     <tbody>
                                         {% for cliente in object_list %}
                                         <!-- COMEÇO DA LINHA -->
-                                        <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent">
+                                        <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent align-middle">
                                             <td class="dtr-control align-middle" style="cursor: pointer;"
                                                 id="DETALHES-{{ forloop.counter }}">
                                                 <div class="d-flex align-items-center">
@@ -345,14 +341,13 @@
                                             {% endif %}
 
                                             {% for mensalidade in cliente.mensalidade_set.all %}
-                                            {% if mensalidade.dt_pagamento is None or not mensalidade.pgto %}
-                                            {% if hoje > mensalidade.dt_vencimento %}
+                                            {% if not mensalidade.cancelado and not mensalidade.pgto %}
+                                            {% if mensalidade.dt_pagamento is None and hoje > mensalidade.dt_vencimento %}
                                             <td class="align-middle text-center"><span
-                                                    class="badge bg-danger">{{mensalidade.valor }}
-                                                    [{{mensalidade.dt_vencimento|date:'d/m/Y'}}]</span></td>
+                                                    class="badge bg-danger">{{mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y'}}]</span></td>
                                             {% else %}
                                             <td class="align-middle text-primary text-center"><span
-                                                    class="badge bg-info">{{ mensalidade.valor}}[{{mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
+                                                    class="badge bg-info">{{ mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                             {% endif %}
                                             <!-- Dropdown da tabela -->
                                             <td>
