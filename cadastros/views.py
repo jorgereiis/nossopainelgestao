@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models.deletion import ProtectedError
+from django.contrib.auth.views import LoginView
 from django.core.exceptions import ValidationError
 from django.views.generic.list import ListView
 from babel.numbers import format_currency
@@ -16,6 +17,7 @@ from django.db.models import Sum
 from django.db.models import Q
 from datetime import timedelta
 from datetime import datetime
+from .forms import LoginForm
 import pandas as pd
 import json
 import time
@@ -26,8 +28,9 @@ logger = logging.getLogger(__name__)
 ############################################ LOGIN VIEW ############################################
 
 # PÁGINA DE LOGIN
-def Login(request):
-    return render(request, "login.html")
+class Login(LoginView):
+    template_name = 'login.html'
+    form_class = LoginForm
 
 ############################################ LIST VIEW ############################################
 

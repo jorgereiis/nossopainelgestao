@@ -25,13 +25,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
+
 SECRET_KEY = os.getenv("SECRET_KEY")
+
+# reCaptcha Configs
+
+RECAPTCHA_PUBLIC_KEY = os.getenv("RECAPTCHA_PUBLIC_KEY")
+RECAPTCHA_PRIVATE_KEY = os.getenv("RECAPTCHA_PRIVATE_KEY")
+SILENCED_SYSTEM_CHECKS = ['captcha.recaptcha_test_key_error']
+RECAPTCHA_REQUIRED_SCORE = 0.85
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -45,6 +52,7 @@ INSTALLED_APPS = [
     "cadastros.apps.CadastrosConfig",
     "crispy_forms",
     "crispy_bootstrap5",
+    'captcha',
 ]
 
 CRISPY_TEMPLATE_PACK = "bootstrap5"
@@ -138,11 +146,13 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Authentication Configs
+
 LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "login"
 LOGIN_URL = "login"
 
 # Session Configs
+
 SESSION_COOKIE_AGE = 1800  # tempo em segundos
 SESSION_SAVE_EVERY_REQUEST = True
 
