@@ -25,6 +25,15 @@
             <!-- Form -->
             <form method="POST" action="">
               {% csrf_token %}
+                {% if form.errors.captcha %}
+                <div class="alert alert-danger" role="alert">
+                  <ul class="mb-0">
+                    <li>
+                      O Captcha é obrigatório!
+                    </li>
+                  </ul>
+                 </div>
+                 {% endif %}
                 {{ form|crispy }}
               <div>
                 <!-- Button -->
@@ -33,7 +42,7 @@
                 </div>
                   <p></p>
                   <div class="d-flex justify-content-center">
-                    <a href="forget-password.html" class="text-inherit fs-5">Esqueceu a senha senha?</a>
+                    <a href="#" class="text-inherit fs-5">Esqueceu a senha senha?</a>
                   </div>
                 </div>
               </div>
@@ -47,3 +56,17 @@
   {% include 'partials/scripts.html' %}
 </body>
 </html>
+
+<style>
+  .g-recaptcha {
+      margin: 0 auto; /* Define margens automáticas para centralizar horizontalmente */
+      display: flex; /* Define o elemento como bloco para que as margens automáticas funcionem */
+      justify-content: center; /* Centraliza o conteúdo dentro do elemento */
+      margin-top: 25px;
+      margin-bottom: 25px;
+  }
+
+  label[for="id_captcha"] {
+    display: none;
+  }
+</style>

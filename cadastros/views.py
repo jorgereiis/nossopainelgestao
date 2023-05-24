@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models.deletion import ProtectedError
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LoginView, PasswordResetView
 from django.core.exceptions import ValidationError
 from django.views.generic.list import ListView
 from babel.numbers import format_currency
@@ -25,7 +25,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-############################################ LOGIN VIEW ############################################
+############################################ AUTH VIEW ############################################
 
 # PÁGINA DE LOGIN
 class Login(LoginView):
@@ -57,12 +57,28 @@ class ListaClientes(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         clientes = Cliente.objects.filter(usuario=self.request.user)
+        indicadores = Cliente.objects.all()
+        servidores = Servidor.objects.all()
+        formas_pgtos = Tipos_pgto.objects.all()
+        planos = Plano.objects.all().order_by('valor')
+        telas = Qtd_tela.objects.all().order_by('telas')
+        dispositivos = Dispositivo.objects.all().order_by('nome')
+        aplicativos = Aplicativo.objects.all().order_by('nome')
         page_group = 'clientes'
         page = 'lista-clientes'
+        range_num = range(1,32)
 
         context.update(
             {
                 "clientes": clientes,
+                "indicadores": indicadores,
+                "servidores": servidores,
+                "formas_pgtos": formas_pgtos,
+                "dispositivos": dispositivos,
+                "aplicativos": aplicativos,
+                "planos": planos,
+                "telas": telas,
+                "range": range_num,
                 "page_group": page_group,
                 "page": page,
             }
@@ -508,7 +524,7 @@ def ImportarClientes(request):
 
         try:
             # realiza a leitura dos dados da planilha.
-            dados = pd.read_excel(request.FILES['arquivo'])
+            dados = pd.read_excel(request.FILES['arquivo'], engine='openpyxl')
         
         except Exception as erro1:
             logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)

@@ -105,6 +105,170 @@
                                             id="button-pesquisar">Buscar</button>
                                     </div>
                                 </form>
+
+                                <!-- Modal de edição do cliente -->
+                                <div class="modal fade" id="edit-cliente-modal" tabindex="-1" role="dialog"
+                                aria-labelledby="edit-cliente-label">
+                                <div class="modal-dialog" role="document">
+                                    <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h4 class="modal-title" id="edit-cliente-label">Editar Cliente</h4>
+                                        <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <form method="POST" id="edit-cliente-form">
+                                        {% csrf_token %}
+                                        <div class="form-group">
+                                            <label for="edit-cliente-nome">Nome</label>
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" id="edit-cliente-nome" name="nome" required>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="edit-cliente-telefone">Telefone</label>
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" id="edit-cliente-telefone" name="telefone" required>
+                                            </div>
+                                        </div>
+
+                                        <!-- row -->
+                                        <div class="form-group">
+                                            <label for="edit-cliente-indicador_por">Indicado por</label>
+                                            <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Indicado por" id="edit-cliente-indicado_por"
+                                                list="indicador-options" name="indicado_por" autocomplete="off">
+                                            </div>
+                                            <!-- Definindo o datalist -->
+                                            <datalist id="indicador-options">
+                                            {% for indicador in indicadores %}
+                                            <option value="{{ indicador.nome }}">
+                                            {% endfor %}
+                                            </datalist>
+                                        </div>
+
+                                        <!-- row -->
+                                        <div class="form-group">
+                                            <label for="edit-cliente-servidor">Servidor</label>
+                                            <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Servidor" id="edit-cliente-servidor"
+                                                list="servidor-options" name="servidor" autocomplete="off">
+                                            </div>
+                                            <!-- Definindo o datalist -->
+                                            <datalist id="servidor-options">
+                                            {% for servidor in servidores %}
+                                            <option value="{{ servidor.nome }}">
+                                            {% endfor %}
+                                            </datalist>
+                                        </div>
+
+                                        <!-- row -->
+                                        <div class="form-group">
+                                            <label for="edit-cliente-forma_pgto">Forma de pagamento</label>
+                                            <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Forma de pagamento" id="edit-cliente-forma_pgto"
+                                                list="forma_pgto-options" name="forma_pgto" autocomplete="off">
+                                            </div>
+                                            <!-- Definindo o datalist -->
+                                            <datalist id="forma_pgto-options">
+                                            {% for forma_pgto in formas_pgtos %}
+                                            <option value="{{ forma_pgto.nome }}">
+                                            {% endfor %}
+                                            </datalist>
+                                        </div>
+
+                                        <!-- row -->
+                                        <div class="form-group">
+                                            <label for="edit-cliente-plano">Plano</label>
+                                            <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Plano" id="edit-cliente-plano"
+                                                list="plano-options" name="plano" autocomplete="off">
+                                            </div>
+                                            <!-- Definindo o datalist -->
+                                            <datalist id="plano-options">
+                                            {% for plano in planos %}
+                                            <option value="{{plano.nome}} - {{plano.valor}}">
+                                            {% endfor %}
+                                            </datalist>
+                                        </div>
+
+                                        <!-- row -->
+                                        <div class="form-group">
+                                            <label for="edit-cliente-telas">Qtd. telas</label>
+                                            <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Qtd. telas" id="edit-cliente-tela"
+                                                list="tela-options" name="tela" autocomplete="off">
+                                            </div>
+                                            <!-- Definindo o datalist -->
+                                            <datalist id="tela-options">
+                                            {% for tela in telas %}
+                                            <option value="{{tela.telas}}">
+                                            {% endfor %}
+                                            </datalist>
+                                        </div>
+
+                                        <!-- row -->
+                                        <div class="form-group">
+                                            <label for="edit-cliente-dt_pgto">Dia do pagamento mensal</label>
+                                            <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Dia do pagamento" id="edit-cliente-dt_pgto"
+                                                list="dt_pgto-options" name="dt_pgto" autocomplete="off">
+                                            </div>
+                                            <!-- Definindo o datalist -->
+                                            <datalist id="dt_pgto-options">
+                                            {% for x in range %}
+                                            <option value="{{x}}">
+                                            {% endfor %}
+                                            </datalist>
+                                        </div>
+
+                                        <!-- row -->
+                                        <div class="form-group">
+                                            <label for="edit-cliente-dispositivo">Dispositivo</label>
+                                            <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Dispositivo" id="edit-cliente-dispositivo"
+                                                list="dispositivo-options" name="dispositivo" autocomplete="off">
+                                            </div>
+                                            <!-- Definindo o datalist -->
+                                            <datalist id="dispositivo-options">
+                                            {% for dispositivo in dispositivos %}
+                                            <option value="{{dispositivo.nome}}">
+                                            {% endfor %}
+                                            </datalist>
+                                        </div>
+
+                                        <!-- row -->
+                                        <div class="form-group">
+                                            <label for="edit-cliente-aplicativo">Aplicativo</label>
+                                            <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Aplicativo" id="edit-cliente-aplicativo"
+                                                list="aplicativo-options" name="aplicativo" autocomplete="off">
+                                            </div>
+                                            <!-- Definindo o datalist -->
+                                            <datalist id="aplicativo-options">
+                                            {% for aplicativo in aplicativos %}
+                                            <option value="{{aplicativo.nome}}">
+                                            {% endfor %}
+                                            </datalist>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="edit-cliente-notas">Anotações</label>
+                                            <div class="input-group">
+                                                <textarea type="text" class="form-control" id="edit-cliente-notas" name="notas" cols="5" rows="3"></textarea>
+                                            </div>
+                                        </div>
+                                        <input type="hidden" name="cliente_id" id="cliente-id">
+                                        </form>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                                        <button type="submit" form="edit-cliente-form" class="btn btn-primary">Salvar</button>
+                                    </div>
+                                    </div>
+                                </div>
+                                </div>
+
                                 <!-- TABELA  -->
                                 <div class="table-responsive">
                                     <table class="table mb-0 table-hover" id="myTable">
@@ -114,14 +278,14 @@
                                                 <th class="fw-bold text-center">Data de adesão</th>
                                                 <th class="fw-bold text-center">Data de cancelamento</th>
                                                 <th class="fw-bold text-center">Status</th>
-                                                <th class="fw-bold text-center">Reativar</th>
+                                                <th class="fw-bold text-center">Ações</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {% for cliente in object_list %}
                                             <!-- COMEÇO DA LINHA -->
                                             <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent align-middle">
-                                                <td class="dtr-control align-middle" style="cursor: pointer;" id="DETALHES-{{ forloop.counter }}">
+                                                <td class="dtr-control align-middle" id="DETALHES-{{ forloop.counter }}">
                                                     <div class="d-flex align-items-center">
                                                         <div>
                                                             <div class="icon-shape icon-md border p-1 rounded-circle">
@@ -143,7 +307,13 @@
                                                 </td>
                                                 {% else %}
                                                 <td class="text-capitalize text-center" style="max-width: 10px;"><span class="badge bg-info">Ativo</span></td>
-                                                <td class="text-center"></td>
+                                                <td class="text-center">
+                                                    <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" data-id="{{cliente.id}}" data-nome="{{cliente.nome}}" data-telefone="{{cliente.telefone}}" data-indicado_por="{{cliente.indicado_por}}" data-servidor="{{cliente.servidor}}" data-forma_pgto="{{cliente.forma_pgto}}" data-plano="{{cliente.plano}}" data-telas="{{cliente.telas}}" data-data_pagamento="{{cliente.data_pagamento}}" data-dispositivo="{{cliente.dispositivo}}" data-aplicativo="{{cliente.sistema}}" data-notas="{{cliente.notas}}" onclick="exibirModalDetalhes(this)">
+                                                    <i class="bi bi-info-square"></i>
+                                                    </button>
+                                                    <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" data-id="{{cliente.id}}" data-nome="{{cliente.nome}}" data-telefone="{{cliente.telefone}}" data-indicado_por="{{cliente.indicado_por}}" data-servidor="{{cliente.servidor}}" data-forma_pgto="{{cliente.forma_pgto}}" data-plano="{{cliente.plano}}" data-telas="{{cliente.telas}}" data-data_pagamento="{{cliente.data_pagamento}}" data-dispositivo="{{cliente.dispositivo}}" data-aplicativo="{{cliente.sistema}}" data-notas="{{cliente.notas}}" onclick="exibirModalEdicao(this)">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </td>
                                                 {% endif %}
                                             </tr>
                                             <!-- TÉRMINO DA LINHA -->
@@ -304,5 +474,71 @@
         });
       }
     }
-    </script>
-    
+</script>
+
+<script>
+    function exibirModalEdicao(botao) {
+      let clienteId = botao.dataset.id;
+      let clienteNome = botao.dataset.nome;
+      let clienteTela = botao.dataset.telas;
+      let clienteNotas = botao.dataset.notas;
+      let clientePlano = botao.dataset.plano;
+      let clienteTelefone = botao.dataset.telefone;
+      let clienteServidor = botao.dataset.servidor;
+      let clienteFormaPgto = botao.dataset.forma_pgto;
+      let clienteAplicativo = botao.dataset.aplicativo;
+      let clienteDispositivo = botao.dataset.dispositivo;
+      let clienteIndicadoPor = botao.dataset.indicado_por;
+      let clienteDataPagamento = botao.dataset.data_pagamento;
+
+      if (clienteIndicadoPor == 'None' || clienteIndicadoPor == null || clienteIndicadoPor == 'undefined'){
+        clienteIndicadoPor = '';
+      }
+  
+      const form = document.querySelector("#edit-cliente-form");
+      form.action = `/editar-cliente/${clienteId}/`;
+      form.querySelector("#cliente-id").value = clienteId;
+      form.querySelector("#edit-cliente-nome").value = clienteNome;
+      form.querySelector("#edit-cliente-telefone").value = clienteTelefone;
+      form.querySelector("#edit-cliente-indicado_por").value = clienteIndicadoPor;
+      form.querySelector("#edit-cliente-servidor").value = clienteServidor;
+      form.querySelector("#edit-cliente-forma_pgto").value = clienteFormaPgto;
+      form.querySelector("#edit-cliente-plano").value = clientePlano;
+      form.querySelector("#edit-cliente-tela").value = clienteTela;
+      form.querySelector("#edit-cliente-dt_pgto").value = clienteDataPagamento;
+      form.querySelector("#edit-cliente-dispositivo").value = clienteDispositivo;
+      form.querySelector("#edit-cliente-aplicativo").value = clienteAplicativo;
+      form.querySelector("#edit-cliente-notas").value = clienteNotas;
+  
+      const modal = new bootstrap.Modal(document.querySelector("#edit-cliente-modal"));
+      modal.show();
+    }
+  
+    $('#edit-cliente-modal').on('click', '.btn-close, .btn-secondary', function () {
+      $('#edit-cliente-modal').modal('hide');
+    });
+  </script>
+
+<script>
+    const input1 = document.querySelector('input[name="indicado_por"]');
+    input1.addEventListener('input', (event) => {
+    const value1 = event.target.value;
+    input1.value = value1;
+    });
+
+    const input2 = document.querySelector('input[name="servidor"]');
+    input2.addEventListener('input', (event) => {
+    const value2 = event.target.value;
+    input2.value = value2;
+    });
+
+    const input3 = document.querySelector('input[name="forma_pgto"]');
+    input3.addEventListener('input', (event) => {
+    const value3 = event.target.value;
+    input3.value = value3;
+    });
+</script>
+
+<script>
+
+</script>
