@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models.deletion import ProtectedError
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LoginView, PasswordResetView
 from django.core.exceptions import ValidationError
 from django.views.generic.list import ListView
 from babel.numbers import format_currency
@@ -17,6 +17,7 @@ from django.db.models import Sum
 from django.db.models import Q
 from datetime import timedelta
 from datetime import datetime
+from django.views import View
 from .forms import LoginForm
 import pandas as pd
 import json
@@ -25,7 +26,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-############################################ LOGIN VIEW ############################################
+############################################ AUTH VIEW ############################################
 
 # PÁGINA DE LOGIN
 class Login(LoginView):
@@ -33,6 +34,39 @@ class Login(LoginView):
     form_class = LoginForm
 
 ############################################ LIST VIEW ############################################
+
+class CarregarQuantidadesMensalidades(View):
+    def get(self, request):
+        id = self.request.GET.get("cliente_id")
+        cliente = Cliente.objects.get(id=id)
+        hoje = timezone.localtime().date()
+        mensalidades_pagas = Mensalidade.objects.filter(usuario=self.request.user, pgto=True, cliente=cliente)
+        mensalidades_pendentes = Mensalidade.objects.filter(usuario=self.request.user, dt_pagamento=None, pgto=False, cancelado=False, dt_cancelamento=None, dt_vencimento__lt=hoje, cliente=cliente)
+        mensalidades_canceladas = Mensalidade.objects.filter(usuario=self.request.user, cancelado=True, cliente=cliente)
+
+        qtd_mensalidades_pagas = 0
+        for mensalidade in mensalidades_pagas:
+            
+            if mensalidade.cliente.id == cliente.id:
+                print('Mensal. paga: ', mensalidade)
+                qtd_mensalidades_pagas += 1
+
+        qtd_mensalidades_pendentes = 0
+        for mensalidade in mensalidades_pendentes:
+
+            if mensalidade.cliente.id == cliente.id:
+                print('Mensal. pendente: ', mensalidade)
+                qtd_mensalidades_pendentes += 1
+
+        qtd_mensalidades_canceladas = 0
+        for mensalidade in mensalidades_canceladas:
+
+            if mensalidade.cliente.id == cliente.id:
+                print('Mensal. cancel: ', mensalidade)
+                qtd_mensalidades_canceladas += 1
+
+        data = {'qtd_mensalidades_pagas': qtd_mensalidades_pagas, 'qtd_mensalidades_pendentes': qtd_mensalidades_pendentes, 'qtd_mensalidades_canceladas': qtd_mensalidades_canceladas}
+        return JsonResponse(data)
 
 class ListaClientes(LoginRequiredMixin, ListView):
     """
@@ -57,12 +91,28 @@ class ListaClientes(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         clientes = Cliente.objects.filter(usuario=self.request.user)
+        indicadores = Cliente.objects.filter(usuario=self.request.user)
+        servidores = Servidor.objects.filter(usuario=self.request.user)
+        formas_pgtos = Tipos_pgto.objects.filter(usuario=self.request.user)
+        planos = Plano.objects.filter(usuario=self.request.user).order_by('valor')
+        telas = Qtd_tela.objects.all().order_by('telas')
+        dispositivos = Dispositivo.objects.filter(usuario=self.request.user).order_by('nome')
+        aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
         page_group = 'clientes'
         page = 'lista-clientes'
+        range_num = range(1,32)
 
         context.update(
             {
                 "clientes": clientes,
+                "indicadores": indicadores,
+                "servidores": servidores,
+                "formas_pgtos": formas_pgtos,
+                "dispositivos": dispositivos,
+                "aplicativos": aplicativos,
+                "planos": planos,
+                "telas": telas,
+                "range": range_num,
                 "page_group": page_group,
                 "page": page,
             }
@@ -224,7 +274,7 @@ def reativar_cliente(request, cliente_id):
 
     except Exception as erro:
         # registra erro no log
-        logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
         return JsonResponse({"error_message": "Ocorreu um erro ao tentar reativar esse cliente."})
 
     # se deu tudo certo, retorna confirmação
@@ -235,18 +285,18 @@ def reativar_cliente(request, cliente_id):
 @login_required
 def pagar_mensalidade(request, mensalidade_id):
 
-        mensalidade = Mensalidade.objects.get(pk=mensalidade_id, usuario=request.user)
+    mensalidade = Mensalidade.objects.get(pk=mensalidade_id, usuario=request.user)
 
-        # realiza as modificações na mensalidade paga
-        mensalidade.dt_pagamento = timezone.localtime().date()
-        mensalidade.pgto = True
-        try:
-            mensalidade.save()
-        except Exception as erro:
-            logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
-            return JsonResponse({"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."})
-        # redireciona para a página anterior
-        return JsonResponse({"success_message_invoice": "Mensalidade paga!"})
+    # realiza as modificações na mensalidade paga
+    mensalidade.dt_pagamento = timezone.localtime().date()
+    mensalidade.pgto = True
+    try:
+        mensalidade.save()
+    except Exception as erro:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
+        return JsonResponse({"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."})
+    # redireciona para a página anterior
+    return JsonResponse({"success_message_invoice": "Mensalidade paga!"})
 
 
 # AÇÃO PARA CANCELAMENTO DE CLIENTE
@@ -261,13 +311,83 @@ def cancelar_cliente(request, cliente_id):
         try:
             cliente.save()
         except Exception as erro:
-            logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
+            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
             return JsonResponse({"error_message": "Ocorreu um erro ao tentar cancelar esse cliente."}, status=500)
 
         # retorna a mensagem de sucesso como resposta JSON
         return JsonResponse({"success_message_cancel": "Eita! mais um cliente cancelado?! "})
     else:
         redirect("login")
+
+
+@login_required
+def EditarCliente(request, cliente_id):
+    if request.method == "POST":
+        telefone = Cliente.objects.filter(telefone=request.POST.get("telefone"), usuario=request.user)
+
+        try:
+            cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
+            clientes = Cliente.objects.filter(usuario=request.user).order_by("-data_adesao")
+            plano_list = request.POST.get("plano").replace(' ', '').split('-')
+            tela_list = request.POST.get("tela").split(' ')
+
+            # Verificar e atualizar os campos modificados
+            if cliente.nome != request.POST.get("nome"):
+                cliente.nome = request.POST.get("nome")
+
+            if cliente.telefone != request.POST.get("telefone"):
+                telefone = Cliente.objects.filter(telefone=request.POST.get("telefone"), usuario=request.user)
+                if not telefone:
+                    cliente.telefone = request.POST.get("telefone")
+                else:
+                    return render(request, "pages/lista-clientes.html", {"error_message": "Já existe um cliente com este telefone informado."}, status=400)
+                
+            if request.POST.get("indicado_por"):
+                indicado_por = Cliente.objects.get(nome=request.POST.get("indicado_por"), usuario=request.user)
+                if cliente.indicado_por != indicado_por:
+                    cliente.indicado_por = indicado_por
+
+            servidor = Servidor.objects.get(nome=request.POST.get("servidor"), usuario=request.user)
+            if cliente.servidor != servidor:
+                cliente.servidor = servidor
+
+            forma_pgto = Tipos_pgto.objects.filter(nome=request.POST.get("forma_pgto"), usuario=request.user).first()
+            if cliente.forma_pgto != forma_pgto:
+                cliente.forma_pgto = forma_pgto
+
+            plano = Plano.objects.get(valor=plano_list[1].replace(',', '.'), usuario=request.user)
+            if cliente.plano != plano:
+                cliente.plano = plano
+
+            tela = Qtd_tela.objects.get(telas=tela_list[0])
+            if cliente.telas != tela:
+                cliente.telas = tela
+
+            if cliente.data_pagamento != request.POST.get("dt_pgto"):
+                cliente.data_pagamento = request.POST.get("dt_pgto")
+
+            dispositivo = Dispositivo.objects.get(nome=request.POST.get("dispositivo"), usuario=request.user)
+            if cliente.dispositivo != dispositivo:
+                cliente.dispositivo = dispositivo
+
+            aplicativo = Aplicativo.objects.get(nome=request.POST.get("aplicativo"), usuario=request.user)
+            if cliente.sistema != aplicativo:
+                cliente.sistema = aplicativo
+
+            if cliente.notas != request.POST.get("notas"):
+                cliente.notas = request.POST.get("notas")
+
+            cliente.save()
+
+            # Em caso de sucesso
+            return render(request, "pages/lista-clientes.html", {"success_message": "{} foi atualizado com sucesso.".format(cliente.nome)}, status=200)
+
+        except Exception as e:
+            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+            return render(request, "pages/lista-clientes.html", {"error_message": "Ocorreu um erro ao tentar atualizar esse cliente."}, status=500)
+
+    return redirect("listagem-clientes")
+
 
 
 # AÇÃO PARA EDITAR O OBJETO PLANO MENSAL
@@ -301,7 +421,7 @@ def EditarPlanoAdesao(request, plano_id):
                 )
 
             except Exception as erro2:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o servidor
                 return render(
                     request,
@@ -347,7 +467,7 @@ def EditarServidor(request, servidor_id):
                 servidor.save()
 
             except ValidationError as erro1:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -359,7 +479,7 @@ def EditarServidor(request, servidor_id):
                 )
 
             except Exception as erro2:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o servidor
                 return render(
                     request,
@@ -395,7 +515,7 @@ def EditarDispositivo(request, dispositivo_id):
                 dispositivo.save()
 
             except ValidationError as erro1:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -407,7 +527,7 @@ def EditarDispositivo(request, dispositivo_id):
                 )
 
             except Exception as erro2:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o dispositivo
                 return render(
                     request,
@@ -443,7 +563,7 @@ def EditarAplicativo(request, aplicativo_id):
                 aplicativo.save()
 
             except ValidationError as erro1:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -455,7 +575,7 @@ def EditarAplicativo(request, aplicativo_id):
                 )
 
             except Exception as erro2:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o aplicativo
                 return render(
                     request,
@@ -508,10 +628,10 @@ def ImportarClientes(request):
 
         try:
             # realiza a leitura dos dados da planilha.
-            dados = pd.read_excel(request.FILES['arquivo'])
+            dados = pd.read_excel(request.FILES['arquivo'], engine='openpyxl')
         
         except Exception as erro1:
-            logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
             return render(request, "pages/importar-cliente.html",
                 {"error_message": "Erro ao tentar ler planilha. Verifique o arquivo e tente novamente."},)
         
@@ -598,7 +718,7 @@ def ImportarClientes(request):
 
                         num_linhas_importadas += 1  # Incrementa o contador de linhas importadas com sucesso
                 except Exception as erro2:
-                    logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+                    logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
                     # Se ocorrer um erro, apenas incrementa 1 a contagem e adiciona o nome do cliente a lista dos não importados, e continua para o próximo cliente.
                     num_linhas_nao_importadas += 1
                     nomes_clientes_erro_importacao.append('Linha {} da planilha - {}'.format(i, nome_import.title()))
@@ -690,7 +810,7 @@ def CadastroCliente(request):
                 cliente.save()
 
             except ValidationError as erro1:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
                 return render(
                     request,
                     "pages/cadastro-cliente.html",
@@ -700,7 +820,7 @@ def CadastroCliente(request):
                 )
             
             except Exception as erro2:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
                 return render(
                     request,
                     "pages/cadastro-cliente.html",
@@ -794,7 +914,7 @@ def CadastroPlanoAdesao(request):
                     )
                 
             except Exception as e:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -847,7 +967,7 @@ def CadastroServidor(request):
                     )
                 
             except Exception as e:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -901,7 +1021,7 @@ def CadastroFormaPagamento(request):
                     )
                 
             except Exception as e:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -955,7 +1075,7 @@ def CadastroDispositivo(request):
                     )
                 
             except Exception as e:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -1009,7 +1129,7 @@ def CadastroAplicativo(request):
                     )
                 
             except Exception as e:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -1033,12 +1153,12 @@ def DeleteAplicativo(request, pk):
         aplicativo = Aplicativo.objects.get(pk=pk, usuario=request.user)
         aplicativo.delete()
     except Aplicativo.DoesNotExist as erro1:
-        logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     except ProtectedError as erro2:
-        logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
         error_msg = 'Este Aplicativo não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
@@ -1053,12 +1173,12 @@ def DeleteDispositivo(request, pk):
         dispositivo = Dispositivo.objects.get(pk=pk, usuario=request.user)
         dispositivo.delete()
     except Dispositivo.DoesNotExist as erro1:
-        logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     except ProtectedError as erro2:
-        logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
         error_msg = 'Este Dispositivo não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
@@ -1073,12 +1193,12 @@ def DeleteFormaPagamento(request, pk):
         formapgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
         formapgto.delete()
     except Tipos_pgto.DoesNotExist as erro1:
-        logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     except ProtectedError as erro2:
-        logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
         error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
@@ -1093,12 +1213,12 @@ def DeleteServidor(request, pk):
         servidor = Servidor.objects.get(pk=pk, usuario=request.user)
         servidor.delete()
     except Servidor.DoesNotExist as erro1:
-        logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     except ProtectedError as erro2:
-        logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
         error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
@@ -1113,12 +1233,12 @@ def DeletePlanoAdesao(request, pk):
         plano_mensal = Plano.objects.get(pk=pk, usuario=request.user)
         plano_mensal.delete()
     except Plano.DoesNotExist as erro1:
-        logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     except ProtectedError as erro2:
-        logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
         error_msg = 'Este Plano não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'

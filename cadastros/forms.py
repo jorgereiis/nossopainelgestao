@@ -4,7 +4,5 @@ from captcha.widgets import ReCaptchaV2Checkbox
 
 class LoginForm(AuthenticationForm):
     captcha = ReCaptchaField(
-        widget=ReCaptchaV2Checkbox(attrs={
-            'class': 'captcha-widget',
-        })
+        widget=ReCaptchaV2Checkbox()
     )
