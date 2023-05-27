@@ -22,7 +22,9 @@ from .views import (
     EditarAplicativo,
     EditarDispositivo,
     DeleteDispositivo,
+    EditarCliente,
     ListaClientes,
+    CarregarQuantidadesMensalidades,
     Teste,
 )
 
@@ -51,6 +53,7 @@ urlpatterns = [
     path('editar-servidor/<int:servidor_id>/', EditarServidor, name='editar-servidor'),
     path("editar-aplicativo/<int:aplicativo_id>/", EditarAplicativo,name="editar-aplicativo"),
     path("editar-dispositivo/<int:dispositivo_id>/", EditarDispositivo, name="editar-dispositivo"),
+    path("editar-cliente/<int:cliente_id>/", EditarCliente, name="editar-cliente"),
     path("reativar-cliente/<int:cliente_id>/", reativar_cliente, name="reativar-cliente" ),
     
     ########## Delete ###########
@@ -62,4 +65,5 @@ urlpatterns = [
     
     ########## Others ###########
     path("teste/", Teste, name="teste"),
+    path("qtds_mensalidades/", CarregarQuantidadesMensalidades.as_view()),
 ]

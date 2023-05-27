@@ -642,3 +642,1418 @@ Traceback (most recent call last):
 django.template.exceptions.TemplateSyntaxError: Could not parse the remainder: '(1,32)' from 'range(1,32)'
 "GET /listagem-clientes/ HTTP/1.1" 500 203230
 "GET /listagem-clientes/ HTTP/1.1" 500 203230
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 300, in EditarCliente
+    cliente.plano = request.POST.get("plano")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'Mensal - 35.00'": "Cliente.plano" must be a "Plano" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 300, in EditarCliente
+    cliente.plano = request.POST.get("plano")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'Mensal - 35.00'": "Cliente.plano" must be a "Plano" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76197
+"POST /editar-cliente/337/ HTTP/1.1" 500 76197
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 297, in EditarCliente
+    cliente.indicado_por = request.POST.get("indicado_por")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'Wellington Santana'": "Cliente.indicado_por" must be a "Cliente" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 297, in EditarCliente
+    cliente.indicado_por = request.POST.get("indicado_por")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'Wellington Santana'": "Cliente.indicado_por" must be a "Cliente" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76322
+"POST /editar-cliente/337/ HTTP/1.1" 500 76322
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 297, in EditarCliente
+    cliente.indicado_por = request.POST.get("indicado_por")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'Wellington Santana'": "Cliente.indicado_por" must be a "Cliente" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 297, in EditarCliente
+    cliente.indicado_por = request.POST.get("indicado_por")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'Wellington Santana'": "Cliente.indicado_por" must be a "Cliente" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76319
+"POST /editar-cliente/337/ HTTP/1.1" 500 76319
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 298, in EditarCliente
+    cliente.servidor = request.POST.get("servidor")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'CLUB'": "Cliente.servidor" must be a "Servidor" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 298, in EditarCliente
+    cliente.servidor = request.POST.get("servidor")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'CLUB'": "Cliente.servidor" must be a "Servidor" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76285
+"POST /editar-cliente/337/ HTTP/1.1" 500 76285
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 299, in EditarCliente
+    cliente.forma_pgto = request.POST.get("forma_pgto")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'PIX'": "Cliente.forma_pgto" must be a "Tipos_pgto" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 299, in EditarCliente
+    cliente.forma_pgto = request.POST.get("forma_pgto")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'PIX'": "Cliente.forma_pgto" must be a "Tipos_pgto" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76344
+"POST /editar-cliente/337/ HTTP/1.1" 500 76344
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 299, in EditarCliente
+    cliente.forma_pgto = Tipos_pgto.objects.get(nome=request.POST.get("forma_pgto"))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 640, in get
+    raise self.model.MultipleObjectsReturned(
+cadastros.models.Tipos_pgto.MultipleObjectsReturned: get() returned more than one Tipos_pgto -- it returned 2!
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 299, in EditarCliente
+    cliente.forma_pgto = Tipos_pgto.objects.get(nome=request.POST.get("forma_pgto"))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 640, in get
+    raise self.model.MultipleObjectsReturned(
+cadastros.models.Tipos_pgto.MultipleObjectsReturned: get() returned more than one Tipos_pgto -- it returned 2!
+"POST /editar-cliente/337/ HTTP/1.1" 500 80813
+"POST /editar-cliente/337/ HTTP/1.1" 500 80813
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 300, in EditarCliente
+    cliente.plano = request.POST.get("plano")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'Mensal - 35.00'": "Cliente.plano" must be a "Plano" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 300, in EditarCliente
+    cliente.plano = request.POST.get("plano")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'Mensal - 35.00'": "Cliente.plano" must be a "Plano" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76337
+"POST /editar-cliente/337/ HTTP/1.1" 500 76337
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 302, in EditarCliente
+    cliente.plano = plano_list[0]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'M'": "Cliente.plano" must be a "Plano" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 302, in EditarCliente
+    cliente.plano = plano_list[0]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'M'": "Cliente.plano" must be a "Plano" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76412
+"POST /editar-cliente/337/ HTTP/1.1" 500 76412
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 303, in EditarCliente
+    cliente.plano = plano_list[0]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'M'": "Cliente.plano" must be a "Plano" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 303, in EditarCliente
+    cliente.plano = plano_list[0]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'M'": "Cliente.plano" must be a "Plano" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76412
+"POST /editar-cliente/337/ HTTP/1.1" 500 76412
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 303, in EditarCliente
+    cliente.plano = plano_list[0]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'Mensal '": "Cliente.plano" must be a "Plano" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 303, in EditarCliente
+    cliente.plano = plano_list[0]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'Mensal '": "Cliente.plano" must be a "Plano" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76457
+"POST /editar-cliente/337/ HTTP/1.1" 500 76457
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 303, in EditarCliente
+    cliente.plano = plano_list[1]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "' 35.00'": "Cliente.plano" must be a "Plano" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 303, in EditarCliente
+    cliente.plano = plano_list[1]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "' 35.00'": "Cliente.plano" must be a "Plano" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76452
+"POST /editar-cliente/337/ HTTP/1.1" 500 76452
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 303, in EditarCliente
+    cliente.plano = plano_list[1]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'35.00'": "Cliente.plano" must be a "Plano" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 303, in EditarCliente
+    cliente.plano = plano_list[1]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'35.00'": "Cliente.plano" must be a "Plano" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76445
+"POST /editar-cliente/337/ HTTP/1.1" 500 76445
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 303, in EditarCliente
+    cliente.plano = Plano.objects.get(plano_list[1])
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 623, in get
+    clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1380, in build_filter
+    arg, value = filter_expr
+ValueError: too many values to unpack (expected 2)
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 303, in EditarCliente
+    cliente.plano = Plano.objects.get(plano_list[1])
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 623, in get
+    clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1380, in build_filter
+    arg, value = filter_expr
+ValueError: too many values to unpack (expected 2)
+"POST /editar-cliente/337/ HTTP/1.1" 500 110209
+"POST /editar-cliente/337/ HTTP/1.1" 500 110209
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 306, in EditarCliente
+    cliente.dispositivo = request.POST.get("dispositivo")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'TV Samsung'": "Cliente.dispositivo" must be a "Dispositivo" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 306, in EditarCliente
+    cliente.dispositivo = request.POST.get("dispositivo")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'TV Samsung'": "Cliente.dispositivo" must be a "Dispositivo" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76530
+"POST /editar-cliente/337/ HTTP/1.1" 500 76530
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 306, in EditarCliente
+    cliente.dispositivo = request.POST.get("dispositivo")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'TV Samsung'": "Cliente.dispositivo" must be a "Dispositivo" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 306, in EditarCliente
+    cliente.dispositivo = request.POST.get("dispositivo")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'TV Samsung'": "Cliente.dispositivo" must be a "Dispositivo" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76530
+"POST /editar-cliente/337/ HTTP/1.1" 500 76530
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 307, in EditarCliente
+    cliente.dispositivo = request.POST.get("dispositivo")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'TV Samsung'": "Cliente.dispositivo" must be a "Dispositivo" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 307, in EditarCliente
+    cliente.dispositivo = request.POST.get("dispositivo")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'TV Samsung'": "Cliente.dispositivo" must be a "Dispositivo" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76701
+"POST /editar-cliente/337/ HTTP/1.1" 500 76701
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 307, in EditarCliente
+    cliente.dispositivo = request.POST.get("dispositivo")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'TV Samsung'": "Cliente.dispositivo" must be a "Dispositivo" instance.
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 307, in EditarCliente
+    cliente.dispositivo = request.POST.get("dispositivo")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'TV Samsung'": "Cliente.dispositivo" must be a "Dispositivo" instance.
+"POST /editar-cliente/337/ HTTP/1.1" 500 76701
+"POST /editar-cliente/337/ HTTP/1.1" 500 76701
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 307, in EditarCliente
+    cliente.dispositivo = Dispositivo.objects.get(request.POST.get("dispositivo"))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 623, in get
+    clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1380, in build_filter
+    arg, value = filter_expr
+ValueError: too many values to unpack (expected 2)
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 307, in EditarCliente
+    cliente.dispositivo = Dispositivo.objects.get(request.POST.get("dispositivo"))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 623, in get
+    clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1380, in build_filter
+    arg, value = filter_expr
+ValueError: too many values to unpack (expected 2)
+"POST /editar-cliente/337/ HTTP/1.1" 500 111804
+"POST /editar-cliente/337/ HTTP/1.1" 500 111804
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 312, in EditarCliente
+    return render("pages/lista-clientes.html")
+TypeError: render() missing 1 required positional argument: 'template_name'
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 312, in EditarCliente
+    return render("pages/lista-clientes.html")
+TypeError: render() missing 1 required positional argument: 'template_name'
+"POST /editar-cliente/337/ HTTP/1.1" 500 71885
+"POST /editar-cliente/337/ HTTP/1.1" 500 71885
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 312, in EditarCliente
+    return render("pages/lista-clientes.html")
+TypeError: render() missing 1 required positional argument: 'template_name'
+Internal Server Error: /editar-cliente/337/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 312, in EditarCliente
+    return render("pages/lista-clientes.html")
+TypeError: render() missing 1 required positional argument: 'template_name'
+"POST /editar-cliente/337/ HTTP/1.1" 500 71914
+"POST /editar-cliente/337/ HTTP/1.1" 500 71914
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 220, in _get_response
+    response = response.render()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 114, in render
+    self.content = self.rendered_content
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 90, in rendered_content
+    template = self.resolve_template(self.template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 72, in resolve_template
+    return select_template(template, using=self.using)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loader.py", line 42, in select_template
+    return engine.get_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/backends/django.py", line 33, in get_template
+    return Template(self.engine.get_template(template_name), self)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 175, in get_template
+    template, origin = self.find_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 157, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/base.py", line 28, in get_template
+    return Template(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 200, in compile_nodelist
+    return parser.parse()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 839, in do_for
+    raise TemplateSyntaxError(
+django.template.exceptions.TemplateSyntaxError: 'for' statements should use the format 'for x in y': for x in range(1, 32)
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 220, in _get_response
+    response = response.render()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 114, in render
+    self.content = self.rendered_content
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 90, in rendered_content
+    template = self.resolve_template(self.template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 72, in resolve_template
+    return select_template(template, using=self.using)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loader.py", line 42, in select_template
+    return engine.get_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/backends/django.py", line 33, in get_template
+    return Template(self.engine.get_template(template_name), self)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 175, in get_template
+    template, origin = self.find_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 157, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/base.py", line 28, in get_template
+    return Template(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 200, in compile_nodelist
+    return parser.parse()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 839, in do_for
+    raise TemplateSyntaxError(
+django.template.exceptions.TemplateSyntaxError: 'for' statements should use the format 'for x in y': for x in range(1, 32)
+"GET /listagem-clientes/ HTTP/1.1" 500 180700
+"GET /listagem-clientes/ HTTP/1.1" 500 180700
+[2023-05-24 23:11:38.410578-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][['O valor “35,00” deve ser um número decimal.']]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1741, in to_python
+    decimal_value = decimal.Decimal(value)
+decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 303, in EditarCliente
+    cliente.plano = Plano.objects.get(valor=plano_list[1], usuario=request.user)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 623, in get
+    clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1448, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1275, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 27, in __init__
+    self.rhs = self.get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 341, in get_prep_lookup
+    return super().get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 85, in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1767, in get_prep_value
+    return self.to_python(value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1743, in to_python
+    raise exceptions.ValidationError(
+django.core.exceptions.ValidationError: ['O valor “35,00” deve ser um número decimal.']
+Internal Server Error: /editar-cliente/337/
+Internal Server Error: /editar-cliente/337/
+"POST /editar-cliente/337/ HTTP/1.1" 500 31662
+"POST /editar-cliente/337/ HTTP/1.1" 500 31662
+[2023-05-24 23:20:59.067620-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][['O valor “35,00” deve ser um número decimal.']]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1741, in to_python
+    decimal_value = decimal.Decimal(value)
+decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 320, in EditarCliente
+    plano = Plano.objects.get(valor=plano_list[1], usuario=request.user)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 623, in get
+    clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1448, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1275, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 27, in __init__
+    self.rhs = self.get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 341, in get_prep_lookup
+    return super().get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 85, in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1767, in get_prep_value
+    return self.to_python(value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1743, in to_python
+    raise exceptions.ValidationError(
+django.core.exceptions.ValidationError: ['O valor “35,00” deve ser um número decimal.']
+Internal Server Error: /editar-cliente/337/
+Internal Server Error: /editar-cliente/337/
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+[2023-05-24 23:24:40.384978-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][['O valor “35,00” deve ser um número decimal.']]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1741, in to_python
+    decimal_value = decimal.Decimal(value)
+decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 320, in EditarCliente
+    plano = Plano.objects.get(valor=plano_list[1], usuario=request.user)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 623, in get
+    clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1448, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1275, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 27, in __init__
+    self.rhs = self.get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 341, in get_prep_lookup
+    return super().get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 85, in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1767, in get_prep_value
+    return self.to_python(value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1743, in to_python
+    raise exceptions.ValidationError(
+django.core.exceptions.ValidationError: ['O valor “35,00” deve ser um número decimal.']
+Internal Server Error: /editar-cliente/337/
+Internal Server Error: /editar-cliente/337/
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+[2023-05-24 23:25:22.571414-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][['O valor “35,00” deve ser um número decimal.']]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1741, in to_python
+    decimal_value = decimal.Decimal(value)
+decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 320, in EditarCliente
+    plano = Plano.objects.get(valor=plano_list[1], usuario=request.user)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 623, in get
+    clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1448, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1275, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 27, in __init__
+    self.rhs = self.get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 341, in get_prep_lookup
+    return super().get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 85, in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1767, in get_prep_value
+    return self.to_python(value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1743, in to_python
+    raise exceptions.ValidationError(
+django.core.exceptions.ValidationError: ['O valor “35,00” deve ser um número decimal.']
+Internal Server Error: /editar-cliente/337/
+Internal Server Error: /editar-cliente/337/
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+[2023-05-24 23:27:25.796676-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][['O valor “35,00” deve ser um número decimal.']]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1741, in to_python
+    decimal_value = decimal.Decimal(value)
+decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 320, in EditarCliente
+    plano = Plano.objects.get(valor=plano_list[1], usuario=request.user)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 623, in get
+    clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1448, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1275, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 27, in __init__
+    self.rhs = self.get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 341, in get_prep_lookup
+    return super().get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 85, in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1767, in get_prep_value
+    return self.to_python(value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1743, in to_python
+    raise exceptions.ValidationError(
+django.core.exceptions.ValidationError: ['O valor “35,00” deve ser um número decimal.']
+Internal Server Error: /editar-cliente/337/
+Internal Server Error: /editar-cliente/337/
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+[2023-05-24 23:29:19.979126-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['Cliente' object has no attribute 'tela']
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 324, in EditarCliente
+    if cliente.tela != request.POST.get("tela"):
+AttributeError: 'Cliente' object has no attribute 'tela'
+Internal Server Error: /editar-cliente/337/
+Internal Server Error: /editar-cliente/337/
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+[2023-05-24 23:30:07.340437-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][Cannot assign "'1 tela(s)'": "Cliente.telas" must be a "Qtd_tela" instance.]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 325, in EditarCliente
+    cliente.telas = request.POST.get("tela")
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'1 tela(s)'": "Cliente.telas" must be a "Qtd_tela" instance.
+Internal Server Error: /editar-cliente/337/
+Internal Server Error: /editar-cliente/337/
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+[2023-05-24 23:51:36.976940-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['Cliente' object has no attribute 'dt_pgto']
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 331, in EditarCliente
+    if cliente.dt_pgto != request.POST.get("dt_pgto"):
+AttributeError: 'Cliente' object has no attribute 'dt_pgto'
+Internal Server Error: /editar-cliente/337/
+Internal Server Error: /editar-cliente/337/
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+[2023-05-24 23:52:29.487255-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['Cliente' object has no attribute 'aplicativo']
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 339, in EditarCliente
+    if cliente.aplicativo != aplicativo:
+AttributeError: 'Cliente' object has no attribute 'aplicativo'
+Internal Server Error: /editar-cliente/337/
+Internal Server Error: /editar-cliente/337/
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+"POST /editar-cliente/337/ HTTP/1.1" 500 31647
+[2023-05-25 10:39:24.335931-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][Cliente matching query does not exist.]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 311, in EditarCliente
+    indicado_por = Cliente.objects.get(nome=request.POST.get("indicado_por"), usuario=request.user)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.Cliente.DoesNotExist: Cliente matching query does not exist.
+Internal Server Error: /editar-cliente/261/
+Internal Server Error: /editar-cliente/261/
+"POST /editar-cliente/261/ HTTP/1.1" 500 33753
+"POST /editar-cliente/261/ HTTP/1.1" 500 33753
+Internal Server Error: /teste/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/smartif.py", line 179, in translate_token
+    op = OPERATORS[token]
+KeyError: 'page_obj.paginator.per_page==5'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 567, in Teste
+    return render(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loader.py", line 15, in get_template
+    return engine.get_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/backends/django.py", line 33, in get_template
+    return Template(self.engine.get_template(template_name), self)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 175, in get_template
+    template, origin = self.find_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 157, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/base.py", line 28, in get_template
+    return Template(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 200, in compile_nodelist
+    return parser.parse()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 952, in do_if
+    condition = TemplateIfParser(parser, bits).parse()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 885, in __init__
+    super().__init__(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/smartif.py", line 170, in __init__
+    mapped_tokens.append(self.translate_token(token))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/smartif.py", line 181, in translate_token
+    return self.create_var(token)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 888, in create_var
+    return TemplateLiteral(self.template_parser.compile_filter(value), value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 600, in compile_filter
+    return FilterExpression(token, self)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 703, in __init__
+    raise TemplateSyntaxError(
+django.template.exceptions.TemplateSyntaxError: Could not parse the remainder: '==5' from 'page_obj.paginator.per_page==5'
+Internal Server Error: /teste/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/smartif.py", line 179, in translate_token
+    op = OPERATORS[token]
+KeyError: 'page_obj.paginator.per_page==5'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 567, in Teste
+    return render(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loader.py", line 15, in get_template
+    return engine.get_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/backends/django.py", line 33, in get_template
+    return Template(self.engine.get_template(template_name), self)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 175, in get_template
+    template, origin = self.find_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 157, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/base.py", line 28, in get_template
+    return Template(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 200, in compile_nodelist
+    return parser.parse()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 952, in do_if
+    condition = TemplateIfParser(parser, bits).parse()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 885, in __init__
+    super().__init__(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/smartif.py", line 170, in __init__
+    mapped_tokens.append(self.translate_token(token))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/smartif.py", line 181, in translate_token
+    return self.create_var(token)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 888, in create_var
+    return TemplateLiteral(self.template_parser.compile_filter(value), value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 600, in compile_filter
+    return FilterExpression(token, self)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 703, in __init__
+    raise TemplateSyntaxError(
+django.template.exceptions.TemplateSyntaxError: Could not parse the remainder: '==5' from 'page_obj.paginator.per_page==5'
+"GET /teste/ HTTP/1.1" 500 227991
+"GET /teste/ HTTP/1.1" 500 227991
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 174, in get
+    context = self.get_context_data()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 60, in get_context_data
+    indicadores = Cliente.objects.all(suario=self.request.user)
+TypeError: BaseManager.all() got an unexpected keyword argument 'suario'
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 174, in get
+    context = self.get_context_data()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 60, in get_context_data
+    indicadores = Cliente.objects.all(suario=self.request.user)
+TypeError: BaseManager.all() got an unexpected keyword argument 'suario'
+"GET /listagem-clientes/ HTTP/1.1" 500 85074
+"GET /listagem-clientes/ HTTP/1.1" 500 85074
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 174, in get
+    context = self.get_context_data()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 60, in get_context_data
+    indicadores = Cliente.objects.all(usuario=self.request.user)
+TypeError: BaseManager.all() got an unexpected keyword argument 'usuario'
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 174, in get
+    context = self.get_context_data()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 60, in get_context_data
+    indicadores = Cliente.objects.all(usuario=self.request.user)
+TypeError: BaseManager.all() got an unexpected keyword argument 'usuario'
+"GET /listagem-clientes/ HTTP/1.1" 500 85082
+"GET /listagem-clientes/ HTTP/1.1" 500 85082
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 174, in get
+    context = self.get_context_data()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 60, in get_context_data
+    indicadores = Cliente.objects.all(usuario=self.request.user)
+TypeError: BaseManager.all() got an unexpected keyword argument 'usuario'
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 174, in get
+    context = self.get_context_data()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 60, in get_context_data
+    indicadores = Cliente.objects.all(usuario=self.request.user)
+TypeError: BaseManager.all() got an unexpected keyword argument 'usuario'
+"GET /listagem-clientes/ HTTP/1.1" 500 85082
+"GET /listagem-clientes/ HTTP/1.1" 500 85082
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 174, in get
+    context = self.get_context_data()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 60, in get_context_data
+    indicadores = Cliente.objects.all(usuario=self.request.user)
+TypeError: BaseManager.all() got an unexpected keyword argument 'usuario'
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 174, in get
+    context = self.get_context_data()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 60, in get_context_data
+    indicadores = Cliente.objects.all(usuario=self.request.user)
+TypeError: BaseManager.all() got an unexpected keyword argument 'usuario'
+"GET /listagem-clientes/ HTTP/1.1" 500 85082
+"GET /listagem-clientes/ HTTP/1.1" 500 85082
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 505, in parse
+    compile_func = self.tags[command]
+KeyError: 'endfor'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 220, in _get_response
+    response = response.render()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 114, in render
+    self.content = self.rendered_content
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 90, in rendered_content
+    template = self.resolve_template(self.template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 72, in resolve_template
+    return select_template(template, using=self.using)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loader.py", line 42, in select_template
+    return engine.get_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/backends/django.py", line 33, in get_template
+    return Template(self.engine.get_template(template_name), self)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 175, in get_template
+    template, origin = self.find_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 157, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/base.py", line 28, in get_template
+    return Template(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 200, in compile_nodelist
+    return parser.parse()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 853, in do_for
+    nodelist_loop = parser.parse(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 953, in do_if
+    nodelist = parser.parse(("elif", "else", "endif"))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 507, in parse
+    self.invalid_block_tag(token, command, parse_until)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 558, in invalid_block_tag
+    raise self.error(
+django.template.exceptions.TemplateSyntaxError: Invalid block tag on line 191: 'endfor', expected 'elif', 'else' or 'endif'. Did you forget to register or load this tag?
+Internal Server Error: /listagem-clientes/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 505, in parse
+    compile_func = self.tags[command]
+KeyError: 'endfor'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 220, in _get_response
+    response = response.render()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 114, in render
+    self.content = self.rendered_content
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 90, in rendered_content
+    template = self.resolve_template(self.template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/response.py", line 72, in resolve_template
+    return select_template(template, using=self.using)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loader.py", line 42, in select_template
+    return engine.get_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/backends/django.py", line 33, in get_template
+    return Template(self.engine.get_template(template_name), self)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 175, in get_template
+    template, origin = self.find_template(template_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/engine.py", line 157, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/loaders/base.py", line 28, in get_template
+    return Template(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 200, in compile_nodelist
+    return parser.parse()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 853, in do_for
+    nodelist_loop = parser.parse(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/defaulttags.py", line 953, in do_if
+    nodelist = parser.parse(("elif", "else", "endif"))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 507, in parse
+    self.invalid_block_tag(token, command, parse_until)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/template/base.py", line 558, in invalid_block_tag
+    raise self.error(
+django.template.exceptions.TemplateSyntaxError: Invalid block tag on line 191: 'endfor', expected 'elif', 'else' or 'endif'. Did you forget to register or load this tag?
+"GET /listagem-clientes/ HTTP/1.1" 500 247260
+"GET /listagem-clientes/ HTTP/1.1" 500 247260
+Internal Server Error: /qtds_mensalidades/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+TypeError: CarregarQuantidadesMensalidades() missing 1 required positional argument: 'request'
+Internal Server Error: /qtds_mensalidades/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+TypeError: CarregarQuantidadesMensalidades() missing 1 required positional argument: 'request'
+"GET /qtds_mensalidades/?cliente_id=218 HTTP/1.1" 500 60170
+"GET /qtds_mensalidades/?cliente_id=218 HTTP/1.1" 500 60170
+Internal Server Error: /qtds_mensalidades/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 45, in get
+    mensalidades_canceladas = Mensalidade.objects.filter(usuario=self.request.user, cancelado=True, dt_cancelamento=True, cliente=cliente)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1448, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1275, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 27, in __init__
+    self.rhs = self.get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 341, in get_prep_lookup
+    return super().get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 85, in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1464, in get_prep_value
+    return self.to_python(value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1420, in to_python
+    parsed = parse_date(value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/dateparse.py", line 74, in parse_date
+    return datetime.date.fromisoformat(value)
+TypeError: fromisoformat: argument must be str
+Internal Server Error: /qtds_mensalidades/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 45, in get
+    mensalidades_canceladas = Mensalidade.objects.filter(usuario=self.request.user, cancelado=True, dt_cancelamento=True, cliente=cliente)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1448, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1275, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 27, in __init__
+    self.rhs = self.get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 341, in get_prep_lookup
+    return super().get_prep_lookup()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/lookups.py", line 85, in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1464, in get_prep_value
+    return self.to_python(value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1420, in to_python
+    parsed = parse_date(value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/dateparse.py", line 74, in parse_date
+    return datetime.date.fromisoformat(value)
+TypeError: fromisoformat: argument must be str
+"GET /qtds_mensalidades/?cliente_id=218 HTTP/1.1" 500 145475
+"GET /qtds_mensalidades/?cliente_id=218 HTTP/1.1" 500 145475
