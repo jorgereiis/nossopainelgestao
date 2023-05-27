@@ -4,6 +4,7 @@ from .views import (
     Login,
     pagar_mensalidade,
     cancelar_cliente,
+    reativar_cliente,
     TabelaDashboard,
     CadastroCliente,
     ImportarClientes,
@@ -27,12 +28,12 @@ from .views import (
 
 urlpatterns = [
     ############ Authentication ###########
-    path("", auth_views.LoginView.as_view(template_name="login.html"), name="login"),
+    path("", Login.as_view(), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
 
     ############ List and Dashboard ###########
     path("dashboard/", TabelaDashboard.as_view(), name="dashboard"),
-    path("listagem-clientes/", ListaClientes, name="listagem-clientes"),
+    path("listagem-clientes/", ListaClientes.as_view(), name="listagem-clientes"),
     path("pagar-mensalidade/<int:mensalidade_id>/", pagar_mensalidade, name="pagar-mensalidade"),
     path("cancelar-cliente/<int:cliente_id>/", cancelar_cliente, name="cancelar-cliente"),
 
@@ -50,6 +51,7 @@ urlpatterns = [
     path('editar-servidor/<int:servidor_id>/', EditarServidor, name='editar-servidor'),
     path("editar-aplicativo/<int:aplicativo_id>/", EditarAplicativo,name="editar-aplicativo"),
     path("editar-dispositivo/<int:dispositivo_id>/", EditarDispositivo, name="editar-dispositivo"),
+    path("reativar-cliente/<int:cliente_id>/", reativar_cliente, name="reativar-cliente" ),
     
     ########## Delete ###########
     path('deletar-servidor/<int:pk>/', DeleteServidor, name='deletar_servidor'),

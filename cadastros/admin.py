@@ -42,7 +42,6 @@ class ClienteAdmin(admin.ModelAdmin):
     search_fields = (
         'nome',
         'telefone',
-        "usuario",
     )
 
 
@@ -67,7 +66,7 @@ class MensalidadeAdmin(admin.ModelAdmin):
         "usuario",
     )
 
-    search_fields = ('cliente__nome', "usuario")
+    search_fields = ("cliente__nome",)
 
 
 class PlanoAdmin(admin.ModelAdmin):

@@ -175,6 +175,7 @@
                           <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
                             onmouseout="this.style.color=''">{{plano.valor}}</h5>
                         </td>
+                        
                         <!-- Dropdown da tabela -->
                         <td>
                           <div class="dropdown">
@@ -182,7 +183,7 @@
                               id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
                               <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
                             </button>
-                            <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
+                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
                               <li>
                                 <button class="dropdown-item" data-servidor="{{plano.id}}" data-nome="{{plano.nome}}"
                                   data-valor="{{plano.valor}}" onclick="exibirModalEdicao(this)">Editar</button>
