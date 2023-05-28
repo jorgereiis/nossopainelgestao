@@ -193,8 +193,8 @@ LOGGING = {
             'propagate': True,
         },
         'django.request': {
-            'handlers': ['file', 'access_file'],  # Adicionando o novo handler 'access_file' para registrar os acessos
-            'level': 'INFO',  # Definindo o nível de log como INFO para registrar todos os acessos
+            'handlers': ['file', 'access_file'],
+            'level': 'INFO',
             'propagate': False,
         },
     },
