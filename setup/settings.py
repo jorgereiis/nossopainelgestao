@@ -162,17 +162,28 @@ LOGGING = {
     'disable_existing_loggers': False,
     'handlers': {
         'file': {
-            'class': 'logging.handlers.RotatingFileHandler',  # Usando RotatingFileHandler para limitar o tamanho dos logs
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': 'logs/errors.log',
-            'maxBytes': 1024 * 1024 * 5,  # Tamanho máximo do arquivo de log (5 MB)
-            'backupCount': 5,  # Quantidade de arquivos de log a serem mantidos
-            'formatter': 'verbose',  # Usando o formato 'verbose' definido abaixo
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'access_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': 'logs/access.log',
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 5,
+            'formatter': 'access',
         },
     },
     'formatters': {
         'verbose': {
-            'format': '[%(asctime)s] [%(levelname)s] %(module)s - %(message)s',  # Incluindo data/hora, nível do log, módulo e mensagem
-            'datefmt': '%Y-%m-%d %H:%M:%S',  # Formato da data/hora
+            'format': '[%(asctime)s] [%(levelname)s] %(module)s - %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+        'access': {
+            'format': '[%(asctime)s] %(remote_addr)s %(user)s %(request)s %(status_code)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
         },
     },
     'loggers': {
@@ -181,10 +192,16 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': True,
         },
+        'django.request': {
+            'handlers': ['file', 'access_file'],  # Adicionando o novo handler 'access_file' para registrar os acessos
+            'level': 'INFO',  # Definindo o nível de log como INFO para registrar todos os acessos
+            'propagate': False,
+        },
     },
     'root': {
         'handlers': ['file'],
-        'level': 'INFO',  # Definindo o nível de log para INFO no nível raiz
+        'level': 'INFO',
     },
 }
+
 
