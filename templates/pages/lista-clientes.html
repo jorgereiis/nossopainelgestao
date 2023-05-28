@@ -244,6 +244,7 @@
                                             <label for="edit-cliente-indicador_por">Indicado por</label>
                                             <div class="input-group">
                                               <select class="form-control" id="edit-cliente-indicado_por" name="indicado_por">
+                                                <option value="">Selecione um cliente indicador</option>
                                                 {% for indicador in indicadores %}
                                                 <option value="{{ indicador.nome }}">{{ indicador.nome }}</option>
                                                 {% endfor %}
@@ -256,6 +257,7 @@
                                             <label for="edit-cliente-servidor">Servidor</label>
                                             <div class="input-group">
                                             <select class="form-control" id="edit-cliente-servidor" name="servidor" required>
+                                                <option value="">Selecione um servidor</option>
                                                 {% for servidor in servidores %}
                                                 <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
                                                 {% endfor %}
@@ -268,6 +270,7 @@
                                             <label for="edit-cliente-forma_pgto">Forma de pagamento</label>
                                             <div class="input-group">
                                             <select class="form-control" id="edit-cliente-forma_pgto" name="forma_pgto" required>
+                                                <option value="">Selecione uma forma de pagamento</option>
                                                 {% for forma_pgto in formas_pgtos %}
                                                 <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
                                                 {% endfor %}
@@ -280,6 +283,7 @@
                                             <label for="edit-cliente-plano">Plano</label>
                                             <div class="input-group">
                                             <select class="form-control" id="edit-cliente-plano" name="plano" required>
+                                                <option value="">Selecione um plano de adesão</option>
                                                 {% for plano in planos %}
                                                 <option value="{{ plano.nome }} - {{ plano.valor }}">{{ plano.nome }} - {{ plano.valor }}</option>
                                                 {% endfor %}
@@ -292,6 +296,7 @@
                                             <label for="edit-cliente-telas">Qtd. telas</label>
                                             <div class="input-group">
                                             <select class="form-control" id="edit-cliente-tela" name="tela" required>
+                                                <option value="">Selecione a quantidade de telas</option>
                                                 {% for tela in telas %}
                                                 <option value="{{ tela.telas }} tela(s)">{{ tela.telas }}</option>
                                                 {% endfor %}
@@ -304,6 +309,7 @@
                                             <label for="edit-cliente-dt_pgto">Dia do pagamento mensal</label>
                                             <div class="input-group">
                                             <select class="form-control" id="edit-cliente-dt_pgto" name="dt_pgto" required>
+                                                <option value="">Informe o dia do pagamento</option>
                                                 {% for x in range %}
                                                 <option value="{{ x }}">{{ x }}</option>
                                                 {% endfor %}
@@ -316,6 +322,7 @@
                                             <label for="edit-cliente-dispositivo">Dispositivo</label>
                                             <div class="input-group">
                                             <select class="form-control" id="edit-cliente-dispositivo" name="dispositivo" required>
+                                                <option value="">Selecione um dispositivo</option>
                                                 {% for dispositivo in dispositivos %}
                                                 <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
                                                 {% endfor %}
@@ -328,6 +335,7 @@
                                             <label for="edit-cliente-aplicativo">Aplicativo</label>
                                             <div class="input-group">
                                             <select class="form-control" id="edit-cliente-aplicativo" name="aplicativo" required>
+                                                <option value="">Selecione um aplicativo</option>
                                                 {% for aplicativo in aplicativos %}
                                                 <option value="{{ aplicativo.nome }}">{{ aplicativo.nome }}</option>
                                                 {% endfor %}
@@ -338,7 +346,7 @@
                                         <div class="form-group">
                                             <label for="edit-cliente-notas">Anotações</label>
                                             <div class="input-group">
-                                                <textarea type="text" class="form-control" id="edit-cliente-notas" name="notas" cols="5" rows="3"></textarea>
+                                                <textarea type="text" class="form-control" id="edit-cliente-notas" name="notas" cols="5" rows="3" placeholder="Detalhes adicionais sobre o cliente..."></textarea>
                                             </div>
                                         </div>
                                         <input type="hidden" name="cliente_id" id="cliente-id">
@@ -391,7 +399,7 @@
                                                 {% else %}
                                                 <td class="text-capitalize text-center" style="max-width: 10px;"><span class="badge bg-info">Ativo</span></td>
                                                 <td class="text-center">
-                                                    <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" data-id="{{cliente.id}}" data-nome="{{cliente.nome}}" data-telefone="{{cliente.telefone}}" data-indicado_por="{{cliente.indicado_por}}" data-servidor="{{cliente.servidor}}" data-forma_pgto="{{cliente.forma_pgto}}" data-plano="{{cliente.plano}}" data-telas="{{cliente.telas}}" data-data_pagamento="{{cliente.data_pagamento}}" data-dispositivo="{{cliente.dispositivo}}" data-aplicativo="{{cliente.sistema}}" data-notas="{{cliente.notas}}" data-data_adesao="{{cliente.data_adesao}}" onclick="exibirModalDetalhes(this)">
+                                                    <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" data-id="{{cliente.id}}" data-nome="{{cliente.nome}}" data-telefone="{{cliente.telefone}}" data-indicado_por="{{cliente.indicado_por}}" data-servidor="{{cliente.servidor}}" data-forma_pgto="{{cliente.forma_pgto}}" data-plano="{{cliente.plano}}" data-telas="{{cliente.telas}}" data-data_pagamento="{{cliente.data_pagamento}}" data-dispositivo="{{cliente.dispositivo}}" data-aplicativo="{{cliente.sistema}}" data-notas="{{cliente.notas}}" data-data_adesao="{{cliente.data_adesao}}" data-ultimo_pagamento="{{cliente.ultimo_pagamento|date:'d/m/Y'}}"  onclick="exibirModalDetalhes(this)">
                                                     <i class="bi bi-info-square"></i>
                                                     </button>
                                                     <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" data-id="{{cliente.id}}" data-nome="{{cliente.nome}}" data-telefone="{{cliente.telefone}}" data-indicado_por="{{cliente.indicado_por}}" data-servidor="{{cliente.servidor}}" data-forma_pgto="{{cliente.forma_pgto}}" data-plano="{{cliente.plano.nome}} - {{cliente.plano.valor}}" data-telas="{{cliente.telas}}" data-data_pagamento="{{cliente.data_pagamento}}" data-dispositivo="{{cliente.dispositivo}}" data-aplicativo="{{cliente.sistema}}" data-notas="{{cliente.notas}}" onclick="exibirModalEdicao(this)">
