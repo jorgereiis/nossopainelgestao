@@ -49,7 +49,7 @@
                     {% csrf_token %}
                     <div class="mb-3 row">
                       <label for="fullName" class="col-sm-4 col-form-label
-                          form-label">Nome completo</label>
+                          form-label">Nome completo <span class="text-danger">*</span></label>
                       <div class="col-sm-4 mb-3 mb-lg-0">
                         <input type="text" class="form-control" placeholder="Nome" id="nome" name="nome"
                           autocomplete="off" required>
@@ -61,9 +61,9 @@
                     </div>
                     <div class="mb-3 row">
                       <label for="telefone" class="col-sm-4 col-form-label
-                          form-label">Telefone</label>
+                          form-label">Telefone <span class="text-danger">*</span></label>
                       <div class="col-md-8 col-12">
-                        <input type="text" class="form-control" placeholder="Telefone" id="telefone" name="telefone"
+                        <input type="text" class="form-control" placeholder="Informe um número de telefone" id="telefone" name="telefone"
                           autocomplete="off" minlength="12" maxlength="15" required>
                       </div>
                     </div>
@@ -72,7 +72,7 @@
                       <label for="indicado_por" class="col-sm-4 col-form-label
                               form-label">Indicado por</label>
                       <div class="col-md-8 col-12">
-                        <input type="text" class="form-control" placeholder="Indicado por" id="indicado_por"
+                        <input type="text" class="form-control" placeholder="Selecione um cliente indicador" id="indicado_por"
                           list="indicador-options" name="indicador_list" autocomplete="off">
                       </div>
                       <!-- Definindo o datalist -->
@@ -85,9 +85,10 @@
                     <!-- row -->
                     <div class="mb-3 row">
                       <label for="servidor" class="col-sm-4 col-form-label
-                          form-label">Servidor</label>
+                          form-label">Servidor <span class="text-danger">*</span></label>
                       <div class="col-md-8 col-12">
                         <select class="form-select" id="servidor" name="servidor" required>
+                          <option value="">Selecione um servidor</option>
                           {% for servidor in servidores %}
                           <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
                           {% endfor %}
@@ -97,9 +98,10 @@
                     <!-- row -->
                     <div class="mb-3 row">
                       <label for="forma_pgto" class="col-sm-4 col-form-label
-                          form-label">Forma de pagamento</label>
+                          form-label">Forma de pagamento <span class="text-danger">*</span></label>
                       <div class="col-md-8 col-12">
                         <select class="form-select" id="forma_pgto" name="forma_pgto" required>
+                          <option value="">Selecione uma forma de pagamento</option>
                           {% for forma_pgto in formas_pgtos %}
                           <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
                           {% endfor %}
@@ -109,9 +111,10 @@
                     <!-- row -->
                     <div class="mb-3 row">
                       <label for="plano" class="col-sm-4 col-form-label
-                          form-label">Planos</label>
+                          form-label">Planos <span class="text-danger">*</span></label>
                       <div class="col-md-8 col-12">
                         <select class="form-select" id="plano" name="plano" required>
+                          <option value="">Selecione um plano de adesão</option>
                           {% for plano in planos %}
                           <option value="{{ plano.nome }}-{{plano.valor}}">{{ plano.nome }} - {{ plano.valor }}</option>
                           {% endfor %}
@@ -121,10 +124,11 @@
                     <!-- row -->
                     <div class="mb-3 row">
                       <label for="telas" class="col-sm-4 col-form-label
-                          form-label">Qtd. telas</label>
+                          form-label">Qtd. telas <span class="text-danger">*</span></label>
 
                       <div class="col-md-8 col-12">
                         <select class="form-select" id="telas" name="telas" required>
+                          <option value="">Selecione a quantidade de telas</option>
                           {% for tela in telas %}
                           <option value="{{ tela.telas }}">{{ tela.telas }}</option>
                           {% endfor %}
@@ -133,20 +137,21 @@
                     </div>
                     <!-- row -->
                     <div class="mb-3 row">
-                      <label for="data_pagamento" class="col-sm-4 col-form-label form-label">Data de pagamento mensal
-                        <span class="text-muted"></span></label>
+                      <label for="data_pagamento" class="col-sm-4 col-form-label form-label">Dia de pagamento mensal
+                         <span class="text-danger">*</span></label>
                       <div class="col-md-8 col-12">
-                        <input type="number" class="form-control" placeholder="Dia" id="data_pagamento" min="1" max="31"
+                        <input type="number" class="form-control" placeholder="Informe o dia do pagamento" id="data_pagamento" min="1" max="31"
                           name="data_pagamento">
                       </div>
                     </div>
                     <!-- row -->
                     <div class="mb-3 row">
                       <label for="dispositivo" class="col-sm-4 col-form-label
-                          form-label">Dispositivo</label>
+                          form-label">Dispositivo <span class="text-danger">*</span></label>
 
                       <div class="col-md-8 col-12">
                         <select class="form-select" id="dispositivo" name="dispositivo" required>
+                          <option value="">Selecione um dispositivo</option>
                           {% for dispositivo in dispositivos %}
                           <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
                           {% endfor %}
@@ -156,9 +161,10 @@
                     <!-- row -->
                     <div class="mb-3 row" id="teste">
                       <label for="aplicativo" class="col-sm-4 col-form-label
-                          form-label">Aplicativo</label>
+                          form-label">Aplicativo <span class="text-danger">*</span></label>
                       <div class="col-md-8 col-12">
                         <select class="form-select" id="sistema" name="sistema" required>
+                          <option value="">Selecione um aplicativo</option>
                           {% for sistema in sistemas %}
                           <option value="{{ sistema.nome }}">{{ sistema.nome }}</option>
                           {% endfor %}
@@ -170,7 +176,7 @@
                       <label for="notas" class="col-sm-4 col-form-label form-label">Anotações
                         <span class="text-muted"></span></label>
                       <div class="col-md-8 col-12">
-                        <textarea type="text" class="form-control" placeholder="Detalhes sobre o cliente..." id="notas"
+                        <textarea type="text" class="form-control" placeholder="Detalhes adicionais sobre o cliente..." id="notas"
                           name="notas"></textarea>
                       </div>
                     </div>
