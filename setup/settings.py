@@ -162,14 +162,17 @@ LOGGING = {
     'disable_existing_loggers': False,
     'handlers': {
         'file': {
-            'class': 'logging.FileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',  # Usando RotatingFileHandler para limitar o tamanho dos logs
             'filename': 'logs/errors.log',
+            'maxBytes': 1024 * 1024 * 5,  # Tamanho máximo do arquivo de log (5 MB)
+            'backupCount': 5,  # Quantidade de arquivos de log a serem mantidos
+            'formatter': 'verbose',  # Usando o formato 'verbose' definido abaixo
         },
     },
     'formatters': {
-        'django.server': {
-            '()': 'django.utils.log.ServerFormatter',
-            'format': '[%(server_time)s] %(message)s',
+        'verbose': {
+            'format': '[%(asctime)s] [%(levelname)s] %(module)s - %(message)s',  # Incluindo data/hora, nível do log, módulo e mensagem
+            'datefmt': '%Y-%m-%d %H:%M:%S',  # Formato da data/hora
         },
     },
     'loggers': {
@@ -180,7 +183,8 @@ LOGGING = {
         },
     },
     'root': {
-    'handlers': ['file'],
-    'level': 'DEBUG',
+        'handlers': ['file'],
+        'level': 'INFO',  # Definindo o nível de log para INFO no nível raiz
     },
 }
+
