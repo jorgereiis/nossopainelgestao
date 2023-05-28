@@ -5,6 +5,10 @@
 backup
 notes.txt
 bkp
+log/
+log
+logs/
+logs
 
 ### Django ###
 *.log
