@@ -37896,5 +37896,33 @@ div.code-toolbar > .toolbar > .toolbar-item > span:hover, div.code-toolbar > .to
   content: "#";
 }
 .heading-permalink:hover:before {
-  color: #624bff;
+  color: #f1f1f1;
 }
+
+/* Estilização da barra de rolagem */
+/* Estilização para navegadores Webkit (Chrome, Safari, Opera) */
+::-webkit-scrollbar {
+  width: 8px; /* Largura da barra de rolagem */
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #888; /* Cor de fundo da barra de rolagem */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #f1f1f1; /* Cor do controle de rolagem */
+  border-radius: 5px; /* Raio de borda do controle de rolagem */
+  transition: background-color 0.3s; /* Transição suave da cor de fundo */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #9487FD; /* Cor do controle de rolagem ao passar o mouse */
+}
+
+/* Estilização para navegadores Firefox */
+/* Aplique os estilos diretamente na barra de rolagem */
+/* O Firefox não suporta pseudo-elementos (::) para a barra de rolagem */
+scrollbar-width: thin;
+scrollbar-color: #f1f1f1 #888;
+

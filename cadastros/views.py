@@ -48,21 +48,18 @@ class CarregarQuantidadesMensalidades(View):
         for mensalidade in mensalidades_pagas:
             
             if mensalidade.cliente.id == cliente.id:
-                print('Mensal. paga: ', mensalidade)
                 qtd_mensalidades_pagas += 1
 
         qtd_mensalidades_pendentes = 0
         for mensalidade in mensalidades_pendentes:
 
             if mensalidade.cliente.id == cliente.id:
-                print('Mensal. pendente: ', mensalidade)
                 qtd_mensalidades_pendentes += 1
 
         qtd_mensalidades_canceladas = 0
         for mensalidade in mensalidades_canceladas:
 
             if mensalidade.cliente.id == cliente.id:
-                print('Mensal. cancel: ', mensalidade)
                 qtd_mensalidades_canceladas += 1
 
         data = {'qtd_mensalidades_pagas': qtd_mensalidades_pagas, 'qtd_mensalidades_pendentes': qtd_mensalidades_pendentes, 'qtd_mensalidades_canceladas': qtd_mensalidades_canceladas}
@@ -127,7 +124,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
     login_url = "login"
     model = Cliente
     template_name = "dashboard.html"
-    paginate_by = 15
+    paginate_by = 10
 
 
     # QUERY PARA O CAMPO DE PESQUISA DO DASHBOARD
