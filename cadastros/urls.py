@@ -25,6 +25,7 @@ from .views import (
     EditarCliente,
     ListaClientes,
     CarregarQuantidadesMensalidades,
+    CarregarContasDoAplicativo,
     Teste,
 )
 
@@ -66,4 +67,5 @@ urlpatterns = [
     ########## Others ###########
     path("teste/", Teste, name="teste"),
     path("qtds_mensalidades/", CarregarQuantidadesMensalidades.as_view()),
+    path("contas_apps/", CarregarContasDoAplicativo.as_view()),
 ]

@@ -162,8 +162,19 @@ class Cliente(models.Model):
                     mensalidade.save()
 
     def formatar_telefone(self):
-        if not self.telefone.startswith("55"):
-            self.telefone = "55" + self.telefone
+        self.telefone = self.telefone.replace('(', '').replace(')', '').replace(' ', '').replace('-', '')  # Remove caracteres especiais
+
+        if len(self.telefone) > 13:
+            self.telefone = self.telefone[:13]  # Reduz o tamanho para 13 dígitos
+
+        if self.telefone.startswith('55'):
+            self.telefone = self.telefone[2:]  # Remove o prefixo '55' do início do número
+
+        if len(self.telefone) == 10:  # Formato (00) 0000-0000
+            self.telefone = self.telefone[:2] + '9' + self.telefone[2:]  # Adiciona o dígito 9 após os dois primeiros dígitos
+
+        if len(self.telefone) == 11:  # Formato (00) 00000-0000
+            self.telefone = '(' + self.telefone[:2] + ') ' + self.telefone[2:6] + '-' + self.telefone[6:]
 
     def __str__(self):
         return self.nome

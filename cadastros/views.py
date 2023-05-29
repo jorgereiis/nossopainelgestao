@@ -4,12 +4,14 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models.deletion import ProtectedError
-from django.contrib.auth.views import LoginView, PasswordResetView
 from django.core.exceptions import ValidationError
+from django.contrib.auth.views import LoginView
 from django.views.generic.list import ListView
+from django.forms.models import model_to_dict
+from django.core.serializers import serialize
 from babel.numbers import format_currency
 from .models import definir_dia_pagamento
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.db import transaction
@@ -20,9 +22,10 @@ from datetime import datetime
 from django.views import View
 from .forms import LoginForm
 import pandas as pd
+import operator
+import logging
 import json
 import time
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +37,36 @@ class Login(LoginView):
     form_class = LoginForm
 
 ############################################ LIST VIEW ############################################
+
+class CarregarContasDoAplicativo(View):
+    def get(self, request):
+        id = self.request.GET.get("cliente_id")
+        cliente = Cliente.objects.get(id=id)
+        conta_app = ContaDoAplicativo.objects.filter(cliente=cliente, usuario=self.request.user).select_related('app')
+
+        # Cria uma lista para armazenar as contas de aplicativo serializadas
+        conta_app_json = []
+
+        # Itera sobre as contas de aplicativo
+        for conta in conta_app:
+            # Obtém o nome do aplicativo
+            nome_aplicativo = conta.app.nome
+
+            # Serializa a conta de aplicativo em um dicionário Python
+            conta_json = model_to_dict(conta)
+
+            # Adiciona o nome do aplicativo ao dicionário
+            conta_json['nome_aplicativo'] = nome_aplicativo
+
+            # Adiciona a conta de aplicativo serializada à lista
+            conta_app_json.append(conta_json)
+
+            # Ordena a lista de contas de aplicativo pelo nome do aplicativo
+            conta_app_json = sorted(conta_app_json, key=operator.itemgetter('nome_aplicativo'))
+
+        # Retorna a lista de contas de aplicativo como resposta JSON
+        return JsonResponse({"conta_app": conta_app_json}, safe=False)
+
 
 class CarregarQuantidadesMensalidades(View):
     def get(self, request):
@@ -639,21 +672,22 @@ def ImportarClientes(request):
             i=0
             for dado in lista_de_objetos:
                 i+=1
-                servidor_import = str(dado['servidor']).replace(" ", "") if str(dado['servidor']) != 'nan' else None
-                dispositivo_import = str(dado['dispositivo']) if str(dado['dispositivo']) != 'nan' else None
-                sistema_import = str(dado['sistema']) if str(dado['sistema']) != 'nan' else None
-                device_id_import = str(dado['device_id']).replace(" ", "") if str(dado['device_id']) != 'nan' else None
-                email_import = str(dado['email']).replace(" ", "") if str(dado['email']) != 'nan' else None
+
+                servidor_import = str(dado['servidor']).replace(" ", "") if not pd.isna(dado['servidor']) else None
+                dispositivo_import = str(dado['dispositivo']) if not pd.isna(dado['dispositivo']) else None
+                sistema_import = str(dado['sistema']) if not pd.isna(dado['sistema']) else None
+                device_id_import = str(dado['device_id']).replace(" ", "") if not pd.isna(dado['device_id']) else None
+                email_import = str(dado['email']).replace(" ", "") if not pd.isna(dado['email']) else None
                 device_key_import = str(dado['device_key']).replace(" ", "").split('.')[0] if '.' in str(dado['device_key']) else None
-                nome_import = str(dado['nome']).title() if str(dado['nome']) != 'nan' else None
-                telefone_import = str(dado['telefone']).replace(" ", "") if str(dado['telefone']) != 'nan' else None
-                indicado_por_import = str(dado['indicado_por']) if str(dado['indicado_por']) != 'nan' else None
-                data_pagamento_import = int(dado['data_pagamento']) if dado['data_pagamento'] != 'nan' else None
-                forma_pgto_import = str(dado['forma_pgto']) if str(dado['forma_pgto']) != 'nan' else 'PIX'
-                tipo_plano_import = str(dado['tipo_plano']).replace(" ", "").title() if str(dado['tipo_plano']) != 'nan' else None
-                plano_valor_import = int(dado['plano_valor']) if str(dado['plano_valor']) != 'nan' else None
-                telas_import = str(dado['telas']).replace(" ", "") if str(dado['telas']) != 'nan' else None
-                data_adesao_import = dado['data_adesao'] if dado['data_adesao'] != 'nan' else None
+                nome_import = str(dado['nome']).title() if not pd.isna(dado['nome']) else None
+                telefone_import = str(dado['telefone']).replace(" ", "") if not pd.isna(dado['telefone']) else None
+                indicado_por_import = str(dado['indicado_por']) if not pd.isna(dado['indicado_por']) else None
+                data_pagamento_import = int(dado['data_pagamento']) if not pd.isna(dado['data_pagamento']) else None
+                forma_pgto_import = str(dado['forma_pgto']) if not pd.isna(dado['forma_pgto']) else 'PIX'
+                tipo_plano_import = str(dado['tipo_plano']).replace(" ", "").title() if not pd.isna(dado['tipo_plano']) else None
+                plano_valor_import = int(dado['plano_valor']) if not pd.isna(dado['plano_valor']) else None
+                telas_import = str(dado['telas']).replace(" ", "") if not pd.isna(dado['telas']) else None
+                data_adesao_import = dado['data_adesao'] if not pd.isna(dado['data_adesao']) else None
 
                 if (servidor_import is None) or (dispositivo_import is None) or (sistema_import is None) or (nome_import is None) or (telefone_import is None) or (data_adesao_import is None) or (forma_pgto_import is None) or (plano_valor_import is None) or (tipo_plano_import is None):
                     num_linhas_nao_importadas += 1

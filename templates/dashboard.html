@@ -26,6 +26,7 @@
                                 <div class="mb-2 mb-lg-0">
                                     <h2 class="mb-0  text-white">Dashboard <i class="bi bi-eye" id="eye"></i></h2>
                                 </div>
+
                                 <!-- Dropdown Opções -->
                                 <div class="btn-group">
                                     <div class="dropdown">
@@ -56,6 +57,7 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card -->
                         <div class="card ">
@@ -70,6 +72,7 @@
                                         <img class="bi bi-people fs-4" src="">
                                     </div>
                                 </div>
+
                                 <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold values1_h1">{{total_clientes}}</h1>
@@ -86,6 +89,7 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card -->
                         <div class="card ">
@@ -100,6 +104,7 @@
                                         <img class="bi bi-wallet2 fs-4" src="">
                                     </div>
                                 </div>
+
                                 <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold values2_h1">{{valor_total_pago}}</h1>
@@ -111,6 +116,7 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card -->
                         <div class="card ">
@@ -125,6 +131,7 @@
                                         <img class="bi bi-cash-coin fs-4" src="">
                                     </div>
                                 </div>
+
                                 <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold values3_h1">{{valor_total_receber}}</h1>
@@ -141,8 +148,8 @@
                                 </div>
                             </div>
                         </div>
-
                     </div>
+
                     <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card -->
                         <div class="card">
@@ -157,6 +164,7 @@
                                         <img class="bi bi-graph-up-arrow fs-4" src="">
                                     </div>
                                 </div>
+
                                 <!-- project number -->
                                 <div class="d-flex">
                                     <div style="display: flex; flex-direction: column; mr-0">
@@ -229,6 +237,97 @@
                     </div>
                 </div>
 
+                <!-- Modal de exibir informações do cliente -->
+                <div class="modal fade" id="info-cliente-modal" tabindex="-1" role="dialog" aria-labelledby="info-cliente-label">
+                    <div class="modal-dialog modal-dialog-scrollable modal-xl custom-modal-dialog" role="document">
+                        <div class="modal-content position-relative px-7 py-4" id="modal-info-content">
+                            <div class="modal-header" id="modal-info-header">
+                                <div class="modal-title d-flex w-100 justify-content-between align-items-center">
+                                    <h1 class="fw-bold d-flex align-items-center mb-0 h2" id="info-cliente-label">
+                                        <span id="info-cliente-nome"></span>
+                                    </h1>
+                                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
+                                </div>
+                            </div>
+                            <div class="custom-div">
+                                <p id="info-cliente-data_adesao"></p>
+                            </div>
+                            <div class="modal-body" id="modal-info-body">
+                                <div class="d-flex flex-column">
+                                    <h4 class="fw-bold mb-4 mt-4">Dados do cliente</h4>
+                                    <div class="row mb-4">
+                                        <div class="col-sm-12">
+                                            <span class="fs-9 text-muted">Telefone</span>
+                                            <div class="fs-8" id="info-cliente-telefone"></div>
+                                            <div class="fs-8"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row no-gutters mb-4">
+                                        <div class="col-4">
+                                            <span class="fs-9 text-muted">Servidor</span>
+                                            <div class="fs-8" id="info-cliente-servidor"></div>
+                                        </div>
+                                        <div class="col-5">
+                                            <span class="fs-9 text-muted">Dispositivo</span>
+                                            <div class="fs-8" id="info-cliente-dispositivo"></div>
+                                        </div>
+                                        <div class="col-3">
+                                            <span class="fs-9 text-muted">Aplicativo</span>
+                                            <div class="fs-8" id="info-cliente-aplicativo"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-4">
+                                        <div class="col-4">
+                                            <span class="fs-9 text-muted">Data de pagamento</span>
+                                            <div class="fs-8" id="info-cliente-data_pagamento"></div>
+                                        </div>
+                                        <div class="col-5">
+                                            <span class="fs-9 text-muted">Plano de adesão</span>
+                                            <div class="fs-8 text-break" id="info-cliente-plano"></div>
+                                        </div>
+                                        <div class="col-3">
+                                            <span class="fs-9 text-muted">Qtd. de telas</span>
+                                            <div class="fs-8" id="info-cliente-tela"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-4">
+                                        <div class="col-4">
+                                            <span class="fs-9 text-muted">Forma de pagamento</span>
+                                            <div class="fs-8" id="info-cliente-forma_pgto"></div>
+                                        </div>
+                                        <div class="col-5">
+                                            <span class="fs-9 text-muted">Último pagamento</span>
+                                            <div class="fs-8 text-break" id="info-cliente-ultimo_pgto"></div>
+                                        </div>
+                                        <div class="col-3">
+                                            <span class="fs-9 text-muted">Indicado por</span>
+                                            <div class="fs-8" id="info-cliente-indicado_por"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <span class="fs-9 text-muted">Notas</span>
+                                            <div class="fs-8" id="info-cliente-notas"></div>
+                                            <div class="fs-8"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-column">
+                                    <div>
+                                        <h4 class="fw-bold mb-4 mt-4">Contas dos aplicativos</h4>
+                                    </div>
+                                    <div class="d-flex charge-summary gap-3 charge-summary-max-width">
+                                        <!-- Os elementos das contas de aplicativos serão adicionados dinamicamente aqui -->
+                                    </div>
+                                    <div class="flex-column texto-aqui">
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- row  -->
                 <div class="row mt-6">
                     <div class="col-md-12 col-12">
@@ -246,6 +345,7 @@
                                 <option value="50"{% if page_obj.paginator.per_page == 50 %} selected{% endif %}>50</option>
                                 </select>
                             </div>
+
                             <!-- campo de pesquisa  -->
                             <form method="GET">
                                 <div class="input-group mb-3 card-header bg-white py-4">
@@ -256,6 +356,7 @@
                                         id="button-pesquisar">Buscar</button>
                                 </div>
                             </form>
+
                             <!-- TABELA  -->
                             <div class="table-responsive">
                                 <table class="table text-nowrap mb-0 table-hover" id="myTable">
@@ -270,12 +371,12 @@
                                             <th colspan="1"></th>
                                         </tr>
                                     </thead>
+
                                     <tbody>
                                         {% for cliente in object_list %}
                                         <!-- COMEÇO DA LINHA -->
                                         <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent align-middle">
-                                            <td class="dtr-control align-middle" style="cursor: pointer;"
-                                                id="DETALHES-{{ forloop.counter }}">
+                                            <td class="dtr-control align-middle">
                                                 <div class="d-flex align-items-center">
                                                     <div>
                                                         <div class="icon-shape icon-md border p-1 rounded-circle">
@@ -308,6 +409,7 @@
                                             <td class="align-middle text-primary text-center"><span
                                                     class="badge bg-info">{{ mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
                                             {% endif %}
+
                                             <!-- Dropdown da tabela -->
                                             <td>
                                                 <div class="dropdown dropend">
@@ -320,92 +422,51 @@
                                                     </button>
                                                     <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
                                                         <li>
-                                                            <button class="dropdown-item"
-                                                                data-mensalidade="{{mensalidade.id}}"
-                                                                data-nome="{{cliente.nome}}"
-                                                                onclick="exibirModalConfirmacaoPagamento(this)">Pagar
-                                                                mensalidade</button>
+                                                            <button class="dropdown-item" 
+                                                                    data-id="{{cliente.id}}"
+                                                                    data-nome="{{cliente.nome}}"
+                                                                    data-plano="{{cliente.plano}}"
+                                                                    data-telas="{{cliente.telas}}"
+                                                                    data-notas="{{cliente.notas}}"
+                                                                    data-telefone="{{cliente.telefone}}"
+                                                                    data-servidor="{{cliente.servidor}}"
+                                                                    data-aplicativo="{{cliente.sistema}}"
+                                                                    data-forma_pgto="{{cliente.forma_pgto}}"
+                                                                    data-dispositivo="{{cliente.dispositivo}}"
+                                                                    data-data_adesao="{{cliente.data_adesao}}"
+                                                                    data-indicado_por="{{cliente.indicado_por}}"
+                                                                    data-data_pagamento="{{cliente.data_pagamento}}"
+                                                                    data-ultimo_pagamento="{{cliente.ultimo_pagamento|date:'d/m/Y'}}"
+                                                                    data-conta_aplicativo="{{cliente.conta_aplicativo.all}}"
+                                                                    onclick="exibirModalDetalhes(this)">Ver informações
+                                                                </button>
                                                         </li>
                                                         <li>
-                                                            <button class="dropdown-item" data-cliente="{{cliente.id}}"
+                                                            <button class="dropdown-item"
                                                                 data-nome="{{cliente.nome}}"
-                                                                onclick="exibirModalConfirmacaoCancelamento(this)">Cancelar
-                                                                cliente</button>
+                                                                data-mensalidade="{{mensalidade.id}}"
+                                                                onclick="exibirModalConfirmacaoPagamento(this)">Pagar mensalidade
+                                                            </button>
+                                                        </li>
+                                                        <li>
+                                                            <button class="dropdown-item"
+                                                                data-nome="{{cliente.nome}}"
+                                                                data-cliente="{{cliente.id}}"
+                                                                onclick="exibirModalConfirmacaoCancelamento(this)">Cancelar cliente
+                                                            </button>
                                                         </li>
                                                     </ul>
                                                 </div>
                                             </td>
-
                                             {% endif %}
                                             {% endfor %}
-
-                                        </tr>
-                                        <tr class="child" id="exibir-detalhes-{{ forloop.counter }}"
-                                            style="display: none;">
-                                            <td class="child small" colspan="3">
-                                                <ul data-dtr-index="0" class="list-group list-group-flush">
-                                                    <li class="list-group-item" style="list-style-type: armenian;"><span
-                                                            class="title">Telefone:
-                                                        </span><span>{{cliente.telefone}}</span></li>
-                                                    {% if cliente.indicado_por == None %}
-                                                    <li class="list-group-item" style="list-style-type: none;"><span
-                                                            class="title">Indicado por: </span> <span>Ninguém</span>
-                                                    </li>
-                                                    {% else %}
-                                                    <li class="list-group-item" style="list-style-type: none;"><span
-                                                            class="title">Indicado por: </span>
-                                                        <span>{{cliente.indicado_por}}</span>
-                                                    </li>
-                                                    {% endif %}
-                                                    <li class="list-group-item" style="list-style-type: none;"><span
-                                                            class="title">Data de pagamento: </span> <span>Dia
-                                                            {{cliente.data_pagamento}} de cada mês</span></li>
-                                                    <li class="list-group-item" style="list-style-type: none;"><span
-                                                            class="title">Forma de pagamento: </span>
-                                                        <span>{{cliente.forma_pgto}}</span>
-                                                    </li>
-                                                    <li class="list-group-item" style="list-style-type: none;"><span
-                                                            class="title">Plano: </span><span>{{cliente.plano}}</span>
-                                                    </li>
-                                                    <li class="list-group-item" style="list-style-type: none;"><span
-                                                            class="title">Qtd. telas: </span>
-                                                        <span>{{cliente.telas}}</span>
-                                                    </li>
-                                                    {% if cliente.notas == None %}
-                                                    <li class="list-group-item" style="list-style-type: none;"><span
-                                                            class="title">Notas: </span> <span class="mb-10"></span>
-                                                    </li>
-                                                    {% else %}
-                                                    <li class="list-group-item" style="list-style-type: none;"><span
-                                                            class="title">Notas: </span> <span>{{cliente.notas}}</span>
-                                                    </li>
-                                                    {% endif %}
-                                                </ul>
-                                            </td>
-                                            <td class="child small" colspan="4">
-                                                {% for conta in cliente.conta_aplicativo.all %}
-                                                <ul data-dtr-index="0" class="list-group list-group-flush">
-                                                    <li class="list-group-item" style="list-style-type: none;">
-                                                        <span class="title">App: </span><span>{{conta.app}}</span><br>
-                                                        {% if conta.device_id %}
-                                                        <span class="title">Device ID:
-                                                        </span><span>{{conta.device_id}}</span><br>
-                                                        {% else %}
-                                                        <span class="title">E-mail:
-                                                        </span><span>{{conta.email}}</span><br>
-                                                        {% endif %}
-                                                        <span class="title">Device Key:
-                                                        </span><span>{{conta.device_key}}</span>
-                                                    </li>
-                                                </ul>
-                                                {% endfor %}
-                                            </td>
                                         </tr>
                                         <!-- TÉRMINO DA LINHA -->
                                         {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
+
                             <!-- card footer  -->
                             <div class="card-footer bg-white text-center">
                                 <nav aria-label="Page navigation" class="mt-3 mt-sm-0 ms-sm-3 paginator-nav" style="max-width: 100%; margin: auto;">
@@ -523,24 +584,48 @@
     #eye {
         cursor: pointer;
     }
+    #modal-info-header {
+    padding: 0;
+    height: 5rem;
+    border-bottom: none;
+    margin-bottom: -10px;
+    }
+
+    #modal-info-content {
+        padding: 0;
+    }
+
+    .custom-div {
+        margin-top: -10px;
+        margin-bottom: -10px;
+    }
+
+    #modal-info-body {
+        padding: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        color: black;
+    }
+
+    .custom-modal-dialog {
+        width: 900px;
+        max-width: 100%;
+    }
+
+    .fs-9 {
+        font-size: 10pt;
+    }
+    
+    .rounded-pill {
+        font-size: 12pt;
+    }
+    .charge-summary-max-width {
+    max-width: 800px;
+    flex-wrap: wrap;
+    }
 </style>
 
 </html>
-
-<script>
-    // EXIBIÇÃO DOS DETALHES DOS CLIENTES NA TABELA
-    // seleciona todos os elementos de classe "dtr-control" que têm um id que começa com "DETALHES-"
-    document.querySelectorAll('.dtr-control[id^="DETALHES-"]').forEach(function (element) {
-        // adiciona um manipulador de eventos para o elemento clicado
-        element.addEventListener('click', function () {
-            // obtém o valor do contador de iteração do id
-            var id = this.id.split('-')[1];
-            // obtém o elemento filho correspondente e alterna sua exibição
-            var child = document.getElementById('exibir-detalhes-' + id);
-            child.style.display = child.style.display === 'none' ? 'table-row' : 'none';
-        });
-    });
-</script>
 
 <script>
     const eyeIcon = document.getElementById("eye");
@@ -801,4 +886,126 @@
     $('#confirm-pagamento-modal').on('click', '.btn-close, .btn-secondary', function () {
         $('#confirm-pagamento-modal').modal('hide');
     });
+</script>
+
+<script>
+        function exibirModalDetalhes(botao) {
+        const clienteId = botao.dataset.id;
+        const clienteNome = botao.dataset.nome;
+        const clienteTela = botao.dataset.telas;
+        const clientePlano = botao.dataset.plano;
+        const clienteTelefone = botao.dataset.telefone;
+        const clienteServidor = botao.dataset.servidor;
+        const clienteFormaPgto = botao.dataset.forma_pgto;
+        const clienteAplicativo = botao.dataset.aplicativo;
+        const clienteDataAdesao = botao.dataset.data_adesao;
+        const clienteDispositivo = botao.dataset.dispositivo;
+        const clienteDataPagamento = botao.dataset.data_pagamento;
+        const clienteContaAplicativo = botao.dataset.conta_aplicativo;
+
+        let clienteUltimoPagamento = botao.dataset.ultimo_pagamento;
+        if (clienteUltimoPagamento == 'None' || clienteUltimoPagamento == '' || clienteUltimoPagamento == null){
+            clienteUltimoPagamento = '--';
+        }
+        
+        let clienteIndicadoPor = botao.dataset.indicado_por;
+        if (clienteIndicadoPor == 'None' || clienteIndicadoPor == '' || clienteIndicadoPor == null){
+            clienteIndicadoPor = '--';
+        }
+        
+        let clienteNotas = botao.dataset.notas;
+        if (clienteNotas == 'None' || clienteNotas == '' || clienteNotas == null){
+            clienteNotas = '--';
+        }
+        
+        const table = document.querySelector("#info-cliente-table");
+
+        document.getElementById('info-cliente-nome').textContent = clienteNome;
+        document.getElementById('info-cliente-tela').textContent =  clienteTela;
+        document.getElementById('info-cliente-notas').textContent =  clienteNotas;
+        document.getElementById('info-cliente-plano').textContent =  clientePlano;
+        document.getElementById('info-cliente-telefone').textContent = formatarTelefone(clienteTelefone);
+        document.getElementById('info-cliente-servidor').textContent =  clienteServidor;
+        document.getElementById('info-cliente-forma_pgto').textContent =  clienteFormaPgto;
+        document.getElementById('info-cliente-aplicativo').textContent =  clienteAplicativo;
+        document.getElementById('info-cliente-dispositivo').textContent =  clienteDispositivo;
+        document.getElementById('info-cliente-indicado_por').textContent =  clienteIndicadoPor;
+        document.getElementById('info-cliente-ultimo_pgto').textContent =  clienteUltimoPagamento;
+        document.getElementById('info-cliente-data_pagamento').textContent =  clienteDataPagamento;
+        document.getElementById('info-cliente-data_adesao').textContent = 'Cliente desde ' + clienteDataAdesao;
+
+        const modal = new bootstrap.Modal(document.querySelector("#info-cliente-modal"));
+        modal.show();
+
+        // chamar a função para carregar e inserir as informações das contas dos aplicativos no modal
+        carregarContasApps(clienteId);
+    }
+
+    $('#info-cliente-modal').on('click', '.btn-close, .btn-secondary', function () {
+      $('#info-cliente-modal').modal('hide');
+    });
+
+    function formatarTelefone(telefone) {
+        const numeros = telefone.replace(/\D/g, '');
+      
+        if (numeros.length === 12) {
+            return `(${numeros.substr(2, 2)}) ${numeros.substr(4, 4)}-${numeros.substr(8)}`;
+        } else if (numeros.length === 13) {
+            return `(${numeros.substr(2, 2)}) ${numeros.substr(4, 5)}-${numeros.substr(9)}`;
+        } else {
+            return telefone;
+        }
+    }
+
+    function carregarContasApps(clienteId) {
+    $.ajax({
+        url: '/contas_apps/',
+        type: 'GET',
+        data: { cliente_id: clienteId },
+        success: function(data) {
+            var contas = data.conta_app; // Obtém os dados das contas de aplicativo
+
+            console.log(contas);
+
+            var container = $('.charge-summary');
+            var container2 = $('.texto-aqui');
+
+            container.empty(); // Limpa o container antes de adicionar os novos elementos
+            container2.empty();
+
+            for (var i = 0; i < contas.length; i++) {
+                var conta = contas[i];
+
+                var card = $('<div class="card rounded py-4 px-5 d-flex flex-column align-items-center justify-content-center border"></div>');
+                var badge = $('<span class="badge rounded-pill bg-secondary mb-3">' + conta.nome_aplicativo + '</span>');
+                var infoDiv = $('<div class="my-0 text-center"></div>');
+
+                if (conta.device_id) {
+                    infoDiv.append('<span>Device ID: </span><span>' + conta.device_id + '</span><br>');
+                    infoDiv.append('<span>Device Key: </span><span>' + conta.device_key + '</span>');
+                }
+                else if (conta.email){
+                    card = $('<div class="card rounded py-4 px-5 d-flex flex-column align-items-center justify-content-center border"></div>');
+                    infoDiv.append('<span>E-mail: </span><span>' + conta.email + '</span><br>');
+                    infoDiv.append('<span>Device Key: </span><span>' + conta.device_key + '</span>');
+                }
+
+                card.append(badge);
+                card.append(infoDiv);
+                container.append(card);
+            }
+
+            // Verificar se não há contas de aplicativo e exibir a mensagem correspondente
+            if (contas.length === 0) {
+                var message = $('<p class="text-muted text-center">Ainda não há contas de aplicativo para esse cliente.</p>');
+                container2.append(message);
+            }
+        },
+        error: function(error) {
+            console.log(error);
+        }
+    });
+}
+
+
 </script>

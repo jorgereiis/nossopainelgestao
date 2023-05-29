@@ -32,7 +32,6 @@
                 <h4 class="mb-1">Cadastre aqui o seu novo cliente</h4>
                 <p class="mb-0 fs-5 text-muted">Preencha todos os dados corretamente. </p>
               </div>
-
             </div>
 
             <div class="col-xl-9 col-lg-8 col-md-12 col-12" id="div-principal">
@@ -63,7 +62,7 @@
                       <label for="telefone" class="col-sm-4 col-form-label
                           form-label">Telefone <span class="text-danger">*</span></label>
                       <div class="col-md-8 col-12">
-                        <input type="text" class="form-control" placeholder="Informe um número de telefone" id="telefone" name="telefone"
+                        <input type="text" class="form-control" placeholder="DDD + Número" id="telefone" name="telefone"
                           autocomplete="off" minlength="12" maxlength="15" required>
                       </div>
                     </div>
@@ -137,10 +136,9 @@
                     </div>
                     <!-- row -->
                     <div class="mb-3 row">
-                      <label for="data_pagamento" class="col-sm-4 col-form-label form-label">Dia de pagamento mensal
-                         <span class="text-danger">*</span></label>
+                      <label for="data_pagamento" class="col-sm-4 col-form-label form-label">Dia de pagamento mensal</label>
                       <div class="col-md-8 col-12">
-                        <input type="number" class="form-control" placeholder="Informe o dia do pagamento" id="data_pagamento" min="1" max="31"
+                        <input type="number" class="form-control" placeholder="Informe o dia do pagamento mensal" id="data_pagamento" min="1" max="31"
                           name="data_pagamento">
                       </div>
                     </div>
@@ -173,8 +171,7 @@
                     </div>
                     <!-- row -->
                     <div class="mb-3 row">
-                      <label for="notas" class="col-sm-4 col-form-label form-label">Anotações
-                        <span class="text-muted"></span></label>
+                      <label for="notas" class="col-sm-4 col-form-label form-label">Anotações</label>
                       <div class="col-md-8 col-12">
                         <textarea type="text" class="form-control" placeholder="Detalhes adicionais sobre o cliente..." id="notas"
                           name="notas"></textarea>
@@ -252,6 +249,7 @@
     </script>
     {% endif %}
 
+    <!--
     <script>
       $(document).ready(function () {
         var currentUrl = window.location.origin;
@@ -276,6 +274,7 @@
         });
       });
     </script>
+    -->
 
 </body>
 
@@ -322,4 +321,29 @@
       }
     });
   });
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var telefoneInput = document.getElementById('telefone');
+
+  telefoneInput.addEventListener('input', function() {
+    var telefone = this.value.replace(/\D/g, ''); // Remove todos os caracteres não numéricos
+
+    var formattedTelefone = '';
+    if (telefone.length > 0) {
+      formattedTelefone = '(' + telefone.substring(0, 2) + ')';
+
+      if (telefone.length > 2) {
+        formattedTelefone += ' ' + telefone.substring(2, 7);
+
+        if (telefone.length > 7) {
+          formattedTelefone += '-' + telefone.substring(7, 11);
+        }
+      }
+    }
+
+    this.value = formattedTelefone;
+  });
+});
 </script>
