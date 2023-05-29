@@ -2057,3 +2057,99 @@ Traceback (most recent call last):
 TypeError: fromisoformat: argument must be str
 "GET /qtds_mensalidades/?cliente_id=218 HTTP/1.1" 500 145475
 "GET /qtds_mensalidades/?cliente_id=218 HTTP/1.1" 500 145475
+Internal Server Error: /importar-clientes/
+Traceback (most recent call last):
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/cadastros/views.py", line 654, in ImportarClientes
+    plano_valor_import = int(dado['plano_valor']) if str(dado['plano_valor']) != 'nan' or 'NaN' else None
+ValueError: cannot convert float NaN to integer
+Internal Server Error: /importar-clientes/
+Traceback (most recent call last):
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/cadastros/views.py", line 654, in ImportarClientes
+    plano_valor_import = int(dado['plano_valor']) if str(dado['plano_valor']) != 'nan' or 'NaN' else None
+ValueError: cannot convert float NaN to integer
+"POST /importar-clientes/ HTTP/1.1" 500 82249
+"POST /importar-clientes/ HTTP/1.1" 500 82249
+Internal Server Error: /importar-clientes/
+Traceback (most recent call last):
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/cadastros/views.py", line 642, in ImportarClientes
+    print(dado['plano_valor'])
+KeyError: 'plano'
+Internal Server Error: /importar-clientes/
+Traceback (most recent call last):
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/cadastros/views.py", line 642, in ImportarClientes
+    print(dado['plano_valor'])
+KeyError: 'plano'
+"POST /importar-clientes/ HTTP/1.1" 500 79126
+"POST /importar-clientes/ HTTP/1.1" 500 79126
+Internal Server Error: /importar-clientes/
+Traceback (most recent call last):
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/cadastros/views.py", line 642, in ImportarClientes
+    print('>>>>>>>>>> ', dado['plano_valor'] + ':' + type(dado['plano_valor']))
+TypeError: unsupported operand type(s) for +: 'float' and 'str'
+Internal Server Error: /importar-clientes/
+Traceback (most recent call last):
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/cadastros/views.py", line 642, in ImportarClientes
+    print('>>>>>>>>>> ', dado['plano_valor'] + ':' + type(dado['plano_valor']))
+TypeError: unsupported operand type(s) for +: 'float' and 'str'
+"POST /importar-clientes/ HTTP/1.1" 500 79582
+"POST /importar-clientes/ HTTP/1.1" 500 79582
+Internal Server Error: /importar-clientes/
+Traceback (most recent call last):
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/cadastros/views.py", line 655, in ImportarClientes
+    plano_valor_import = int(dado['plano_valor']) if str(dado['plano_valor']) != 'nan' or 'NaN' else None
+ValueError: cannot convert float NaN to integer
+Internal Server Error: /importar-clientes/
+Traceback (most recent call last):
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/.venv/lib/python3.8/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/home/jorgereiis/Documentos/IPTVGestao/cadastros/views.py", line 655, in ImportarClientes
+    plano_valor_import = int(dado['plano_valor']) if str(dado['plano_valor']) != 'nan' or 'NaN' else None
+ValueError: cannot convert float NaN to integer
+"POST /importar-clientes/ HTTP/1.1" 500 82249
+"POST /importar-clientes/ HTTP/1.1" 500 82249
