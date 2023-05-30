@@ -1,0 +1,252 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {% include 'partials/head.html' %}
+    <title>Importar clientes | Nosso Painel - Gestão IPTV</title>
+</head>
+
+<body class="bg-light">
+    <div id="db-wrapper">
+        <!-- navbar vertical -->
+        {% include 'partials/navbar-vertical.html' %}
+        <!-- page content -->
+        <div id="page-content">
+            {% include 'partials/header.html' %}
+            <!-- Container fluid -->
+            <div class="container-fluid p-6">
+                <div class="row">
+                    <div class="col-lg-12 col-md-12 col-12">
+                        <!-- Page header -->
+
+                        <div class="border-bottom pb-4 mb-4">
+                            <h3 class="mb-0 fw-bold">Importe os dados dos seus clientes e comece a gerenciá-los de forma
+                                inteligente.</h3>
+                        </div>
+                        <!-- col importar -->
+                        <div class="row mb-7">
+                            <div class="col-md-3 mb-3 mb-md-0">
+                                <!-- dropzone input importar -->
+                                <form method="post" enctype="multipart/form-data" id="form-importar">
+                                    <div class="dropzone mb-3 border-dashed">
+                                        {% csrf_token %}
+                                        <div class="fallback">
+                                            <input name="arquivo" type="file" class="w-100" id="input-arquivo" accept=".xlsx" capture=".xlsx">
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary" name="importar" onclick="carregar()" id="btn-importar" disabled>Importar</button>
+                                </form>
+                            </div>
+                            <div class="col-md-9">
+                                <!-- heading importar -->
+                                <p class="mb-0 fs-5 text-muted">Importe a sua planilha contendo os dados dos
+                                    seus clientes.
+                                </p>
+
+                                <p class="mb-0 fs-5 text-muted">Baixe o modelo, preencha e envie.
+                                </p>
+                                <p><a href="{% static 'download/upload.xlsx' %}">Download aqui!
+                                        <img class="mb-0 fs-5 text-muted"
+                                            src="{% static 'assets/images/svg/filetype-xls.svg' %}"></a></p>
+                            </div>
+                        </div>
+                        <!-- col -->
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 col-12 mb-2">
+                            <div class="mb-lg-6 border-bottom pb-4 mb-4">
+                                <h4 class="mb-1">Instruções sobre a importação</h4>
+                            </div>
+                            <p class="mb-1 fs-5 text-muted"><i
+                                    class="bi bi-exclamation-triangle text-warning me-2"></i><span
+                                    class="text-dark">Preencha as informações de cada coluna existente na planilha
+                                    conforme mostrado no layout.</span></p>
+                            <p class="mb-0 text-muted small">- O número do telefone deve seguir o padrão mostrado,
+                                contendo prefixo do país + DDD + número, sem parêntese, traços ou qualquer outro
+                                caractere especial;</p>
+                            <p class="mb-0 text-muted small">- Se a data de pagamento estiver em branco no arquivo, será
+                                definida uma data entre 5, 10, 15, 20, 25 e 30, que seja mais a próxima do dia da
+                                importação;</p>
+                            <p class="mb-0 text-muted small">- Para o campo 'tipo_plano', as única opções aceitas serão: Mensal, Semestral ou Anual. Caso seja informado um diferente, o cliente não será salvo.</p>
+                            <p class="mb-0 text-muted small">- (<span class="text-danger">*</span>) Campos obrigatórios (caso seja escolhido algum aplicativo que possua uma conta de ativação, por exemplo, DuplexPlay, Clouddy ou algum outro, será obrigatório o preenchimento dos dados de "device_id" e "device_key"/"email").
+                            </p>
+                        </div>
+                        <br>
+
+                        <div class="col-md-14 col-14">
+                            <!-- card -->
+                            <div class="card">
+                                <!-- card body -->
+                                <div class="card-body">
+                                    <div class=" mb-6">
+                                        <h4 class="mb-1">Layout da planilha de importação</h4>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table text-nowrap mb-0 table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">servidor <span class="text-danger">*</span></th>
+                                                <th scope="col">dispositivo <span class="text-danger">*</span></th>
+                                                <th scope="col">sistema <span class="text-danger">*</span></th>
+                                                <th scope="col">device_id</th>
+                                                <th scope="col">email</th>
+                                                <th scope="col">device_key</th>
+                                                <th scope="col">nome <span class="text-danger">*</span></th>
+                                                <th scope="col">telefone <span class="text-danger">*</span></th>
+                                                <th scope="col">indicado_por</th>
+                                                <th scope="col">data_pagamento</th>
+                                                <th scope="col">forma_pgto <span class="text-danger">*</span></th>
+                                                <th scope="col">tipo_plano <span class="text-danger">*</span></th>
+                                                <th scope="col">plano_valor <span class="text-danger">*</span></th>
+                                                <th scope="col">telas <span class="text-danger">*</span></th>
+                                                <th scope="col">data_adesao <span class="text-danger">*</span></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td class="small">CLUB</td>
+                                                <td class="small">TV LG</td>
+                                                <td class="small">DuplexPlay</td>
+                                                <td class="small">11:11:11:11:11:11</td>
+                                                <td class="small"></td>
+                                                <td class="small">111111111111</td>
+                                                <td class="small">Cliente 1</td>
+                                                <td class="small">5583988881122</td>
+                                                <td class="small">Marcio Silva</td>
+                                                <td class="small">5</td>
+                                                <td class="small">PIX</td>
+                                                <td class="small">Mensal</td>
+                                                <td class="small">35</td>
+                                                <td class="small">1</td>
+                                                <td class="small">06/01/2023</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="small">PLAY</td>
+                                                <td class="small">TV Samsung</td>
+                                                <td class="small">Clouddy</td>
+                                                <td class="small"></td>
+                                                <td class="small">email@email.com</td>
+                                                <td class="small">123456</td>
+                                                <td class="small">Cliente 2</td>
+                                                <td class="small">5511999993344</td>
+                                                <td class="small">João Silva</td>
+                                                <td class="small">10</td>
+                                                <td class="small">Boleto</td>
+                                                <td class="small">Semestral</td>
+                                                <td class="small">180</td>
+                                                <td class="small">2</td>
+                                                <td class="small">11/01/2023</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="small">FIVE</td>
+                                                <td class="small">TV Roku</td>
+                                                <td class="small">MetaPlayer</td>
+                                                <td class="small">1a2b3c4d5e6f</td>
+                                                <td class="small"></td>
+                                                <td class="small">12345678</td>
+                                                <td class="small">Cliente 3</td>
+                                                <td class="small">5511999993344</td>
+                                                <td class="small">João Silva</td>
+                                                <td class="small">15</td>
+                                                <td class="small">Cartão de Crédito</td>
+                                                <td class="small">Anual</td>
+                                                <td class="small">300</td>
+                                                <td class="small">3</td>
+                                                <td class="small">15/03/2023</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Scripts -->
+                {% include 'partials/scripts.html' %}
+
+                <!-- Alert success -->
+                {% if success_message %}
+                <script>
+                    console.log(window.location.origin)
+                    $(document).ready(function () {
+                        var currentUrl = window.location.origin;
+                        var newPath = '/importar-clientes';
+                        var newUrl = currentUrl + newPath;
+                        swal.fire({
+                            icon: 'info',
+                            title: 'Importação concluída!',
+                            html: '<p>Resumo</p><hr><strong>Total importados: </strong>{{num_linhas_importadas}}<br><strong>Total não importados: </strong>{{num_linhas_nao_importadas}}<hr><strong>Clientes já existentes:</strong><br>{% for nome in nomes_clientes_existentes%}-> {{nome}}<br>{% endfor %}<hr><strong>Clientes com erro ao importar:</strong><br>{% for nome in nomes_clientes_erro_importacao %}-> {{nome}}<br>{% endfor %}<hr>',
+                            didClose: function () {
+                                window.location.href = newUrl;
+                            },
+                            width: '40%',
+                        });
+                    });
+                </script>
+
+                
+
+                <!-- Alert error -->
+                {% elif error_message %}
+                <script>
+                    console.log(window.location.origin)
+                    $(document).ready(function () {
+                        var currentUrl = window.location.origin;
+                        var newPath = '/importar-clientes';
+                        var newUrl = currentUrl + newPath;
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Oops...',
+                            text: '{{error_message}}',
+                            didClose: function () {
+                                window.location.href = newUrl;
+                            }
+                        });
+                    });
+                </script>
+                {% endif %}
+
+</body>
+
+</html>
+
+<script>
+    function carregar() {
+        Swal.fire({
+            title: 'Carregando',
+            html: 'Por favor, aguarde...',
+            timerProgressBar: true,
+            onBeforeOpen: () => {
+                Swal.showLoading()
+            },
+            onClose: () => {
+                Swal.hideLoading()
+            }
+        })
+    }
+</script>
+
+<script>
+    var inputArquivo = document.getElementById('input-arquivo');
+    var btnImportar = document.getElementById('btn-importar');
+    var formImportar = document.getElementById('form-importar');
+
+    inputArquivo.addEventListener('change', function() {
+        if (inputArquivo.files.length > 0) {
+            btnImportar.disabled = false;
+        } else {
+            btnImportar.disabled = true;
+        }
+    });
+
+    formImportar.addEventListener('submit', function(e) {
+        if (inputArquivo.files.length === 0) {
+            e.preventDefault();
+        }
+    });
+</script>

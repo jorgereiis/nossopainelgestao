@@ -1,0 +1,132 @@
+{% load static %}
+
+<!-- Sidebar -->
+<nav class="navbar-vertical navbar">
+    <div class="nav-scroller">
+
+        <!-- Brand logo -->
+        <a class="navbar-brand" href="{% url 'dashboard' %}">
+            <h2 class="text-white">Meu Painel</h2>
+        </a>
+
+        <!-- Navbar nav -->
+        <ul class="navbar-nav flex-column" id="sideNavbar">
+            <li class="nav-item">
+                <a class="nav-link has-arrow {%if page ==  'dashboard' %} active {% endif %}"
+                    href="{% url 'dashboard' %}">
+                    <i data-feather="home" class="nav-icon icon-xs me-2"></i> Dashboard
+                </a>
+            </li>
+
+            <!-- Nav item -->
+            <li class="nav-item">
+                <div class="navbar-heading">Menu Principal</div>
+            </li>
+
+            <!-- Nav item -->
+            <li class="nav-item">
+                <a class="nav-link has-arrow {% if page_group != 'clientes' %} collapsed {% endif %}" href="#!"
+                    data-bs-toggle="collapse" data-bs-target="#navClientes" aria-expanded="false" aria-controls="navClientes">
+                    <i data-feather="users" class="nav-icon icon-xs me-2"></i> Clientes
+                </a>
+
+                <div id="navClientes" class="collapse {% if page_group == 'clientes' %} show {% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'lista-clientes' %} active {% endif %}" href="{% url 'listagem-clientes' %}">Meus Clientes</a>
+                        </li>
+                    </ul>
+
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'cadastro-cliente' %} active {% endif %}" href="{% url 'cadastro-cliente' %}">Novo Cliente</a>
+                        </li>
+                    </ul>
+
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'importar-clientes' %} active {% endif %}" href="{% url 'importar-cliente' %}">Importar Clientes</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Nav item -->
+            <li class="nav-item">
+                <a class="nav-link has-arrow {% if page_group != 'cadastros' %} collapsed {% endif %}" href="#!"
+                    data-bs-toggle="collapse" data-bs-target="#navCadastros" aria-expanded="false" aria-controls="navCadastros">
+                    <i data-feather="file-plus" class="nav-icon icon-xs me-2"></i> Cadastros
+                </a>
+
+                <div id="navCadastros" class="collapse {% if page_group == 'cadastros' %} show {% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'aplicativo' %} active {% endif %}" href="{% url 'cadastro-aplicativo' %}">Aplicativos</a>
+                        </li>
+                    </ul>
+
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'dispositivo' %} active {% endif %}" href="{% url 'cadastro-dispositivo' %}">Dispositivos</a>
+                        </li>
+                    </ul>
+
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'forma_pgto' %} active {% endif %}" href="{% url 'cadastro-forma-pagamento' %}">Formas de Pagamento</a>
+                        </li>
+                    </ul>
+
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'plano_adesao' %} active {% endif %}" href="{% url 'cadastro-plano-adesao' %}">Planos de Adesão</a>
+                        </li>
+                    </ul>
+
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'servidor' %} active {% endif %}" href="{% url 'cadastro-servidor' %}">Servidores</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Nav item -->
+            <li class="nav-item">
+                <a class="nav-link has-arrow {% if page_group != 'whatsapp' %} collapsed {% endif %}" href="#!"
+                    data-bs-toggle="collapse" data-bs-target="#navWhatsapp" aria-expanded="false" aria-controls="navWhatsapp">
+                    <i class="bi bi-whatsapp me-2 nav-icon icon-xs"></i> WhatsApp
+                </a>
+
+                <div id="navWhatsapp" class="collapse {% if page_group == 'whatsapp' %} show {% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'whatsapp' %}active{% endif %}" href="">...</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Nav item -->
+            <li class="nav-item">
+                <a class="nav-link has-arrow {% if page_group != 'relatorios' %} collapsed {% endif %}" href="#!"
+                    data-bs-toggle="collapse" data-bs-target="#navRelatorios" aria-expanded="false" aria-controls="navRelatorios">
+                    <i data-feather="layers" class="nav-icon icon-xs me-2"></i> Relatórios
+                </a>
+
+                <div id="navRelatorios" class="collapse {% if page_group == 'relatorios' %} show {% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'relatorio1' %}active{% endif %}" href="">...</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+        </ul>
+    </div>
+</nav>

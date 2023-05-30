@@ -1,0 +1,1011 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    {% include 'partials/head.html' %}
+    <title>Dashboard | Nosso Painel - Gestão IPTV</title>
+</head>
+
+<body class="bg-light">
+    <div id="db-wrapper">
+        <!-- navbar vertical -->
+        {% include 'partials/navbar-vertical.html' %}
+        <!-- Page content -->
+        <div id="page-content">
+            {% include 'partials/header.html' %}
+            <!-- Container fluid -->
+            <div class="bg-primary pt-10 pb-21"></div>
+            <div class="container-fluid mt-n22 px-6">
+                <div class="row">
+                    <div class="col-lg-12 col-md-12 col-12">
+                        <!-- Page header -->
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="mb-2 mb-lg-0">
+                                    <h2 class="mb-0  text-white">Dashboard <i class="bi bi-eye" id="eye"></i></h2>
+                                </div>
+
+                                <!-- Dropdown Opções -->
+                                <div class="btn-group">
+                                    <div class="dropdown">
+                                        <button class="btn btn-light mb-2 dropdown-toggle" data-bs-toggle="dropdown">
+                                            <img src="{% static 'assets/images/svg/list.svg' %}"> Menu
+                                        </button>
+                                        <div class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="{% url 'listagem-clientes' %}"><img
+                                                src="{% static 'assets/images/svg/people.svg' %}"> Clientes</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-aplicativo' %}">
+                                            <li><img src="{% static 'assets/images/svg/app-indicator.svg' %}">
+                                                Aplicativos</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-dispositivo' %}"><img
+                                                        src="{% static 'assets/images/svg/display.svg' %}">
+                                                    Dispositivos</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-forma-pagamento' %}"><img
+                                                        src="{% static 'assets/images/svg/credit-card.svg' %}"> Formas
+                                                    de Pagamento</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-plano-adesao' %}"><img
+                                                        src="{% static 'assets/images/svg/piggy-bank.svg' %}"> Planos de 
+                                                        Adesão</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'cadastro-servidor' %}"><img
+                                                        src="{% static 'assets/images/svg/hdd-stack.svg' %}">
+                                                    Servidores</a></li>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
+                        <!-- card -->
+                        <div class="card ">
+                            <!-- card body -->
+                            <div class="card-body">
+                                <!-- heading -->
+                                <div class="d-flex justify-content-between align-items-center mb-3 objeto">
+                                    <div>
+                                        <h4 class="mb-0">Clientes</h4>
+                                    </div>
+                                    <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
+                                        <img class="bi bi-people fs-4" src="">
+                                    </div>
+                                </div>
+
+                                <!-- project number -->
+                                <div>
+                                    <h1 class="fw-bold values1_h1">{{total_clientes}}</h1>
+                                    {% if clientes_em_atraso > 0%}
+                                    <span class="me-2 ms-auto"><span
+                                            class="text-dark me-2 values1_span">{{clientes_em_atraso}}</span><span
+                                            class="bi bi-arrow-down-short text-danger">Em atraso</span></span>
+                                    {% else %}
+                                    <span class="me-2 ms-auto"><span
+                                            class="text-dark me-2 values1_span">{{clientes_em_atraso}}</span>Em
+                                        atraso</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
+                        <!-- card -->
+                        <div class="card ">
+                            <!-- card body -->
+                            <div class="card-body">
+                                <!-- heading -->
+                                <div class="d-flex justify-content-between align-items-center mb-3 objeto">
+                                    <div>
+                                        <h4 class="mb-0">Recebido no mês</h4>
+                                    </div>
+                                    <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
+                                        <img class="bi bi-wallet2 fs-4" src="">
+                                    </div>
+                                </div>
+
+                                <!-- project number -->
+                                <div>
+                                    <h1 class="fw-bold values2_h1">{{valor_total_pago}}</h1>
+                                    <p class="mb-0"><span
+                                            class="text-dark me-2 values2_span">{{valor_total_pago_qtd}}</span>Pago(s)
+                                        neste mês
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
+                        <!-- card -->
+                        <div class="card ">
+                            <!-- card body -->
+                            <div class="card-body">
+                                <!-- heading -->
+                                <div class="d-flex justify-content-between align-items-center mb-3 objeto">
+                                    <div>
+                                        <h4 class="mb-0">À receber no mês</h4>
+                                    </div>
+                                    <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
+                                        <img class="bi bi-cash-coin fs-4" src="">
+                                    </div>
+                                </div>
+
+                                <!-- project number -->
+                                <div>
+                                    <h1 class="fw-bold values3_h1">{{valor_total_receber}}</h1>
+                                    {% if valor_total_receber_qtd > 0 %}
+                                    <p class="mb-0 "><i class="bi bi-exclamation-triangle text-warning me-2"></i><span
+                                            class="text-dark values3_span">{{valor_total_receber_qtd}}</span> vencem em
+                                        até 7 dias
+                                    </p>
+                                    {% else %}
+                                    <p class="mb-0 "><span
+                                            class="text-dark me-2 values3_span">{{valor_total_receber_qtd}}</span> sem
+                                        vencimentos</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
+                        <!-- card -->
+                        <div class="card">
+                            <!-- card body -->
+                            <div class="card-body">
+                                <!-- heading -->
+                                <div class="d-flex justify-content-between align-items-center mb-3 objeto">
+                                    <div>
+                                        <h5 class="mb-0">Adesões e cancelamentos neste mês</h5>
+                                    </div>
+                                    <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
+                                        <img class="bi bi-graph-up-arrow fs-4" src="">
+                                    </div>
+                                </div>
+
+                                <!-- project number -->
+                                <div class="d-flex">
+                                    <div style="display: flex; flex-direction: column; mr-0">
+                                        <h2 class="fw-bold mb-0">{{novos_clientes_qtd}}</h2>
+                                        <h2 class="fw-bold mb-0">{{clientes_cancelados_qtd}}</h2>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <p class="mb-5"><i class="bi bi-arrow-up-short text-success"></i><span
+                                                class="text-success ms-2">Novos</span></p>
+                                        <p class="mb-0"><i class="bi bi-arrow-down-short text-danger"></i><span
+                                                class="ms-2 text-danger">Cancelados</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de confirmação de cancelamento de cliente -->
+                <div class="modal fade" id="confirm-cancelamento-modal" tabindex="-1" role="dialog"
+                    aria-labelledby="confirm-cancelamento-label">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h4 class="modal-title" id="confirm-cancelamento-label">Confirmar cancelamento</h4>
+                                <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Tem certeza que deseja cancelar o cliente <strong><span
+                                            id="cliente-nome"></span></strong>?</p>
+                            </div>
+                            <div class="modal-footer">
+                                <div class="mensagem-erro" id="mensagem-erro"></div>
+                                <form method="POST" id="cancelamento-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="cliente_id" id="cliente-id">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+                                    <button type="submit" class="btn btn-danger">Cancelar cliente</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de confirmação de pagamento -->
+                <div class="modal fade" id="confirm-pagamento-modal" tabindex="-1" role="dialog"
+                    aria-labelledby="confirm-pagamento-label">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h4 class="modal-title" id="confirm-pagamento-label">Confirmar pagamento</h4>
+                                <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Tem certeza que deseja pagar a mensalidade de <strong><span
+                                            id="cliente-nome"></span></strong>?</p>
+                            </div>
+                            <div class="modal-footer">
+                                <div class="mensagem-erro" id="mensagem-erro"></div>
+                                <form method="POST" id="pagamento-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="mensalidade_id" id="mensalidade-id">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+                                    <button type="submit" class="btn btn-primary">Pagar</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de exibir informações do cliente -->
+                <div class="modal fade" id="info-cliente-modal" tabindex="-1" role="dialog" aria-labelledby="info-cliente-label">
+                    <div class="modal-dialog modal-dialog-scrollable modal-xl custom-modal-dialog" role="document">
+                        <div class="modal-content position-relative px-7 py-4" id="modal-info-content">
+                            <div class="modal-header" id="modal-info-header">
+                                <div class="modal-title d-flex w-100 justify-content-between align-items-center">
+                                    <h1 class="fw-bold d-flex align-items-center mb-0 h2" id="info-cliente-label">
+                                        <span id="info-cliente-nome"></span>
+                                    </h1>
+                                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
+                                </div>
+                            </div>
+                            <div class="custom-div">
+                                <p id="info-cliente-data_adesao"></p>
+                            </div>
+                            <div class="modal-body" id="modal-info-body">
+                                <div class="d-flex flex-column">
+                                    <h4 class="fw-bold mb-4 mt-4">Dados do cliente</h4>
+                                    <div class="row mb-4">
+                                        <div class="col-sm-12">
+                                            <span class="fs-9 text-muted">Telefone</span>
+                                            <div class="fs-8" id="info-cliente-telefone"></div>
+                                            <div class="fs-8"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row no-gutters mb-4">
+                                        <div class="col-4">
+                                            <span class="fs-9 text-muted">Servidor</span>
+                                            <div class="fs-8" id="info-cliente-servidor"></div>
+                                        </div>
+                                        <div class="col-5">
+                                            <span class="fs-9 text-muted">Dispositivo</span>
+                                            <div class="fs-8" id="info-cliente-dispositivo"></div>
+                                        </div>
+                                        <div class="col-3">
+                                            <span class="fs-9 text-muted">Aplicativo</span>
+                                            <div class="fs-8" id="info-cliente-aplicativo"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-4">
+                                        <div class="col-4">
+                                            <span class="fs-9 text-muted">Data de pagamento</span>
+                                            <div class="fs-8" id="info-cliente-data_pagamento"></div>
+                                        </div>
+                                        <div class="col-5">
+                                            <span class="fs-9 text-muted">Plano de adesão</span>
+                                            <div class="fs-8 text-break" id="info-cliente-plano"></div>
+                                        </div>
+                                        <div class="col-3">
+                                            <span class="fs-9 text-muted">Qtd. de telas</span>
+                                            <div class="fs-8" id="info-cliente-tela"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-4">
+                                        <div class="col-4">
+                                            <span class="fs-9 text-muted">Forma de pagamento</span>
+                                            <div class="fs-8" id="info-cliente-forma_pgto"></div>
+                                        </div>
+                                        <div class="col-5">
+                                            <span class="fs-9 text-muted">Último pagamento</span>
+                                            <div class="fs-8 text-break" id="info-cliente-ultimo_pgto"></div>
+                                        </div>
+                                        <div class="col-3">
+                                            <span class="fs-9 text-muted">Indicado por</span>
+                                            <div class="fs-8" id="info-cliente-indicado_por"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <span class="fs-9 text-muted">Notas</span>
+                                            <div class="fs-8" id="info-cliente-notas"></div>
+                                            <div class="fs-8"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-column">
+                                    <div>
+                                        <h4 class="fw-bold mb-4 mt-4">Contas dos aplicativos</h4>
+                                    </div>
+                                    <div class="d-flex charge-summary gap-3 charge-summary-max-width">
+                                        <!-- Os elementos das contas de aplicativos serão adicionados dinamicamente aqui -->
+                                    </div>
+                                    <div class="flex-column texto-aqui">
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- row  -->
+                <div class="row mt-6">
+                    <div class="col-md-12 col-12">
+                        <!-- card  -->
+                        <div class="card">
+                            <!-- card header  -->
+                            <div class="d-flex justify-content-between align-items-center card-header bg-white py-4">
+                                <h4 class="mb-0">Renovações</h4>
+                                <label for="paginate-by"></label>
+                                <select name="paginate_by" id="paginate-by" class="ms-auto mb-0 rounded border border-light-200 px-1 py-2 d-flex align-items-center me-1 g-rows-per-page-trigger bg-transparent">
+                                <option value="5"{% if page_obj.paginator.per_page == 5 %} selected{% endif %}>5</option>
+                                <option value="10"{% if page_obj.paginator.per_page == 10 %} selected{% endif %}>10</option>
+                                <option value="15"{% if page_obj.paginator.per_page == 15 %} selected{% endif %}>15</option>
+                                <option value="25"{% if page_obj.paginator.per_page == 25 %} selected{% endif %}>25</option>
+                                <option value="50"{% if page_obj.paginator.per_page == 50 %} selected{% endif %}>50</option>
+                                </select>
+                            </div>
+
+                            <!-- campo de pesquisa  -->
+                            <form method="GET">
+                                <div class="input-group mb-3 card-header bg-white py-4">
+                                    <input type="text" name="q" class="form-control" placeholder="Pesquisar"
+                                        aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput"
+                                        autocomplete="off">
+                                    <button class="btn btn-outline-secondary" type="submit"
+                                        id="button-pesquisar">Buscar</button>
+                                </div>
+                            </form>
+
+                            <!-- TABELA  -->
+                            <div class="table-responsive">
+                                <table class="table text-nowrap mb-0 table-hover" id="myTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="fw-bold text-center">Nome</th>
+                                            <th class="fw-bold text-center">Data adesão</th>
+                                            <th class="fw-bold text-center">Dispositivo</th>
+                                            <th class="fw-bold text-center">Aplicativo</th>
+                                            <th class="fw-bold text-center">Último pgto.</th>
+                                            <th class="fw-bold text-center">Próximo pgto.</th>
+                                            <th colspan="1"></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        {% for cliente in object_list %}
+                                        <!-- COMEÇO DA LINHA -->
+                                        <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent align-middle">
+                                            <td class="dtr-control align-middle">
+                                                <div class="d-flex align-items-center">
+                                                    <div>
+                                                        <div class="icon-shape icon-md border p-1 rounded-circle">
+                                                            <img src="{% static 'assets/images/logo-apps/'|add:cliente.servidor.nome|lower|add:'.png' %}"
+                                                                class="rounded-circle">
+                                                        </div>
+                                                    </div>
+                                                    <div class="ms-3 lh-1">
+                                                        <h5 class="text-capitalize small" class="text-inherit"
+                                                            onmouseover="this.style.color='#624BFF'"
+                                                            onmouseout="this.style.color=''">{{cliente.nome}}</h5>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="small text-center">{{cliente.data_adesao|date:'d/m/Y'}}</td>
+                                            <td class="small text-center">{{cliente.dispositivo}}</td>
+                                            <td class="text-capitalize small text-center">{{cliente.sistema}}</td>
+                                            {% if cliente.ultimo_pagamento %}
+                                            <td class="small text-center">{{cliente.ultimo_pagamento|date:'d/m/Y'}}</td>
+                                            {% else %}
+                                            <td class="small text-center"></td>
+                                            {% endif %}
+
+                                            {% for mensalidade in cliente.mensalidade_set.all %}
+                                            {% if not mensalidade.cancelado and not mensalidade.pgto %}
+                                            {% if mensalidade.dt_pagamento is None and hoje > mensalidade.dt_vencimento %}
+                                            <td class="align-middle text-center"><span
+                                                    class="badge bg-danger">{{mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y'}}]</span></td>
+                                            {% else %}
+                                            <td class="align-middle text-primary text-center"><span
+                                                    class="badge bg-info">{{ mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
+                                            {% endif %}
+
+                                            <!-- Dropdown da tabela -->
+                                            <td>
+                                                <div class="dropdown dropend">
+                                                    <button
+                                                        class="btn btn-icon btn-white rounded-circle btn-dashed ms-2"
+                                                        type="button" id="dropdownMenuButton" data-bs-toggle="dropdown"
+                                                        aria-expanded="false">
+                                                        <img
+                                                            src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                                                    </button>
+                                                    <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
+                                                        <li>
+                                                            <button class="dropdown-item" 
+                                                                    data-id="{{cliente.id}}"
+                                                                    data-nome="{{cliente.nome}}"
+                                                                    data-plano="{{cliente.plano}}"
+                                                                    data-telas="{{cliente.telas}}"
+                                                                    data-notas="{{cliente.notas}}"
+                                                                    data-telefone="{{cliente.telefone}}"
+                                                                    data-servidor="{{cliente.servidor}}"
+                                                                    data-aplicativo="{{cliente.sistema}}"
+                                                                    data-forma_pgto="{{cliente.forma_pgto}}"
+                                                                    data-dispositivo="{{cliente.dispositivo}}"
+                                                                    data-data_adesao="{{cliente.data_adesao}}"
+                                                                    data-indicado_por="{{cliente.indicado_por}}"
+                                                                    data-data_pagamento="{{cliente.data_pagamento}}"
+                                                                    data-ultimo_pagamento="{{cliente.ultimo_pagamento|date:'d/m/Y'}}"
+                                                                    data-conta_aplicativo="{{cliente.conta_aplicativo.all}}"
+                                                                    onclick="exibirModalDetalhes(this)">Ver informações
+                                                                </button>
+                                                        </li>
+                                                        <li>
+                                                            <button class="dropdown-item"
+                                                                data-nome="{{cliente.nome}}"
+                                                                data-mensalidade="{{mensalidade.id}}"
+                                                                onclick="exibirModalConfirmacaoPagamento(this)">Pagar mensalidade
+                                                            </button>
+                                                        </li>
+                                                        <li>
+                                                            <button class="dropdown-item"
+                                                                data-nome="{{cliente.nome}}"
+                                                                data-cliente="{{cliente.id}}"
+                                                                onclick="exibirModalConfirmacaoCancelamento(this)">Cancelar cliente
+                                                            </button>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </td>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </tr>
+                                        <!-- TÉRMINO DA LINHA -->
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- card footer  -->
+                            <div class="card-footer bg-white text-center">
+                                <nav aria-label="Page navigation" class="mt-3 mt-sm-0 ms-sm-3 paginator-nav" style="max-width: 100%; margin: auto;">
+                                    <ul class="pagination justify-content-end mb-0">
+                                      {% if page_obj.has_previous %}
+                                      <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}" tabindex="-1" aria-label="Anterior">
+                                          <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                      </li>
+                                      {% endif %}
+                                  
+                                      {% if page_obj.number > 1 %}
+                                      <li class="page-item">
+                                        <a class="page-link" href="?page=1">
+                                          1
+                                        </a>
+                                      </li>
+                                      {% endif %}
+                                  
+                                      {% if page_obj.number > 3 %}
+                                      <li class="page-item">
+                                        <span class="page-link">...</span>
+                                      </li>
+                                      {% endif %}
+                                  
+                                      {% for page in page_obj.paginator.page_range %}
+                                        {% if page == page_obj.number %}
+                                          <li class="page-item active">
+                                            <a class="page-link" href="#">
+                                              {{ page }}
+                                              <span class="sr-only"></span>
+                                            </a>
+                                          </li>
+                                        {% elif page > page_obj.number|add:'-2' and page < page_obj.number|add:'2' %}
+                                          <li class="page-item">
+                                            <a class="page-link" href="?page={{ page }}">
+                                              {{ page }}
+                                            </a>
+                                          </li>
+                                        {% endif %}
+                                        {% if page == page_obj.number|add:'2' and page_obj.number|add:'1' < page_obj.paginator.num_pages %}
+                                          <li class="page-item">
+                                            <span class="page-link">...</span>
+                                          </li>
+                                        {% endif %}
+                                      {% endfor %}
+                                  
+                                      {% if page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
+                                      <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                          {{ page_obj.paginator.num_pages }}
+                                        </a>
+                                      </li>
+                                      {% endif %}
+                                  
+                                      {% if page_obj.has_next %}
+                                      <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Próximo">
+                                          <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                      </li>
+                                      {% endif %}
+                                    </ul>
+                                  </nav>                                                                                                    
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- row  -->
+
+                <!-- Scripts -->
+                {% include 'partials/scripts.html' %}
+</body>
+
+<style>
+    .page-item.active .page-link {
+        background-color: rgb(12, 20, 28);
+        border-color: rgb(12, 20, 28);
+    }
+
+    .page-link {
+        color: #333;
+    }
+
+    .page-link:hover {
+        color: #666;
+    }
+
+    #searchInput {
+        border-radius: 5px 5px 5px 5px;
+    }
+
+    #button-pesquisar {
+        display: none;
+    }
+
+    .objeto {
+        transition: transform 0.3s ease;
+    }
+
+    .objeto:hover {
+        transform: translateY(-5px);
+    }
+
+
+    span.title {
+        font-weight: bold;
+    }
+
+    .child span {
+        width: 120px;
+    }
+
+    #eye {
+        cursor: pointer;
+    }
+    #modal-info-header {
+    padding: 0;
+    height: 5rem;
+    border-bottom: none;
+    margin-bottom: -10px;
+    }
+
+    #modal-info-content {
+        padding: 0;
+    }
+
+    .custom-div {
+        margin-top: -10px;
+        margin-bottom: -10px;
+    }
+
+    #modal-info-body {
+        padding: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        color: black;
+    }
+
+    .custom-modal-dialog {
+        width: 900px;
+        max-width: 100%;
+    }
+
+    .fs-9 {
+        font-size: 10pt;
+    }
+    
+    .rounded-pill {
+        font-size: 12pt;
+    }
+    .charge-summary-max-width {
+    max-width: 800px;
+    flex-wrap: wrap;
+    }
+</style>
+
+</html>
+
+<script>
+    const eyeIcon = document.getElementById("eye");
+    const values1_h1 = document.querySelectorAll(".values1_h1");
+    const values1_span = document.querySelectorAll(".values1_span");
+    const values2_h1 = document.querySelectorAll(".values2_h1");
+    const values2_span = document.querySelectorAll(".values2_span");
+    const values3_h1 = document.querySelectorAll(".values3_h1");
+    const values3_span = document.querySelectorAll(".values3_span");
+
+    // Carrega a classe salva no localStorage para manter o "olho" habilitado ou desabilitado
+    if (localStorage.getItem("eyeClass") == "bi-eye") {
+        eyeIcon.classList.remove("bi-eye-slash");
+        eyeIcon.classList.add("bi-eye");
+
+        for (let i = 0; i < values1_h1.length; i++) {
+            values1_h1[i].style.height = "auto";
+            values1_h1[i].textContent = "{{total_clientes}}";
+        }
+        for (let i = 0; i < values1_span.length; i++) {
+            values1_span[i].textContent = "{{clientes_em_atraso}}";
+        }
+        for (let i = 0; i < values2_h1.length; i++) {
+            values2_h1[i].style.height = "auto";
+            values2_h1[i].textContent = "{{valor_total_pago}}";
+        }
+        for (let i = 0; i < values2_span.length; i++) {
+            values2_span[i].textContent = "{{valor_total_pago_qtd}}";
+        }
+        for (let i = 0; i < values3_h1.length; i++) {
+            values3_h1[i].style.height = "auto";
+            values3_h1[i].textContent = "{{valor_total_receber}}";
+        }
+        for (let i = 0; i < values3_span.length; i++) {
+            values3_span[i].textContent = "{{valor_total_receber_qtd}}";
+        }
+    } else if (localStorage.getItem("eyeClass") == "bi-eye-slash") {
+        eyeIcon.classList.remove("bi-eye");
+        eyeIcon.classList.add("bi-eye-slash");
+
+        for (let i = 0; i < values1_h1.length; i++) {
+            values1_h1[i].style.height = "43px";
+            values1_h1[i].textContent = "****";
+        }
+        for (let i = 0; i < values1_span.length; i++) {
+            values1_span[i].textContent = "*";
+        }
+        for (let i = 0; i < values2_h1.length; i++) {
+            values2_h1[i].style.height = "43px";
+            values2_h1[i].textContent = "****";
+        }
+        for (let i = 0; i < values2_span.length; i++) {
+            values2_span[i].textContent = "*";
+        }
+        for (let i = 0; i < values3_h1.length; i++) {
+            values3_h1[i].style.height = "43px";
+            values3_h1[i].textContent = "****";
+        }
+        for (let i = 0; i < values3_span.length; i++) {
+            values3_span[i].textContent = "*";
+        }
+    }
+
+    // muda a exibição das informações de acordo com o clique no "olho"
+    eyeIcon.addEventListener("click", function () {
+        if (eyeIcon.classList.contains("bi-eye")) {
+            eyeIcon.classList.remove("bi-eye");
+            eyeIcon.classList.add("bi-eye-slash");
+
+            for (let i = 0; i < values1_h1.length; i++) {
+                values1_h1[i].style.height = "43px";
+                values1_h1[i].textContent = "****";
+            }
+            for (let i = 0; i < values1_span.length; i++) {
+                values1_span[i].textContent = "*";
+            }
+            for (let i = 0; i < values2_h1.length; i++) {
+                values2_h1[i].style.height = "43px";
+                values2_h1[i].textContent = "****";
+            }
+            for (let i = 0; i < values2_span.length; i++) {
+                values2_span[i].textContent = "*";
+            }
+            for (let i = 0; i < values3_h1.length; i++) {
+                values3_h1[i].style.height = "43px";
+                values3_h1[i].textContent = "****";
+            }
+            for (let i = 0; i < values3_span.length; i++) {
+                values3_span[i].textContent = "*";
+            }
+
+            // Salva a classe atual no localStorage
+            localStorage.setItem("eyeClass", "bi-eye-slash");
+
+        } else {
+            eyeIcon.classList.remove("bi-eye-slash");
+            eyeIcon.classList.add("bi-eye");
+
+            for (let i = 0; i < values1_h1.length; i++) {
+                values1_h1[i].style.height = "auto";
+                values1_h1[i].textContent = "{{total_clientes}}";
+            }
+            for (let i = 0; i < values1_span.length; i++) {
+                values1_span[i].textContent = "{{clientes_em_atraso}}";
+            }
+            for (let i = 0; i < values2_h1.length; i++) {
+                values2_h1[i].style.height = "auto";
+                values2_h1[i].textContent = "{{valor_total_pago}}";
+            }
+            for (let i = 0; i < values2_span.length; i++) {
+                values2_span[i].textContent = "{{valor_total_pago_qtd}}";
+            }
+            for (let i = 0; i < values3_h1.length; i++) {
+                values3_h1[i].style.height = "auto";
+                values3_h1[i].textContent = "{{valor_total_receber}}";
+            }
+            for (let i = 0; i < values3_span.length; i++) {
+                values3_span[i].textContent = "{{valor_total_receber_qtd}}";
+            }
+
+            // Salva a classe atual no localStorage
+            localStorage.setItem("eyeClass", "bi-eye");
+        }
+
+    });
+</script>
+
+<script>
+    function exibirModalConfirmacaoCancelamento(botao) {
+        var cliente_id = $(botao).data('cliente');
+        var cliente_nome = $(botao).data('nome');
+        $('#confirm-cancelamento-modal #cliente-id').val(cliente_id);
+        $('#confirm-cancelamento-modal #cliente-nome').text(cliente_nome);
+        $('#confirm-cancelamento-modal').modal('show');
+
+        // Ouve o envio do formulário
+        $('#cancelamento-form').on('submit', function (event) {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            // Obtém o ID do cliente a ser cancelado
+            var cliente_id = $('#cliente-id').val();
+
+            // Faz a solicitação POST para a URL apropriada
+            $.ajax({
+                url: '/cancelar-cliente/' + cliente_id + '/',
+                method: 'POST',
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+                },
+                success: function (response) {
+                    // Verifica se a resposta contém a chave 'success_message_cancel'
+                    if ('success_message_cancel' in response) {
+                        // Fecha o modal e exibe mensagem de sucesso
+                        $('#confirm-cancelamento-modal').modal('hide');
+
+                        swal.fire({
+                            icon: 'info',
+                            title: 'Cancelado!',
+                            html: '<span style="font-size: 20px">😮</span><br>' + response.success_message_cancel + '<br>Caso queira reativar, basta acessar a listagem dos seus clientes.',
+                        }).then(function() {
+                            location.reload();
+                        });
+                    }
+
+                    if ('error_message' in response) {
+                        // Fecha o modal e exibe mensagem de sucesso
+                        $('#confirm-cancelamento-modal').modal('hide');
+
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Oops...',
+                            text: response.error_message,
+                        });
+                    }
+                },
+                error: function (response) {
+                    // Fecha o modal e exibe mensagem de erro
+                    $('#confirm-cancelamento-modal').modal('hide');
+
+                    swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'Ocorreu um erro ao tentar cancelar o cliente.',
+                    });
+                }
+            });
+        });
+    }
+
+    $('#confirm-cancelamento-modal').on('click', '.btn-close, .btn-secondary', function () {
+        $('#confirm-cancelamento-modal').modal('hide');
+    });
+</script>
+
+
+<script>
+    function exibirModalConfirmacaoPagamento(botao) {
+        var mensalidade_id = $(botao).data('mensalidade');
+        var cliente_nome = $(botao).data('nome');
+        $('#confirm-pagamento-modal #mensalidade-id').val(mensalidade_id);
+        $('#confirm-pagamento-modal #cliente-nome').text(cliente_nome);
+        $('#confirm-pagamento-modal').modal('show');
+
+        // Ouve o envio do formulário
+        $('#pagamento-form').on('submit', function (event) {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            // Obtém o ID do mensalidade a ser cancelado
+            var mensalidade_id = $('#mensalidade-id').val();
+
+            // Faz a solicitação POST para a URL apropriada
+            $.ajax({
+                url: '/pagar-mensalidade/' + mensalidade_id + '/',
+                method: 'POST',
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+                },
+                success: function (response) {
+                    // Verifica se a resposta contém a chave 'success_message_invoice'
+                    if ('success_message_invoice' in response) {
+                        // Fecha o modal e exibe mensagem de sucesso
+                        $('#confirm-pagamento-modal').modal('hide');
+
+                        swal.fire({
+                            icon: 'success',
+                            title: 'Pago!',
+                            html: '<span style="font-size: 20px">🤑</span><br>' + response.success_message_invoice + '<br>Consulte as mensalidades desse cliente para mais detalhes.',
+                        }).then(function() {
+                            location.reload();
+                        });
+                    }
+
+                    if ('error_message' in response) {
+                        // Fecha o modal e exibe mensagem de sucesso
+                        $('#confirm-pagamento-modal').modal('hide');
+
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Oops...',
+                            text: response.error_message,
+                        });
+                    }
+                },
+                error: function (response) {
+                    // Fecha o modal e exibe mensagem de erro
+                    $('#confirm-pagamento-modal').modal('hide');
+
+                    swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'Ocorreu um erro ao tentar cancelar o cliente.',
+                    });
+                }
+            });
+        });
+    }
+
+    $('#confirm-pagamento-modal').on('click', '.btn-close, .btn-secondary', function () {
+        $('#confirm-pagamento-modal').modal('hide');
+    });
+</script>
+
+<script>
+        function exibirModalDetalhes(botao) {
+        const clienteId = botao.dataset.id;
+        const clienteNome = botao.dataset.nome;
+        const clienteTela = botao.dataset.telas;
+        const clientePlano = botao.dataset.plano;
+        const clienteTelefone = botao.dataset.telefone;
+        const clienteServidor = botao.dataset.servidor;
+        const clienteFormaPgto = botao.dataset.forma_pgto;
+        const clienteAplicativo = botao.dataset.aplicativo;
+        const clienteDataAdesao = botao.dataset.data_adesao;
+        const clienteDispositivo = botao.dataset.dispositivo;
+        const clienteDataPagamento = botao.dataset.data_pagamento;
+        const clienteContaAplicativo = botao.dataset.conta_aplicativo;
+
+        let clienteUltimoPagamento = botao.dataset.ultimo_pagamento;
+        if (clienteUltimoPagamento == 'None' || clienteUltimoPagamento == '' || clienteUltimoPagamento == null){
+            clienteUltimoPagamento = '--';
+        }
+        
+        let clienteIndicadoPor = botao.dataset.indicado_por;
+        if (clienteIndicadoPor == 'None' || clienteIndicadoPor == '' || clienteIndicadoPor == null){
+            clienteIndicadoPor = '--';
+        }
+        
+        let clienteNotas = botao.dataset.notas;
+        if (clienteNotas == 'None' || clienteNotas == '' || clienteNotas == null){
+            clienteNotas = '--';
+        }
+        
+        const table = document.querySelector("#info-cliente-table");
+
+        document.getElementById('info-cliente-nome').textContent = clienteNome;
+        document.getElementById('info-cliente-tela').textContent =  clienteTela;
+        document.getElementById('info-cliente-notas').textContent =  clienteNotas;
+        document.getElementById('info-cliente-plano').textContent =  clientePlano;
+        document.getElementById('info-cliente-telefone').textContent = formatarTelefone(clienteTelefone);
+        document.getElementById('info-cliente-servidor').textContent =  clienteServidor;
+        document.getElementById('info-cliente-forma_pgto').textContent =  clienteFormaPgto;
+        document.getElementById('info-cliente-aplicativo').textContent =  clienteAplicativo;
+        document.getElementById('info-cliente-dispositivo').textContent =  clienteDispositivo;
+        document.getElementById('info-cliente-indicado_por').textContent =  clienteIndicadoPor;
+        document.getElementById('info-cliente-ultimo_pgto').textContent =  clienteUltimoPagamento;
+        document.getElementById('info-cliente-data_pagamento').textContent =  clienteDataPagamento;
+        document.getElementById('info-cliente-data_adesao').textContent = 'Cliente desde ' + clienteDataAdesao;
+
+        const modal = new bootstrap.Modal(document.querySelector("#info-cliente-modal"));
+        modal.show();
+
+        // chamar a função para carregar e inserir as informações das contas dos aplicativos no modal
+        carregarContasApps(clienteId);
+    }
+
+    $('#info-cliente-modal').on('click', '.btn-close, .btn-secondary', function () {
+      $('#info-cliente-modal').modal('hide');
+    });
+
+    function formatarTelefone(telefone) {
+        const numeros = telefone.replace(/\D/g, '');
+      
+        if (numeros.length === 12) {
+            return `(${numeros.substr(2, 2)}) ${numeros.substr(4, 4)}-${numeros.substr(8)}`;
+        } else if (numeros.length === 13) {
+            return `(${numeros.substr(2, 2)}) ${numeros.substr(4, 5)}-${numeros.substr(9)}`;
+        } else {
+            return telefone;
+        }
+    }
+
+    function carregarContasApps(clienteId) {
+    $.ajax({
+        url: '/contas_apps/',
+        type: 'GET',
+        data: { cliente_id: clienteId },
+        success: function(data) {
+            var contas = data.conta_app; // Obtém os dados das contas de aplicativo
+
+            console.log(contas);
+
+            var container = $('.charge-summary');
+            var container2 = $('.texto-aqui');
+
+            container.empty(); // Limpa o container antes de adicionar os novos elementos
+            container2.empty();
+
+            for (var i = 0; i < contas.length; i++) {
+                var conta = contas[i];
+
+                var card = $('<div class="card rounded py-4 px-5 d-flex flex-column align-items-center justify-content-center border"></div>');
+                var badge = $('<span class="badge rounded-pill bg-secondary mb-3">' + conta.nome_aplicativo + '</span>');
+                var infoDiv = $('<div class="my-0 text-center"></div>');
+
+                if (conta.device_id) {
+                    infoDiv.append('<span>Device ID: </span><span>' + conta.device_id + '</span><br>');
+                    infoDiv.append('<span>Device Key: </span><span>' + conta.device_key + '</span>');
+                }
+                else if (conta.email){
+                    card = $('<div class="card rounded py-4 px-5 d-flex flex-column align-items-center justify-content-center border"></div>');
+                    infoDiv.append('<span>E-mail: </span><span>' + conta.email + '</span><br>');
+                    infoDiv.append('<span>Device Key: </span><span>' + conta.device_key + '</span>');
+                }
+
+                card.append(badge);
+                card.append(infoDiv);
+                container.append(card);
+            }
+
+            // Verificar se não há contas de aplicativo e exibir a mensagem correspondente
+            if (contas.length === 0) {
+                var message = $('<p class="text-muted text-center">Ainda não há contas de aplicativo para esse cliente.</p>');
+                container2.append(message);
+            }
+        },
+        error: function(error) {
+            console.log(error);
+        }
+    });
+}
+
+
+</script>

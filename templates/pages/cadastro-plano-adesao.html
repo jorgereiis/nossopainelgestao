@@ -1,0 +1,340 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Planos de Adesão | Nosso Painel - Gestão IPTV</title>
+</head>
+
+<body class="bg-light">
+  <div id="db-wrapper">
+    <!-- navbar vertical -->
+    {% include 'partials/navbar-vertical.html' %}
+    <!-- page content -->
+    <div id="page-content">
+      {% include 'partials/header.html' %}
+      <!-- Container fluid -->
+      <div class="container-fluid p-6">
+        <div class="row">
+          <div class="col-lg-12 col-md-12 col-12">
+            <!-- Page header -->
+            <div class="border-bottom pb-4 mb-4">
+              <h3 class="mb-0 fw-bold">Cadastro de Plano de Adesão</h3>
+
+            </div>
+          </div>
+          <!-- col -->
+          <div class="row mb-8">
+            <div class="col-xl-4 col-lg-3 col-md-8 col-8">
+              <div class="mb-4 mb-lg-0">
+                <h4 class="mb-1">Crie aqui seus Planos de Adesão</h4>
+                <p class="mb-0 fs-5 text-muted">Crie seus planos de adesão de acordo com os valores que você já oferece aos seus clientes. É permitido mais de um do mesmo tipo.</p>
+              </div>
+
+            </div>
+
+            <div class="col-xl-4 col-lg-5 col-md-5 col-5">
+              <!-- card -->
+              <div class="card">
+                <!-- card body -->
+                <div class="card-body">
+                  <div class=" mb-5">
+                    <h4 class="mb-1">Formulário de cadastro</h4>
+                  </div>
+                  
+                  <form method="POST">
+                    <!-- row -->
+                    {% csrf_token %}
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="nome" class="col-sm-2 col-form-label form-label">Nome</label>
+                      <div class="col-md-5 col-5">
+                        <select class="form-select" id="nome" name="nome">
+                          <option value="Mensal">Mensal</option>
+                          <option value="Semestral">Semestral</option>
+                          <option value="Anual">Anual</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="valor" class="col-sm-2 col-form-label form-label">Valor</label>
+                      <div class="col-md-5 col-5">
+                        <div class="input-group">
+                          <span class="input-group-text">R$</span>
+                          <input type="number" class="form-control" id="valor" name="valor" min="0" step="1" required>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="offset-md-2 col-md-5 mt-4">
+                      <button type="submit" class="btn btn-primary" name="cadastrar"> Cadastrar</button>
+                    </div>
+                </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-8">
+            <div class="col-md-12 col-12">
+              <div class="mb-lg-6 border-bottom pb-4 mb-4">
+                <h4 class="mb-1">Cadastros existentes</h4>
+              </div>
+            </div>
+            <br>
+
+            <!-- Modal de confirmação de exclusão -->
+            <div class="modal fade" id="confirm-delete-modal" tabindex="-1" role="dialog"
+              aria-labelledby="confirm-delete-label">
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h4 class="modal-title" id="confirm-delete-label">Confirmar exclusão</h4>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                    <p>Tem certeza que deseja excluir o plano <span id="servidor-nome"></span>?</p>
+                  </div>
+                  <div class="modal-footer">
+                    <div class="mensagem-erro" id="mensagem-erro"></div>
+                    <form method="POST" id="delete-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="plano_id" id="plano-id">
+                      <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                      <button type="submit" class="btn btn-danger">Excluir</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal de edição de planos -->
+            <div class="modal fade" id="edit-plano-modal" tabindex="-1" role="dialog"
+              aria-labelledby="edit-plano-label">
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h4 class="modal-title" id="edit-plano-label">Editar Plano</h4>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
+                  </div>
+                  <div class="modal-body">
+                    <form method="POST" id="edit-plano-form">
+                      {% csrf_token %}
+                      <div class="form-group">
+                        <label for="edit-plano-nome">Nome do Plano</label>
+                        <select class="form-select" id="edit-plano-nome" name="nome">
+                          <option value="Mensal">Mensal</option>
+                          <option value="Semestral">Semestral</option>
+                          <option value="Anual">Anual</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label for="edit-plano-valor">Valor</label>
+                        <div class="input-group">
+                          <span class="input-group-text">R$</span>
+                          <input type="number" class="form-control" id="edit-plano-valor" name="valor" min="0" step="1" required>
+                        </div>
+                      </div>
+                      <input type="hidden" name="plano_id" id="plano-id">
+                    </form>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="edit-plano-form" class="btn btn-primary">Salvar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-5 mx-auto">
+              <!-- card -->
+              <div class="card">
+                <div class="table-responsive">
+                  <table class="table table-sm text-nowrap mb-0 table-hover text-center" id="myTable">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="fw-bold text-center">Plano</th>
+                        <th class="fw-bold text-center">Valor</th>
+                        <th class="fw-bold text-center">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for plano in planos_mensalidades %}
+                      <!-- COMEÇO DA LINHA -->
+                      <tr>
+                        <td class="align-middle">
+                          <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
+                            onmouseout="this.style.color=''">{{plano.nome}}</h5>
+                        </td>
+                        <td class="align-middle">
+                          <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
+                            onmouseout="this.style.color=''">{{plano.valor}}</h5>
+                        </td>
+                        
+                        <!-- Dropdown da tabela -->
+                        <td>
+                          <div class="dropdown">
+                            <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button"
+                              id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                              <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <li>
+                                <button class="dropdown-item" data-servidor="{{plano.id}}" data-nome="{{plano.nome}}"
+                                  data-valor="{{plano.valor}}" onclick="exibirModalEdicao(this)">Editar</button>
+                              </li>
+                              <li>
+                                <button class="dropdown-item" data-plano="{{plano.id}}" data-nome="{{plano.nome}}"
+                                  onclick="exibirModalConfirmacaoExclusao(this)">Excluir</button>
+                              </li>
+                            </ul>
+                          </div>
+                        </td>
+                        {% endfor %}
+
+                      </tr>
+                      <!-- TÉRMINO DA LINHA -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Scripts -->
+      {% include 'partials/scripts.html' %}
+
+      <!-- Alert success -->
+      {% if success_message %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/cadastro-plano-adesao';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'success',
+            title: 'Cadastro realizado',
+            text: '{{success_message}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      {% elif success_update == True %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/cadastro-plano-adesao';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'success',
+            title: 'Cadastro atualizado',
+            text: 'Servidor editado com sucesso!',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      <!-- Alert error -->
+      {% elif error_message %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/cadastro-plano-adesao';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: '{{error_message}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+      {% endif %}
+
+</body>
+
+</html>
+
+<script>
+  function exibirModalConfirmacaoExclusao(botao) {
+    var plano_id = $(botao).data('plano');
+    var plano_nome = $(botao).data('nome');
+    $('#confirm-delete-modal #plano-id').val(plano_id);
+    $('#confirm-delete-modal #plano-nome').text(plano_nome);
+    $('#confirm-delete-modal').modal('show');
+
+    // Ouve o envio do formulário
+    $('#delete-form').on('submit', function (event) {
+      event.preventDefault(); // Impede o envio padrão do formulário
+
+      // Obtém o ID do servidor a ser excluído
+      var plano_id = $('#plano-id').val();
+
+      // Faz a solicitação DELETE para a URL apropriada
+      $.ajax({
+        url: '/deletar-plano-adesao/' + plano_id + '/',
+        method: 'DELETE',
+        beforeSend: function (xhr) {
+          xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+        },
+        success: function (response) {
+          // Fecha o modal e recarrega a página
+          $('#confirm-delete-modal').modal('hide');
+          window.location.reload();
+        },
+        error: function (response) {
+          // Lida com o erro de exclusão
+          var mensagem_erro = response.responseJSON.error_delete;
+          $('#mensagem-erro').text(mensagem_erro);
+        }
+      });
+    });
+  }
+
+  $('#confirm-delete-modal').on('click', '.btn-close, .btn-secondary', function () {
+    $('#confirm-delete-modal').modal('hide');
+  });
+
+</script>
+
+<script>
+  function exibirModalEdicao(botao) {
+    const planoId = botao.dataset.servidor;
+    const planoNome = botao.dataset.nome;
+    const planoValor = botao.dataset.valor;
+
+    console.log('planoId', planoId);
+
+    const form = document.querySelector("#edit-plano-form");
+    form.action = `/editar-plano-adesao/${planoId}/`;
+    form.querySelector("#edit-plano-nome").value = planoNome;
+    form.querySelector("#edit-plano-valor").value = planoValor;
+    form.querySelector("#plano-id").value = planoId;
+
+    const modal = new bootstrap.Modal(document.querySelector("#edit-plano-modal"));
+    modal.show();
+  }
+
+  $('#edit-plano-modal').on('click', '.btn-close, .btn-secondary', function () {
+    $('#edit-plano-modal').modal('hide');
+  });
+</script>

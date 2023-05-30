@@ -1,0 +1,349 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Novo cliente | Nosso Painel - Gestão IPTV</title>
+</head>
+
+<body class="bg-light">
+  <div id="db-wrapper">
+    <!-- navbar vertical -->
+    {% include 'partials/navbar-vertical.html' %}
+    <!-- page content -->
+    <div id="page-content">
+      {% include 'partials/header.html' %}
+      <!-- Container fluid -->
+      <div class="container-fluid p-6">
+        <div class="row">
+          <div class="col-lg-12 col-md-12 col-12">
+            <!-- Page header -->
+            <div class="border-bottom pb-4 mb-4">
+              <h3 class="mb-0 fw-bold">Cadastro de novos clientes</h3>
+
+            </div>
+          </div>
+          <!-- col -->
+          <div class="row mb-8">
+            <div class="col-xl-3 col-lg-4 col-md-12 col-12">
+              <div class="mb-4 mb-lg-0">
+                <h4 class="mb-1">Cadastre aqui o seu novo cliente</h4>
+                <p class="mb-0 fs-5 text-muted">Preencha todos os dados corretamente. </p>
+              </div>
+            </div>
+
+            <div class="col-xl-9 col-lg-8 col-md-12 col-12" id="div-principal">
+              <!-- card -->
+              <div class="card">
+                <!-- card body -->
+                <div class="card-body">
+                  <div class=" mb-6">
+                    <h4 class="mb-1">Formulário de cadastro</h4>
+                  </div>
+
+                  <form method="POST">
+                    <!-- row -->
+                    {% csrf_token %}
+                    <div class="mb-3 row">
+                      <label for="fullName" class="col-sm-4 col-form-label
+                          form-label">Nome completo <span class="text-danger">*</span></label>
+                      <div class="col-sm-4 mb-3 mb-lg-0">
+                        <input type="text" class="form-control" placeholder="Nome" id="nome" name="nome"
+                          autocomplete="off" required>
+                      </div>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" placeholder="Sobrenome" id="sobrenome" name="sobrenome"
+                          autocomplete="off" required>
+                      </div>
+                    </div>
+                    <div class="mb-3 row">
+                      <label for="telefone" class="col-sm-4 col-form-label
+                          form-label">Telefone <span class="text-danger">*</span></label>
+                      <div class="col-md-8 col-12">
+                        <input type="text" class="form-control" placeholder="DDD + Número" id="telefone" name="telefone"
+                          autocomplete="off" minlength="12" maxlength="15" required>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="indicado_por" class="col-sm-4 col-form-label
+                              form-label">Indicado por</label>
+                      <div class="col-md-8 col-12">
+                        <input type="text" class="form-control" placeholder="Selecione um cliente indicador" id="indicado_por"
+                          list="indicador-options" name="indicador_list" autocomplete="off">
+                      </div>
+                      <!-- Definindo o datalist -->
+                      <datalist id="indicador-options">
+                        {% for indicador in indicadores %}
+                        <option value="{{ indicador.nome }}">
+                          {% endfor %}
+                      </datalist>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="servidor" class="col-sm-4 col-form-label
+                          form-label">Servidor <span class="text-danger">*</span></label>
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="servidor" name="servidor" required>
+                          <option value="">Selecione um servidor</option>
+                          {% for servidor in servidores %}
+                          <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="forma_pgto" class="col-sm-4 col-form-label
+                          form-label">Forma de pagamento <span class="text-danger">*</span></label>
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="forma_pgto" name="forma_pgto" required>
+                          <option value="">Selecione uma forma de pagamento</option>
+                          {% for forma_pgto in formas_pgtos %}
+                          <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="plano" class="col-sm-4 col-form-label
+                          form-label">Planos <span class="text-danger">*</span></label>
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="plano" name="plano" required>
+                          <option value="">Selecione um plano de adesão</option>
+                          {% for plano in planos %}
+                          <option value="{{ plano.nome }}-{{plano.valor}}">{{ plano.nome }} - {{ plano.valor }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="telas" class="col-sm-4 col-form-label
+                          form-label">Qtd. telas <span class="text-danger">*</span></label>
+
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="telas" name="telas" required>
+                          <option value="">Selecione a quantidade de telas</option>
+                          {% for tela in telas %}
+                          <option value="{{ tela.telas }}">{{ tela.telas }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="data_pagamento" class="col-sm-4 col-form-label form-label">Dia de pagamento mensal</label>
+                      <div class="col-md-8 col-12">
+                        <input type="number" class="form-control" placeholder="Informe o dia do pagamento mensal" id="data_pagamento" min="1" max="31"
+                          name="data_pagamento">
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="dispositivo" class="col-sm-4 col-form-label
+                          form-label">Dispositivo <span class="text-danger">*</span></label>
+
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="dispositivo" name="dispositivo" required>
+                          <option value="">Selecione um dispositivo</option>
+                          {% for dispositivo in dispositivos %}
+                          <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row" id="teste">
+                      <label for="aplicativo" class="col-sm-4 col-form-label
+                          form-label">Aplicativo <span class="text-danger">*</span></label>
+                      <div class="col-md-8 col-12">
+                        <select class="form-select" id="sistema" name="sistema" required>
+                          <option value="">Selecione um aplicativo</option>
+                          {% for sistema in sistemas %}
+                          <option value="{{ sistema.nome }}">{{ sistema.nome }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    <!-- row -->
+                    <div class="mb-3 row">
+                      <label for="notas" class="col-sm-4 col-form-label form-label">Anotações</label>
+                      <div class="col-md-8 col-12">
+                        <textarea type="text" class="form-control" placeholder="Detalhes adicionais sobre o cliente..." id="notas"
+                          name="notas"></textarea>
+                      </div>
+                    </div>
+                </div>
+                <div class="offset-md-4 mb-4">
+                  <button type="submit" class="btn btn-primary" name="cadastrar" id="cadastrar"> Cadastrar</button>
+                </div>
+              </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    {% include 'partials/scripts.html' %}
+
+    {% if success_message %}
+    <script>
+      console.log(window.location.origin)
+      $(document).ready(function () {
+        var currentUrl = window.location.origin;
+        var newPath = '/cadastro-cliente';
+        var newUrl = currentUrl + newPath;
+        swal.fire({
+          icon: 'success',
+          title: 'Cadastro realizado',
+          html: '{{success_message|safe}}',
+          didClose: function () {
+            window.location.href = newUrl;
+          }
+        });
+      });
+    </script>
+
+    {% elif success_update == True %}
+    <script>
+      console.log(window.location.origin)
+      $(document).ready(function () {
+        var currentUrl = window.location.origin;
+        var newPath = '/cadastro-cliente';
+        var newUrl = currentUrl + newPath;
+        swal.fire({
+          icon: 'success',
+          title: 'Cadastro atualizado',
+          text: 'Aplicativo editado com sucesso!',
+          didClose: function () {
+            window.location.href = newUrl;
+          }
+        });
+      });
+    </script>
+
+    <!-- Alert error -->
+    {% elif error_message %}
+    <script>
+      console.log(window.location.origin)
+      $(document).ready(function () {
+        var currentUrl = window.location.origin;
+        var newPath = '/cadastro-cliente';
+        var newUrl = currentUrl + newPath;
+        swal.fire({
+          icon: 'error',
+          title: 'Oops...',
+          html: '{{error_message|safe}}',
+          didClose: function () {
+            window.location.href = newUrl;
+          }
+        });
+      });
+    </script>
+    {% endif %}
+
+    <!--
+    <script>
+      $(document).ready(function () {
+        var currentUrl = window.location.origin;
+        var newPath = '/cadastro-cliente';
+        var newUrl = currentUrl + newPath;
+
+        // Verifica se já passou 30 minutos desde a última visualização
+        var lastViewed = localStorage.getItem('lastViewed');
+        if (lastViewed && (Date.now() - lastViewed < 1800000)) {
+          return;
+        }
+
+        // Exibe o swal.fire e atualiza o armazenamento local
+        swal.fire({
+          icon: 'info',
+          title: 'Atenção!!',
+          html: 'Preencha todos os dados com atenção. <br><br>Ao informar o número de telefone, informe apenas os números no seguinte formato:<br>Ex. 5511988887777',
+          didClose: function () {
+            localStorage.setItem('lastViewed', Date.now());
+            window.location.href = newUrl;
+          }
+        });
+      });
+    </script>
+    -->
+
+</body>
+
+</html>
+
+<script>
+  const input1 = document.querySelector('input[name="indicado_list"]');
+  input1.addEventListener('change', (event) => {
+    const value = event.target.value;
+    input1.value = value;
+  });
+</script>
+
+<script>
+  //INSERÇÃO DE NOVOS CAMPOS NA TABELA DE ACORDO COM O APLICATIVO ESCOLHIDO
+  $(document).ready(function () {
+    // Ao mudar o valor do select com id "sistema"
+    $('#sistema').change(function () {
+      // Se o valor selecionado for igual a "duplex, duplecast ou metaplayer"
+      if ($(this).val().toLowerCase().replace(/\s/g, "") === 'duplexplay' ||
+        $(this).val().toLowerCase().replace(/\s/g, "") === 'duplecast' ||
+        $(this).val().toLowerCase().replace(/\s/g, "") === 'metaplayer') {
+        // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
+        $('#divEmail').remove();
+        $('#divSenha2').remove();
+        $('#divID').remove();
+        $('#divSenha').remove();
+        $('#teste').after('<div class="mb-3 row" id="divSenha"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha" minlength="6" required></div>');
+        $('#teste').after('<div class="mb-3 row" id="divID"><label for="ID" class="col-sm-4 col-form-label form-label">ID do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device ID" id="ID" name="id" minlength="12" maxlength="18" required></div>');
+      } else if ($(this).val().toLowerCase().replace(/\s/g, "") === 'clouddy') {
+        // Se o valor selecionado não for igual a "clouddy",
+        // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
+        $('#divID').remove();
+        $('#divSenha').remove();
+        $('#divEmail').remove();
+        $('#divSenha2').remove();
+        $('#teste').after('<div class="mb-3 row" id="divSenha2"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" minlength="6" required></div>');
+        $('#teste').after('<div class="mb-3 row" id="divEmail"><label for="Email" class="col-sm-4 col-form-label form-label">E-mail do Aplicativo</label><div class="col-md-8 col-12"><input type="email" class="form-control" placeholder="E-mail" id="Email" name="email" required></div>');
+      } else {
+        $('#divID').remove();
+        $('#divSenha').remove();
+        $('#divEmail').remove();
+        $('#divSenha2').remove();
+      }
+    });
+  });
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var telefoneInput = document.getElementById('telefone');
+
+  telefoneInput.addEventListener('input', function() {
+    var telefone = this.value.replace(/\D/g, ''); // Remove todos os caracteres não numéricos
+
+    var formattedTelefone = '';
+    if (telefone.length > 0) {
+      formattedTelefone = '(' + telefone.substring(0, 2) + ')';
+
+      if (telefone.length > 2) {
+        formattedTelefone += ' ' + telefone.substring(2, 7);
+
+        if (telefone.length > 7) {
+          formattedTelefone += '-' + telefone.substring(7, 11);
+        }
+      }
+    }
+
+    this.value = formattedTelefone;
+  });
+});
+</script>

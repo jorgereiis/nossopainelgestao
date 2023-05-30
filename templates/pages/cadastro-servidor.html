@@ -1,0 +1,304 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Servidores | Nosso Painel - Gestão IPTV</title>
+</head>
+
+<body class="bg-light">
+  <div id="db-wrapper">
+    <!-- navbar vertical -->
+    {% include 'partials/navbar-vertical.html' %}
+    <!-- page content -->
+    <div id="page-content">
+      {% include 'partials/header.html' %}
+      <!-- Container fluid -->
+      <div class="container-fluid p-6">
+        <div class="row">
+          <div class="col-lg-12 col-md-12 col-12">
+            <!-- Page header -->
+            <div class="border-bottom pb-4 mb-4">
+              <h3 class="mb-0 fw-bold">Cadastro de Servidores</h3>
+            </div>
+          </div>
+
+          <!-- col -->
+          <div class="row mb-8">
+            <div class="col-xl-4 col-lg-4 col-md-12 col-12">
+              <div class="mb-4 mb-lg-0">
+                <h4 class="mb-1">Crie aqui o seu Servidor</h4>
+                <p class="mb-0 fs-5 text-muted">Cadastre cada um dos servidores que você utiliza para fornecer listas aos seus clientes.</p>
+              </div>
+            </div>
+
+            <div class="col-xl-4 col-lg-8 col-md-12 col-12">
+              <!-- card -->
+              <div class="card">
+                <!-- card body -->
+                <div class="card-body">
+                  <div class=" mb-5">
+                    <h4 class="mb-1">Formulário de cadastro</h4>
+                  </div>
+
+                  <form method="POST">
+                    <!-- row -->
+                    {% csrf_token %}
+                    <div class="mb-3 row">
+                      <label for="fullName" class="col-sm-3 col-form-label
+                          form-label">Descrição</label>
+                      <div class="col-sm-7 mb-3 mb-lg-0">
+                        <input type="text" class="form-control" placeholder="Nome do servidor/painel..." id="nome"
+                          name="nome" required>
+                      </div>
+                    </div>
+                    <div class="offset-md-3 col-md-8 mt-4">
+                      <button type="submit" class="btn btn-primary" name="cadastrar"> Cadastrar</button>
+                    </div>
+                </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-8">
+            <div class="col-md-12 col-12">
+              <div class="mb-lg-6 border-bottom pb-4 mb-4">
+                <h4 class="mb-1">Cadastros existentes</h4>
+              </div>
+            </div>
+            <br>
+
+            <!-- Modal de confirmação de exclusão -->
+            <div class="modal fade" id="confirm-delete-modal" tabindex="-1" role="dialog"
+              aria-labelledby="confirm-delete-label">
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h4 class="modal-title" id="confirm-delete-label">Confirmar exclusão</h4>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                    <p>Tem certeza que deseja excluir o servidor <span id="servidor-nome"></span>?</p>
+                  </div>
+                  <div class="modal-footer">
+                    <div class="mensagem-erro" id="mensagem-erro"></div>
+                    <form method="POST" id="delete-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="servidor_id" id="servidor-id">
+                      <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                      <button type="submit" class="btn btn-danger">Excluir</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal de edição de servidor -->
+            <div class="modal fade" id="edit-servidor-modal" tabindex="-1" role="dialog"
+              aria-labelledby="edit-servidor-label">
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h4 class="modal-title" id="edit-servidor-label">Editar Servidor</h4>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
+                  </div>
+                  <div class="modal-body">
+                    <form method="POST" id="edit-servidor-form">
+                      {% csrf_token %}
+                      <div class="form-group">
+                        <label for="servidor-nome">Nome do servidor</label>
+                        <input type="text" class="form-control" id="servidor-nome" name="nome">
+                      </div>
+                      <input type="hidden" name="servidor_id" id="servidor-id">
+                    </form>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="edit-servidor-form" class="btn btn-primary">Salvar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-4 mx-auto">
+              <!-- card -->
+              <div class="card">
+                <div class="table-responsive">
+                  <table class="table table-sm text-nowrap mb-0 table-hover text-center" id="myTable">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="fw-bold text-center">Servidores</th>
+                        <th class="fw-bold text-center">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for servidor in servidores %}
+                      <!-- COMEÇO DA LINHA -->
+                      <tr>
+                        <td class="align-middle">
+                          <div class="">
+                            <div class="">
+                              <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
+                                onmouseout="this.style.color=''">{{servidor.nome}}</h5>
+                            </div>
+                          </div>
+                        </td>
+                        <!-- Dropdown da tabela -->
+                        <td>
+                          <div class="dropdown dropstart">
+                            <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button"
+                              id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                              <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <li>
+                                <button class="dropdown-item" data-servidor="{{servidor.id}}"
+                                  data-nome="{{servidor.nome}}" onclick="exibirModalEdicao(this)">Editar</button>
+                              </li>
+                              <li>
+                                <button class="dropdown-item" data-servidor="{{servidor.id}}"
+                                  data-nome="{{servidor.nome}}"
+                                  onclick="exibirModalConfirmacaoExclusao(this)">Excluir</button>
+                              </li>
+                            </ul>
+                          </div>
+                        </td>
+                        {% endfor %}
+                      </tr>
+                      <!-- TÉRMINO DA LINHA -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scripts -->
+      {% include 'partials/scripts.html' %}
+
+      <!-- Alert success -->
+      {% if success_message %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/cadastro-servidor';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'success',
+            title: 'Cadastro realizado',
+            text: '{{success_message}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      {% elif success_update == True %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/cadastro-servidor';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'success',
+            title: 'Cadastro atualizado',
+            text: 'Servidor editado com sucesso!',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      <!-- Alert error -->
+      {% elif error_message %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/cadastro-servidor';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: '{{error_message}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+      {% endif %}
+</body>
+
+</html>
+
+<script>
+  function exibirModalConfirmacaoExclusao(botao) {
+    var servidor_id = $(botao).data('servidor');
+    var servidor_nome = $(botao).data('nome');
+    $('#confirm-delete-modal #servidor-id').val(servidor_id);
+    $('#confirm-delete-modal #servidor-nome').text(servidor_nome);
+    $('#confirm-delete-modal').modal('show');
+
+    // Ouve o envio do formulário
+    $('#delete-form').on('submit', function (event) {
+      event.preventDefault(); // Impede o envio padrão do formulário
+
+      // Obtém o ID do servidor a ser excluído
+      var servidor_id = $('#servidor-id').val();
+
+      // Faz a solicitação DELETE para a URL apropriada
+      $.ajax({
+        url: '/deletar-servidor/' + servidor_id + '/',
+        method: 'DELETE',
+        beforeSend: function (xhr) {
+          xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+        },
+        success: function (response) {
+          // Fecha o modal e recarrega a página
+          $('#confirm-delete-modal').modal('hide');
+          window.location.reload();
+        },
+        error: function (response) {
+          // Lida com o erro de exclusão
+          var mensagem_erro = response.responseJSON.error_delete;
+          $('#mensagem-erro').text(mensagem_erro);
+        }
+      });
+    });
+  }
+
+  $('#confirm-delete-modal').on('click', '.btn-close, .btn-secondary', function () {
+    $('#confirm-delete-modal').modal('hide');
+  });
+
+</script>
+
+<script>
+  function exibirModalEdicao(botao) {
+    const servidorId = botao.dataset.servidor;
+    const servidorNome = botao.dataset.nome;
+
+    const form = document.querySelector("#edit-servidor-form");
+    form.action = `/editar-servidor/${servidorId}/`;
+    form.querySelector("#servidor-nome").value = servidorNome;
+    form.querySelector("#servidor-id").value = servidorId;
+
+    const modal = new bootstrap.Modal(document.querySelector("#edit-servidor-modal"));
+    modal.show();
+  }
+
+  $('#edit-servidor-modal').on('click', '.btn-close, .btn-secondary', function () {
+    $('#edit-servidor-modal').modal('hide');
+  });
+</script>

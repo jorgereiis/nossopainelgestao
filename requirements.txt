@@ -1,0 +1,17 @@
+asgiref
+Babel
+crispy-bootstrap5
+Django
+django-crispy-forms
+django-recaptcha
+et-xmlfile
+numpy
+openpyxl
+pandas
+python-dateutil
+python-dotenv
+pytz
+six
+sqlparse
+tzdata
+xlrd

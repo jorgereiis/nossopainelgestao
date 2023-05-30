@@ -1,0 +1,72 @@
+{% load static %}
+{% load crispy_forms_tags %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Login | Nosso Painel - Gestão IPTV</title>
+</head>
+
+<body class="bg-light">
+  <!-- container -->
+  <div class="container d-flex flex-column">
+    <div class="row align-items-center justify-content-center g-0
+        min-vh-100">
+      <div class="col-12 col-md-8 col-lg-6 col-xxl-4 py-8 py-xl-0">
+        <!-- Card -->
+        <div class="card smooth-shadow-md">
+          <!-- Card body -->
+          <div class="card-body p-6">
+            <div class="mb-4">
+              <p class="fs-3">Quem é você?</p>
+            </div>
+            <!-- Form -->
+            <form method="POST" action="">
+              {% csrf_token %}
+                {% if form.errors.captcha %}
+                <div class="alert alert-danger" role="alert">
+                  <ul class="mb-0">
+                    <li>
+                      O Captcha é obrigatório!
+                    </li>
+                  </ul>
+                 </div>
+                 {% endif %}
+                {{ form|crispy }}
+              <div>
+                <!-- Button -->
+                <div class="d-grid">
+                  <button type="submit" class="btn btn-primary">Entrar</button>
+                </div>
+                  <p></p>
+                  <div class="d-flex justify-content-center">
+                    <a href="#" class="text-inherit fs-5">Esqueceu a senha senha?</a>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Scripts -->
+  {% include 'partials/scripts.html' %}
+</body>
+</html>
+
+<style>
+  .g-recaptcha {
+      margin: 0 auto; /* Define margens automáticas para centralizar horizontalmente */
+      display: flex; /* Define o elemento como bloco para que as margens automáticas funcionem */
+      justify-content: center; /* Centraliza o conteúdo dentro do elemento */
+      margin-top: 25px;
+      margin-bottom: 25px;
+  }
+
+  label[for="id_captcha"] {
+    display: none;
+  }
+</style>
