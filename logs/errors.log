@@ -2153,3 +2153,610 @@ Traceback (most recent call last):
 ValueError: cannot convert float NaN to integer
 "POST /importar-clientes/ HTTP/1.1" 500 82249
 "POST /importar-clientes/ HTTP/1.1" 500 82249
+[2023-05-29 17:52:07] [ERROR] log - Internal Server Error: /dashboard/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/sqlite3/base.py", line 328, in execute
+    return super().execute(query, params)
+sqlite3.OperationalError: no such table: cadastros_cliente
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 174, in get
+    context = self.get_context_data()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 185, in get_context_data
+    context = super().get_context_data(**kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 128, in get_context_data
+    paginator, page, queryset, is_paginated = self.paginate_queryset(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 73, in paginate_queryset
+    page = paginator.page(page_number)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/paginator.py", line 72, in page
+    number = self.validate_number(number)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/paginator.py", line 53, in validate_number
+    if number > self.num_pages:
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/paginator.py", line 99, in num_pages
+    if self.count == 0 and not self.allow_empty_first_page:
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/paginator.py", line 93, in count
+    return c()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 608, in count
+    return self.query.get_count(using=self.db)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 539, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 525, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/compiler.py", line 1560, in execute_sql
+    cursor.execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 102, in execute
+    return super().execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/sqlite3/base.py", line 328, in execute
+    return super().execute(query, params)
+django.db.utils.OperationalError: no such table: cadastros_cliente
+[2023-05-29 17:52:07] [ERROR] basehttp - "GET /dashboard/ HTTP/1.1" 500 199777
+[2023-05-29 17:52:07] [ERROR] basehttp - "GET /dashboard/ HTTP/1.1" 500 199777
+[2023-05-29 17:52:07] [WARNING] log - Not Found: /favicon.ico
+[2023-05-29 17:52:42] [ERROR] log - Internal Server Error: /dashboard/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/sqlite3/base.py", line 328, in execute
+    return super().execute(query, params)
+sqlite3.OperationalError: no such table: cadastros_cliente
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 174, in get
+    context = self.get_context_data()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 185, in get_context_data
+
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 128, in get_context_data
+    paginator, page, queryset, is_paginated = self.paginate_queryset(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/generic/list.py", line 73, in paginate_queryset
+    page = paginator.page(page_number)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/paginator.py", line 72, in page
+    number = self.validate_number(number)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/paginator.py", line 53, in validate_number
+    if number > self.num_pages:
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/paginator.py", line 99, in num_pages
+    if self.count == 0 and not self.allow_empty_first_page:
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/paginator.py", line 93, in count
+    return c()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 608, in count
+    return self.query.get_count(using=self.db)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 539, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 525, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/compiler.py", line 1560, in execute_sql
+    cursor.execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 102, in execute
+    return super().execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/sqlite3/base.py", line 328, in execute
+    return super().execute(query, params)
+django.db.utils.OperationalError: no such table: cadastros_cliente
+[2023-05-29 17:52:42] [ERROR] basehttp - "GET /dashboard/ HTTP/1.1" 500 199777
+[2023-05-29 17:52:42] [ERROR] basehttp - "GET /dashboard/ HTTP/1.1" 500 199777
+[2023-05-29 17:55:26] [ERROR] log - Internal Server Error: /painel-configs/cadastros/cliente/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/sqlite3/base.py", line 328, in execute
+    return super().execute(query, params)
+sqlite3.OperationalError: no such table: cadastros_servidor
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 688, in wrapper
+    return self.admin_site.admin_view(view)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/decorators/cache.py", line 62, in _wrapper_view_func
+    response = view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/sites.py", line 242, in inner
+    return view(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/decorators.py", line 46, in _wrapper
+    return bound_method(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 1926, in changelist_view
+    cl = self.get_changelist_instance(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 836, in get_changelist_instance
+    return ChangeList(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/views/main.py", line 122, in __init__
+    self.queryset = self.get_queryset(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/views/main.py", line 503, in get_queryset
+    ) = self.get_filters(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/views/main.py", line 182, in get_filters
+    spec = field_list_filter_class(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/filters.py", line 175, in create
+    return list_filter_class(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/filters.py", line 188, in __init__
+    self.lookup_choices = self.field_choices(field, request, model_admin)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/filters.py", line 225, in field_choices
+    return field.get_choices(include_blank=False, ordering=ordering)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/__init__.py", line 1009, in get_choices
+    return (blank_choice if include_blank else []) + [
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 398, in __iter__
+    self._fetch_all()
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1881, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 91, in __iter__
+    results = compiler.execute_sql(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/compiler.py", line 1560, in execute_sql
+    cursor.execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 102, in execute
+    return super().execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/backends/sqlite3/base.py", line 328, in execute
+    return super().execute(query, params)
+django.db.utils.OperationalError: no such table: cadastros_servidor
+[2023-05-29 17:55:26] [ERROR] basehttp - "GET /painel-configs/cadastros/cliente/ HTTP/1.1" 500 198558
+[2023-05-29 17:55:26] [ERROR] basehttp - "GET /painel-configs/cadastros/cliente/ HTTP/1.1" 500 198558
+[2023-05-29 23:13:21] [WARNING] log - Not Found: /cadastro-app-conta/
+[2023-05-29 23:18:59] [ERROR] log - Internal Server Error: /painel-configs/cadastros/contadoaplicativo/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 688, in wrapper
+    return self.admin_site.admin_view(view)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/views/decorators/cache.py", line 62, in _wrapper_view_func
+    response = view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/sites.py", line 242, in inner
+    return view(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/decorators.py", line 46, in _wrapper
+    return bound_method(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/utils/decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 1926, in changelist_view
+    cl = self.get_changelist_instance(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 836, in get_changelist_instance
+    return ChangeList(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/views/main.py", line 122, in __init__
+    self.queryset = self.get_queryset(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/views/main.py", line 529, in get_queryset
+    qs, search_may_have_duplicates = self.model_admin.get_search_results(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 1155, in get_search_results
+    queryset = queryset.filter(models.Q.create(term_queries))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1436, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1454, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 1461, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1502, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1361, in build_filter
+    return self._add_q(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1361, in build_filter
+    return self._add_q(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1533, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1448, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1269, in build_lookup
+    lhs = self.try_transform(lhs, lookup_name)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 1313, in try_transform
+    raise FieldError(
+django.core.exceptions.FieldError: Unsupported lookup 'icontains' for ForeignKey or join on the field not permitted.
+[2023-05-29 23:18:59] [ERROR] basehttp - "GET /painel-configs/cadastros/contadoaplicativo/?q=email%40email.com HTTP/1.1" 500 191430
+[2023-05-29 23:18:59] [ERROR] basehttp - "GET /painel-configs/cadastros/contadoaplicativo/?q=email%40email.com HTTP/1.1" 500 191430
+[2023-05-29 23:21:02] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 656, in CadastroContaAplicativo
+    new_app = Aplicativo(cliente=cliente, app=app, device_id=device_id, device_key=device_key, email=app_email, usuario=request.user)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/base.py", line 567, in __init__
+    raise TypeError(
+TypeError: Aplicativo() got unexpected keyword arguments: 'app', 'device_id', 'device_key', 'email'
+[2023-05-29 23:21:02] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 79341
+[2023-05-29 23:21:02] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 79341
+[2023-05-29 23:23:09] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 656, in CadastroContaAplicativo
+    nova_conta_app = ContaDoAplicativo(cliente=cliente, app=app, device_id=device_id, device_key=device_key, email=app_email, usuario=request.user)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/base.py", line 543, in __init__
+    _setattr(self, field.name, rel_obj)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/fields/related_descriptors.py", line 266, in __set__
+    raise ValueError(
+ValueError: Cannot assign "'Club Smart'": "ContaDoAplicativo.app" must be a "Aplicativo" instance.
+[2023-05-29 23:23:09] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 82777
+[2023-05-29 23:23:09] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 82777
+[2023-05-29 23:24:24] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 651, in CadastroContaAplicativo
+    cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.Cliente.DoesNotExist: Cliente matching query does not exist.
+[2023-05-29 23:24:24] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80577
+[2023-05-29 23:24:24] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80577
+[2023-05-29 23:57:17] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 651, in CadastroContaAplicativo
+    cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.Cliente.DoesNotExist: Cliente matching query does not exist.
+[2023-05-29 23:57:17] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80570
+[2023-05-29 23:57:17] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80570
+[2023-05-29 23:58:24] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 651, in CadastroContaAplicativo
+    cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.Cliente.DoesNotExist: Cliente matching query does not exist.
+[2023-05-29 23:58:24] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80539
+[2023-05-29 23:58:24] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80539
+[2023-05-29 23:59:19] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 651, in CadastroContaAplicativo
+    cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.Cliente.DoesNotExist: Cliente matching query does not exist.
+[2023-05-29 23:59:19] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80539
+[2023-05-29 23:59:19] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80539
+[2023-05-29 23:59:56] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 651, in CadastroContaAplicativo
+    cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.Cliente.DoesNotExist: Cliente matching query does not exist.
+[2023-05-29 23:59:56] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80537
+[2023-05-29 23:59:56] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80537
+[2023-05-30 00:00:27] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 651, in CadastroContaAplicativo
+    cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.Cliente.DoesNotExist: Cliente matching query does not exist.
+[2023-05-30 00:00:27] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80531
+[2023-05-30 00:00:27] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80531
+[2023-05-30 00:02:06] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 651, in CadastroContaAplicativo
+    cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.Cliente.DoesNotExist: Cliente matching query does not exist.
+[2023-05-30 00:02:06] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80533
+[2023-05-30 00:02:06] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80533
+[2023-05-30 00:02:08] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 651, in CadastroContaAplicativo
+    cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.Cliente.DoesNotExist: Cliente matching query does not exist.
+[2023-05-30 00:02:08] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80533
+[2023-05-30 00:02:08] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80533
+[2023-05-30 00:02:09] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 651, in CadastroContaAplicativo
+    cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.Cliente.DoesNotExist: Cliente matching query does not exist.
+[2023-05-30 00:02:09] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80533
+[2023-05-30 00:02:09] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80533
+[2023-05-30 00:04:35] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 651, in CadastroContaAplicativo
+    cliente = Cliente.objects.get(id=int(request.POST.get('cliente-id')))
+TypeError: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'
+[2023-05-30 00:04:35] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 71329
+[2023-05-30 00:04:35] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 71329
+[2023-05-30 00:05:23] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 651, in CadastroContaAplicativo
+    cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.Cliente.DoesNotExist: Cliente matching query does not exist.
+[2023-05-30 00:05:23] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80537
+[2023-05-30 00:05:23] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 80537
+[2023-05-30 00:09:51] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 204, in _get_response
+    self.check_response(response, callback)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 332, in check_response
+    raise ValueError(
+ValueError: The view cadastros.views.CadastroContaAplicativo didn't return an HttpResponse object. It returned None instead.
+[2023-05-30 00:09:52] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 66618
+[2023-05-30 00:09:52] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 66618
+[2023-05-30 22:23:41] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+[2023-05-30 22:23:41] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:23:41] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:23:42] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+[2023-05-30 22:23:42] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:23:42] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:23:44] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+[2023-05-30 22:23:44] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:23:44] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:23:45] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+[2023-05-30 22:23:45] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:23:45] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:23:53] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+[2023-05-30 22:23:53] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:23:53] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:30:39] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+[2023-05-30 22:30:39] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:30:39] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:31:32] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+[2023-05-30 22:31:32] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:31:32] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:46:24] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+[2023-05-30 22:46:24] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:46:24] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 69
+[2023-05-30 22:49:46] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+[2023-05-30 22:49:46] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 67
+[2023-05-30 22:49:46] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 67
+[2023-05-30 22:52:18] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+[2023-05-30 22:52:18] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 67
+[2023-05-30 22:52:18] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 67
+[2023-05-30 22:52:32] [ERROR] log - Internal Server Error: /cadastro-app-conta/
+[2023-05-30 22:52:32] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 67
+[2023-05-30 22:52:32] [ERROR] basehttp - "POST /cadastro-app-conta/ HTTP/1.1" 500 67
+[2023-05-31 00:41:05] [WARNING] base - Method Not Allowed (POST): /dashboard/
+[2023-05-31 00:41:05] [WARNING] log - Method Not Allowed: /dashboard/
+[2023-05-31 00:44:51] [WARNING] base - Method Not Allowed (POST): /dashboard/
+[2023-05-31 00:44:51] [WARNING] log - Method Not Allowed: /dashboard/
+[2023-05-31 00:47:22] [WARNING] base - Method Not Allowed (POST): /dashboard/
+[2023-05-31 00:47:22] [WARNING] log - Method Not Allowed: /dashboard/
+[2023-05-31 00:49:03] [WARNING] base - Method Not Allowed (POST): /dashboard/
+[2023-05-31 00:49:03] [WARNING] log - Method Not Allowed: /dashboard/
+[2023-05-31 00:58:52] [WARNING] log - Not Found: /deletar-app-conta/[object HTMLInputElement]/
+[2023-05-31 00:58:53] [WARNING] log - Not Found: /deletar-app-conta/[object HTMLInputElement]/
+[2023-05-31 00:58:54] [WARNING] log - Not Found: /deletar-app-conta/[object HTMLInputElement]/
+[2023-05-31 00:58:54] [WARNING] log - Not Found: /deletar-app-conta/[object HTMLInputElement]/
+[2023-05-31 00:59:00] [WARNING] log - Not Found: /deletar-app-conta/[object HTMLInputElement]/
+[2023-05-31 00:59:54] [WARNING] log - Not Found: /deletar-app-conta//
+[2023-05-31 01:01:09] [WARNING] base - Method Not Allowed (DELETE): /dashboard/
+[2023-05-31 01:01:09] [WARNING] log - Method Not Allowed: /dashboard/
+[2023-05-31 01:01:35] [WARNING] base - Method Not Allowed (DELETE): /dashboard/
+[2023-05-31 01:01:35] [WARNING] log - Method Not Allowed: /dashboard/
+[2023-05-31 01:02:38] [WARNING] base - Method Not Allowed (DELETE): /dashboard/
+[2023-05-31 01:02:38] [WARNING] log - Method Not Allowed: /dashboard/
+[2023-05-31 01:05:17] [ERROR] log - Internal Server Error: /deletar-app-conta/152/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 204, in _get_response
+    self.check_response(response, callback)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 332, in check_response
+    raise ValueError(
+ValueError: The view cadastros.views.DeleteContaAplicativo didn't return an HttpResponse object. It returned None instead.
+[2023-05-31 01:05:17] [ERROR] basehttp - "DELETE /deletar-app-conta/152/ HTTP/1.1" 500 65997
+[2023-05-31 01:05:17] [ERROR] basehttp - "DELETE /deletar-app-conta/152/ HTTP/1.1" 500 65997
+[2023-05-31 01:08:25] [WARNING] base - Method Not Allowed (DELETE): /dashboard/
+[2023-05-31 01:08:26] [WARNING] log - Method Not Allowed: /dashboard/
+[2023-05-31 01:15:59] [ERROR] log - Internal Server Error: /deletar-app-conta/154/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 1235, in DeleteContaAplicativo
+    return JsonResponse(status=500)
+TypeError: JsonResponse.__init__() missing 1 required positional argument: 'data'
+[2023-05-31 01:15:59] [ERROR] basehttp - "DELETE /deletar-app-conta/154/ HTTP/1.1" 500 70188
+[2023-05-31 01:15:59] [ERROR] basehttp - "DELETE /deletar-app-conta/154/ HTTP/1.1" 500 70188
+[2023-05-31 01:17:33] [ERROR] log - Internal Server Error: /deletar-app-conta/154/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 1221, in DeleteContaAplicativo
+    return JsonResponse(status=200)
+TypeError: JsonResponse.__init__() missing 1 required positional argument: 'data'
+[2023-05-31 01:17:34] [ERROR] basehttp - "DELETE /deletar-app-conta/154/ HTTP/1.1" 500 70604
+[2023-05-31 01:17:34] [ERROR] basehttp - "DELETE /deletar-app-conta/154/ HTTP/1.1" 500 70604
+[2023-05-31 01:18:29] [ERROR] log - Internal Server Error: /deletar-app-conta/154/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 1218, in DeleteContaAplicativo
+    conta_app = ContaDoAplicativo.objects.get(pk=pk, usuario=request.user)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/db/models/query.py", line 637, in get
+    raise self.model.DoesNotExist(
+cadastros.models.ContaDoAplicativo.DoesNotExist: ContaDoAplicativo matching query does not exist.
+[2023-05-31 01:18:29] [ERROR] basehttp - "DELETE /deletar-app-conta/154/ HTTP/1.1" 500 80315
+[2023-05-31 01:18:29] [ERROR] basehttp - "DELETE /deletar-app-conta/154/ HTTP/1.1" 500 80315
+[2023-05-31 01:18:57] [ERROR] log - Internal Server Error: /deletar-app-conta/156/
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/.venv/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 1221, in DeleteContaAplicativo
+    return JsonResponse(status=200)
+TypeError: JsonResponse.__init__() missing 1 required positional argument: 'data'
+[2023-05-31 01:18:57] [ERROR] basehttp - "DELETE /deletar-app-conta/156/ HTTP/1.1" 500 70604
+[2023-05-31 01:18:57] [ERROR] basehttp - "DELETE /deletar-app-conta/156/ HTTP/1.1" 500 70604

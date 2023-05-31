@@ -239,7 +239,7 @@
 
                 <!-- Modal de exibir informações do cliente -->
                 <div class="modal fade" id="info-cliente-modal" tabindex="-1" role="dialog" aria-labelledby="info-cliente-label">
-                    <div class="modal-dialog modal-dialog-scrollable modal-xl custom-modal-dialog" role="document">
+                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl custom-modal-dialog" role="document">
                         <div class="modal-content position-relative px-7 py-4" id="modal-info-content">
                             <div class="modal-header" id="modal-info-header">
                                 <div class="modal-title d-flex w-100 justify-content-between align-items-center">
@@ -312,20 +312,104 @@
                                         </div>
                                     </div>
                                 </div>
+                                <p style="display: none;" id="info-cliente-id"></p>
                                 <div class="d-flex flex-column">
                                     <div>
-                                        <h4 class="fw-bold mb-4 mt-4">Contas dos aplicativos</h4>
+                                        <h4 class="fw-bold mb-4 mt-4">Contas dos aplicativos
+                                            <iconify-icon icon="feather:plus-circle" style="color: #624bff; cursor: pointer;" width="15" height="15" id="add-apps-info" onclick="exibirModalCriarApp(this)">
+                                            </iconify-icon>
+                                        </h4>
                                     </div>
                                     <div class="d-flex charge-summary gap-3 charge-summary-max-width">
                                         <!-- Os elementos das contas de aplicativos serão adicionados dinamicamente aqui -->
                                     </div>
                                     <div class="flex-column texto-aqui">
-
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Modal de confirmação de exclusão da conta do app do cliente -->
+                <div class="modal fade" id="confirm-delete-app-conta-modal" tabindex="-1" role="dialog"
+                aria-labelledby="confirm-delete-app-conta-label">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="confirm-delete-app-conta-label">Confirmar exclusão</h4>
+                        <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Tem certeza que deseja excluir a conta do aplicativo?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <div class="mensagem-erro" id="mensagem-erro"></div>
+                        <form method="POST" id="confirm-delete-app-conta-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="app_conta_id" id="app-conta-id">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Excluir</button>
+                        </form>
+                    </div>
+                    </div>
+                </div>
+                </div>
+
+                <!-- Modal de cadastro da conta do app do cliente -->
+                <div class="modal fade" id="create-app-info-modal" tabindex="-1" role="dialog"
+                aria-labelledby="create-app-info-label">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="create-app-info-label">Cadastrar dados do App</h4>
+                        <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="POST" id="create-app-info-form">
+                        {% csrf_token %}
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="app-nome">Aplicativo</label>
+                            <div class="input-group">
+                                <select class="form-control" id="app-nome" name="app-nome" required>
+                                <option value="">Selecione um aplicativo</option>
+                                {% for aplicativo in aplicativos %}
+                                <option value="{{ aplicativo.nome }}">{{ aplicativo.nome }}</option>
+                                {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <!-- row -->
+                        <div class="form-group" id="div-device-id" style="display: none;">
+                            <label for="device-id">Device ID</label>
+                            <input type="text" placeholder="Informe o ID da conta do aplicativo" class="form-control" id="device-id" name="device-id" minlength="17">
+                        </div>
+                        <!-- row -->
+                        <div class="form-group" id="div-app-email" style="display: none;">
+                            <label for="app-email">E-mail</label>
+                            <input type="email" placeholder="Informe o Email da conta do aplicativo" class="form-control" id="app-email" name="app-email">
+                        </div>
+                        <!-- row -->
+                        <div class="form-group" id="div-device-key" style="display: none;">
+                            <label for="device-key">Device Key</label>
+                            <input type="text" placeholder="Informe a Senha da conta do aplicativo" class="form-control" id="device-key" name="device-key" minlength="5">
+                        </div>
+                        <!-- row -->
+                        <p class="text-muted mt-2" id="app-sem-conta">
+                            Escolha um aplicativo que utilize uma conta de ativação.
+                        </p>
+                        <input type="hidden" name="cliente-id" id="app-info-cliente-id">
+                        <div class="mensagem-erro" id="mensagem-erro"></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" form="create-app-info-form" class="btn btn-primary" id="btn-salvar-app" disabled>Salvar</button>
+                    </div>
+                    </div>
+                </div>
                 </div>
 
                 <!-- row  -->
@@ -920,11 +1004,11 @@
         
         const table = document.querySelector("#info-cliente-table");
 
+        document.getElementById('info-cliente-id').textContent = clienteId;
         document.getElementById('info-cliente-nome').textContent = clienteNome;
         document.getElementById('info-cliente-tela').textContent =  clienteTela;
         document.getElementById('info-cliente-notas').textContent =  clienteNotas;
         document.getElementById('info-cliente-plano').textContent =  clientePlano;
-        document.getElementById('info-cliente-telefone').textContent = formatarTelefone(clienteTelefone);
         document.getElementById('info-cliente-servidor').textContent =  clienteServidor;
         document.getElementById('info-cliente-forma_pgto').textContent =  clienteFormaPgto;
         document.getElementById('info-cliente-aplicativo').textContent =  clienteAplicativo;
@@ -932,6 +1016,7 @@
         document.getElementById('info-cliente-indicado_por').textContent =  clienteIndicadoPor;
         document.getElementById('info-cliente-ultimo_pgto').textContent =  clienteUltimoPagamento;
         document.getElementById('info-cliente-data_pagamento').textContent =  clienteDataPagamento;
+        document.getElementById('info-cliente-telefone').textContent = formatarTelefone(clienteTelefone);
         document.getElementById('info-cliente-data_adesao').textContent = 'Cliente desde ' + clienteDataAdesao;
 
         const modal = new bootstrap.Modal(document.querySelector("#info-cliente-modal"));
@@ -941,7 +1026,7 @@
         carregarContasApps(clienteId);
     }
 
-    $('#info-cliente-modal').on('click', '.btn-close, .btn-secondary', function () {
+    $('#info-cliente-modal').on('click', '.btn-close, .btn-secondary, #add-apps-info, #btn_exclude', function () {
       $('#info-cliente-modal').modal('hide');
     });
 
@@ -979,6 +1064,8 @@
                 var card = $('<div class="card rounded py-4 px-5 d-flex flex-column align-items-center justify-content-center border"></div>');
                 var badge = $('<span class="badge rounded-pill bg-secondary mb-3">' + conta.nome_aplicativo + '</span>');
                 var infoDiv = $('<div class="my-0 text-center"></div>');
+                var btn_exclude = $('<div class="mt-2 mb-0" id="btn_exclude" style="cursor: pointer;" onclick="exibirModalConfirmacaoExclusao(this)"><iconify-icon icon="feather:trash-2" style="color: #dc3545;" width="15" height="15"></iconify-icon></div>');
+                var AppId = $('<input id="AppId" type="hidden" value="' + conta.id + '"></div>');
 
                 if (conta.device_id) {
                     infoDiv.append('<span>Device ID: </span><span>' + conta.device_id + '</span><br>');
@@ -992,6 +1079,8 @@
 
                 card.append(badge);
                 card.append(infoDiv);
+                card.append(btn_exclude);
+                card.append(AppId);
                 container.append(card);
             }
 
@@ -1006,6 +1095,216 @@
         }
     });
 }
+</script>
 
+<script>
+// Função para exibir o modal de criação de Conta do Aplicativo
+    function exibirModalCriarApp(botao) {
+        const clienteId = document.getElementById('info-cliente-id').textContent;
+        const appInfoClienteId = document.getElementById('app-info-cliente-id');
 
+        // Atribuir o valor do clienteId ao campo cliente-id no formulário
+        appInfoClienteId.value = clienteId;
+
+        const form = document.querySelector("#create-app-info-form");
+        form.action = "/cadastro-app-conta/";
+
+        const modal = new bootstrap.Modal(document.querySelector("#create-app-info-modal"));
+
+        // Limpar campos do modal antes de exibir
+        document.getElementById('device-id').value = '';
+        document.getElementById('device-key').value = '';
+        document.getElementById('app-email').value = '';
+
+        // Exibir ou ocultar os campos corretos com base no aplicativo selecionado
+        const appNomeSelect = document.getElementById('app-nome');
+        const appNome = appNomeSelect.value;
+        console.log('Aplicativo: ', appNome);
+        modal.show();
+
+        appNomeSelect.addEventListener('change', function() {
+            const selectedApp = appNomeSelect.value;
+
+            if (selectedApp.toLowerCase() === 'clouddy') {
+            document.getElementById('div-device-id').style.display = 'none';
+            document.getElementById('app-sem-conta').style.display = 'none';
+            document.getElementById('div-device-key').style.display = 'block';
+            document.getElementById('div-app-email').style.display = 'block';
+            document.getElementById('device-id').removeAttribute('required');
+            document.getElementById('device-key').setAttribute('required', 'required');
+            document.getElementById('app-email').setAttribute('required', 'required');
+            document.getElementById('btn-salvar-app').disabled = false;
+            }else if (selectedApp.replace(/\s/g, '').toLowerCase() === 'duplecast' || 
+                        selectedApp.replace(/\s/g, '').toLowerCase() === 'duplexplay' ||
+                        selectedApp.replace(/\s/g, '').toLowerCase() === 'metaplayer' ) {
+            document.getElementById('div-device-id').style.display = 'block';
+            document.getElementById('div-device-key').style.display = 'block';
+            document.getElementById('div-app-email').style.display = 'none';
+            document.getElementById('app-sem-conta').style.display = 'none';
+            document.getElementById('device-id').setAttribute('required', 'required');
+            document.getElementById('device-key').setAttribute('required', 'required');
+            document.getElementById('app-email').removeAttribute('required');
+            document.getElementById('btn-salvar-app').disabled = false;
+            } else {
+            // Caso nenhum aplicativo seja selecionado, exibir mensagem
+            document.getElementById('div-device-id').style.display = 'none';
+            document.getElementById('div-device-key').style.display = 'none';
+            document.getElementById('div-app-email').style.display = 'none';
+            document.getElementById('device-id').removeAttribute('required');
+            document.getElementById('device-key').removeAttribute('required');
+            document.getElementById('app-email').removeAttribute('required');
+            document.getElementById('app-sem-conta').style.display = 'block';
+            document.getElementById('btn-salvar-app').disabled = true;
+            }
+        });
+    }
+  
+    // Função para tratar o evento de submissão do formulário
+    function handleFormSubmit(event) {
+        event.preventDefault(); // Impede o envio normal do formulário
+
+        const form = event.target;
+        const url = form.action;
+
+        const formData = new FormData(form);
+
+        fetch(url, {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                if (response.status === 200) {
+                    // Se a resposta do backend for bem-sucedida, fechar o modal
+                    $('#create-app-info-modal').modal('hide');
+
+                    // Exibir o swal.fire com a mensagem de cadastro realizado
+                    Swal.fire({
+                    title: 'Cadastro realizado',
+                    text: 'O cadastro foi realizado com sucesso!',
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                    }).then(() => {
+                    // Após pressionar "OK" no swal.fire, atualizar a página para o mesmo caminho
+                    window.location.href = window.location.pathname;
+                    });
+                } else {
+                    // Tratar outros status de resposta, se necessário
+                    console.log('Erro na resposta do servidor:', response.status);
+                }
+                })
+                .catch(error => {
+                // Tratar erros de comunicação com o backend
+                console.error(error);
+            });
+    }
+    
+    // Adicionar o ouvinte de evento de submissão ao formulário
+    document.addEventListener('DOMContentLoaded', function() {
+      const createAppInfoForm = document.getElementById('create-app-info-form');
+      createAppInfoForm.addEventListener('submit', handleFormSubmit);
+    });
+
+    // Fechar o modal quando clicado no botão fechar
+    $('#create-app-info-modal').on('click', '.btn-close, .btn-secondary', function () {
+      $('#create-app-info-modal').modal('hide');
+      $('#info-cliente-modal').modal('show');
+    });
+
+    // Formatar o valor do campo device-id
+    document.addEventListener('DOMContentLoaded', function() {
+        var deviceIdInput = document.getElementById('device-id');
+
+        deviceIdInput.addEventListener('input', function() {
+            var deviceId = this.value.replace(/[^0-9A-Fa-f]/g, ''); // Remove todos os caracteres não alfanuméricos
+
+            var formattedDeviceId = '';
+            if (deviceId.length > 0) {
+            formattedDeviceId = deviceId.match(/.{1,2}/g).join(':'); // Adiciona ":" a cada 2 caracteres
+
+            // Remove ":" do começo e do final, se existirem
+            if (formattedDeviceId.startsWith(':')) {
+                formattedDeviceId = formattedDeviceId.substring(1);
+            }
+            if (formattedDeviceId.endsWith(':')) {
+                formattedDeviceId = formattedDeviceId.substring(0, formattedDeviceId.length - 1);
+            }
+            }
+
+            this.value = formattedDeviceId;
+        });
+    });
+
+    // Verificando validação dos campos de input do modal de cadastro dos dados do aplicativo do cliente
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('create-app-info-form');
+        const deviceIdInput = document.getElementById('device-id');
+        const deviceKeyInput = document.getElementById('device-key');
+
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+            // Se o formulário não for válido, interrompa o envio dos dados
+            event.preventDefault();
+            event.stopPropagation();
+            }
+
+            form.classList.add('was-validated');
+        }, false);
+
+        deviceIdInput.addEventListener('input', function() {
+            const deviceId = this.value;
+            const isValid = deviceId.length >= 17;
+
+            this.setCustomValidity(isValid ? '' : 'O mínimo espero é de 12 caracteres.');
+        });
+
+        deviceKeyInput.addEventListener('input', function() {
+            const deviceKey = this.value;
+            const isValid = deviceKey.length >= 5;
+
+            this.setCustomValidity(isValid ? '' : 'O mínimo espero é de 5 caracteres.');
+        });
+    });
+
+</script>
+
+<script>
+    // Função para exibir o modal de confirmação de exclusão da conta do app
+    function exibirModalConfirmacaoExclusao(botao) {
+      var app_id = document.getElementById('AppId').value;
+      $('#confirm-delete-app-conta-modal #app-conta-id').val(app_id);
+      $('#confirm-delete-app-conta-modal').modal('show');
+  
+      // Ouve o envio do formulário
+      $('#confirm-delete-app-conta-form').on('submit', function (event) {
+        event.preventDefault(); // Impede o envio padrão do formulário
+  
+        // Obtém o ID do servidor a ser excluído
+        var app_id = $('#app-conta-id').val();
+  
+        // Faz a solicitação DELETE para a URL apropriada
+        $.ajax({
+          url: '/deletar-app-conta/' + app_id + '/',
+          method: 'DELETE',
+          beforeSend: function (xhr) {
+            xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+          },
+          success: function (response) {
+            // Fecha o modal e recarrega a página
+            $('#confirm-delete-app-conta-modal').modal('hide');
+            window.location.reload();
+          },
+          error: function (response) {
+            // Lida com o erro de exclusão
+            var mensagem_erro = response.responseJSON.error_delete;
+            $('#mensagem-erro').text(mensagem_erro);
+          }
+        });
+      });
+    }
+  
+    $('#confirm-delete-app-conta-modal').on('click', '.btn-close, .btn-secondary', function () {
+      $('#confirm-delete-app-conta-modal').modal('hide');
+      $('#info-cliente-modal').modal('show');
+
+    });
 </script>

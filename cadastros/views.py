@@ -253,10 +253,13 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             usuario=self.request.user,
         ).count()
 
+        aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
+
         context.update(
             {
                 "hoje": hoje,
                 "page": page,
+                "aplicativos": aplicativos,
                 "total_clientes": total_clientes,
                 "valor_total_pago": valor_total_pago,
                 "novos_clientes_qtd": novos_clientes_qtd,
@@ -638,6 +641,32 @@ def Teste(request):
 
 
 ############################################ CREATE VIEW ############################################
+
+@login_required
+def CadastroContaAplicativo(request):
+
+    if request.method == "POST":
+        app = Aplicativo.objects.get(nome=request.POST.get('app-nome'))
+        cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
+        device_id = request.POST.get('device-id') if request.POST.get('device-id') != None or '' or ' ' else None
+        device_key = request.POST.get('device-key') if request.POST.get('device-key') != None or '' or ' ' else None
+        app_email = request.POST.get('app-email') if request.POST.get('app-email') != None or '' or ' ' else None
+    
+        nova_conta_app = ContaDoAplicativo(cliente=cliente, app=app, device_id=device_id, device_key=device_key, email=app_email, usuario=request.user)
+
+        try:
+            nova_conta_app.save()
+            
+            # retorna a mensagem de sucesso como resposta JSON
+            return JsonResponse({"success_message_cancel": "Conta do aplicativo cadastrada com sucesso!"}, status=200)
+
+        except Exception as erro:
+            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
+        
+        return JsonResponse({"error_message": "Ocorreu um erro ao tentar realizar o cadastro."}, status=500)
+    else:
+        return JsonResponse({"error_message": "Ocorreu um erro ao tentar realizar o cadastro."}, status=500)
+
 
 @login_required
 def ImportarClientes(request):
@@ -1177,6 +1206,30 @@ def CadastroAplicativo(request):
 
 
 ############################################ DELETE VIEW ############################################
+
+@login_required
+def DeleteContaAplicativo(request, pk):
+    if request.method == "DELETE":
+        try:
+            conta_app = ContaDoAplicativo.objects.get(pk=pk, usuario=request.user)
+            conta_app.delete()
+
+            return JsonResponse({'success_message': 'deu bom'}, status=200)
+        
+        except Aplicativo.DoesNotExist as erro1:
+            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+            error_msg = 'Você tentou excluir uma conta de aplicativo que não existe.'
+            
+            return JsonResponse({'error_message': 'erro'}, status=500)
+        
+        except ProtectedError as erro2:
+            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+            error_msg = 'Essa conta de aplicativo não pôde ser excluída.'
+
+            return JsonResponse(status=500)
+    else:
+        return JsonResponse({'error_message': 'erro'}, status=500)
+    
 
 @login_required
 def DeleteAplicativo(request, pk):

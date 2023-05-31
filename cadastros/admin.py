@@ -75,6 +75,8 @@ class PlanoAdmin(admin.ModelAdmin):
 
 class ContaDoAplicativoAdmin(admin.ModelAdmin):
     list_display = ("cliente", "app", "device_id", "device_key", "email")
+    list_filter = ("usuario",)
+    search_fields = ("email", "cliente__nome",)
 
 
 admin.site.register(ContaDoAplicativo, ContaDoAplicativoAdmin)
