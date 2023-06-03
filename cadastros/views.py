@@ -11,7 +11,7 @@ from django.forms.models import model_to_dict
 from django.core.serializers import serialize
 from babel.numbers import format_currency
 from .models import definir_dia_pagamento
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.db import transaction
@@ -38,38 +38,62 @@ class Login(LoginView):
 
 ############################################ LIST VIEW ############################################
 
-class CarregarContasDoAplicativo(View):
+class CarregarContasDoAplicativo(LoginRequiredMixin, View):
+    """
+    View para carregar as contas dos aplicativos existentes por cliente e exibi-las no modal de informações do cliente no painel de controle.
+    """
     def get(self, request):
+        """
+        Método GET para retornar as contas dos aplicativos existentes por cliente.
+
+        Obtém o ID do cliente da consulta na URL.
+        Filtra as contas do aplicativo para o cliente e o usuário atual.
+        Cria uma lista para armazenar as contas de aplicativo serializadas.
+        Itera sobre as contas de aplicativo.
+        - Obtém o nome do aplicativo.
+        - Serializa a conta de aplicativo em um dicionário Python.
+        - Adiciona o nome do aplicativo ao dicionário.
+        - Adiciona a conta de aplicativo serializada à lista.
+        Ordena a lista de contas de aplicativo pelo nome do aplicativo.
+        Imprime a lista de contas de aplicativo para fins de depuração.
+        Retorna a lista de contas de aplicativo como resposta JSON.
+        """
         id = self.request.GET.get("cliente_id")
         cliente = Cliente.objects.get(id=id)
         conta_app = ContaDoAplicativo.objects.filter(cliente=cliente, usuario=self.request.user).select_related('app')
 
-        # Cria uma lista para armazenar as contas de aplicativo serializadas
         conta_app_json = []
 
-        # Itera sobre as contas de aplicativo
         for conta in conta_app:
-            # Obtém o nome do aplicativo
             nome_aplicativo = conta.app.nome
-
-            # Serializa a conta de aplicativo em um dicionário Python
             conta_json = model_to_dict(conta)
-
-            # Adiciona o nome do aplicativo ao dicionário
             conta_json['nome_aplicativo'] = nome_aplicativo
-
-            # Adiciona a conta de aplicativo serializada à lista
             conta_app_json.append(conta_json)
 
-            # Ordena a lista de contas de aplicativo pelo nome do aplicativo
-            conta_app_json = sorted(conta_app_json, key=operator.itemgetter('nome_aplicativo'))
+        conta_app_json = sorted(conta_app_json, key=operator.itemgetter('nome_aplicativo'))
 
-        # Retorna a lista de contas de aplicativo como resposta JSON
         return JsonResponse({"conta_app": conta_app_json}, safe=False)
 
 
-class CarregarQuantidadesMensalidades(View):
+class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
+    """
+    View para retornar as quantidades de mensalidades pagas, inadimplentes e canceladas existentes para o modal de informações na listagem do cliente.
+    """
     def get(self, request):
+        """
+        Método GET para retornar as quantidades de mensalidades pagas, inadimplentes e canceladas.
+
+        Obtém o ID do cliente da consulta na URL.
+        Filtra as mensalidades pagas para o cliente e o usuário atual.
+        Filtra as mensalidades pendentes para o cliente e o usuário atual.
+        Filtra as mensalidades canceladas para o cliente e o usuário atual.
+        Inicializa as variáveis para as quantidades de mensalidades pagas, pendentes e canceladas como zero.
+        Itera sobre as mensalidades pagas, incrementando a quantidade de mensalidades pagas para o cliente específico.
+        Itera sobre as mensalidades pendentes, incrementando a quantidade de mensalidades pendentes para o cliente específico.
+        Itera sobre as mensalidades canceladas, incrementando a quantidade de mensalidades canceladas para o cliente específico.
+        Cria um dicionário com os valores de quantidade de mensalidades para cada status.
+        Retorna a resposta em formato JSON com os dados de quantidade de mensalidades.
+        """
         id = self.request.GET.get("cliente_id")
         cliente = Cliente.objects.get(id=id)
         hoje = timezone.localtime().date()
@@ -79,35 +103,43 @@ class CarregarQuantidadesMensalidades(View):
 
         qtd_mensalidades_pagas = 0
         for mensalidade in mensalidades_pagas:
-            
             if mensalidade.cliente.id == cliente.id:
                 qtd_mensalidades_pagas += 1
 
         qtd_mensalidades_pendentes = 0
         for mensalidade in mensalidades_pendentes:
-
             if mensalidade.cliente.id == cliente.id:
                 qtd_mensalidades_pendentes += 1
 
         qtd_mensalidades_canceladas = 0
         for mensalidade in mensalidades_canceladas:
-
             if mensalidade.cliente.id == cliente.id:
                 qtd_mensalidades_canceladas += 1
 
-        data = {'qtd_mensalidades_pagas': qtd_mensalidades_pagas, 'qtd_mensalidades_pendentes': qtd_mensalidades_pendentes, 'qtd_mensalidades_canceladas': qtd_mensalidades_canceladas}
+        data = {
+            'qtd_mensalidades_pagas': qtd_mensalidades_pagas,
+            'qtd_mensalidades_pendentes': qtd_mensalidades_pendentes,
+            'qtd_mensalidades_canceladas': qtd_mensalidades_canceladas
+        }
+
         return JsonResponse(data)
+
 
 class ListaClientes(LoginRequiredMixin, ListView):
     """
-        AÇÃO PARA LISTAGEM DE CLIENTES TOTAIS, CONSIDERANDO CANCELADOS E ATIVOS
+    View para listar clientes, considerando clientes cancelados e ativos.
     """
     model = Cliente
     template_name = "pages/lista-clientes.html"
     paginate_by = 15
 
-    # QUERY PARA O CAMPO DE PESQUISA DO DASHBOARD
     def get_queryset(self):
+        """
+        Retorna a queryset de clientes para a exibição na página.
+
+        Filtra os clientes do usuário atual e os ordena pela data de adesão.
+        Se houver uma consulta (q) na URL, filtra os clientes cujo nome contenha o valor da consulta.
+        """
         query = self.request.GET.get("q")
         queryset = (
             Cliente.objects.filter(usuario=self.request.user)
@@ -119,6 +151,11 @@ class ListaClientes(LoginRequiredMixin, ListView):
         return queryset
     
     def get_context_data(self, **kwargs):
+        """
+        Retorna o contexto dos dados para serem exibidos no template.
+
+        Adiciona informações adicionais ao contexto, como objetos relacionados e variáveis de controle de página.
+        """
         context = super().get_context_data(**kwargs)
         clientes = Cliente.objects.filter(usuario=self.request.user)
         indicadores = Cliente.objects.filter(usuario=self.request.user)
@@ -152,16 +189,22 @@ class ListaClientes(LoginRequiredMixin, ListView):
 
 class TabelaDashboard(LoginRequiredMixin, ListView):
     """
-        AÇÃO PARA LISTAGEM DE CLIENTES, SUAS MENSALIDADES E OUTRAS INFORMAÇÕES EXIBIDAS NO DASHBOARD
+    View para listagem de clientes, suas mensalidades e outras informações exibidas no dashboard.
     """
     login_url = "login"
     model = Cliente
     template_name = "dashboard.html"
     paginate_by = 10
 
-
-    # QUERY PARA O CAMPO DE PESQUISA DO DASHBOARD
     def get_queryset(self):
+        """
+        Retorna a queryset para a listagem de clientes no dashboard.
+
+        Filtra os clientes que não foram cancelados e possuem mensalidades não canceladas, não pagas e sem data de pagamento definida.
+        Ordena a queryset pelo campo de data de vencimento da mensalidade.
+        Realiza a operação distinct() para evitar duplicatas na listagem.
+        Caso haja um valor de busca na URL (parâmetro 'q'), filtra a queryset pelos clientes cujo nome contém o valor de busca.
+        """
         query = self.request.GET.get("q")
         queryset = (
             Cliente.objects.filter(cancelado=False).filter(
@@ -176,8 +219,25 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             queryset = queryset.filter(nome__icontains=query)
         return queryset
 
-    # FUNÇÃO PARA RETORNAR RESULTADOS DAS QUERY UTILIZADAS NO DASHBOARD
     def get_context_data(self, **kwargs):
+        """
+        Retorna o contexto de dados para serem exibidos no dashboard.
+
+        Inicializa as variáveis necessárias, como a moeda utilizada, a data de hoje e o ano atual.
+        Calcula o total de clientes baseado na queryset.
+        Obtém o mês atual.
+        Define a página atual como 'dashboard'.
+        Filtra os clientes em atraso.
+        Calcula o valor total pago no mês atual.
+        Calcula a quantidade de mensalidades pagas no mês atual.
+        Calcula o valor total a receber no mês atual.
+        Calcula a quantidade de mensalidades a receber na próxima semana.
+        Calcula a quantidade de novos clientes no mês atual.
+        Calcula a quantidade de clientes cancelados no mês atual.
+        Obtém a lista de aplicativos do usuário ordenados por nome.
+        Atualiza o contexto com as informações calculadas.
+        Retorna o contexto atualizado.
+        """
         moeda = "BRL"
         hoje = timezone.localtime().date()
         ano_atual = timezone.localtime().year
@@ -254,11 +314,13 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         ).count()
 
         aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
+        range_num = range(1,32)
 
         context.update(
             {
                 "hoje": hoje,
                 "page": page,
+                "range": range_num,
                 "aplicativos": aplicativos,
                 "total_clientes": total_clientes,
                 "valor_total_pago": valor_total_pago,
@@ -272,18 +334,20 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         )
         return context
 
-############################################ UPDATE VIEW ############################################
 
-from .models import Mensalidade
+############################################ UPDATE VIEW ############################################
 
 @login_required
 def reativar_cliente(request, cliente_id):
+    """
+    Função de view para reativar um cliente previamente cancelado.
+    """
     cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
     data_hoje = timezone.localtime().date()
 
-    # muda o valor do atributo "cancelado" de True para False
-    # define o valor de "data_cancelamento" como None
-    # altera o valor de "data_adesao" para a data do momento da requisição
+    # Muda o valor do atributo "cancelado" de True para False
+    # Define o valor de "data_cancelamento" como None
+    # Altera o valor de "data_adesao" para a data atual
     cliente.data_adesao = data_hoje
     cliente.data_pagamento = definir_dia_pagamento(data_hoje.day)
     cliente.data_cancelamento = None
@@ -292,7 +356,7 @@ def reativar_cliente(request, cliente_id):
     mes = data_hoje.month
     ano = data_hoje.year
 
-    # tratando possíveis erros
+    # Tratando possíveis erros
     try:
         cliente.save()
 
@@ -306,21 +370,23 @@ def reativar_cliente(request, cliente_id):
         mensalidade.save()
 
     except Exception as erro:
-        # registra erro no log
+        # Registra o erro no log
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
         return JsonResponse({"error_message": "Ocorreu um erro ao tentar reativar esse cliente."})
 
-    # se deu tudo certo, retorna confirmação
+    # Se tudo ocorrer corretamente, retorna uma confirmação
     return JsonResponse({"success_message_activate": "Reativação feita!"})
 
 
 # AÇÃO DE PAGAR MENSALIDADE
 @login_required
 def pagar_mensalidade(request, mensalidade_id):
-
+    """
+    Função de view para pagar uma mensalidade.
+    """
     mensalidade = Mensalidade.objects.get(pk=mensalidade_id, usuario=request.user)
 
-    # realiza as modificações na mensalidade paga
+    # Realiza as modificações na mensalidade paga
     mensalidade.dt_pagamento = timezone.localtime().date()
     mensalidade.pgto = True
     try:
@@ -328,17 +394,21 @@ def pagar_mensalidade(request, mensalidade_id):
     except Exception as erro:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
         return JsonResponse({"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."})
-    # redireciona para a página anterior
+
+    # Retorna uma resposta JSON indicando que a mensalidade foi paga com sucesso
     return JsonResponse({"success_message_invoice": "Mensalidade paga!"})
 
 
 # AÇÃO PARA CANCELAMENTO DE CLIENTE
 @login_required
 def cancelar_cliente(request, cliente_id):
+    """
+    Função de view para cancelar um cliente.
+    """
     if request.user.is_authenticated:
         cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
 
-        # realiza as modificações no cliente
+        # Realiza as modificações no cliente
         cliente.cancelado = True
         cliente.data_cancelamento = timezone.localtime().date()
         try:
@@ -347,20 +417,26 @@ def cancelar_cliente(request, cliente_id):
             logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
             return JsonResponse({"error_message": "Ocorreu um erro ao tentar cancelar esse cliente."}, status=500)
 
-        # retorna a mensagem de sucesso como resposta JSON
+        # Retorna uma resposta JSON indicando que o cliente foi cancelado com sucesso
         return JsonResponse({"success_message_cancel": "Eita! mais um cliente cancelado?! "})
     else:
         redirect("login")
 
 
+from datetime import datetime
+
 @login_required
 def EditarCliente(request, cliente_id):
+    """
+    Função de view para editar um cliente.
+    """
     if request.method == "POST":
         telefone = Cliente.objects.filter(telefone=request.POST.get("telefone"), usuario=request.user)
 
         try:
-            cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
             clientes = Cliente.objects.filter(usuario=request.user).order_by("-data_adesao")
+            cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
+            mensalidade = Mensalidade.objects.get(cliente=cliente, pgto=False, cancelado=False, usuario=request.user)
             plano_list = request.POST.get("plano").replace(' ', '').split('-')
             tela_list = request.POST.get("tela").split(' ')
 
@@ -397,7 +473,29 @@ def EditarCliente(request, cliente_id):
                 cliente.telas = tela
 
             if cliente.data_pagamento != request.POST.get("dt_pgto"):
+                # Atualizar a data de pagamento do cliente
                 cliente.data_pagamento = request.POST.get("dt_pgto")
+
+                # Atualizar a data de vencimento da mensalidade do cliente
+                dia_vencimento = int(request.POST.get("dt_pgto"))
+                data_pagamento = datetime.now().date()
+
+                if dia_vencimento < data_pagamento.day:
+                    # Dia de vencimento já passou, atualizar para o próximo mês
+                    mes_vencimento = data_pagamento.month + 1
+                    ano_vencimento = data_pagamento.year
+                    
+                    if mes_vencimento > 12:
+                        novo_mes_vencimento = mes_vencimento - 12
+                        mes_vencimento = novo_mes_vencimento
+                        ano_vencimento += 1
+                else:
+                    mes_vencimento = data_pagamento.month
+                    ano_vencimento = data_pagamento.year
+
+                nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=dia_vencimento)
+                mensalidade.dt_vencimento = nova_data_vencimento
+                mensalidade.save()
 
             dispositivo = Dispositivo.objects.get(nome=request.POST.get("dispositivo"), usuario=request.user)
             if cliente.dispositivo != dispositivo:
@@ -412,20 +510,23 @@ def EditarCliente(request, cliente_id):
 
             cliente.save()
 
-            # Em caso de sucesso
+            # Em caso de sucesso, renderiza a página de listagem de clientes com uma mensagem de sucesso
             return render(request, "pages/lista-clientes.html", {"success_message": "{} foi atualizado com sucesso.".format(cliente.nome)}, status=200)
 
         except Exception as e:
             logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
             return render(request, "pages/lista-clientes.html", {"error_message": "Ocorreu um erro ao tentar atualizar esse cliente."}, status=500)
 
+    # Redireciona para a página de listagem de clientes se o método HTTP não for POST
     return redirect("listagem-clientes")
-
 
 
 # AÇÃO PARA EDITAR O OBJETO PLANO MENSAL
 @login_required
 def EditarPlanoAdesao(request, plano_id):
+    """
+    Função de view para editar um plano de adesão mensal.
+    """
     plano_mensal = get_object_or_404(Plano, pk=plano_id, usuario=request.user)
 
     planos_mensalidades = Plano.objects.all().order_by('nome')
@@ -443,7 +544,7 @@ def EditarPlanoAdesao(request, plano_id):
 
             except ValidationError as erro1:
                 logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
-                # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
+                # Capturando a exceção ValidationError e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
                     "pages/cadastro-plano-adesao.html",
@@ -455,7 +556,7 @@ def EditarPlanoAdesao(request, plano_id):
 
             except Exception as erro2:
                 logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
-                # Capturando outros possíveis erros ao tentar salvar o servidor
+                # Capturando outros possíveis erros ao tentar salvar o plano e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
                     "pages/cadastro-plano-adesao.html",
@@ -465,6 +566,7 @@ def EditarPlanoAdesao(request, plano_id):
                     },
                 )
             
+            # Em caso de sucesso, renderiza a página novamente com a mensagem de sucesso
             return render(
                 request,
                 "pages/cadastro-plano-adesao.html",
@@ -481,6 +583,7 @@ def EditarPlanoAdesao(request, plano_id):
                 },
             )
 
+    # Redireciona para a página de cadastro de plano de adesão se o método HTTP não for POST
     return redirect("cadastro-plano-adesao")
 
 

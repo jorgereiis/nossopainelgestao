@@ -92,10 +92,11 @@ class Qtd_tela(models.Model):
 # Planos de mensalidades ofertados
 class Plano(models.Model):
     MENSAL = "Mensal"
+    TRIMESTRAL = "Trimestral"
     SEMESTRAL = "Semestral"
     ANUAL = "Anual"
 
-    CHOICES = ((MENSAL, MENSAL), (SEMESTRAL, SEMESTRAL), (ANUAL, ANUAL))
+    CHOICES = ((MENSAL, MENSAL), (TRIMESTRAL, TRIMESTRAL), (SEMESTRAL, SEMESTRAL), (ANUAL, ANUAL))
 
     nome = models.CharField(
         "Nome do plano", max_length=255, choices=CHOICES, default=MENSAL
@@ -142,7 +143,8 @@ class Cliente(models.Model):
     def save(self, *args, **kwargs):
         if self.data_adesao and self.data_pagamento == None:
             dia = self.data_adesao.day
-            self.data_pagamento = definir_dia_pagamento(dia)
+            #self.data_pagamento = definir_dia_pagamento(dia)
+            self.data_pagamento = dia
 
         self.definir_data_cancelamento()
 

@@ -168,21 +168,10 @@ LOGGING = {
             'backupCount': 5,
             'formatter': 'verbose',
         },
-        'access_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': 'logs/access.log',
-            'maxBytes': 1024 * 1024 * 5,
-            'backupCount': 5,
-            'formatter': 'access',
-        },
     },
     'formatters': {
         'verbose': {
             'format': '[%(asctime)s] [%(levelname)s] %(module)s - %(message)s',
-            'datefmt': '%Y-%m-%d %H:%M:%S',
-        },
-        'access': {
-            'format': '[%(asctime)s] %(remote_addr)s %(user)s %(request)s %(status_code)s',
             'datefmt': '%Y-%m-%d %H:%M:%S',
         },
     },
@@ -193,7 +182,7 @@ LOGGING = {
             'propagate': True,
         },
         'django.request': {
-            'handlers': ['file', 'access_file'],
+            'handlers': ['file'],
             'level': 'INFO',
             'propagate': False,
         },
@@ -203,5 +192,3 @@ LOGGING = {
         'level': 'INFO',
     },
 }
-
-
