@@ -2809,3 +2809,19 @@ TypeError: 'str' object cannot be interpreted as an integer
 [2023-06-02 00:07:42] [ERROR] log - Internal Server Error: /editar-cliente/35/
 [2023-06-02 00:07:42] [ERROR] basehttp - "POST /editar-cliente/35/ HTTP/1.1" 500 47532
 [2023-06-02 00:07:42] [ERROR] basehttp - "POST /editar-cliente/35/ HTTP/1.1" 500 47532
+[2023-06-03 14:46:19] [ERROR] views - [2023-06-03 14:46:19.238562-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['<' not supported between instances of 'int' and 'datetime.date']
+Traceback (most recent call last):
+  File "/home/jorgereiis/Documentos/IPTVGestao/cadastros/views.py", line 484, in EditarCliente
+    if novo_dia_vencimento < hoje:
+TypeError: '<' not supported between instances of 'int' and 'datetime.date'
+[2023-06-03 14:46:19] [ERROR] log - Internal Server Error: /editar-cliente/1739/
+[2023-06-03 14:46:19] [ERROR] basehttp - "POST /editar-cliente/1739/ HTTP/1.1" 500 47532
+[2023-06-03 14:46:19] [ERROR] basehttp - "POST /editar-cliente/1739/ HTTP/1.1" 500 47532
+[2023-06-03 16:49:04] [ERROR] views - [2023-06-03 16:49:04.278983-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][day is out of range for month]
+Traceback (most recent call last):
+  File "/home/jorgereiis/Documentos/IPTVGestao/cadastros/views.py", line 501, in EditarCliente
+    nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
+ValueError: day is out of range for month
+[2023-06-03 16:49:04] [ERROR] log - Internal Server Error: /editar-cliente/1713/
+[2023-06-03 16:49:04] [ERROR] basehttp - "POST /editar-cliente/1713/ HTTP/1.1" 500 47532
+[2023-06-03 16:49:04] [ERROR] basehttp - "POST /editar-cliente/1713/ HTTP/1.1" 500 47532
