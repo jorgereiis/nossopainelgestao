@@ -41,15 +41,24 @@
                             </div>
                             <div class="col-md-9">
                                 <!-- heading importar -->
-                                <p class="mb-0 fs-5 text-muted">Importe a sua planilha contendo os dados dos
+                                <p class="fs-5 text-muted">Importe a sua planilha contendo os dados dos
                                     seus clientes.
                                 </p>
 
-                                <p class="mb-0 fs-5 text-muted">Baixe o modelo, preencha e envie.
+                                <p class="mb-0">
+                                    Recomendamos que após preencher a planilha totalmente, antes de importar ordene as linhas por "data_adesao".
                                 </p>
-                                <p><a href="{% static 'download/upload.xlsx' %}">Download aqui!
-                                        <img class="mb-0 fs-5 text-muted"
-                                            src="{% static 'assets/images/svg/filetype-xls.svg' %}"></a></p>
+                                <p>
+                                    Dessa forma a importação será realizada seguindo a sequencia dos clientes mais antigos para os mais novos.
+                                    Para fazer essa ordenação, basta clicar no filtro existente na coluna "data_adesao" e "Classificar do Mais Novo para o Mais Antigo".
+                                </p>
+
+                                <p class="mb-0 fs-5 text-muted">Baixe o modelo, preencha e envie.</p>
+                                <p>
+                                    <a href="{% static 'download/upload.xlsx' %}">Download aqui!
+                                        <img class="mb-0 fs-5 text-muted" src="{% static 'assets/images/svg/filetype-xls.svg' %}">
+                                    </a>
+                                </p>
                             </div>
                         </div>
                         <!-- col -->

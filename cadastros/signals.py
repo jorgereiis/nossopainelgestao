@@ -68,8 +68,10 @@ def criar_mensalidade(sender, instance, created, **kwargs):
             if instance.plano.nome == Plano.CHOICES[0][0]:
                 vencimento += relativedelta(months=1)
             elif instance.plano.nome == Plano.CHOICES[1][0]:
-                vencimento += relativedelta(months=6)
+                vencimento += relativedelta(months=3)
             elif instance.plano.nome == Plano.CHOICES[2][0]:
+                vencimento += relativedelta(months=6)
+            elif instance.plano.nome == Plano.CHOICES[3][0]:
                 vencimento += relativedelta(years=1)
 
         Mensalidade.objects.create(
@@ -96,7 +98,8 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         # Se não, significa que a mensalidade foi paga em atraso e atribui à `nova_data_vencimento` o 
         # resultado obtido da função `definir_dia_pagamento`
         else:
-            novo_dia_de_pagamento = definir_dia_renovacao(data_atual.day)
+            #novo_dia_de_pagamento = definir_dia_renovacao(data_atual.day)
+            novo_dia_de_pagamento = data_atual.day
             nova_data_vencimento = datetime(
                 data_vencimento_anterior.year,
                 data_vencimento_anterior.month,
@@ -107,8 +110,10 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         if instance.cliente.plano.nome == Plano.CHOICES[0][0]:
             nova_data_vencimento += relativedelta(months=1)
         elif instance.cliente.plano.nome == Plano.CHOICES[1][0]:
-            nova_data_vencimento += relativedelta(months=6)
+            nova_data_vencimento += relativedelta(months=3)
         elif instance.cliente.plano.nome == Plano.CHOICES[2][0]:
+            nova_data_vencimento += relativedelta(months=6)
+        elif instance.cliente.plano.nome == Plano.CHOICES[3][0]:
             nova_data_vencimento += relativedelta(years=1)
 
         Mensalidade.objects.create(

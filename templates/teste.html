@@ -14,3 +14,161 @@
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+    function exibirModalConfirmacaoPagamento(botao) {
+        var mensalidade_id = $(botao).data('mensalidade');
+        var cliente_nome = $(botao).data('nome');
+        var cliente_plano = $(botao).data('plano');
+
+        $('#confirm-pagamento-modal #cliente-plano').empty();
+        $('#confirm-pagamento-modal #cliente-plano').hide();
+        $('#confirm-pagamento-modal .text-danger').show();
+
+        if (cliente_plano.toLowerCase().includes('mensal')) {
+            var dataPagamento = $('#mensalidade-data_pagamento').val();
+            var mensagem = '';
+
+            if (dataPagamento) {
+                var dataAtual = new Date();
+                var mesAtual = dataAtual.getMonth() + 1; // O mês é baseado em zero (janeiro é 0)
+                var anoAtual = dataAtual.getFullYear();
+
+                var dataVencimento = new Date(dataPagamento);
+                var mesVencimento = dataVencimento.getMonth() + 1;
+                var anoVencimento = dataVencimento.getFullYear();
+
+                if (anoVencimento === anoAtual && mesVencimento === mesAtual + 1) {
+                    mensagem = 'O próximo vencimento será no mês seguinte.';
+                } else if (anoVencimento === anoAtual + 1 && mesVencimento === 1 && mesAtual === 12) {
+                    mensagem = 'O próximo vencimento será no próximo ano.';
+                } else {
+                    mensagem = 'O próximo vencimento será em ' + mesVencimento + '/' + anoVencimento + '.';
+                }
+            }
+
+            $('#confirm-pagamento-modal #cliente-plano').text(mensagem);
+            $('#confirm-pagamento-modal #cliente-plano').show();
+            $('#confirm-pagamento-modal .text-danger').hide();
+        }
+
+        $('#confirm-pagamento-modal #mensalidade-id').val(mensalidade_id);
+        $('#confirm-pagamento-modal #cliente-nome').text(cliente_nome);
+        $('#confirm-pagamento-modal').modal('show');
+
+        // Ouve a mudança do valor no select
+        $('#mensalidade-data_pagamento').on('change', function () {
+            var dataPagamento = parseInt($('#mensalidade-data_pagamento').val(), 10);
+            var mensagem = '';
+
+            if (cliente_plano.toLowerCase().includes('mensal')) {
+                if (dataPagamento) {
+                    var dataAtual = new Date();
+                    var mesAtual = dataAtual.getMonth() + 1; // O mês é baseado em zero (janeiro é 0)
+                    var anoAtual = dataAtual.getFullYear();
+
+                    var dataVencimento = new Date(dataPagamento);
+                    var mesVencimento = dataVencimento.getMonth() + 1;
+                    var anoVencimento = dataVencimento.getFullYear();
+
+                    var novoMes = mesAtual + 1;
+                    var novoAno = anoAtual;
+                    if (novoMes > 12) {
+                    novoMes = 1;
+                    novoAno++;
+                    }
+
+                    var novaData = new Date(novoAno, novoMes - 1, dataPagamento);
+
+                    var dia = novaData.getDate();
+                    var mes = novaData.getMonth() + 1;
+                    var ano = novaData.getFullYear();
+
+                    var novaDataFormatada = dia + '/' + mes + '/' + ano;
+
+                    mensagem = 'A próxima data de pagamento será: ' + novaDataFormatada;
+                }
+            }
+
+            if (dataPagamento) {
+                $('#confirm-pagamento-modal .text-danger').text(mensagem);
+            } else {
+                $('#confirm-pagamento-modal .text-danger').text('Informe o dia de vencimento que terá essa próxima mensalidade.');
+            }
+        });
+
+        // Ouve o envio do formulário
+        $('#pagamento-form').on('submit', function (event) {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            // Obtém o ID do mensalidade a ser cancelado
+            var mensalidade_id = $('#mensalidade-id').val();
+
+            // Faz a solicitação POST para a URL apropriada
+            $.ajax({
+                url: '/pagar-mensalidade/' + mensalidade_id + '/',
+                method: 'POST',
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+                },
+                success: function (response) {
+                    // Verifica se a resposta contém a chave 'success_message_invoice'
+                    if ('success_message_invoice' in response) {
+                        // Fecha o modal e exibe mensagem de sucesso
+                        $('#confirm-pagamento-modal').modal('hide');
+
+                        swal.fire({
+                            icon: 'success',
+                            title: 'Pago!',
+                            html: '<span style="font-size: 20px">🤑</span><br>' + response.success_message_invoice + '<br>Consulte as mensalidades desse cliente para mais detalhes.',
+                        }).then(function() {
+                            location.reload();
+                        });
+                    }
+
+                    if ('error_message' in response) {
+                        // Fecha o modal e exibe mensagem de sucesso
+                        $('#confirm-pagamento-modal').modal('hide');
+
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Oops...',
+                            text: response.error_message,
+                        });
+                    }
+                },
+                error: function (response) {
+                    // Fecha o modal e exibe mensagem de erro
+                    $('#confirm-pagamento-modal').modal('hide');
+
+                    swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'Ocorreu um erro ao tentar cancelar o cliente.',
+                    });
+                }
+            });
+        });
+    }
+
+    $('#confirm-pagamento-modal').on('click', '.btn-close, .btn-secondary', function () {
+        $('#confirm-pagamento-modal').modal('hide');
+    });
+</script>
