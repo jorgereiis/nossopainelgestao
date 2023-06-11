@@ -1,4 +1,4 @@
-from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo)
+from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp)
 from django.http import HttpResponseBadRequest, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -333,9 +333,52 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             }
         )
         return context
+    
+
+@login_required
+def ObterSessionWpp(request):
+    """
+        Função de view para consultar o Token da sessão WhatsApp do usuário da requisição
+    """
+    if request.method == "GET":
+        sessao = get_object_or_404(SessaoWpp, usuario=request.user)
+        token = sessao.token
+
+    return JsonResponse({"token": token})
 
 
 ############################################ UPDATE VIEW ############################################
+
+@login_required
+def SessionWpp(request):
+    """
+        Função de view para criar ou deletar uma sessão do WhatsApp
+    """
+    if request.method == 'POST':
+        token = request.POST.get('token')
+        
+        if request.POST.get('deletar'):
+            # Verifica se a requisição é para deletar uma sessão
+            try:
+                sessao = get_object_or_404(SessaoWpp, usuario=request.user)
+                sessao.delete()
+                # Realizar outras ações necessárias após a exclusão, se houver
+            except Exception as error1:
+                return JsonResponse({"error_message": "Ocorreu um erro ao tentar deletar a sessão."})
+            
+        elif request.POST.get('salvar'):
+            # Verifica se a requisição é para salvar/atualizar uma sessão
+            try:
+                sessao, created = SessaoWpp.objects.update_or_create(
+                    usuario=request.user,
+                    defaults={'token': token}
+                )
+                # Realizar outras ações necessárias após a salvar/atualização, se houver
+            except Exception as error2:
+                return JsonResponse({"error_message": "Ocorreu um erro ao tentar criar/atualizar a sessão."})
+    
+    return JsonResponse({"success_message_session": "Ação realizada com sucesso."})
+
 
 @login_required
 def reativar_cliente(request, cliente_id):

@@ -356,6 +356,33 @@
                 </div>
                 </div>
 
+                <!-- Modal de exibição do QRCode do WhatsApp -->
+                <div class="modal fade" id="qrcode-modal" tabindex="-1" role="dialog"
+                    aria-labelledby="qrcode-label">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content d-flex flex-column">
+                        <div class="modal-header">
+                        <h4 class="modal-title" id="qrcode-label">Sessão do WhatsApp</h4>
+                        <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                        </button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="show-qrcode" class="flex-column text-center">
+                                <div class="text-muted mb-0">Aperte em Conectar para exibir o QRCode da sua sessão</div>
+                            </div>
+                            <input type="hidden" id="user-session" value="{{ request.user }}">
+                        </div>
+                        <div class="modal-footer d-flex justify-content-center">
+                        <div class="mensagem-erro" id="mensagem-erro"></div>
+                        <input type="hidden" name="servidor_id" id="servidor-id">
+                        <button type="submit" class="btn btn-success" id="conectar" onclick="main()">Conectar</button>
+                        <button type="submit" class="btn btn-danger" id="desconectar" onclick="delete_session()" disabled>Desconectar</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+
                 <!-- Modal de cadastro da conta do app do cliente -->
                 <div class="modal fade" id="create-app-info-modal" tabindex="-1" role="dialog"
                 aria-labelledby="create-app-info-label">
@@ -1306,4 +1333,206 @@
       $('#info-cliente-modal').modal('show');
 
     });
+</script>
+
+<script>
+    // Funções de conexão com a API WhatsApp
+    const path_qrcode = '/image';
+    const token = generateRandomToken();
+    const url_root = 'http://localhost:8001';
+    const path_create_session = '/criar-sessao';
+    const path_status_session = '/status-sessao';
+    const path_delete_session = '/deletar-sessao';
+    const url_create_session_django = '/session_wpp/'
+    const user = document.getElementById('user-session').value;
+    let intervalId = null;
+  
+    function main() {
+        if (localStorage.getItem('token-wpp')){
+            intervalId = setInterval(checkSessionStatus, 5000);
+        } else {
+            create_session();
+        } 
+    }
+
+    function checkSessionStatus() {
+        const showQrCodeDiv = document.getElementById('show-qrcode');
+        const btnDesconectar = document.getElementById('desconectar');
+        status_session()
+        .then(response => {
+        const { status, message } = response;
+        if (status === true && message === null) {
+            load_qrcode();
+            btnDesconectar.disabled = true;
+        } else if (message === 'CONNECTED') {
+            clearInterval(intervalId);
+            btnDesconectar.disabled = false;
+            showQrCodeDiv.innerHTML = ""; // Limpar o conteúdo da div
+            showQrCodeDiv.innerHTML = '<span class="badge rounded-pill bg-success"><iconify-icon icon="feather:check-circle" style="color: white;"></iconify-icon> DISPOSITIVO CONECTADO</span>';
+        }
+        })
+        .catch(error => {
+        console.error('Ocorreu um erro:', error);
+        });
+    }
+
+    function create_session() {
+        const url = url_root + path_create_session;
+        const id = user;
+        const token = '1234';
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+            id: id,
+            token: token,
+            }),
+        })
+        .then(response => response.text())
+        .then(responseText => {
+        console.log('Create Session: ', responseText);
+
+        // Fazer outra requisição para a view SessionWpp
+        fetch(url_create_session_django, {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+            token: token,
+            salvar: true, // Indica que é uma requisição para salvar/atualizar a sessão
+            }),
+        })
+        .then(response => response.json())
+        .then(responseJson => {
+        console.log('SessionWpp: ', responseJson);
+        })
+        .catch(error => {
+        console.error('Ocorreu um erro na requisição SessionWpp:', error);
+        });
+        })
+        .catch(error => {
+        console.error('Ocorreu um erro:', error);
+        });
+    }
+
+    function load_qrcode() {
+        const url = url_root + path_qrcode;
+        const sender = user;
+        const token = localStorage.getItem('token-wpp');
+  
+        fetch(url, {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+            sender: sender,
+            token: token,
+            }),
+        })
+        .then(response => response.blob())
+        .then(blob => {
+          const imageUrl = URL.createObjectURL(blob);
+          console.log('Load QRCode: ', imageUrl);
+          const showQrCodeDiv = document.getElementById('show-qrcode');
+          showQrCodeDiv.innerHTML = '';
+          const qrCodeImage = document.createElement('img');
+          qrCodeImage.src = imageUrl;
+          showQrCodeDiv.appendChild(qrCodeImage);
+        })
+        .catch(error => {
+          console.error('Ocorreu um erro:', error);
+        });
+    }
+  
+    function status_session() {
+        const url = url_root + path_status_session;
+        const id = document.getElementById('user-session').value;
+        const token = localStorage.getItem('token-wpp');
+  
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+            id: id,
+            token: token,
+            }),
+        })
+        .then(response => response.json())
+        .then(responseJson => {
+          console.log('Status Session: ', responseJson);
+          return responseJson;
+        })
+        .catch(error => {
+          console.error('Ocorreu um erro:', error);
+        });
+    }
+  
+    function delete_session() {
+      const url = url_root + path_delete_session;
+      const id = user;
+      const token = localStorage.getItem('token-wpp');
+  
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: id,
+          token: token,
+        }),
+        })
+        .then(response => response.text())
+        .then(responseText => {
+          console.log(responseText);
+        })
+        .catch(error => {
+          console.error('Ocorreu um erro:', error);
+        });
+    }
+
+    function modal_qrcode() {
+        $('#qrcode-modal').modal('show');
+
+        $('#qrcode-modal').on('click', '.btn-close, .btn-secondary', function () {
+            $('#qrcode-modal').modal('hide');
+        });
+    }
+
+    function generateRandomToken() {
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let token = '-';
+      for (let i = 0; i < 19; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        token += characters.charAt(randomIndex);
+      }
+      return token;
+    }
+
+    // Requisições para API Django (obter dados da sessão salva)
+    function obterToken() {
+        fetch('/obter-session-wpp', {
+            method: 'GET',
+            headers: {
+            'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(responseJson => {
+        const token = responseJson.token;
+        console.log('Token obtido do Django:', token);
+        localStorage.setItem('token-wpp', token); // Salva o token no localStorage
+        console.log('Token salvo no localStorage.');
+        })
+        .catch(error => {
+        console.error('Ocorreu um erro:', error);
+        });
+    }
 </script>

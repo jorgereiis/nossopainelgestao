@@ -10,6 +10,7 @@ from .models import (
     Mensalidade,
     PlanoIndicacao,
     ContaDoAplicativo,
+    SessaoWpp,
 )
 
 
@@ -79,6 +80,10 @@ class ContaDoAplicativoAdmin(admin.ModelAdmin):
     search_fields = ("email", "cliente__nome",)
 
 
+class SessaoWppAdmin(admin.ModelAdmin):
+    list_display = ("usuario", "token", "dt_criacao")
+
+
 admin.site.register(ContaDoAplicativo, ContaDoAplicativoAdmin)
 admin.site.register(Mensalidade, MensalidadeAdmin)
 admin.site.register(Cliente, ClienteAdmin)
@@ -87,5 +92,6 @@ admin.site.register(PlanoIndicacao)
 admin.site.register(Dispositivo)
 admin.site.register(Aplicativo)
 admin.site.register(Tipos_pgto)
+admin.site.register(SessaoWpp)
 admin.site.register(Qtd_tela)
 admin.site.register(Servidor)

@@ -4,171 +4,290 @@
 <html lang="pt-br">
 
 <head>
-    {% include 'partials/head.html' %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+	<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.7/dist/iconify-icon.min.js"></script>
     <title>Meus Clientes | Nosso Painel - Gestão IPTV</title>
 </head>
 
 <body class="bg-light">
-    <!-- Scripts -->
-    {% include 'partials/scripts.html' %}
+    <h2>Gestão de Sessões</h2>
+    <hr>
+    
+    <!--
+    <div id="result"></div>
+    <div id="sessao"></div>
+    <div id="token"></div>
+    <div id="sessaoScan"></div>
+    <div id="sessaoDel"></div>
+    <div id="tokenDel"></div>
+    <div id="sessaoStatus"></div>
+    <div id="tokenStatus"></div>
+    -->
+
+    <form id="form" method="post">
+        {% csrf_token %}
+        <nav>
+            <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                <button class="nav-link active" id="nav-1-tab" data-toggle="tab" data-target="#nav-1" type="button" role="tab" aria-controls="nav-1" aria-selected="true">Criar Sessões</button>
+                <button class="nav-link" id="nav-2-tab" data-toggle="tab" data-target="#nav-2" type="button" role="tab" aria-controls="nav-2" aria-selected="false">Capturar QrCode</button>
+                <button class="nav-link" id="nav-3-tab" data-toggle="tab" data-target="#nav-3" type="button" role="tab" aria-controls="nav-3" aria-selected="false">Deletar Sessão</button>
+                <button class="nav-link" id="nav-4-tab" data-toggle="tab" data-target="#nav-4" type="button" role="tab" aria-controls="nav-4" aria-selected="false">Status Sessão</button>
+                <button class="nav-link" id="nav-5-tab" data-toggle="tab" data-target="#nav-5" type="button" role="tab" aria-controls="nav-5" aria-selected="false">Listar Sessões</button>
+            </div>
+        </nav>
+        <div class="tab-content" id="nav-tabContent">
+            <div class="tab-pane fade show active" id="nav-1" role="tabpanel" aria-labelledby="nav-1-tab">
+                <br>
+                <h4>Criar Sessões</h4>
+                <div id="show-qrcode"></div>
+                <input type="hidden" id="user-session" value="{{ request.user }}">
+                <input class="btn btn-success" type="button" value="QRCode" onclick="main()" />
+                <!--
+                <input style="width:20%" class="form-control" type="text" name="sessao" id="sessao" placeholder="Insira a Sessão">
+                <br>
+                <input style="width:20%" class="form-control" type="text" name="token" id="token" placeholder="Insira o Token">
+                <br>
+                <input class="btn btn-success" type="button" name="button1" class="button" value="Criar Sessão" onclick="btn1()" />
+                -->
+                <br>
+                <hr>
+            </div>
+            <div class="tab-pane fade" id="nav-2" role="tabpanel" aria-labelledby="nav-2-tab">
+                <br>
+                <h4>Capturar QrCode</h4>
+                <input style="width:20%" class="form-control" type="text" name="sessaoScan" id="sessaoScan" placeholder="Insira a Sessão">
+                <br>
+                <input class="btn btn-success" type="button" name="button2" class="button" value="Capturar QrCode" onclick="btn2()" />
+                <br>
+                <hr>
+            </div>
+            <div class="tab-pane fade" id="nav-3" role="tabpanel" aria-labelledby="nav-3-tab">
+                <br>
+                <h4>Deletar Sessão</h4>
+                <input style="width:20%" class="form-control" type="text" name="sessaoDel" id="sessaoDel" placeholder="Insira a Sessão">
+                <br>
+                <input style="width:20%" class="form-control" type="text" name="tokenDel" id="tokenDel" placeholder="Insira o Token">
+                <br>
+                <input class="btn btn-success" type="button" name="button3" class="button" value="Deletar Sessão" onclick="btn3()" />
+                <br>
+                <hr>
+            </div>
+            <div class="tab-pane fade" id="nav-4" role="tabpanel" aria-labelledby="nav-4-tab">
+                <br>
+                <h4>Status Sessão</h4>
+                <input style="width:20%" class="form-control" type="text" name="sessaoStatus" id="sessaoStatus" placeholder="Insira a Sessão">
+                <br>
+                <input style="width:20%" class="form-control" type="text" name="tokenStatus" id="tokenStatus" placeholder="Insira o Token">
+                <br>
+                <input class="btn btn-success" type="button" name="button5" class="button" value="Criar Sessão" onclick="btn5()" />
+                <br>
+                <hr>
+            </div>
+            <div class="tab-pane fade" id="nav-5" role="tabpanel" aria-labelledby="nav-5-tab">
+                <br>
+                <h4>Listar Sessões</h4>
+                <input class="btn btn-success" type="button" name="button4" value="Listar" onclick="btn4()" />
+                <br>
+                <hr>
+            </div>
+        </div>
+    </form>
+    <hr>
+    <p>Desenvolvido por JRG</p>
 
 </body>
 </html>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 <script>
-    function exibirModalConfirmacaoPagamento(botao) {
-        var mensalidade_id = $(botao).data('mensalidade');
-        var cliente_nome = $(botao).data('nome');
-        var cliente_plano = $(botao).data('plano');
-
-        $('#confirm-pagamento-modal #cliente-plano').empty();
-        $('#confirm-pagamento-modal #cliente-plano').hide();
-        $('#confirm-pagamento-modal .text-danger').show();
-
-        if (cliente_plano.toLowerCase().includes('mensal')) {
-            var dataPagamento = $('#mensalidade-data_pagamento').val();
-            var mensagem = '';
-
-            if (dataPagamento) {
-                var dataAtual = new Date();
-                var mesAtual = dataAtual.getMonth() + 1; // O mês é baseado em zero (janeiro é 0)
-                var anoAtual = dataAtual.getFullYear();
-
-                var dataVencimento = new Date(dataPagamento);
-                var mesVencimento = dataVencimento.getMonth() + 1;
-                var anoVencimento = dataVencimento.getFullYear();
-
-                if (anoVencimento === anoAtual && mesVencimento === mesAtual + 1) {
-                    mensagem = 'O próximo vencimento será no mês seguinte.';
-                } else if (anoVencimento === anoAtual + 1 && mesVencimento === 1 && mesAtual === 12) {
-                    mensagem = 'O próximo vencimento será no próximo ano.';
-                } else {
-                    mensagem = 'O próximo vencimento será em ' + mesVencimento + '/' + anoVencimento + '.';
-                }
-            }
-
-            $('#confirm-pagamento-modal #cliente-plano').text(mensagem);
-            $('#confirm-pagamento-modal #cliente-plano').show();
-            $('#confirm-pagamento-modal .text-danger').hide();
+    const path_qrcode = '/image';
+    const token = generateRandomToken();
+    const url_root = 'http://localhost:8001';
+    const path_create_session = '/criar-sessao';
+    const path_status_session = '/status-sessao';
+    const path_delete_session = '/deletar-sessao';
+    const user = document.getElementById('user-session').value;
+    let intervalId = null;
+  
+    function main() {
+      create_session();
+      intervalId = setInterval(checkSessionStatus, 11000);
+    }
+  
+    function checkSessionStatus() {
+        status_session()
+        .then(response => {
+        const { status, message } = response;
+        if (status === true && message === 'status: null') {
+            load_qrcode();
+        } else if (message === 'status: CONNECTED') {
+            clearInterval(intervalId);
+            const showQrCodeDiv = document.getElementById('show-qrcode');
+            showQrCodeDiv.innerHTML = ""; // Limpar o conteúdo da div
+            showQrCodeDiv.innerHTML = '<span class="badge rounded-pill bg-success"><iconify-icon icon="feather:check-circle" style="color: #42b983;"></iconify-icon> CONECTADO</span>';
         }
-
-        $('#confirm-pagamento-modal #mensalidade-id').val(mensalidade_id);
-        $('#confirm-pagamento-modal #cliente-nome').text(cliente_nome);
-        $('#confirm-pagamento-modal').modal('show');
-
-        // Ouve a mudança do valor no select
-        $('#mensalidade-data_pagamento').on('change', function () {
-            var dataPagamento = parseInt($('#mensalidade-data_pagamento').val(), 10);
-            var mensagem = '';
-
-            if (cliente_plano.toLowerCase().includes('mensal')) {
-                if (dataPagamento) {
-                    var dataAtual = new Date();
-                    var mesAtual = dataAtual.getMonth() + 1; // O mês é baseado em zero (janeiro é 0)
-                    var anoAtual = dataAtual.getFullYear();
-
-                    var dataVencimento = new Date(dataPagamento);
-                    var mesVencimento = dataVencimento.getMonth() + 1;
-                    var anoVencimento = dataVencimento.getFullYear();
-
-                    var novoMes = mesAtual + 1;
-                    var novoAno = anoAtual;
-                    if (novoMes > 12) {
-                    novoMes = 1;
-                    novoAno++;
-                    }
-
-                    var novaData = new Date(novoAno, novoMes - 1, dataPagamento);
-
-                    var dia = novaData.getDate();
-                    var mes = novaData.getMonth() + 1;
-                    var ano = novaData.getFullYear();
-
-                    var novaDataFormatada = dia + '/' + mes + '/' + ano;
-
-                    mensagem = 'A próxima data de pagamento será: ' + novaDataFormatada;
-                }
-            }
-
-            if (dataPagamento) {
-                $('#confirm-pagamento-modal .text-danger').text(mensagem);
-            } else {
-                $('#confirm-pagamento-modal .text-danger').text('Informe o dia de vencimento que terá essa próxima mensalidade.');
-            }
-        });
-
-        // Ouve o envio do formulário
-        $('#pagamento-form').on('submit', function (event) {
-            event.preventDefault(); // Impede o envio padrão do formulário
-
-            // Obtém o ID do mensalidade a ser cancelado
-            var mensalidade_id = $('#mensalidade-id').val();
-
-            // Faz a solicitação POST para a URL apropriada
-            $.ajax({
-                url: '/pagar-mensalidade/' + mensalidade_id + '/',
-                method: 'POST',
-                beforeSend: function (xhr) {
-                    xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
-                },
-                success: function (response) {
-                    // Verifica se a resposta contém a chave 'success_message_invoice'
-                    if ('success_message_invoice' in response) {
-                        // Fecha o modal e exibe mensagem de sucesso
-                        $('#confirm-pagamento-modal').modal('hide');
-
-                        swal.fire({
-                            icon: 'success',
-                            title: 'Pago!',
-                            html: '<span style="font-size: 20px">🤑</span><br>' + response.success_message_invoice + '<br>Consulte as mensalidades desse cliente para mais detalhes.',
-                        }).then(function() {
-                            location.reload();
-                        });
-                    }
-
-                    if ('error_message' in response) {
-                        // Fecha o modal e exibe mensagem de sucesso
-                        $('#confirm-pagamento-modal').modal('hide');
-
-                        swal.fire({
-                            icon: 'error',
-                            title: 'Oops...',
-                            text: response.error_message,
-                        });
-                    }
-                },
-                error: function (response) {
-                    // Fecha o modal e exibe mensagem de erro
-                    $('#confirm-pagamento-modal').modal('hide');
-
-                    swal.fire({
-                        icon: 'error',
-                        title: 'Oops...',
-                        text: 'Ocorreu um erro ao tentar cancelar o cliente.',
-                    });
-                }
-            });
+        })
+        .catch(error => {
+        console.error('Ocorreu um erro:', error);
         });
     }
 
-    $('#confirm-pagamento-modal').on('click', '.btn-close, .btn-secondary', function () {
-        $('#confirm-pagamento-modal').modal('hide');
-    });
+    function create_session() {
+      const url = url_root + path_create_session;
+      const id = user;
+      const token = '1234';
+  
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: id,
+          token: token,
+        }),
+      })
+        .then(response => response.text())
+        .then(responseText => {
+          console.log('Create Session: ', responseText);
+        })
+        .catch(error => {
+          console.error('Ocorreu um erro:', error);
+        });
+    }
+  
+    function load_qrcode() {
+      const url = url_root + path_qrcode;
+      const sender = user;
+      const token = '1234';
+  
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: sender,
+          token: token,
+        }),
+      })
+        .then(response => response.blob())
+        .then(blob => {
+          const imageUrl = URL.createObjectURL(blob);
+          console.log('Load QRCode: ', imageUrl);
+          const showQrCodeDiv = document.getElementById('show-qrcode');
+          showQrCodeDiv.innerHTML = '';
+          const qrCodeImage = document.createElement('img');
+          qrCodeImage.src = imageUrl;
+          showQrCodeDiv.appendChild(qrCodeImage);
+        })
+        .catch(error => {
+          console.error('Ocorreu um erro:', error);
+        });
+    }
+  
+    function status_session() {
+      const url = url_root + path_status_session;
+      const id = document.getElementById('user-session').value;
+      const token = '1234';
+  
+      return fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: id,
+          token: token,
+        }),
+      })
+        .then(response => response.json())
+        .then(responseJson => {
+          console.log('Status Session: ', responseJson);
+          return responseJson;
+        })
+        .catch(error => {
+          console.error('Ocorreu um erro:', error);
+        });
+    }
+  
+    function delete_session() {
+      const url = url_root + path_delete_session;
+      const id = user;
+      const token = '1234';
+  
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: id,
+          token: token,
+        }),
+      })
+        .then(response => response.text())
+        .then(responseText => {
+          console.log(responseText);
+        })
+        .catch(error => {
+          console.error('Ocorreu um erro:', error);
+        });
+    }
+  
+    function generateRandomToken() {
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let token = '-';
+      for (let i = 0; i < 19; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        token += characters.charAt(randomIndex);
+      }
+      return token;
+    }
 </script>
+  
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans&display=swap');
+
+body {
+  padding-left:100px;
+  padding-right:100px;
+  padding-top:10px;
+  font-family: 'Open Sans', sans-serif;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+#menu-h{
+    background-color: #eeeeee;
+}
+
+#menu-h ul {
+    max-width: 1600px;
+    list-style: none;
+    padding: 0;
+}
+
+#menu-h ul li {
+    display: inline;
+}
+
+#menu-h ul li a {
+    color: #000000;
+    padding: 20px;
+    display: inline-block;
+    text-decoration: none;
+    transition: background .4s;
+}
+
+#menu-h ul li a:hover {
+    background-color: rgb(70, 178, 30);
+}
+
+#menu-h ul li:last-child a {
+    float: right;
+    background-color: rgb(70, 178, 30);
+}
+</style>

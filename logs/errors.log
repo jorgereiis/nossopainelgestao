@@ -2809,3 +2809,35 @@ TypeError: 'str' object cannot be interpreted as an integer
 [2023-06-02 00:07:42] [ERROR] log - Internal Server Error: /editar-cliente/35/
 [2023-06-02 00:07:42] [ERROR] basehttp - "POST /editar-cliente/35/ HTTP/1.1" 500 47532
 [2023-06-02 00:07:42] [ERROR] basehttp - "POST /editar-cliente/35/ HTTP/1.1" 500 47532
+[2023-06-08 00:27:03] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 00:33:25] [WARNING] log - Not Found: /teste/index.php
+[2023-06-08 00:35:40] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 01:09:04] [WARNING] log - Not Found: /criar-sessao
+[2023-06-08 01:09:08] [WARNING] log - Not Found: /criar-sessao
+[2023-06-08 01:09:12] [WARNING] log - Not Found: /criar-sessao
+[2023-06-08 01:09:15] [WARNING] log - Not Found: /criar-sessao
+[2023-06-08 01:12:18] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 01:12:22] [WARNING] log - Not Found: /criar-sessao
+[2023-06-08 01:13:04] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 01:35:32] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 01:35:39] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 14:31:20] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 15:24:42] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 22:39:26] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 22:39:27] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 22:42:08] [WARNING] log - Not Found: /teste/setup/static/qrcode/admin/qrcode.png
+[2023-06-08 22:42:10] [WARNING] log - Not Found: /teste/setup/static/qrcode/admin/qrcode.png
+[2023-06-08 22:42:16] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 22:42:17] [WARNING] log - Not Found: /teste/setup/static/qrcode/admin/qrcode.png
+[2023-06-08 22:42:57] [WARNING] log - Not Found: /favicon.ico
+[2023-06-08 22:42:59] [WARNING] log - Not Found: /teste/setup/static/qrcode/admin/qrcode.png
+[2023-06-08 22:43:31] [WARNING] log - Not Found: /teste/setup/static/qrcode/admin/qrcode.png
+[2023-06-08 22:45:02] [WARNING] log - Not Found: /teste/setup/static/qrcode/admin/qrcode.png
+[2023-06-08 22:46:46] [WARNING] log - Not Found: /static
+[2023-06-08 22:48:01] [WARNING] log - Not Found: /setup/static/qrcode/admin/qrcode.png
+[2023-06-09 12:22:22] [WARNING] log - Not Found: /favicon.ico
+[2023-06-09 12:46:33] [WARNING] log - Not Found: /favicon.ico
+[2023-06-09 12:56:25] [WARNING] log - Not Found: /favicon.ico
+[2023-06-09 14:42:27] [WARNING] base - Method Not Allowed (POST): /dashboard/
+[2023-06-09 14:42:27] [WARNING] log - Method Not Allowed: /dashboard/
+[2023-06-10 00:45:04] [WARNING] log - Not Found: /localhost:8000/session_wpp/

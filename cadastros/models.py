@@ -267,3 +267,16 @@ class ContaDoAplicativo(models.Model):
 
     def __str__(self):
         return super().__str__()
+
+
+class SessaoWpp(models.Model):
+    usuario = models.CharField(max_length=255)
+    token = models.CharField(max_length=255)
+    dt_inicio = models.DateTimeField()
+
+    class Meta:
+        verbose_name = "Sessão do WhatsApp"
+        verbose_name_plural = "Sessões do WhatsApp"
+
+    def __str__(self) -> str:
+        return super().__str__()

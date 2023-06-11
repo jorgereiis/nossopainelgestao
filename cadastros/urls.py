@@ -3,11 +3,13 @@ from django.contrib.auth import views as auth_views
 from .views import (
     Login,
     Teste,
+    SessionWpp,
     EditarCliente,
     ListaClientes,
     DeleteServidor,
     EditarServidor,
     TabelaDashboard,
+    ObterSessionWpp,
     CadastroCliente,
     cancelar_cliente,
     reativar_cliente,
@@ -70,6 +72,8 @@ urlpatterns = [
     
     ########## Others ###########
     path("teste/", Teste, name="teste"),
+    path("session_wpp/", SessionWpp, name="session_wpp"),
     path("contas_apps/", CarregarContasDoAplicativo.as_view()),
     path("qtds_mensalidades/", CarregarQuantidadesMensalidades.as_view()),
+    path("obter_session_wpp/", ObterSessionWpp, name="obter_session_wpp"),
 ]
