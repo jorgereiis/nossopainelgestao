@@ -517,28 +517,39 @@ def EditarCliente(request, cliente_id):
 
             if cliente.data_pagamento != request.POST.get("dt_pgto"):
                 # Atualizar a data de pagamento do cliente
-                cliente.data_pagamento = request.POST.get("dt_pgto")
 
                 # Atualizar a data de vencimento da mensalidade do cliente
-                dia_vencimento = int(request.POST.get("dt_pgto"))
-                data_pagamento = datetime.now().date()
+                novo_dia_vencimento = int(request.POST.get("dt_pgto"))
+                data_vencimento_atual = mensalidade.dt_vencimento
+                hoje = datetime.now().date()
+                meses31dias = [1, 3, 5, 7, 8, 10, 12]
 
-                if dia_vencimento < data_pagamento.day:
-                    # Dia de vencimento já passou, atualizar para o próximo mês
-                    mes_vencimento = data_pagamento.month + 1
-                    ano_vencimento = data_pagamento.year
-                    
-                    if mes_vencimento > 12:
-                        novo_mes_vencimento = mes_vencimento - 12
-                        mes_vencimento = novo_mes_vencimento
-                        ano_vencimento += 1
+                if data_vencimento_atual.month == hoje.month:
+                    if novo_dia_vencimento < hoje.day:
+                        # Dia de vencimento já passou, atualizar para o próximo mês
+                        mes_vencimento = data_vencimento_atual.month + 1
+                        ano_vencimento = data_vencimento_atual.year
+                        
+                        if mes_vencimento > 12:
+                            novo_mes_vencimento = mes_vencimento - 12
+                            mes_vencimento = novo_mes_vencimento
+                            ano_vencimento += 1
+                    else:
+                        mes_vencimento = data_vencimento_atual.month
+                        ano_vencimento = data_vencimento_atual.year
                 else:
-                    mes_vencimento = data_pagamento.month
-                    ano_vencimento = data_pagamento.year
+                    mes_vencimento = data_vencimento_atual.month
+                    ano_vencimento = data_vencimento_atual.year
 
-                nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=dia_vencimento)
+                if novo_dia_vencimento == 31 and mes_vencimento not in meses31dias:
+                    novo_dia_vencimento = 1
+                    mes_vencimento += 1
+
+                nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
                 mensalidade.dt_vencimento = nova_data_vencimento
+                cliente.data_pagamento = novo_dia_vencimento
                 mensalidade.save()
+                cliente.save()
 
             dispositivo = Dispositivo.objects.get(nome=request.POST.get("dispositivo"), usuario=request.user)
             if cliente.dispositivo != dispositivo:
