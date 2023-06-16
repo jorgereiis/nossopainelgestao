@@ -811,25 +811,25 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-      var telefoneInput = document.getElementById('edit-cliente-telefone');
-    
-      telefoneInput.addEventListener('input', function() {
+    var telefoneInput = document.getElementById('edit-cliente-telefone');
+
+    telefoneInput.addEventListener('input', function() {
         var telefone = this.value.replace(/\D/g, ''); // Remove todos os caracteres não numéricos
-    
+        telefone = telefone.substring(0, 11); // Limita o número de telefone a 11 dígitos
+
         var formattedTelefone = '';
         if (telefone.length > 0) {
-          formattedTelefone = '(' + telefone.substring(0, 2) + ')';
-    
-          if (telefone.length > 2) {
+        formattedTelefone = '(' + telefone.substring(0, 2) + ')';
+
+        if (telefone.length > 2) {
             formattedTelefone += ' ' + telefone.substring(2, 7);
-    
+
             if (telefone.length > 7) {
-              formattedTelefone += '-' + telefone.substring(7, 11);
+            formattedTelefone += telefone.substring(7, 11);
             }
-          }
         }
-    
+        }
         this.value = formattedTelefone;
-      });
+    });
     });
 </script>

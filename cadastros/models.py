@@ -1,3 +1,4 @@
+import re
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
@@ -164,19 +165,29 @@ class Cliente(models.Model):
                     mensalidade.save()
 
     def formatar_telefone(self):
-        self.telefone = self.telefone.replace('(', '').replace(')', '').replace(' ', '').replace('-', '')  # Remove caracteres especiais
-
-        if len(self.telefone) > 13:
-            self.telefone = self.telefone[:13]  # Reduz o tamanho para 13 dígitos
+        self.telefone = re.sub(r'\D+', '', self.telefone)  # Remove caracteres especiais
 
         if self.telefone.startswith('55'):
             self.telefone = self.telefone[2:]  # Remove o prefixo '55' do início do número
 
-        if len(self.telefone) == 10:  # Formato (00) 0000-0000
-            self.telefone = self.telefone[:2] + '9' + self.telefone[2:]  # Adiciona o dígito 9 após os dois primeiros dígitos
+        if len(self.telefone) > 10:
+            ddd = self.telefone[:2]  # Obtém os 2 primeiros dígitos após remover o DDI
+            numero = self.telefone[2:]  # Obtém o restante do número (8 dígitos)
 
-        if len(self.telefone) == 11:  # Formato (00) 00000-0000
-            self.telefone = '(' + self.telefone[:2] + ') ' + self.telefone[2:6] + '-' + self.telefone[6:]
+            if int(ddd) > 30:
+                self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}'  # Formato (DD) DDDD-DDDD
+            else:
+                self.telefone = f'({ddd}) 9{numero[:5]}-{numero[5:]}'  # Formato (DD) DDDDD-DDDD
+
+        elif len(self.telefone) == 10:
+            ddd = self.telefone[:2]  # Obtém os 2 primeiros dígitos
+            numero = self.telefone[2:]  # Obtém o restante do número (8 dígitos)
+            self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}'  # Formato (DD) DDDD-DDDD
+
+        elif len(self.telefone) == 11:
+            ddd = self.telefone[:2]  # Obtém os 2 primeiros dígitos
+            numero = self.telefone[2:]  # Obtém o restante do número (9 dígitos)
+            self.telefone = f'({ddd}) {numero[:5]}-{numero[5:]}'  # Formato (DD) DDDDD-DDDD
 
     def __str__(self):
         return self.nome
@@ -279,4 +290,4 @@ class SessaoWpp(models.Model):
         verbose_name_plural = "Sessões do WhatsApp"
 
     def __str__(self) -> str:
-        return super().__str__()
+        return self.usuario

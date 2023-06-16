@@ -324,26 +324,52 @@
 </script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  var telefoneInput = document.getElementById('telefone');
+  document.addEventListener('DOMContentLoaded', function() {
+    var telefoneInput = document.getElementById('telefone');
 
-  telefoneInput.addEventListener('input', function() {
-    var telefone = this.value.replace(/\D/g, ''); // Remove todos os caracteres não numéricos
+    telefoneInput.addEventListener('input', function() {
+      var telefone = this.value.replace(/\D/g, ''); // Remove todos os caracteres não numéricos
+      telefone = telefone.substring(0, 11); // Limita o número de telefone a 11 dígitos
 
-    var formattedTelefone = '';
-    if (telefone.length > 0) {
-      formattedTelefone = '(' + telefone.substring(0, 2) + ')';
+      var formattedTelefone = '';
+      if (telefone.length > 0) {
+        formattedTelefone = '(' + telefone.substring(0, 2) + ')';
 
-      if (telefone.length > 2) {
-        formattedTelefone += ' ' + telefone.substring(2, 7);
+        if (telefone.length > 2) {
+          formattedTelefone += ' ' + telefone.substring(2, 7);
 
-        if (telefone.length > 7) {
-          formattedTelefone += '-' + telefone.substring(7, 11);
+          if (telefone.length > 7) {
+            formattedTelefone += telefone.substring(7, 11);
+          }
         }
       }
-    }
-
-    this.value = formattedTelefone;
+      this.value = formattedTelefone;
+    });
   });
-});
+</script>
+
+<script>
+  // Formatar o valor do campo device-id
+  document.addEventListener('DOMContentLoaded', function() {
+    var deviceIdInput = document.getElementById('ID');
+
+    deviceIdInput.addEventListener('input', function() {
+      var deviceId = this.value.replace(/[^0-9A-Fa-f]/g, ''); // Remove todos os caracteres não alfanuméricos
+
+      var formattedDeviceId = '';
+      if (deviceId.length > 0) {
+        formattedDeviceId = deviceId.match(/.{1,2}/g).join(':'); // Adiciona ":" a cada 2 caracteres
+
+        // Remove ":" do começo e do final, se existirem
+        if (formattedDeviceId.startsWith(':')) {
+          formattedDeviceId = formattedDeviceId.substring(1);
+        }
+        if (formattedDeviceId.endsWith(':')) {
+          formattedDeviceId = formattedDeviceId.substring(0, formattedDeviceId.length - 1);
+        }
+      }
+
+      this.value = formattedDeviceId;
+    });
+  });
 </script>

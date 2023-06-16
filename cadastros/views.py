@@ -3,6 +3,7 @@ from django.http import HttpResponseBadRequest, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.deletion import ProtectedError
 from django.core.exceptions import ValidationError
 from django.contrib.auth.views import LoginView
@@ -335,49 +336,57 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         return context
     
 
-@login_required
+
 def ObterSessionWpp(request):
     """
         Função de view para consultar o Token da sessão WhatsApp do usuário da requisição
     """
-    if request.method == "GET":
-        sessao = get_object_or_404(SessaoWpp, usuario=request.user)
-        token = sessao.token
+    if request.method == 'GET':
+        if request.user:    
+            sessao = get_object_or_404(SessaoWpp, usuario=request.user)
+            token = sessao.token
+        else:
+            return JsonResponse({"error_message": "Usuário da requisição não identificado."}, status=500)
+    else:
+        return JsonResponse({"error_message": "Método da requisição não permitido."}, status=500)
 
-    return JsonResponse({"token": token})
+    return JsonResponse({"token": token}, status=200)
 
 
 ############################################ UPDATE VIEW ############################################
 
-@login_required
 def SessionWpp(request):
     """
-        Função de view para criar ou deletar uma sessão do WhatsApp
+    Função de view para criar ou deletar uma sessão do WhatsApp
     """
-    if request.method == 'POST':
-        token = request.POST.get('token')
-        
-        if request.POST.get('deletar'):
-            # Verifica se a requisição é para deletar uma sessão
-            try:
-                sessao = get_object_or_404(SessaoWpp, usuario=request.user)
-                sessao.delete()
-                # Realizar outras ações necessárias após a exclusão, se houver
-            except Exception as error1:
-                return JsonResponse({"error_message": "Ocorreu um erro ao tentar deletar a sessão."})
-            
-        elif request.POST.get('salvar'):
-            # Verifica se a requisição é para salvar/atualizar uma sessão
-            try:
-                sessao, created = SessaoWpp.objects.update_or_create(
-                    usuario=request.user,
-                    defaults={'token': token}
-                )
-                # Realizar outras ações necessárias após a salvar/atualização, se houver
-            except Exception as error2:
-                return JsonResponse({"error_message": "Ocorreu um erro ao tentar criar/atualizar a sessão."})
-    
-    return JsonResponse({"success_message_session": "Ação realizada com sucesso."})
+    if request.method == 'DELETE':
+        try:
+            sessao = SessaoWpp.objects.filter(usuario=request.user)
+            sessao.delete()
+            # Realizar outras ações necessárias após a exclusão, se houver
+            return JsonResponse({"success_message_session": "Sessão deletada com sucesso."}, status=200)
+        except ObjectDoesNotExist:
+            return JsonResponse({"error_message": "A sessão não existe."}, status=404)
+        except Exception as e:
+            return JsonResponse({"error_message": str(e)}, status=500)
+
+    elif request.method in ['PUT', 'PATCH']:
+        body = json.loads(request.body)
+        token = body.get('token')
+        try:
+            sessao, created = SessaoWpp.objects.update_or_create(
+                usuario=request.user,
+                token=token,
+                dt_inicio=timezone.localtime()
+            )
+            # Realizar outras ações necessárias após salvar/atualizar, se houver
+            return JsonResponse({"success_message_session": "Sessão salva/atualizada com sucesso."}, status=200)
+        except Exception as e:
+            return JsonResponse({"error_message": str(e)}, status=500)
+
+    else:
+        return JsonResponse({"error_message": "Método da requisição não permitido."}, status=405)
+
 
 
 @login_required
@@ -463,7 +472,7 @@ def cancelar_cliente(request, cliente_id):
         # Retorna uma resposta JSON indicando que o cliente foi cancelado com sucesso
         return JsonResponse({"success_message_cancel": "Eita! mais um cliente cancelado?! "})
     else:
-        redirect("login")
+        return redirect("login")
 
 
 from datetime import datetime
@@ -507,7 +516,7 @@ def EditarCliente(request, cliente_id):
             if cliente.forma_pgto != forma_pgto:
                 cliente.forma_pgto = forma_pgto
 
-            plano = Plano.objects.get(valor=plano_list[1].replace(',', '.'), usuario=request.user)
+            plano = Plano.objects.filter(valor=plano_list[1].replace(',', '.'), usuario=request.user).first()
             if cliente.plano != plano:
                 cliente.plano = plano
 

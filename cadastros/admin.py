@@ -81,17 +81,17 @@ class ContaDoAplicativoAdmin(admin.ModelAdmin):
 
 
 class SessaoWppAdmin(admin.ModelAdmin):
-    list_display = ("usuario", "token", "dt_criacao")
+    list_display = ("usuario", "token", "dt_inicio")
 
 
 admin.site.register(ContaDoAplicativo, ContaDoAplicativoAdmin)
 admin.site.register(Mensalidade, MensalidadeAdmin)
+admin.site.register(SessaoWpp, SessaoWppAdmin)
 admin.site.register(Cliente, ClienteAdmin)
 admin.site.register(Plano, PlanoAdmin)
 admin.site.register(PlanoIndicacao)
 admin.site.register(Dispositivo)
 admin.site.register(Aplicativo)
 admin.site.register(Tipos_pgto)
-admin.site.register(SessaoWpp)
 admin.site.register(Qtd_tela)
 admin.site.register(Servidor)
