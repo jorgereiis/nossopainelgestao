@@ -17,7 +17,8 @@ django.setup()
 
 from cadastros.models import Mensalidade, SessaoWpp
 
-def enviar_mensagem_telefone(telefone, mensagem, usuario, token, cliente):
+# FUNÇÃO PARA ENVIO DAS MENSAGENS PARA API WPP
+def enviar_mensagem(telefone, mensagem, usuario, token, cliente):
     url = 'http://localhost:21465/api/{}/send-message'.format(usuario)
     headers = {
         'Content-Type': 'application/json',
@@ -49,7 +50,8 @@ def enviar_mensagem_telefone(telefone, mensagem, usuario, token, cliente):
     time.sleep(tempo_espera)
 
 
-def filtrar_mensalidades_enviar_mensagens():
+# FUNÇÃO PARA FILTRAR AS MENSALIDADES DOS CLIENTES A VENCER
+def mensalidades_a_vencer():
     # Obter a data atual
     data_atual = datetime.now().date()
 
@@ -62,7 +64,8 @@ def filtrar_mensalidades_enviar_mensagens():
         pgto=False,
         cancelado=False
     )
-    print('Mensalidades filtradas: ', mensalidades)
+    quantidade_mensalidades = mensalidades.count()
+    print('[A VENCER] QUANTIDADE DE ENVIOS A SEREM FEITOS: ', quantidade_mensalidades)
 
     # Iterar sobre as mensalidades e enviar mensagens
     for mensalidade in mensalidades:
@@ -81,12 +84,61 @@ def filtrar_mensalidades_enviar_mensagens():
 
         mensagem = """⚠️ *ATENÇÃO, {} !!!* ⚠️\n\n*A SUA MENSALIDADE VENCERÁ EM {}.*\n\n▶️ Deseja continuar com acesso ao nosso serviço?? Faça o seu pagamento até a data informada e evite a perca do acesso!\n\n▫ *PAGAMENTO COM PIX*\n\nCelular\n83993329190\nNuBank\nJorge Reis Galvão\n\n‼️ _Caso já tenha pago, por favor me envie o comprovante para confirmação e continuidade do acesso._""".format(primeiro_nome, dt_vencimento)
 
-        enviar_mensagem_telefone(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente)
+        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente)
+
+
+# FUNÇÃO PARA FILTRAR AS MENSALIDADES DOS CLIENTES EM ATRASO
+def mensalidades_vencidas():
+    # Obter a data atual
+    data_atual = datetime.now().date()
+
+    # Calcula a data de dois dias atrás
+    data_dois_dias_atras = data_atual - timedelta(days=2)
+
+    # Filtrar as mensalidades vencidas há dois dias
+    mensalidades = Mensalidade.objects.filter(
+        dt_vencimento=data_dois_dias_atras,
+        pgto=False,
+        cancelado=False
+    )
+    quantidade_mensalidades = mensalidades.count()
+    print('[EM ATRASO] QUANTIDADE DE ENVIOS A SEREM FEITOS: ', quantidade_mensalidades)
+
+    # Iterar sobre as mensalidades e enviar mensagens
+    for mensalidade in mensalidades:
+        usuario = mensalidade.usuario
+        cliente = mensalidade.cliente
+        nome_cliente = str(cliente)
+        primeiro_nome = nome_cliente.split(' ')[0]
+        dt_vencimento = mensalidade.dt_vencimento.strftime("%d/%m")
+        telefone = str(cliente.telefone)
+        telefone_formatado = '55' + re.sub(r'\D', '', telefone)
+        saudacao = ''
+
+        # Obter o horário atual
+        hora_atual = datetime.now().time()
+
+        # Definir a saudação de acordo com o horário atual
+        if hora_atual < datetime.strptime("12:00:00", "%H:%M:%S").time():
+            saudacao = "Bom dia"
+        elif hora_atual < datetime.strptime("18:00:00", "%H:%M:%S").time():
+            saudacao = "Boa tarde"
+        else:
+            saudacao = "Boa noite"
+
+        try:
+            token_user = SessaoWpp.objects.get(usuario=usuario)
+        except SessaoWpp.DoesNotExist:
+            continue  # Pula para a próxima iteração caso o objeto não seja encontrado
+        
+        mensagem = """*{}, {} 😊*\n\n*Vejo que você ainda não renovou o seu acesso ao nosso sistema, é isso mesmo??*\n\nPara continuar usando normalmente você precisa regularizar a sua mensalidade.\n\nMe dá um retorno, por favor??""".format(saudacao, primeiro_nome)
+
+        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente)
 
 
 # Agendar a tarefa para ser executada diariamente às 10h
-schedule.every().day.at('10:00').do(filtrar_mensalidades_enviar_mensagens)
-
+schedule.every().day.at('10:00').do(mensalidades_a_vencer) # a vencer
+schedule.every().day.at('10:00').do(mensalidades_vencidas) # em atraso
 
 # Loop infinito para executar as tarefas agendadas
 while True:

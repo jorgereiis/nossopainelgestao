@@ -525,35 +525,66 @@ def EditarCliente(request, cliente_id):
                 cliente.telas = tela
 
             if cliente.data_pagamento != request.POST.get("dt_pgto"):
-                # Atualizar a data de pagamento do cliente
+                # Atribui o tipo do "plano" à variável "plano" para verificar nas condicionais a seguir
+                plano = str(plano.nome)
 
-                # Atualizar a data de vencimento da mensalidade do cliente
+                # Atualizar a data de vencimento da mensalidade do cliente de acordo com o tipo do plano
                 novo_dia_vencimento = int(request.POST.get("dt_pgto"))
-                data_vencimento_atual = mensalidade.dt_vencimento
                 hoje = datetime.now().date()
                 meses31dias = [1, 3, 5, 7, 8, 10, 12]
-
-                if data_vencimento_atual.month == hoje.month:
-                    if novo_dia_vencimento < hoje.day:
-                        # Dia de vencimento já passou, atualizar para o próximo mês
-                        mes_vencimento = data_vencimento_atual.month + 1
-                        ano_vencimento = data_vencimento_atual.year
-                        
-                        if mes_vencimento > 12:
-                            novo_mes_vencimento = mes_vencimento - 12
-                            mes_vencimento = novo_mes_vencimento
-                            ano_vencimento += 1
+                
+                if plano.lower() == 'mensal':
+                    print('Plano: ', plano)
+                    data_vencimento_atual = mensalidade.dt_vencimento
+                    
+                    if data_vencimento_atual.month == hoje.month:
+                        if novo_dia_vencimento < hoje.day:
+                            # Dia de vencimento já passou, atualizar para o próximo mês
+                            mes_vencimento = data_vencimento_atual.month + 1
+                            ano_vencimento = data_vencimento_atual.year
+                            
+                            if mes_vencimento > 12:
+                                novo_mes_vencimento = mes_vencimento - 12
+                                mes_vencimento = novo_mes_vencimento
+                                ano_vencimento += 1
+                        else:
+                            mes_vencimento = data_vencimento_atual.month
+                            ano_vencimento = data_vencimento_atual.year
                     else:
                         mes_vencimento = data_vencimento_atual.month
                         ano_vencimento = data_vencimento_atual.year
-                else:
-                    mes_vencimento = data_vencimento_atual.month
-                    ano_vencimento = data_vencimento_atual.year
 
-                if novo_dia_vencimento == 31 and mes_vencimento not in meses31dias:
-                    novo_dia_vencimento = 1
-                    mes_vencimento += 1
+                    if novo_dia_vencimento == 31 and mes_vencimento not in meses31dias:
+                        novo_dia_vencimento = 1
+                        mes_vencimento += 1
 
+                elif plano.lower() == 'trimestral':
+                    if cliente.ultimo_pagamento:
+                        mes_vencimento = cliente.ultimo_pagamento.month + 3
+                        ano_vencimento = cliente.ultimo_pagamento.year
+
+                    elif cliente.data_adesao:
+                        mes_vencimento = cliente.data_adesao.month + 3
+                        ano_vencimento = cliente.data_adesao.year
+
+                elif plano.lower() == 'semestral':
+                    if cliente.ultimo_pagamento:
+                        mes_vencimento = cliente.ultimo_pagamento.month + 6
+                        ano_vencimento = cliente.ultimo_pagamento.year
+                    
+                    elif cliente.data_adesao:
+                        mes_vencimento = cliente.data_adesao.month + 6
+                        ano_vencimento = cliente.data_adesao.year
+
+                elif plano.lower() == 'anual':
+                    if cliente.ultimo_pagamento:
+                        mes_vencimento = cliente.ultimo_pagamento.month + 12
+                        ano_vencimento = cliente.ultimo_pagamento.year
+
+                    elif cliente.data_adesao:
+                        mes_vencimento = cliente.data_adesao.month + 12
+                        ano_vencimento = cliente.data_adesao.year
+                    
                 nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
                 mensalidade.dt_vencimento = nova_data_vencimento
                 cliente.data_pagamento = novo_dia_vencimento
@@ -873,7 +904,7 @@ def ImportarClientes(request):
                 sistema_import = str(dado['sistema']) if not pd.isna(dado['sistema']) else None
                 device_id_import = str(dado['device_id']).replace(" ", "") if not pd.isna(dado['device_id']) else None
                 email_import = str(dado['email']).replace(" ", "") if not pd.isna(dado['email']) else None
-                device_key_import = str(dado['device_key']).replace(" ", "").split('.')[0] if '.' in str(dado['device_key']) else None
+                device_key_import = str(dado['device_key']).replace(" ", "") if not pd.isna(dado['device_key']) else None
                 nome_import = str(dado['nome']).title() if not pd.isna(dado['nome']) else None
                 telefone_import = str(dado['telefone']).replace(" ", "") if not pd.isna(dado['telefone']) else None
                 indicado_por_import = str(dado['indicado_por']) if not pd.isna(dado['indicado_por']) else None

@@ -63,4 +63,90 @@ Traceback (most recent call last):
 RecursionError: maximum recursion depth exceeded while calling a Python object
 [2023-06-16 00:21:32] [ERROR] log - Internal Server Error: /cancelar-cliente/492/
 [2023-06-16 00:21:32] [ERROR] basehttp - "POST /cancelar-cliente/492/ HTTP/1.1" 500 69
-[2023-06-16 00:21:32] [ERROR] basehttp - "POST /cancelar-cliente/492/ HTTP/1.1" 500 69
+[2023-06-16 00:21:32] [ERROR] basehttp - "POST /cancelar-cliente/492/ HTTP/1.1" 500 69[2023-06-16 20:08:36] [ERROR] views - [2023-06-16 20:08:36.568718-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][local variable 'ano_vencimento' referenced before assignment]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 588, in EditarCliente
+    nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
+UnboundLocalError: local variable 'ano_vencimento' referenced before assignment
+[2023-06-16 20:08:36] [ERROR] log - Internal Server Error: /editar-cliente/710/
+[2023-06-16 20:08:36] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:08:36] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:20:27] [ERROR] views - [2023-06-16 20:20:27.645542-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][local variable 'mes_vencimento' referenced before assignment]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 589, in EditarCliente
+    nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
+UnboundLocalError: local variable 'mes_vencimento' referenced before assignment
+[2023-06-16 20:20:27] [ERROR] log - Internal Server Error: /editar-cliente/710/
+[2023-06-16 20:20:27] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:20:27] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:21:43] [ERROR] views - [2023-06-16 20:21:43.416506-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['NoneType' object cannot be interpreted as an integer]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 590, in EditarCliente
+    nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
+TypeError: 'NoneType' object cannot be interpreted as an integer
+[2023-06-16 20:21:43] [ERROR] log - Internal Server Error: /editar-cliente/710/
+[2023-06-16 20:21:43] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:21:43] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:23:22] [ERROR] views - [2023-06-16 20:23:22.173822-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['NoneType' object cannot be interpreted as an integer]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 590, in EditarCliente
+    nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
+TypeError: 'NoneType' object cannot be interpreted as an integer
+[2023-06-16 20:23:22] [ERROR] log - Internal Server Error: /editar-cliente/710/
+[2023-06-16 20:23:22] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:23:22] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:39:09] [ERROR] views - [2023-06-16 20:39:09.057991-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['NoneType' object cannot be interpreted as an integer]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 592, in EditarCliente
+TypeError: 'NoneType' object cannot be interpreted as an integer
+[2023-06-16 20:39:09] [ERROR] log - Internal Server Error: /editar-cliente/710/
+[2023-06-16 20:39:09] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:39:09] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:40:15] [ERROR] views - [2023-06-16 20:40:15.730525-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['NoneType' object cannot be interpreted as an integer]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 594, in EditarCliente
+    nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
+TypeError: 'NoneType' object cannot be interpreted as an integer
+[2023-06-16 20:40:15] [ERROR] log - Internal Server Error: /editar-cliente/710/
+[2023-06-16 20:40:15] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:40:15] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:53:06] [ERROR] views - [2023-06-16 20:53:06.245742-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['NoneType' object cannot be interpreted as an integer]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 594, in EditarCliente
+    nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
+TypeError: 'NoneType' object cannot be interpreted as an integer
+[2023-06-16 20:53:06] [ERROR] log - Internal Server Error: /editar-cliente/710/
+[2023-06-16 20:53:06] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:53:06] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:53:17] [ERROR] views - [2023-06-16 20:53:17.887738-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['NoneType' object cannot be interpreted as an integer]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 594, in EditarCliente
+    nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
+TypeError: 'NoneType' object cannot be interpreted as an integer
+[2023-06-16 20:53:17] [ERROR] log - Internal Server Error: /editar-cliente/710/
+[2023-06-16 20:53:17] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 20:53:17] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 21:26:37] [ERROR] views - [2023-06-16 21:26:37.622948-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['NoneType' object has no attribute 'month']
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 588, in EditarCliente
+    mes_vencimento = cliente.ultimo_pagamento.month + 12
+AttributeError: 'NoneType' object has no attribute 'month'
+[2023-06-16 21:26:37] [ERROR] log - Internal Server Error: /editar-cliente/710/
+[2023-06-16 21:26:37] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 21:26:37] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 21:28:19] [ERROR] views - [2023-06-16 21:28:19.687576-03:00] [USER][admin] [IP][127.0.0.1] [ERRO]['NoneType' object has no attribute 'month']
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 591, in EditarCliente
+    mes_vencimento = cliente.ultimo_pagamento.month + 12
+AttributeError: 'NoneType' object has no attribute 'month'
+[2023-06-16 21:28:19] [ERROR] log - Internal Server Error: /editar-cliente/710/
+[2023-06-16 21:28:19] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 21:28:19] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 21:36:59] [ERROR] views - [2023-06-16 21:36:59.776111-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][month must be in 1..12]
+Traceback (most recent call last):
+  File "/mnt/c/Users/jreii/Desktop/IPTVGestão/cadastros/views.py", line 588, in EditarCliente
+    nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
+ValueError: month must be in 1..12
+[2023-06-16 21:36:59] [ERROR] log - Internal Server Error: /editar-cliente/710/
+[2023-06-16 21:36:59] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
+[2023-06-16 21:36:59] [ERROR] basehttp - "POST /editar-cliente/710/ HTTP/1.1" 500 47727
