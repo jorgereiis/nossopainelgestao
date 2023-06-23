@@ -144,25 +144,11 @@ class Cliente(models.Model):
     def save(self, *args, **kwargs):
         if self.data_adesao and self.data_pagamento == None:
             dia = self.data_adesao.day
-            #self.data_pagamento = definir_dia_pagamento(dia)
             self.data_pagamento = dia
-
-        self.definir_data_cancelamento()
 
         self.formatar_telefone()
 
         super().save(*args, **kwargs)
-
-    def definir_data_cancelamento(self):
-        if self.pk:
-            old_value = Cliente.objects.get(pk=self.pk).cancelado
-            if old_value == False and self.cancelado == True:
-                # Se o cliente foi cancelado, atualiza todas as mensalidades relacionadas
-                mensalidades = self.mensalidade_set.all()
-                for mensalidade in mensalidades:
-                    mensalidade.cancelado = True
-                    mensalidade.dt_cancelamento = timezone.localtime().date()
-                    mensalidade.save()
 
     def formatar_telefone(self):
         self.telefone = re.sub(r'\D+', '', self.telefone)  # Remove caracteres especiais
@@ -170,24 +156,23 @@ class Cliente(models.Model):
         if self.telefone.startswith('55'):
             self.telefone = self.telefone[2:]  # Remove o prefixo '55' do início do número
 
-        if len(self.telefone) > 10:
+        if len(self.telefone) <= 11:
             ddd = self.telefone[:2]  # Obtém os 2 primeiros dígitos após remover o DDI
-            numero = self.telefone[2:]  # Obtém o restante do número (8 dígitos)
+            numero = self.telefone[2:]  # Obtém o restante do número
 
-            if int(ddd) > 30:
-                self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}'  # Formato (DD) DDDD-DDDD
+            if len(numero) == 9 and numero.startswith('9'):
+                numero = numero[1:]  # remove o dígito '9' do início caso possua 9 dígitos
+
+            if numero.startswith(('6', '7', '8', '9')):  # Verifica se o número começa com algum valor entre '6' e '9'
+                if int(ddd) > 30:
+                    self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}'  # Formato (DD) DDDD-DDDD
+                else:
+                    self.telefone = f'({ddd}) 9{numero[:4]}-{numero[4:]}'  # Formato (DD) DDDDD-DDDD
             else:
-                self.telefone = f'({ddd}) 9{numero[:5]}-{numero[5:]}'  # Formato (DD) DDDDD-DDDD
-
-        elif len(self.telefone) == 10:
-            ddd = self.telefone[:2]  # Obtém os 2 primeiros dígitos
-            numero = self.telefone[2:]  # Obtém o restante do número (8 dígitos)
-            self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}'  # Formato (DD) DDDD-DDDD
-
-        elif len(self.telefone) == 11:
-            ddd = self.telefone[:2]  # Obtém os 2 primeiros dígitos
-            numero = self.telefone[2:]  # Obtém o restante do número (9 dígitos)
-            self.telefone = f'({ddd}) {numero[:5]}-{numero[5:]}'  # Formato (DD) DDDDD-DDDD
+                if int(ddd) > 30:
+                    self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}'  # Formato (DD) DDDD-DDDD
+                else:
+                    self.telefone = f'({ddd}) 9{numero[:4]}-{numero[4:]}'  # Formato (DD) DDDDD-DDDD
 
     def __str__(self):
         return self.nome

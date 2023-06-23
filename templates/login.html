@@ -38,7 +38,11 @@
               <div>
                 <!-- Button -->
                 <div class="d-grid">
-                  <button type="submit" class="btn btn-primary">Entrar</button>
+                  <button id="loginButton" type="submit" class="btn btn-primary">Entrar</button>
+                  <button id="loadingButton" class="btn btn-primary d-none" type="button" disabled>
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="visually-hidden">Loading...</span>
+                  </button>
                 </div>
                   <p></p>
                   <div class="d-flex justify-content-center">
@@ -70,3 +74,9 @@
     display: none;
   }
 </style>
+<script>
+  document.getElementById('loginButton').addEventListener('click', function() {
+    document.getElementById('loginButton').classList.add('d-none');
+    document.getElementById('loadingButton').classList.remove('d-none');
+  });
+</script>

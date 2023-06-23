@@ -15,6 +15,100 @@
         <!-- Page content -->
         <div id="page-content">
             {% include 'partials/header.html' %}
+
+            <!-- offcanvas settings -->
+            <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasConfigs" aria-labelledby="offcanvasConfigsLabel">
+                <div class="offcanvas-header text-center">
+                    <h2 id="offcanvasRightLabel">Configurações</h2>
+                    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body">
+                    <ul class="nav nav-tabs" id="myTab" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link" id="others-tab" data-bs-toggle="tab" href="#others" role="tab"
+                                aria-controls="others" aria-selected="false">Outras Configurações</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" id="home-tab" data-bs-toggle="tab" href="#home" role="tab"
+                                aria-controls="home" aria-selected="true">Indicações e Bonificações</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="whatsapp-tab" data-bs-toggle="tab" href="#whatsapp" role="tab"
+                                aria-controls="whatsapp" aria-selected="false">WhatsApp</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="myTabContent">
+                        <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+                            <div class="card mt-5">
+                                <div class="card-body">
+                                    <h3 class="card-title">Bônus por Indicação</h3>
+                                    <p class="card-text">Permite que o sistema aplique desconto à mensalidade dos clientes que
+                                        fizerem indicação de novos clientes a cada mês.
+                                        <a href="#">Saiba mais</a>
+                                        <p class="fs-6">Ex: Indicou 1, terá R$ 20.00 de desconto na próxima mensalidade.</p>
+                                    </p>
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                        <div class="input-group input-group-sm">
+                                          <span class="input-group-text">R$</span>
+                                          <input type="text" class="form-control" id="valor" name="valor" placeholder="Desconto" required style="max-width: 150px;">
+                                        </div>
+                                        <button class="btn btn-primary" type="button">Ativar</button>
+                                      </div>                                      
+                                </div>
+                            </div>
+                            <div class="card mt-5">
+                                <div class="card-body">
+                                    <h3 class="card-title">Bônus por Anuidade</h3>
+                                    <p class="card-text">Permite que o sistema aplique desconto à mensalidade dos clientes que completarem 12 meses consecutivos como clientes.
+                                        <a href="#">Saiba mais</a>
+                                        <p class="fs-6">Ex: Aderiu em Jan/23 e terá desconto de R$ 35.00 na mensalidade de Jan/24.</p>
+                                    </p>
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                        <div class="input-group input-group-sm">
+                                          <span class="input-group-text">R$</span>
+                                          <input type="text" class="form-control" id="valor" name="valor" placeholder="Desconto" required style="max-width: 150px;">
+                                        </div>
+                                        <button class="btn btn-primary" type="button">Ativar</button>
+                                      </div>                                      
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="others" role="tabpanel" aria-labelledby="others-tab">
+            
+                        </div>
+                        <div class="tab-pane fade" id="whatsapp" role="tabpanel" aria-labelledby="whatsapp-tab">
+                            <div class="card mt-5">
+                                <div class="card-body">
+                                    <img src="{% static 'assets/images/background/wpp.png' %}" class="img-fluid" alt="Imagem WhatsApp">
+                                    <p class="card-text">Realiza o envio de mensagens para números do WhatsApp. <a href="#">Saiba mais</a></p>
+                                    <p class="fs-6">Essa é uma API não-oficial, então use com moderação. Apesar de não termos casos de bloqueios, saiba que há possibilidade da sua conta ser punida por abusos.</p>
+                                    <form method="post" action="">
+                                        <select class="form-control form-control-sm mb-3" name="options" id="options" required>
+                                            <option value="">Selecione um tipo de envio</option>
+                                            <option value="ativos">Para todos os meus clientes ativos</option>
+                                            <option value="cancelados">Apenas para clientes cancelados</option>
+                                            <option value="avulso">Avulso</option>
+                                        </select>
+                                        <div class="d-grid gap-2" id="form-envio">
+                                            <label for="telefones">Telefones<span class="text-danger">*</span></label>
+                                            <div class="input-group input-group-sm mb-3" id="div-telefones">
+                                                <input type="file" class="form-control" id="telefones" name="telefones" accept=".txt" capture=".txt" required>
+                                            </div>
+                                            <label for="imagem">Imagem <span class="fs-6">(opcional)</span></label>
+                                            <div class="input-group input-group-sm mb-3" id="div-imagem">
+                                                <input type="file" class="form-control" id="imagem" name="imagem" accept="image/*">
+                                            </div>
+                                            <textarea class="form-control mb-3" id="mensagem" name="mensagem" rows="3" placeholder="Mensagem" required></textarea>
+                                            <button class="btn btn-primary" type="button" id="botao-enviar">Enviar</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>                        
+                    </div>
+                </div>
+            </div>
+  
             <!-- Container fluid -->
             <div class="bg-primary pt-10 pb-21"></div>
             <div class="container-fluid mt-n22 px-6">
@@ -24,7 +118,7 @@
                         <div>
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="mb-2 mb-lg-0">
-                                    <h2 class="mb-0  text-white">Dashboard <i class="bi bi-eye" id="eye"></i></h2>
+                                    <h2 class="mb-0  text-white">Boas-vindas, {{ nome_user }} <i class="bi bi-eye" id="eye"></i></h2>
                                 </div>
 
                                 <!-- Dropdown Opções -->
@@ -580,68 +674,60 @@
                             <!-- card footer  -->
                             <div class="card-footer bg-white text-center">
                                 <nav aria-label="Page navigation" class="mt-3 mt-sm-0 ms-sm-3 paginator-nav" style="max-width: 100%; margin: auto;">
-                                    <ul class="pagination justify-content-end mb-0">
-                                      {% if page_obj.has_previous %}
-                                      <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}" tabindex="-1" aria-label="Anterior">
-                                          <span aria-hidden="true">&laquo;</span>
+                                <ul class="pagination justify-content-end mb-0">
+                                    {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" tabindex="-1" aria-label="Anterior">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                    </li>
+                                    {% endif %}
+                            
+                                    {% if page_obj.number > 3 %}
+                                    <li class="page-item">
+                                    <span class="page-link">...</span>
+                                    </li>
+                                    {% endif %}
+                            
+                                    {% for page in page_obj.paginator.page_range %}
+                                    {% if page == page_obj.number %}
+                                        <li class="page-item active">
+                                        <a class="page-link" href="#">
+                                            {{ page }}
+                                            <span class="sr-only"></span>
                                         </a>
-                                      </li>
-                                      {% endif %}
-                                  
-                                      {% if page_obj.number > 1 %}
-                                      <li class="page-item">
-                                        <a class="page-link" href="?page=1">
-                                          1
+                                        </li>
+                                    {% elif page > page_obj.number|add:'-2' and page < page_obj.number|add:'2' %}
+                                        <li class="page-item">
+                                        <a class="page-link" href="?page={{ page }}">
+                                            {{ page }}
                                         </a>
-                                      </li>
-                                      {% endif %}
-                                  
-                                      {% if page_obj.number > 3 %}
-                                      <li class="page-item">
+                                        </li>
+                                    {% endif %}
+                                    {% if page == page_obj.number|add:'2' and page_obj.number|add:'1' < page_obj.paginator.num_pages %}
+                                        <li class="page-item">
                                         <span class="page-link">...</span>
-                                      </li>
-                                      {% endif %}
-                                  
-                                      {% for page in page_obj.paginator.page_range %}
-                                        {% if page == page_obj.number %}
-                                          <li class="page-item active">
-                                            <a class="page-link" href="#">
-                                              {{ page }}
-                                              <span class="sr-only"></span>
-                                            </a>
-                                          </li>
-                                        {% elif page > page_obj.number|add:'-2' and page < page_obj.number|add:'2' %}
-                                          <li class="page-item">
-                                            <a class="page-link" href="?page={{ page }}">
-                                              {{ page }}
-                                            </a>
-                                          </li>
-                                        {% endif %}
-                                        {% if page == page_obj.number|add:'2' and page_obj.number|add:'1' < page_obj.paginator.num_pages %}
-                                          <li class="page-item">
-                                            <span class="page-link">...</span>
-                                          </li>
-                                        {% endif %}
-                                      {% endfor %}
-                                  
-                                      {% if page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
-                                      <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
-                                          {{ page_obj.paginator.num_pages }}
-                                        </a>
-                                      </li>
-                                      {% endif %}
-                                  
-                                      {% if page_obj.has_next %}
-                                      <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Próximo">
-                                          <span aria-hidden="true">&raquo;</span>
-                                        </a>
-                                      </li>
-                                      {% endif %}
-                                    </ul>
-                                  </nav>                                                                                                    
+                                        </li>
+                                    {% endif %}
+                                    {% endfor %}
+                            
+                                    {% if page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
+                                    <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                        {{ page_obj.paginator.num_pages }}
+                                    </a>
+                                    </li>
+                                    {% endif %}
+                            
+                                    {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Próximo">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                                </nav>
                             </div>
                         </div>
                     </div>
@@ -1042,7 +1128,7 @@
         document.getElementById('info-cliente-indicado_por').textContent =  clienteIndicadoPor;
         document.getElementById('info-cliente-ultimo_pgto').textContent =  clienteUltimoPagamento;
         document.getElementById('info-cliente-data_pagamento').textContent =  clienteDataPagamento;
-        document.getElementById('info-cliente-telefone').textContent = formatarTelefone(clienteTelefone);
+        document.getElementById('info-cliente-telefone').textContent = clienteTelefone;
         document.getElementById('info-cliente-data_adesao').textContent = 'Cliente desde ' + clienteDataAdesao;
 
         const modal = new bootstrap.Modal(document.querySelector("#info-cliente-modal"));
@@ -1330,4 +1416,129 @@
       $('#info-cliente-modal').modal('show');
 
     });
+</script>
+
+<script>
+// Funão para manipular os campos do formulário de envio de mensagens do WhatsApp
+$(document).ready(function () {
+    // Ocultar os campos do formulário
+    $('#form-envio').hide();
+    $('#imagem').hide();
+    $('#mensagem').hide();
+    $('#telefones').hide();
+    // Ocultar as labels
+    $('label[for="imagem"]').hide();
+    $('label[for="mensagem"]').hide();
+    $('label[for="telefones"]').hide();
+    // Alterar as classes de mb-3 para mb-0
+    $('#options').removeClass('mb-3').addClass('mb-0');
+    $('#div-imagem').removeClass('mb-3').addClass('mb-0');
+    $('#div-telefones').removeClass('mb-3').addClass('mb-0');
+    // Desabilitar botão "Enviar"
+    $('#botao-enviar').prop('disabled', true);
+
+    // Ao mudar o valor do select com id "options"
+    $('#options').change(function () {
+      // Se o valor selecionado for igual a "avulso"
+      if ($(this).val() === 'avulso') {
+        // Mostrar os campos do formulário
+        $('#form-envio').show();
+        $('#imagem').show();
+        $('#mensagem').show();
+        $('#telefones').show();
+        // Mostrar as labels
+        $('label[for="imagem"]').show();
+        $('label[for="mensagem"]').show();
+        $('label[for="telefones"]').show();
+        // Alterar as classes de mb-0 para mb-3
+        $('#options').removeClass('mb-0').addClass('mb-3');
+        $('#div-imagem').removeClass('mb-0').addClass('mb-3');
+        $('#div-telefones').removeClass('mb-0').addClass('mb-3');
+        // Habilitar o botão "Enviar"
+        $('#botao-enviar').prop('disabled', false);
+
+      } else if ($(this).val() === 'ativos' || $(this).val() === 'cancelados') {
+        // Mostrar os campos do formulário
+        $('#form-envio').show();
+        $('#imagem').show();
+        $('#mensagem').show();
+        $('#telefones').hide();
+        // Mostrar as labels
+        $('label[for="imagem"]').show();
+        $('label[for="mensagem"]').show();
+        $('label[for="telefones"]').hide();
+        // Alterar as classes de mb-0 para mb-3
+        $('#options').removeClass('mb-0').addClass('mb-3');
+        $('#div-imagem').removeClass('mb-0').addClass('mb-3');
+        $('#div-telefones').removeClass('mb-3').addClass('mb-0');
+        // Habilitar o botão "Enviar"
+        $('#botao-enviar').prop('disabled', false);
+
+      } else if ($(this).val() === '') {
+        // Ocultar os campos do formulário
+        $('#form-envio').hide();
+        $('#imagem').hide();
+        $('#mensagem').hide();
+        $('#telefones').hide();
+        // Ocultar as labels
+        $('label[for="imagem"]').hide();
+        $('label[for="mensagem"]').hide();
+        $('label[for="telefones"]').hide();
+        // Alterar as classe de mb-3 para mb-0
+        $('#options').removeClass('mb-3').addClass('mb-0');
+        $('#div-imagem').removeClass('mb-3').addClass('mb-0');
+        $('#div-telefones').removeClass('mb-3').addClass('mb-0');
+        // Desabilitar botão "Enviar"
+        $('#botao-enviar').prop('disabled', true);
+      }
+    });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.querySelector('form');
+  const telefonesInput = document.getElementById('telefones');
+  const imagemInput = document.getElementById('imagem');
+  const mensagemTextarea = document.getElementById('mensagem');
+  const botaoEnviar = document.getElementById('botao-enviar');
+
+  botaoEnviar.addEventListener('click', function() {
+    const optionsSelect = document.getElementById('options');
+    const tipoEnvio = optionsSelect.value;
+
+    const telefones = telefonesInput.files[0];
+    const imagem = imagemInput.files[0];
+    const mensagem = mensagemTextarea.value;
+
+    const formData = new FormData();
+    formData.append('options', tipoEnvio);
+    formData.append('imagem', imagem);
+    formData.append('mensagem', mensagem);
+    formData.append('telefones', telefones); // Envia o arquivo de texto 'telefones'
+
+    fetch('/enviar_mensagem/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: formData
+    })
+    .then(function(response) {
+      if (response.ok) {
+        return response.json();
+      } else {
+        throw new Error('Erro na requisição');
+      }
+    })
+    .then(function(data) {
+      console.log(data);
+      // Lógica para lidar com a resposta da requisição
+    })
+    .catch(function(error) {
+      console.error(error);
+      // Lógica para lidar com erros na requisição
+    });
+  });
+});
 </script>

@@ -85,7 +85,8 @@ def criar_mensalidade(sender, instance, created, **kwargs):
 # CRIA NOVA MENSALIDADE APÓS A ATUAL SER PAGA
 @receiver(pre_save, sender=Mensalidade)
 def criar_nova_mensalidade(sender, instance, **kwargs):
-    if instance.dt_pagamento and instance.pgto:
+    # irá criar outra mensalidade apenas se a que está como paga tiver data de vencimento >= ao mês atual
+    if instance.dt_pagamento and instance.pgto and instance.dt_vencimento >= timezone.localtime().date().replace(day=1):
         data_vencimento_anterior = instance.dt_vencimento # recebe a data de vencimento da mensalidade que foi paga
         data_atual = timezone.localtime().date() # recebe a data de hoje
 

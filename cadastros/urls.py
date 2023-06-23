@@ -17,6 +17,7 @@ from .views import (
     ImportarClientes,
     DeleteAplicativo,
     EditarAplicativo,
+    EnviarMensagemWpp,
     pagar_mensalidade,
     EditarPlanoAdesao,
     DeletePlanoAdesao,
@@ -74,6 +75,7 @@ urlpatterns = [
     path("teste/", Teste, name="teste"),
     path("session_wpp/", SessionWpp, name="session_wpp"),
     path("contas_apps/", CarregarContasDoAplicativo.as_view()),
+    path("enviar_mensagem/", EnviarMensagemWpp, name="enviar_mensagem"),
     path("qtds_mensalidades/", CarregarQuantidadesMensalidades.as_view()),
     path("obter_session_wpp/", ObterSessionWpp, name="obter_session_wpp"),
 ]
