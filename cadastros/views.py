@@ -534,7 +534,6 @@ def EditarCliente(request, cliente_id):
                 meses31dias = [1, 3, 5, 7, 8, 10, 12]
                 
                 if plano.lower() == 'mensal':
-                    print('Plano: ', plano)
                     data_vencimento_atual = mensalidade.dt_vencimento
                     
                     if data_vencimento_atual.month == hoje.month:
