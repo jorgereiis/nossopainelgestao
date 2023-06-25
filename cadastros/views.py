@@ -23,10 +23,15 @@ from datetime import datetime
 from django.views import View
 from .forms import LoginForm
 import pandas as pd
+import requests
 import operator
 import logging
+import random
+import base64
 import json
 import time
+import re
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +41,8 @@ logger = logging.getLogger(__name__)
 class Login(LoginView):
     template_name = 'login.html'
     form_class = LoginForm
+    redirect_authenticated_user = True
+    success_url = 'dashboard/'
 
 ############################################ LIST VIEW ############################################
 
@@ -240,6 +247,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         Retorna o contexto atualizado.
         """
         moeda = "BRL"
+        f_name = self.request.user.first_name
         hoje = timezone.localtime().date()
         ano_atual = timezone.localtime().year
         proxima_semana = hoje + timedelta(days=7)
@@ -322,6 +330,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "hoje": hoje,
                 "page": page,
                 "range": range_num,
+                "nome_user": f_name,
                 "aplicativos": aplicativos,
                 "total_clientes": total_clientes,
                 "valor_total_pago": valor_total_pago,
@@ -334,9 +343,132 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             }
         )
         return context
-    
 
 
+@login_required
+def EnviarMensagemWpp(request):
+    if request.method == 'POST':
+        BASE_URL = 'http://localhost:21465/api/{}/send-{}'
+        sessao = get_object_or_404(SessaoWpp, usuario=request.user)
+        tipo_envio = request.POST.get('options')
+        mensagem = request.POST.get('mensagem')
+        imagem = request.FILES.get('imagem')
+        usuario = request.user
+        token = sessao.token
+        clientes = None
+        log_directory = './logs/Envios manuais/'
+        log_filename = os.path.join(log_directory, '{}.log'.format(usuario))
+        log_send_result_filename = os.path.join(log_directory, '{}_send_result.log'.format(usuario))
+        if imagem:
+            imagem_base64 = base64.b64encode(imagem.read()).decode('utf-8')
+
+        def enviar_mensagem(url, telefone):
+            if not telefone.startswith('55'):
+                telefone = '55' + telefone
+
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': 'Bearer ' + token
+            }
+            body = {
+                'phone': telefone,
+                'isGroup': False,
+                'message': mensagem
+            }
+
+            if imagem:
+                body['filename'] = str(imagem)
+                body['caption'] = mensagem
+                body['base64'] = 'data:image/png;base64,' + imagem_base64
+
+            max_attempts = 3
+            attempts = 1
+            while attempts <= max_attempts:
+                if attempts == 2:
+                    tel = telefone
+                    if tel.startswith('55'):
+                        tel = tel[2:]
+                        body['phone'] = tel
+
+                response = requests.post(url, headers=headers, json=body)
+
+                if response.status_code == 200 or response.status_code == 201:
+                    # Verificar se o diretório de logs existe e criar se necessário
+                    if not os.path.exists(log_directory):
+                        os.makedirs(log_directory)
+                    if not os.path.exists(log_directory):
+                        os.makedirs(log_directory)
+                    # Verificar se o arquivo de log existe e criar se necessário
+                    if not os.path.isfile(log_filename):
+                        open(log_filename, 'w').close()
+                    if not os.path.isfile(log_send_result_filename):
+                        open(log_send_result_filename, 'w').close()
+                    # Escrever no arquivo de log
+                    with open(log_filename, 'a') as log_file:
+                        log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] Mensagem enviada!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone))
+                    with open(log_send_result_filename, 'a') as log_file:
+                        log_file.write('[{}] {} - Mensagem enviada\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
+                    time.sleep(random.uniform(30, 70))
+                    break
+                else:
+                    if attempts <= max_attempts:
+                        time.sleep(random.uniform(5, 10))
+                    # Verificar se o diretório de logs existe e criar se necessário
+                    if not os.path.exists(log_directory):
+                        os.makedirs(log_directory)
+                    # Verificar se o arquivo de log existe e criar se necessário
+                    if not os.path.isfile(log_filename):
+                        open(log_filename, 'w').close()
+                    # Escrever no arquivo de log
+                    with open(log_filename, 'a') as log_file:
+                        response_data = json.loads(response.text)
+                        error_message = response_data.get('message')
+                        log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone, response.status_code, attempts, error_message))
+
+                    attempts += 1
+
+                if attempts == max_attempts:
+                    # Verificar se o diretório de logs existe e criar se necessário
+                    if not os.path.exists(log_directory):
+                        os.makedirs(log_directory)
+                    # Verificar se o arquivo de log existe e criar se necessário
+                    if not os.path.isfile(log_send_result_filename):
+                        open(log_send_result_filename, 'w').close()
+                    # Escrever no arquivo de log
+                    with open(log_send_result_filename, 'a') as log_file:
+                        log_file.write('[{}] {} - Número sem WhatsApp\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
+
+        if tipo_envio == 'ativos':
+            clientes = Cliente.objects.filter(usuario=usuario, cancelado=False)
+            telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
+
+        elif tipo_envio == 'cancelados':
+            clientes = Cliente.objects.filter(usuario=usuario, cancelado=True)
+            telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
+
+        elif tipo_envio == 'avulso':
+            telefones_file = request.FILES.get('telefones')
+            if telefones_file:
+                telefones_data = telefones_file.read().decode('utf-8').split('\n')
+                telefones = ','.join([re.sub(r'\s+|\W', '', telefone) for telefone in telefones_data if telefone.strip()])
+
+
+        if clientes is not None:
+            url = BASE_URL.format(usuario, 'image' if imagem else 'message')
+            for cliente in clientes:
+                enviar_mensagem(url, re.sub(r'\s+|\W', '', cliente.telefone))
+
+        elif telefones:
+            url = BASE_URL.format(usuario, 'image' if imagem else 'message')
+            [enviar_mensagem(url, telefone) for telefone in telefones.split(',')]
+
+        return JsonResponse({'success': 'Envio concluído'}, status=200)
+
+    return JsonResponse({'error': 'Método inválido'}, status=400)
+
+
+@login_required
 def ObterSessionWpp(request):
     """
         Função de view para consultar o Token da sessão WhatsApp do usuário da requisição
@@ -353,8 +485,20 @@ def ObterSessionWpp(request):
     return JsonResponse({"token": token}, status=200)
 
 
+@login_required
+def ObterLogsWpp(request):
+    if request.method == 'POST':
+
+        file_path = './logs/Envios manuais/{}_send_result.log'.format(request.user)
+        with open(file_path, 'r') as file:
+            logs = file.read()
+
+    return JsonResponse({'logs': logs})
+
+
 ############################################ UPDATE VIEW ############################################
 
+@login_required
 def SessionWpp(request):
     """
     Função de view para criar ou deletar uma sessão do WhatsApp
@@ -401,7 +545,7 @@ def reativar_cliente(request, cliente_id):
     # Define o valor de "data_cancelamento" como None
     # Altera o valor de "data_adesao" para a data atual
     cliente.data_adesao = data_hoje
-    cliente.data_pagamento = definir_dia_pagamento(data_hoje.day)
+    cliente.data_pagamento = data_hoje.day
     cliente.data_cancelamento = None
     cliente.cancelado = False
     dia = cliente.data_pagamento
@@ -454,9 +598,6 @@ def pagar_mensalidade(request, mensalidade_id):
 # AÇÃO PARA CANCELAMENTO DE CLIENTE
 @login_required
 def cancelar_cliente(request, cliente_id):
-    """
-    Função de view para cancelar um cliente.
-    """
     if request.user.is_authenticated:
         cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
 
@@ -468,6 +609,13 @@ def cancelar_cliente(request, cliente_id):
         except Exception as erro:
             logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
             return JsonResponse({"error_message": "Ocorreu um erro ao tentar cancelar esse cliente."}, status=500)
+
+        # Cancelar todas as mensalidades relacionadas ao cliente
+        mensalidades = cliente.mensalidade_set.all()
+        for mensalidade in mensalidades:
+            mensalidade.cancelado = True
+            mensalidade.dt_cancelamento = timezone.localtime().date()
+            mensalidade.save()
 
         # Retorna uma resposta JSON indicando que o cliente foi cancelado com sucesso
         return JsonResponse({"success_message_cancel": "Eita! mais um cliente cancelado?! "})
@@ -516,7 +664,7 @@ def EditarCliente(request, cliente_id):
             if cliente.forma_pgto != forma_pgto:
                 cliente.forma_pgto = forma_pgto
 
-            plano = Plano.objects.filter(valor=plano_list[1].replace(',', '.'), usuario=request.user).first()
+            plano = Plano.objects.filter(nome=plano_list[0], valor=plano_list[1].replace(',', '.'), usuario=request.user).first()
             if cliente.plano != plano:
                 cliente.plano = plano
 
@@ -526,15 +674,29 @@ def EditarCliente(request, cliente_id):
 
             if cliente.data_pagamento != request.POST.get("dt_pgto"):
                 # Atribui o tipo do "plano" à variável "plano" para verificar nas condicionais a seguir
-                plano = str(plano.nome)
+                plano_nome = str(plano.nome)
+                plano_valor = int(plano.valor)
+
+                # Dicionário de planos com a quantidade de meses a serem adicionados
+                planos = {
+                    'mensal': 1,
+                    'trimestral': 3,
+                    'semestral': 6,
+                    'anual': 12
+                }
 
                 # Atualizar a data de vencimento da mensalidade do cliente de acordo com o tipo do plano
                 novo_dia_vencimento = int(request.POST.get("dt_pgto"))
                 hoje = datetime.now().date()
                 meses31dias = [1, 3, 5, 7, 8, 10, 12]
                 
-                if plano.lower() == 'mensal':
-                    data_vencimento_atual = mensalidade.dt_vencimento
+                if plano_nome.lower() == 'mensal':
+                    cliente_inalterado = Cliente.objects.get(pk=cliente_id, usuario=request.user)
+                    
+                    if not 'mensal' or not 'Mensal' in cliente_inalterado.plano.nome:
+                        data_vencimento_atual = cliente_inalterado.ultimo_pagamento if cliente_inalterado.ultimo_pagamento != None else cliente_inalterado.data_adesao
+                    else:
+                        data_vencimento_atual = mensalidade.dt_vencimento
                     
                     if data_vencimento_atual.month == hoje.month:
                         if novo_dia_vencimento < hoje.day:
@@ -543,8 +705,7 @@ def EditarCliente(request, cliente_id):
                             ano_vencimento = data_vencimento_atual.year
                             
                             if mes_vencimento > 12:
-                                novo_mes_vencimento = mes_vencimento - 12
-                                mes_vencimento = novo_mes_vencimento
+                                mes_vencimento -= 12
                                 ano_vencimento += 1
                         else:
                             mes_vencimento = data_vencimento_atual.month
@@ -557,36 +718,28 @@ def EditarCliente(request, cliente_id):
                         novo_dia_vencimento = 1
                         mes_vencimento += 1
 
-                elif plano.lower() == 'trimestral':
+                else:
                     if cliente.ultimo_pagamento:
-                        mes_vencimento = cliente.ultimo_pagamento.month + 3
+                        mes_vencimento = cliente.ultimo_pagamento.month +  planos.get(plano_nome.lower(), 0)
                         ano_vencimento = cliente.ultimo_pagamento.year
 
                     elif cliente.data_adesao:
-                        mes_vencimento = cliente.data_adesao.month + 3
+                        mes_vencimento = cliente.data_adesao.month + planos.get(plano_nome.lower(), 0)
                         ano_vencimento = cliente.data_adesao.year
 
-                elif plano.lower() == 'semestral':
-                    if cliente.ultimo_pagamento:
-                        mes_vencimento = cliente.ultimo_pagamento.month + 6
-                        ano_vencimento = cliente.ultimo_pagamento.year
-                    
-                    elif cliente.data_adesao:
-                        mes_vencimento = cliente.data_adesao.month + 6
-                        ano_vencimento = cliente.data_adesao.year
+                    if mes_vencimento > 12:
+                        mes_vencimento -= 12
+                        ano_vencimento += 1
 
-                elif plano.lower() == 'anual':
-                    if cliente.ultimo_pagamento:
-                        mes_vencimento = cliente.ultimo_pagamento.month + 12
-                        ano_vencimento = cliente.ultimo_pagamento.year
-
-                    elif cliente.data_adesao:
-                        mes_vencimento = cliente.data_adesao.month + 12
-                        ano_vencimento = cliente.data_adesao.year
-                    
+                    if novo_dia_vencimento == 31 and mes_vencimento not in meses31dias:
+                        novo_dia_vencimento = 1
+                        mes_vencimento += 1
+                            
                 nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
                 mensalidade.dt_vencimento = nova_data_vencimento
                 cliente.data_pagamento = novo_dia_vencimento
+                mensalidade.valor = plano_valor
+
                 mensalidade.save()
                 cliente.save()
 

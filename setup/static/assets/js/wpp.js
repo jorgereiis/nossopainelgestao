@@ -307,3 +307,80 @@ function deletarSessionToken() {
         console.error('Erro ao tentar deletar token no backend:', error);
     });
 }
+
+// Função para envio das mensagens avulsas
+function enviarMensagemWpp() {
+    var telefones = document.getElementById('telefones').value.split(',');
+    var mensagem = document.getElementById('mensagem').value;
+    var imagemInput = document.getElementById('imagem');
+    var imagem = imagemInput.files[0];
+    var token = ''; // Preencha com o token de autenticação
+
+    var resultado = {};
+
+    if (imagem) {
+        var url = 'http://localhost:21465/api/' + usuario + '/send-file';
+
+        var formData = new FormData();
+        formData.append('message', mensagem);
+        formData.append('isGroup', false);
+        formData.append('file', imagem);
+
+        telefones.forEach(function(telefone) {
+            formData.append('phone', telefone);
+
+            var request = new XMLHttpRequest();
+            request.open('POST', url, true);
+            request.setRequestHeader('Authorization', 'Bearer ' + token);
+
+            request.onreadystatechange = function() {
+                if (request.readyState === 4) {
+                    if (request.status === 200 || request.status === 201) {
+                        resultado[telefone] = 'Mensagem enviada';
+                    } else {
+                        resultado[telefone] = 'Sem WhatsApp';
+                    }
+
+                    if (Object.keys(resultado).length === telefones.length) {
+                        // Todos os envios foram processados
+                        console.log(resultado);
+                    }
+                }
+            };
+
+            request.send(formData);
+        });
+    } else {
+        var url = 'http://localhost:21465/api/' + usuario + '/send-message';
+
+        telefones.forEach(function(telefone) {
+            var body = {
+                phone: telefone,
+                message: mensagem,
+                isGroup: false
+            };
+
+            var request = new XMLHttpRequest();
+            request.open('POST', url, true);
+            request.setRequestHeader('Content-Type', 'application/json');
+            request.setRequestHeader('Authorization', 'Bearer ' + token);
+
+            request.onreadystatechange = function() {
+                if (request.readyState === 4) {
+                    if (request.status === 200 || request.status === 201) {
+                        resultado[telefone] = 'Mensagem enviada';
+                    } else {
+                        resultado[telefone] = 'Sem WhatsApp';
+                    }
+
+                    if (Object.keys(resultado).length === telefones.length) {
+                        // Todos os envios foram processados
+                        console.log(resultado);
+                    }
+                }
+            };
+
+            request.send(JSON.stringify(body));
+        });
+    }
+}
