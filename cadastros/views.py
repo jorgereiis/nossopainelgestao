@@ -349,8 +349,6 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 def EnviarMensagemWpp(request):
     if request.method == 'POST':
         BASE_URL = 'http://localhost:21465/api/{}/send-{}'
-        TEMPO_ESPERA = random.uniform(20, 40)
-        TEMPO_ESPERA_TENTATIVAS = random.uniform(5, 10)
         sessao = get_object_or_404(SessaoWpp, usuario=request.user)
         tipo_envio = request.POST.get('options')
         mensagem = request.POST.get('mensagem')
@@ -411,10 +409,11 @@ def EnviarMensagemWpp(request):
                         log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] Mensagem enviada!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone))
                     with open(log_send_result_filename, 'a') as log_file:
                         log_file.write('[{}] {} - Mensagem enviada\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
+                    time.sleep(random.uniform(30, 70))
                     break
                 else:
                     if attempts <= max_attempts:
-                        time.sleep(TEMPO_ESPERA_TENTATIVAS)
+                        time.sleep(random.uniform(5, 10))
                     # Verificar se o diretório de logs existe e criar se necessário
                     if not os.path.exists(log_directory):
                         os.makedirs(log_directory)
@@ -459,12 +458,10 @@ def EnviarMensagemWpp(request):
             url = BASE_URL.format(usuario, 'image' if imagem else 'message')
             for cliente in clientes:
                 enviar_mensagem(url, re.sub(r'\s+|\W', '', cliente.telefone))
-                time.sleep(TEMPO_ESPERA)
 
         elif telefones:
             url = BASE_URL.format(usuario, 'image' if imagem else 'message')
             [enviar_mensagem(url, telefone) for telefone in telefones.split(',')]
-            time.sleep(TEMPO_ESPERA)
 
         return JsonResponse({'success': 'Envio concluído'}, status=200)
 
