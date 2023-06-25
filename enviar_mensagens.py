@@ -35,7 +35,7 @@ def enviar_mensagem(telefone, mensagem, usuario, token, cliente):
     tentativa = 1
 
     # Nome do arquivo de log baseado no nome do usuário
-    log_directory = './logs/'
+    log_directory = './logs/Envios agendados/'
     log_filename = os.path.join(log_directory, '{}.log'.format(usuario))
     data_hora_atual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
@@ -55,18 +55,18 @@ def enviar_mensagem(telefone, mensagem, usuario, token, cliente):
         # Verificar o status da resposta e tomar ações apropriadas, se necessário
         if response.status_code == 200 or response.status_code == 201:
             with open(log_filename, 'a') as log_file:
-                log_file.write('[{}] [USUÁRIO][{}] [CLIENTE][{}] Mensagem enviada!\n'.format(data_hora_atual, usuario, cliente))
+                log_file.write('[{}] [TIPO][Agendado] [USUÁRIO][{}] [CLIENTE][{}] Mensagem enviada!\n'.format(data_hora_atual, usuario, cliente))
             break  # Sai do loop se a resposta for de sucesso
         elif response.status_code == 400:
             response_data = json.loads(response.text)
             error_message = response_data.get('message')
             with open(log_filename, 'a') as log_file:
-                log_file.write('[{}] [USUÁRIO][{}] [CLIENTE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(data_hora_atual, usuario, cliente, response.status_code, tentativa, error_message))
+                log_file.write('[{}] [TIPO][Agendado] [USUÁRIO][{}] [CLIENTE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(data_hora_atual, usuario, cliente, response.status_code, tentativa, error_message))
         else:
             response_data = json.loads(response.text)
             error_message = response_data.get('message')
             with open(log_filename, 'a') as log_file:
-                log_file.write('[{}] [USUÁRIO][{}] [CLIENTE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(data_hora_atual, usuario, cliente, response.status_code, tentativa, error_message))
+                log_file.write('[{}] [TIPO][Agendado] [USUÁRIO][{}] [CLIENTE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(data_hora_atual, usuario, cliente, response.status_code, tentativa, error_message))
 
         # Incrementa o número de tentativas
         tentativa += 1

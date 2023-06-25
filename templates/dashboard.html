@@ -45,31 +45,34 @@
                                     <p class="card-text">Permite que o sistema aplique desconto à mensalidade dos clientes que
                                         fizerem indicação de novos clientes a cada mês.
                                         <a href="#">Saiba mais</a>
-                                        <p class="fs-6">Ex: Indicou 1, terá R$ 20.00 de desconto na próxima mensalidade.</p>
+                                    <p class="fs-6">Ex: Indicou 1, terá R$ 20.00 de desconto na próxima mensalidade.</p>
                                     </p>
                                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                                         <div class="input-group input-group-sm">
-                                          <span class="input-group-text">R$</span>
-                                          <input type="text" class="form-control" id="valor" name="valor" placeholder="Desconto" required style="max-width: 150px;">
+                                            <span class="input-group-text">R$</span>
+                                            <input type="text" class="form-control" id="valor" name="valor" placeholder="Desconto"
+                                                required style="max-width: 150px;">
                                         </div>
                                         <button class="btn btn-primary" type="button">Ativar</button>
-                                      </div>                                      
+                                    </div>
                                 </div>
                             </div>
                             <div class="card mt-5">
                                 <div class="card-body">
                                     <h3 class="card-title">Bônus por Anuidade</h3>
-                                    <p class="card-text">Permite que o sistema aplique desconto à mensalidade dos clientes que completarem 12 meses consecutivos como clientes.
+                                    <p class="card-text">Permite que o sistema aplique desconto à mensalidade dos clientes que
+                                        completarem 12 meses consecutivos como clientes.
                                         <a href="#">Saiba mais</a>
-                                        <p class="fs-6">Ex: Aderiu em Jan/23 e terá desconto de R$ 35.00 na mensalidade de Jan/24.</p>
+                                    <p class="fs-6">Ex: Aderiu em Jan/23 e terá desconto de R$ 35.00 na mensalidade de Jan/24.</p>
                                     </p>
                                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                                         <div class="input-group input-group-sm">
-                                          <span class="input-group-text">R$</span>
-                                          <input type="text" class="form-control" id="valor" name="valor" placeholder="Desconto" required style="max-width: 150px;">
+                                            <span class="input-group-text">R$</span>
+                                            <input type="text" class="form-control" id="valor" name="valor" placeholder="Desconto"
+                                                required style="max-width: 150px;">
                                         </div>
                                         <button class="btn btn-primary" type="button">Ativar</button>
-                                      </div>                                      
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -79,10 +82,13 @@
                         <div class="tab-pane fade" id="whatsapp" role="tabpanel" aria-labelledby="whatsapp-tab">
                             <div class="card mt-5">
                                 <div class="card-body">
-                                    <img src="{% static 'assets/images/background/wpp.png' %}" class="img-fluid" alt="Imagem WhatsApp">
-                                    <p class="card-text">Realiza o envio de mensagens para números do WhatsApp. <a href="#">Saiba mais</a></p>
-                                    <p class="fs-6">Essa é uma API não-oficial, então use com moderação. Apesar de não termos casos de bloqueios, saiba que há possibilidade da sua conta ser punida por abusos.</p>
-                                    <form method="post" action="">
+                                    <img src="{% static 'assets/images/background/wpp.png' %}" class="img-fluid"
+                                        alt="Imagem WhatsApp" id="logo-wpp">
+                                    <p class="card-text parag-wpp">Realiza o envio de mensagens para números do WhatsApp. <a href="#">Saiba
+                                            mais</a></p>
+                                    <p class="fs-6 parag-wpp">Essa é uma API não-oficial, então use com moderação. Apesar de não termos casos
+                                        de bloqueios, saiba que há possibilidade da sua conta ser punida por abusos.</p>
+                                    <form method="post" action="" id="form-wpp">
                                         <select class="form-control form-control-sm mb-3" name="options" id="options" required>
                                             <option value="">Selecione um tipo de envio</option>
                                             <option value="ativos">Para todos os meus clientes ativos</option>
@@ -92,19 +98,30 @@
                                         <div class="d-grid gap-2" id="form-envio">
                                             <label for="telefones">Telefones<span class="text-danger">*</span></label>
                                             <div class="input-group input-group-sm mb-3" id="div-telefones">
-                                                <input type="file" class="form-control" id="telefones" name="telefones" accept=".txt" capture=".txt" required>
+                                                <input type="file" class="form-control" id="telefones" name="telefones"
+                                                    accept=".txt" capture=".txt" required>
                                             </div>
                                             <label for="imagem">Imagem <span class="fs-6">(opcional)</span></label>
                                             <div class="input-group input-group-sm mb-3" id="div-imagem">
                                                 <input type="file" class="form-control" id="imagem" name="imagem" accept="image/*">
                                             </div>
-                                            <textarea class="form-control mb-3" id="mensagem" name="mensagem" rows="3" placeholder="Mensagem" required></textarea>
+                                            <textarea class="form-control mb-3" id="mensagem" name="mensagem" rows="3"
+                                                placeholder="Mensagem" required></textarea>
                                             <button class="btn btn-primary" type="button" id="botao-enviar">Enviar</button>
                                         </div>
                                     </form>
+                                    <div class="card" id="console">
+                                        <div class="card-header bg-dark text-white text-center">
+                                          Log de envios
+                                        </div>
+                                        <div class="card-body fs-6" id="console-body" style="max-height: 570px; overflow-y: auto;">
+                                          <!-- Mensagens de log aqui -->
+                                        </div>
+                                        <button class="btn" type="button" id="botao-voltar">Voltar</button>
+                                      </div>                                      
                                 </div>
                             </div>
-                        </div>                        
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1426,6 +1443,7 @@ $(document).ready(function () {
     $('#imagem').hide();
     $('#mensagem').hide();
     $('#telefones').hide();
+    $('#console').hide();
     // Ocultar as labels
     $('label[for="imagem"]').hide();
     $('label[for="mensagem"]').hide();
@@ -1511,11 +1529,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const imagem = imagemInput.files[0];
     const mensagem = mensagemTextarea.value;
 
+    // Verificar se os campos não estão vazios
+    if (!tipoEnvio || !mensagem) {
+      console.log('Preencha os campos antes de enviar.');
+      return;
+    }
+
     const formData = new FormData();
     formData.append('options', tipoEnvio);
     formData.append('imagem', imagem);
     formData.append('mensagem', mensagem);
-    formData.append('telefones', telefones); // Envia o arquivo de texto 'telefones'
+    formData.append('telefones', telefones);
 
     fetch('/enviar_mensagem/', {
       method: 'POST',
@@ -1539,6 +1563,75 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error(error);
       // Lógica para lidar com erros na requisição
     });
+  });
+});
+</script>
+
+<script>
+    $(document).ready(function() {
+        function exibirConsole() {
+        // Exibir o console
+        $('#console').show();
+        // Esconder elementos com as classes "parag-wpp", "logo-wpp" e "form-wpp"
+        $('.parag-wpp, #logo-wpp, #form-wpp').hide();
+      }
+      // Função para carregar o conteúdo do arquivo de texto
+      function carregarConteudoArquivo() {
+    
+        $.ajax({
+          url: '/obter_logs_wpp/',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          method: 'POST', // Definindo o método da requisição como POST
+          dataType: 'json',
+          success: function(response) {
+            // Verifica se o conteúdo foi retornado com sucesso
+            if (response && response.logs) {
+              // Substitui caracteres de quebra de linha por tags <br> para a quebra de linha na exibição
+              var conteudoFormatado = response.logs.replace(/\n/g, "<br>");
+              // Atualiza o conteúdo do console com os logs obtidos formatados
+              $('#console-body').html(conteudoFormatado);
+            }
+          },
+          complete: function() {
+            // Chama a função novamente após um intervalo de tempo (1 segundo neste exemplo)
+            setTimeout(function() {
+              carregarConteudoArquivo();
+            }, 1000);
+          }
+        });
+      }
+    
+      // Adiciona um evento de clique ao botão com ID "botao-enviar"
+      $('#botao-enviar').click(function() {
+        // Chama a função para carregar o conteúdo do arquivo quando o botão for clicado
+        carregarConteudoArquivo();
+        exibirConsole();
+      });
+    });
+</script>
+
+<script>
+$(document).ready(function() {
+  // Função para exibir os elementos e limpar o conteúdo dos campos
+  function exibirElementos() {
+    // Exibir elementos com as classes "parag-wpp", "logo-wpp" e "form-wpp"
+    $('.parag-wpp, #logo-wpp, #form-wpp').show();
+    // Esconder o console
+    $('#console').hide();
+    // Limpar o conteúdo do textarea com o ID "mensagem"
+    $('#mensagem').val('');
+    // Limpar o valor dos campos de arquivo
+    $('#telefones').val('');
+    $('#imagem').val('');
+  }
+
+  // Adiciona um evento de clique ao botão com ID "botao-voltar"
+  $('#botao-voltar').click(function() {
+    // Chama a função para exibir os elementos e limpar o conteúdo dos campos quando o botão for clicado
+    exibirElementos();
   });
 });
 </script>

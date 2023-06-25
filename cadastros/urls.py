@@ -4,6 +4,7 @@ from .views import (
     Login,
     Teste,
     SessionWpp,
+    ObterLogsWpp,
     EditarCliente,
     ListaClientes,
     DeleteServidor,
@@ -78,4 +79,5 @@ urlpatterns = [
     path("enviar_mensagem/", EnviarMensagemWpp, name="enviar_mensagem"),
     path("qtds_mensalidades/", CarregarQuantidadesMensalidades.as_view()),
     path("obter_session_wpp/", ObterSessionWpp, name="obter_session_wpp"),
+    path("obter_logs_wpp/", ObterLogsWpp, name="obter_logs_wpp")
 ]

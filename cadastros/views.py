@@ -27,6 +27,7 @@ import requests
 import operator
 import logging
 import random
+import base64
 import json
 import time
 import re
@@ -348,22 +349,24 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 def EnviarMensagemWpp(request):
     if request.method == 'POST':
         BASE_URL = 'http://localhost:21465/api/{}/send-{}'
-        TEMPO_ESPERA = random.uniform(10, 20)
+        TEMPO_ESPERA = random.uniform(20, 40)
+        TEMPO_ESPERA_TENTATIVAS = random.uniform(5, 10)
         sessao = get_object_or_404(SessaoWpp, usuario=request.user)
         tipo_envio = request.POST.get('options')
         mensagem = request.POST.get('mensagem')
         imagem = request.FILES.get('imagem')
         usuario = request.user
         token = sessao.token
-        resultado = {}
         clientes = None
-        print("Tipo de envio: {}\nMensagem: {}\nImagem: {}\nUsuário: {}\nToken: {}".format(tipo_envio, mensagem, imagem, usuario, token))
-        log_directory = './logs/'
+        log_directory = './logs/Envios manuais/'
         log_filename = os.path.join(log_directory, '{}.log'.format(usuario))
-        data_hora_atual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        log_send_result_filename = os.path.join(log_directory, '{}_send_result.log'.format(usuario))
+        if imagem:
+            imagem_base64 = base64.b64encode(imagem.read()).decode('utf-8')
 
         def enviar_mensagem(url, telefone):
-            telefone = '55' + telefone
+            if not telefone.startswith('55'):
+                telefone = '55' + telefone
 
             headers = {
                 'Content-Type': 'application/json',
@@ -372,13 +375,14 @@ def EnviarMensagemWpp(request):
             }
             body = {
                 'phone': telefone,
-                'message': mensagem,
-                'isGroup': False
+                'isGroup': False,
+                'message': mensagem
             }
 
             if imagem:
-                body['filename'] = ''
-                body['file'] = imagem
+                body['filename'] = str(imagem)
+                body['caption'] = mensagem
+                body['base64'] = 'data:image/png;base64,' + imagem_base64
 
             max_attempts = 3
             attempts = 1
@@ -391,21 +395,26 @@ def EnviarMensagemWpp(request):
 
                 response = requests.post(url, headers=headers, json=body)
 
-                if response.ok:
-                    resultado[telefone] = 'Mensagem enviada'
+                if response.status_code == 200 or response.status_code == 201:
                     # Verificar se o diretório de logs existe e criar se necessário
+                    if not os.path.exists(log_directory):
+                        os.makedirs(log_directory)
                     if not os.path.exists(log_directory):
                         os.makedirs(log_directory)
                     # Verificar se o arquivo de log existe e criar se necessário
                     if not os.path.isfile(log_filename):
                         open(log_filename, 'w').close()
+                    if not os.path.isfile(log_send_result_filename):
+                        open(log_send_result_filename, 'w').close()
                     # Escrever no arquivo de log
                     with open(log_filename, 'a') as log_file:
-                        log_file.write('[{}] [USUÁRIO][{}] [TELEFONE][{}] Mensagem enviada!\n'.format(data_hora_atual, usuario, telefone))
+                        log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] Mensagem enviada!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone))
+                    with open(log_send_result_filename, 'a') as log_file:
+                        log_file.write('[{}] {} - Mensagem enviada\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
                     break
                 else:
                     if attempts <= max_attempts:
-                        time.sleep(TEMPO_ESPERA)
+                        time.sleep(TEMPO_ESPERA_TENTATIVAS)
                     # Verificar se o diretório de logs existe e criar se necessário
                     if not os.path.exists(log_directory):
                         os.makedirs(log_directory)
@@ -416,40 +425,48 @@ def EnviarMensagemWpp(request):
                     with open(log_filename, 'a') as log_file:
                         response_data = json.loads(response.text)
                         error_message = response_data.get('message')
-                        log_file.write('[{}] [USUÁRIO][{}] [TELEFONE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(data_hora_atual, usuario, cliente, response.status_code, attempts, error_message))
-                    
+                        log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone, response.status_code, attempts, error_message))
+
                     attempts += 1
 
-            if attempts == max_attempts:
-                resultado[telefone] = 'Sem WhatsApp'
+                if attempts == max_attempts:
+                    # Verificar se o diretório de logs existe e criar se necessário
+                    if not os.path.exists(log_directory):
+                        os.makedirs(log_directory)
+                    # Verificar se o arquivo de log existe e criar se necessário
+                    if not os.path.isfile(log_send_result_filename):
+                        open(log_send_result_filename, 'w').close()
+                    # Escrever no arquivo de log
+                    with open(log_send_result_filename, 'a') as log_file:
+                        log_file.write('[{}] {} - Número sem WhatsApp\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
 
         if tipo_envio == 'ativos':
             clientes = Cliente.objects.filter(usuario=usuario, cancelado=False)
             telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
-            print("Telefones: ", telefones)
+
         elif tipo_envio == 'cancelados':
             clientes = Cliente.objects.filter(usuario=usuario, cancelado=True)
             telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
-            print("Telefones: ", telefones)
+
         elif tipo_envio == 'avulso':
             telefones_file = request.FILES.get('telefones')
             if telefones_file:
                 telefones_data = telefones_file.read().decode('utf-8').split('\n')
                 telefones = ','.join([re.sub(r'\s+|\W', '', telefone) for telefone in telefones_data if telefone.strip()])
-                print("Telefones: ", telefones)
+
 
         if clientes is not None:
-            url = BASE_URL.format(usuario, 'file' if imagem else 'message')
+            url = BASE_URL.format(usuario, 'image' if imagem else 'message')
             for cliente in clientes:
                 enviar_mensagem(url, re.sub(r'\s+|\W', '', cliente.telefone))
                 time.sleep(TEMPO_ESPERA)
 
         elif telefones:
-            url = BASE_URL.format(usuario, 'file' if imagem else 'message')
+            url = BASE_URL.format(usuario, 'image' if imagem else 'message')
             [enviar_mensagem(url, telefone) for telefone in telefones.split(',')]
             time.sleep(TEMPO_ESPERA)
 
-        return JsonResponse(resultado, status=200)
+        return JsonResponse({'success': 'Envio concluído'}, status=200)
 
     return JsonResponse({'error': 'Método inválido'}, status=400)
 
@@ -469,6 +486,17 @@ def ObterSessionWpp(request):
         return JsonResponse({"error_message": "Método da requisição não permitido."}, status=500)
 
     return JsonResponse({"token": token}, status=200)
+
+
+@login_required
+def ObterLogsWpp(request):
+    if request.method == 'POST':
+
+        file_path = './logs/Envios manuais/{}_send_result.log'.format(request.user)
+        with open(file_path, 'r') as file:
+            logs = file.read()
+
+    return JsonResponse({'logs': logs})
 
 
 ############################################ UPDATE VIEW ############################################
