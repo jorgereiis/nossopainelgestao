@@ -9,9 +9,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.views import LoginView
 from django.views.generic.list import ListView
 from django.forms.models import model_to_dict
-from django.core.serializers import serialize
 from babel.numbers import format_currency
-from .models import definir_dia_pagamento
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -390,6 +388,13 @@ def EnviarMensagemWpp(request):
                     if tel.startswith('55'):
                         tel = tel[2:]
                         body['phone'] = tel
+                
+                if attempts == 3:
+                    tel = telefone
+                    if tel.startswith('55'):
+                        tel = tel[2:]
+                        if len(tel) == 9 and tel.startswith('9'):
+                            tel = tel[1:]
 
                 response = requests.post(url, headers=headers, json=body)
 
