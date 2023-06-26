@@ -5,7 +5,6 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 
 
-
 # funcão para definir o dia de pagamento
 def definir_dia_pagamento(dia_adesao):
     if dia_adesao in range(3, 8):
