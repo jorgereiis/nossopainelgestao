@@ -384,17 +384,23 @@ def EnviarMensagemWpp(request):
             attempts = 1
             while attempts <= max_attempts:
                 if attempts == 2:
+                    # Tratando o telefone como padrão Brasileiro para remover o dígito '9' e tentar fazer novo envio
+                    tel = telefone
+                    if tel.startswith('55'):
+                        ddi = tel[:2]
+                        ddd = tel[2:4]
+                        tel = tel[4:]
+                        # Remove o dígito '9' se o telefone tiver 9 dígitos
+                        if len(tel) == 9 and tel.startswith('9'):
+                            tel = tel[1:]
+                            body['phone'] = ddi + ddd + tel
+                
+                if attempts == 3:
+                    # Tratando o telefone como padrão Internacional, revomendo apenas os dígitos '55'
                     tel = telefone
                     if tel.startswith('55'):
                         tel = tel[2:]
                         body['phone'] = tel
-                
-                if attempts == 3:
-                    tel = telefone
-                    if tel.startswith('55'):
-                        tel = tel[2:]
-                        if len(tel) == 9 and tel.startswith('9'):
-                            tel = tel[1:]
 
                 response = requests.post(url, headers=headers, json=body)
 
