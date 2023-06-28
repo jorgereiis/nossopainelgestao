@@ -346,7 +346,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 @login_required
 def EnviarMensagemWpp(request):
     if request.method == 'POST':
-        BASE_URL = 'http://localhost:21465/api/{}/send-{}'
+        BASE_URL = 'https://api.nossopainel.com.br/api/{}/send-{}'
         sessao = get_object_or_404(SessaoWpp, usuario=request.user)
         tipo_envio = request.POST.get('options')
         mensagem = request.POST.get('mensagem')
