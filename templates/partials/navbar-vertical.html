@@ -32,21 +32,22 @@
 
                 <div id="navClientes" class="collapse {% if page_group == 'clientes' %} show {% endif %}"
                     data-bs-parent="#sideNavbar">
+
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link {% if page == 'lista-clientes' %} active {% endif %}" href="{% url 'listagem-clientes' %}">Meus Clientes</a>
+                            <a class="nav-link {% if page == 'cadastro-cliente' %} active {% endif %}" href="{% url 'cadastro-cliente' %}">Novo</a>
                         </li>
                     </ul>
 
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link {% if page == 'cadastro-cliente' %} active {% endif %}" href="{% url 'cadastro-cliente' %}">Novo Cliente</a>
+                            <a class="nav-link {% if page == 'importar-clientes' %} active {% endif %}" href="{% url 'importar-cliente' %}">Importar</a>
                         </li>
                     </ul>
 
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link {% if page == 'importar-clientes' %} active {% endif %}" href="{% url 'importar-cliente' %}">Importar Clientes</a>
+                            <a class="nav-link {% if page == 'lista-clientes' %} active {% endif %}" href="{% url 'clientes-cancelados' %}">Cancelados</a>
                         </li>
                     </ul>
                 </div>

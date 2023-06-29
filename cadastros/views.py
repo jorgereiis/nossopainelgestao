@@ -103,6 +103,7 @@ class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
         id = self.request.GET.get("cliente_id")
         cliente = Cliente.objects.get(id=id)
         hoje = timezone.localtime().date()
+        mensalidades_totais = Mensalidade.objects.filter(usuario=self.request.user, cliente=cliente).order_by('-id').values()
         mensalidades_pagas = Mensalidade.objects.filter(usuario=self.request.user, pgto=True, cliente=cliente)
         mensalidades_pendentes = Mensalidade.objects.filter(usuario=self.request.user, dt_pagamento=None, pgto=False, cancelado=False, dt_cancelamento=None, dt_vencimento__lt=hoje, cliente=cliente)
         mensalidades_canceladas = Mensalidade.objects.filter(usuario=self.request.user, cancelado=True, cliente=cliente)
@@ -123,6 +124,7 @@ class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
                 qtd_mensalidades_canceladas += 1
 
         data = {
+            'mensalidades_totais': list(mensalidades_totais),
             'qtd_mensalidades_pagas': qtd_mensalidades_pagas,
             'qtd_mensalidades_pendentes': qtd_mensalidades_pendentes,
             'qtd_mensalidades_canceladas': qtd_mensalidades_canceladas
@@ -131,12 +133,12 @@ class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
         return JsonResponse(data)
 
 
-class ListaClientes(LoginRequiredMixin, ListView):
+class ClientesCancelados(LoginRequiredMixin, ListView):
     """
     View para listar clientes, considerando clientes cancelados e ativos.
     """
     model = Cliente
-    template_name = "pages/lista-clientes.html"
+    template_name = "pages/clientes-cancelados.html"
     paginate_by = 15
 
     def get_queryset(self):
@@ -148,8 +150,8 @@ class ListaClientes(LoginRequiredMixin, ListView):
         """
         query = self.request.GET.get("q")
         queryset = (
-            Cliente.objects.filter(usuario=self.request.user)
-            .order_by("-data_adesao")
+            Cliente.objects.filter(usuario=self.request.user, cancelado=True)
+            .order_by("-data_cancelamento")
         )
         
         if query:
@@ -163,28 +165,12 @@ class ListaClientes(LoginRequiredMixin, ListView):
         Adiciona informações adicionais ao contexto, como objetos relacionados e variáveis de controle de página.
         """
         context = super().get_context_data(**kwargs)
-        clientes = Cliente.objects.filter(usuario=self.request.user)
-        indicadores = Cliente.objects.filter(usuario=self.request.user)
-        servidores = Servidor.objects.filter(usuario=self.request.user)
-        formas_pgtos = Tipos_pgto.objects.filter(usuario=self.request.user)
-        planos = Plano.objects.filter(usuario=self.request.user).order_by('valor')
-        telas = Qtd_tela.objects.all().order_by('telas')
-        dispositivos = Dispositivo.objects.filter(usuario=self.request.user).order_by('nome')
-        aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
         page_group = 'clientes'
         page = 'lista-clientes'
         range_num = range(1,32)
 
         context.update(
             {
-                "clientes": clientes,
-                "indicadores": indicadores,
-                "servidores": servidores,
-                "formas_pgtos": formas_pgtos,
-                "dispositivos": dispositivos,
-                "aplicativos": aplicativos,
-                "planos": planos,
-                "telas": telas,
                 "range": range_num,
                 "page_group": page_group,
                 "page": page,
@@ -245,14 +231,23 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         Retorna o contexto atualizado.
         """
         moeda = "BRL"
-        f_name = self.request.user.first_name
+        page = 'dashboard'
         hoje = timezone.localtime().date()
+        f_name = self.request.user.first_name
         ano_atual = timezone.localtime().year
         proxima_semana = hoje + timedelta(days=7)
         context = super().get_context_data(**kwargs)
         total_clientes = self.get_queryset().count()
         mes_atual = timezone.localtime().date().month
-        page = 'dashboard'
+
+        # Variáveis para context do modal de edição do cadastro do cliente
+        indicadores = Cliente.objects.filter(usuario=self.request.user)
+        servidores = Servidor.objects.filter(usuario=self.request.user)
+        formas_pgtos = Tipos_pgto.objects.filter(usuario=self.request.user)
+        planos = Plano.objects.filter(usuario=self.request.user).order_by('valor')
+        telas = Qtd_tela.objects.all().order_by('telas')
+        dispositivos = Dispositivo.objects.filter(usuario=self.request.user).order_by('nome')
+        aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
 
         clientes_em_atraso = Cliente.objects.filter(
             cancelado=False,
@@ -338,6 +333,14 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "valor_total_pago_qtd": valor_total_pago_qtd,
                 "valor_total_receber_qtd": valor_total_receber_qtd,
                 "clientes_cancelados_qtd": clientes_cancelados_qtd,
+                ## context para modal de edição
+                "telas": telas,
+                "planos": planos,
+                "servidores": servidores,
+                "aplicativos": aplicativos,
+                "indicadores": indicadores,
+                "dispositivos": dispositivos,
+                "formas_pgtos": formas_pgtos,
             }
         )
         return context
@@ -660,7 +663,7 @@ def EditarCliente(request, cliente_id):
                 if not telefone:
                     cliente.telefone = request.POST.get("telefone")
                 else:
-                    return render(request, "pages/lista-clientes.html", {"error_message": "Já existe um cliente com este telefone informado."}, status=400)
+                    return render(request, "dashboard.html", {"error_message_edit": "Já existe um cliente com este telefone informado."}, status=400)
                 
             if request.POST.get("indicado_por"):
                 indicado_por = Cliente.objects.get(nome=request.POST.get("indicado_por"), usuario=request.user)
@@ -768,14 +771,14 @@ def EditarCliente(request, cliente_id):
             cliente.save()
 
             # Em caso de sucesso, renderiza a página de listagem de clientes com uma mensagem de sucesso
-            return render(request, "pages/lista-clientes.html", {"success_message": "{} foi atualizado com sucesso.".format(cliente.nome)}, status=200)
+            return render(request, "dashboard.html", {"success_message_edit": "{} foi atualizado com sucesso.".format(cliente.nome)}, status=200)
 
         except Exception as e:
             logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
-            return render(request, "pages/lista-clientes.html", {"error_message": "Ocorreu um erro ao tentar atualizar esse cliente."}, status=500)
+            return render(request, "dashboard.html", {"error_message_edi": "Ocorreu um erro ao tentar atualizar esse cliente."}, status=500)
 
     # Redireciona para a página de listagem de clientes se o método HTTP não for POST
-    return redirect("listagem-clientes")
+    return redirect("dashboard")
 
 
 # AÇÃO PARA EDITAR O OBJETO PLANO MENSAL

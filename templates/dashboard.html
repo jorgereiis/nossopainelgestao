@@ -77,7 +77,6 @@
                             </div>
                         </div>
                         <div class="tab-pane fade" id="others" role="tabpanel" aria-labelledby="others-tab">
-            
                         </div>
                         <div class="tab-pane fade" id="whatsapp" role="tabpanel" aria-labelledby="whatsapp-tab">
                             <div class="card mt-5">
@@ -125,6 +124,7 @@
                     </div>
                 </div>
             </div>
+            <!-- end offcanvas settings -->
   
             <!-- Container fluid -->
             <div class="bg-primary pt-10 pb-21"></div>
@@ -145,8 +145,6 @@
                                             <img src="{% static 'assets/images/svg/list.svg' %}"> Menu
                                         </button>
                                         <div class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="{% url 'listagem-clientes' %}"><img
-                                                src="{% static 'assets/images/svg/people.svg' %}"> Clientes</a></li>
                                             <li><a class="dropdown-item" href="{% url 'cadastro-aplicativo' %}">
                                             <li><img src="{% static 'assets/images/svg/app-indicator.svg' %}">
                                                 Aplicativos</a></li>
@@ -320,6 +318,7 @@
                         </div>
                     </div>
                 </div>
+                <!-- end modal -->
 
                 <!-- Modal de confirmação de pagamento -->
                 <div class="modal fade" id="confirm-pagamento-modal" tabindex="-1" role="dialog"
@@ -346,6 +345,7 @@
                         </div>
                     </div>
                 </div>
+                <!-- end modal -->
 
                 <!-- Modal de exibir informações do cliente -->
                 <div class="modal fade" id="info-cliente-modal" tabindex="-1" role="dialog" aria-labelledby="info-cliente-label">
@@ -430,16 +430,69 @@
                                             </iconify-icon>
                                         </h4>
                                     </div>
-                                    <div class="d-flex charge-summary gap-3 charge-summary-max-width">
+                                    <div class="d-flex charge-summary gap-3 charge-summary-max-width dados-apps">
                                         <!-- Os elementos das contas de aplicativos serão adicionados dinamicamente aqui -->
                                     </div>
                                     <div class="flex-column texto-aqui">
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-column">
+                                    <h4 class="fw-bold mb-4 mt-4">Resumo de cobranças</h4>
+                                    <div class="d-flex charge-summary gap-3">
+                                        <div class="card rounded py-3 px-8 d-flex flex-column align-items-center justify-content-center border">
+                                            <div class="fw-bold my-0 text-center num-resumo" id="qtd_mensalidades_pagas">0</div>
+                                            <span class="badge rounded-pill bg-success">
+                                                <i class="bi bi-check-circle"></i>
+                                                Pago
+                                            </span>
+                                        </div>
+                                        <div class="card rounded py-3 px-6 d-flex flex-column align-items-center justify-content-center border">
+                                            <div class="fw-bold my-0 text-center num-resumo" id="qtd_mensalidades_pendentes">0</div>
+                                            <span class="badge rounded-pill bg-danger">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                                Inadimplente
+                                            </span>
+                                        </div>
+                                        <div class="card rounded py-3 px-6 d-flex flex-column align-items-center justify-content-center border">
+                                            <div class="fw-bold my-0 text-center num-resumo" id="qtd_mensalidades_canceladas">0</div>
+                                            <span class="badge rounded-pill bg-warning">
+                                                <i class="bi bi-x-square"></i>
+                                                Cancelado
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <h4 class="fw-bold mb-4 mt-8">Histórico de cobranças</h4>
+                                    <div class="table-responsive mb-8">
+                                        <div class="card p-5 border rounded me-4">
+                                            <table class="table text-nowrap mb-0 table-hover" id="table-invoice">
+                                                <thead class="text-muted fs-6">
+                                                    <tr>
+                                                        <td>
+                                                            <span>ID</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Status</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Vencimento</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Valor</span>
+                                                        </td>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <!-- Os elementos das cobranças serão adicionados dinamicamente aqui -->
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+                <!-- end modal -->
 
                 <!-- Modal de confirmação de exclusão da conta do app do cliente -->
                 <div class="modal fade" id="confirm-delete-app-conta-modal" tabindex="-1" role="dialog"
@@ -466,6 +519,7 @@
                     </div>
                 </div>
                 </div>
+                <!-- end modal -->
 
                 <!-- Modal de exibição do QRCode do WhatsApp -->
                 <div class="modal fade" id="qrcode-modal" tabindex="-1" role="dialog"
@@ -493,6 +547,7 @@
                     </div>
                     </div>
                 </div>
+                <!-- end modal -->
 
                 <!-- Modal de cadastro da conta do app do cliente -->
                 <div class="modal fade" id="create-app-info-modal" tabindex="-1" role="dialog"
@@ -544,6 +599,155 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                         <button type="submit" form="create-app-info-form" class="btn btn-primary" id="btn-salvar-app" disabled>Salvar</button>
+                    </div>
+                    </div>
+                </div>
+                </div>
+                <!-- end modal -->
+
+                <!-- Modal de edição do cliente -->
+                <div class="modal fade" id="edit-cliente-modal" tabindex="-1" role="dialog"
+                aria-labelledby="edit-cliente-label">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="edit-cliente-label">Editar Cliente</h4>
+                        <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="POST" id="edit-cliente-form">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="edit-cliente-nome">Nome</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="edit-cliente-nome" name="nome" autocomplete="off" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit-cliente-telefone">Telefone</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="edit-cliente-telefone" name="telefone" minlength="12" maxlength="15" autocomplete="off" required>
+                            </div>
+                        </div>
+
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-indicador_por">Indicado por</label>
+                            <div class="input-group">
+                                <select class="form-control" id="edit-cliente-indicado_por" name="indicado_por">
+                                <option value="">Selecione um cliente indicador</option>
+                                {% for indicador in indicadores %}
+                                <option value="{{ indicador.nome }}">{{ indicador.nome }}</option>
+                                {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-servidor">Servidor</label>
+                            <div class="input-group">
+                            <select class="form-control" id="edit-cliente-servidor" name="servidor" required>
+                                <option value="">Selecione um servidor</option>
+                                {% for servidor in servidores %}
+                                <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        </div>
+                        
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-forma_pgto">Forma de pagamento</label>
+                            <div class="input-group">
+                            <select class="form-control" id="edit-cliente-forma_pgto" name="forma_pgto" required>
+                                <option value="">Selecione uma forma de pagamento</option>
+                                {% for forma_pgto in formas_pgtos %}
+                                <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        </div>
+                        
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-plano">Plano</label>
+                            <div class="input-group">
+                            <select class="form-control" id="edit-cliente-plano" name="plano" required>
+                                <option value="">Selecione um plano de adesão</option>
+                                {% for plano in planos %}
+                                <option value="{{ plano.nome }} - {{ plano.valor }}">{{ plano.nome }} - {{ plano.valor }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        </div>
+                        
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-telas">Qtd. telas</label>
+                            <div class="input-group">
+                            <select class="form-control" id="edit-cliente-tela" name="tela" required>
+                                <option value="">Selecione a quantidade de telas</option>
+                                {% for tela in telas %}
+                                <option value="{{ tela.telas }} tela(s)">{{ tela.telas }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        </div>
+                        
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-dt_pgto">Dia do pagamento mensal</label>
+                            <div class="input-group">
+                                <select class="form-control" id="edit-cliente-dt_pgto" name="dt_pgto" required>
+                                    <option value="">Informe o dia do pagamento</option>
+                                    {% for x in range %}
+                                    <option value="{{ x }}">{{ x }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <!-- end modal -->
+                        
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-dispositivo">Dispositivo</label>
+                            <div class="input-group">
+                            <select class="form-control" id="edit-cliente-dispositivo" name="dispositivo" required>
+                                <option value="">Selecione um dispositivo</option>
+                                {% for dispositivo in dispositivos %}
+                                <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        </div>
+                        
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-aplicativo">Aplicativo</label>
+                            <div class="input-group">
+                            <select class="form-control" id="edit-cliente-aplicativo" name="aplicativo" required>
+                                <option value="">Selecione um aplicativo</option>
+                                {% for aplicativo in aplicativos %}
+                                <option value="{{ aplicativo.nome }}">{{ aplicativo.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit-cliente-notas">Anotações</label>
+                            <div class="input-group">
+                                <textarea type="text" class="form-control" id="edit-cliente-notas" name="notas" cols="5" rows="3" placeholder="Detalhes adicionais sobre o cliente..."></textarea>
+                            </div>
+                        </div>
+                        <input type="hidden" name="cliente_id" id="cliente-id">
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" form="edit-cliente-form" class="btn btn-primary">Salvar</button>
                     </div>
                     </div>
                 </div>
@@ -659,14 +863,18 @@
                                                                     data-data_pagamento="{{cliente.data_pagamento}}"
                                                                     data-ultimo_pagamento="{{cliente.ultimo_pagamento|date:'d/m/Y'}}"
                                                                     data-conta_aplicativo="{{cliente.conta_aplicativo.all}}"
-                                                                    onclick="exibirModalDetalhes(this)">Ver informações
+                                                                    onclick="exibirModalDetalhes(this)">Ver Infos.
                                                                 </button>
+                                                        </li>
+                                                        <li>
+                                                            <button class="dropdown-item" data-id="{{cliente.id}}" data-nome="{{cliente.nome}}" data-telefone="{{cliente.telefone}}" data-indicado_por="{{cliente.indicado_por}}" data-servidor="{{cliente.servidor}}" data-forma_pgto="{{cliente.forma_pgto}}" data-plano="{{cliente.plano.nome}} - {{cliente.plano.valor}}" data-telas="{{cliente.telas}}" data-data_pagamento="{{cliente.data_pagamento}}" data-dispositivo="{{cliente.dispositivo}}" data-aplicativo="{{cliente.sistema}}" data-notas="{{cliente.notas}}" onclick="exibirModalEdicao(this)"> Editar Infos.
+                                                            </button>
                                                         </li>
                                                         <li>
                                                             <button class="dropdown-item"
                                                                 data-nome="{{cliente.nome}}"
                                                                 data-mensalidade="{{mensalidade.id}}"
-                                                                onclick="exibirModalConfirmacaoPagamento(this)">Pagar mensalidade
+                                                                onclick="exibirModalConfirmacaoPagamento(this)">Pagar Mensal.
                                                             </button>
                                                         </li>
                                                         <li>
@@ -753,6 +961,45 @@
 
                 <!-- Scripts -->
                 {% include 'partials/scripts.html' %}
+
+      <!-- Alert success edit -->
+      {% if success_message_edit %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/dashboard';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'success',
+            title: 'Cliente atualizado',
+            text: '{{success_message_edit}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+
+      <!-- Alert error edit -->
+      {% elif error_message_edit %}
+      <script>
+        console.log(window.location.origin)
+        $(document).ready(function () {
+          var currentUrl = window.location.origin;
+          var newPath = '/dashboard';
+          var newUrl = currentUrl + newPath;
+          swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: '{{error_message_edit}}',
+            didClose: function () {
+              window.location.href = newUrl;
+            }
+          });
+        });
+      </script>
+      {% endif %}
 </body>
 
 <style>
@@ -830,11 +1077,17 @@
     }
     
     .rounded-pill {
-        font-size: 12pt;
+        font-size: 10pt;
+    }
+    .pill-invoice {
+        font-size: 8pt;
     }
     .charge-summary-max-width {
     max-width: 800px;
     flex-wrap: wrap;
+    }
+    .num-resumo {
+    font-size: 30pt;
     }
 </style>
 
@@ -1153,6 +1406,9 @@
 
         // chamar a função para carregar e inserir as informações das contas dos aplicativos no modal
         carregarContasApps(clienteId);
+
+        // Chamar a função para carregar as quantidades das mensalidades para o Resumo das Cobranças
+        carregarQuantidadeMensalidadesPagas(clienteId);
     }
 
     $('#info-cliente-modal').on('click', '.btn-close, .btn-secondary, #add-apps-info, #btn_exclude', function () {
@@ -1171,6 +1427,61 @@
         }
     }
 
+    function carregarQuantidadeMensalidadesPagas(clienteId) {
+        $.ajax({
+            url: '/qtds_mensalidades/',  // Caminho correto para a sua view
+            type: 'GET',  // Alterado para GET, pois não estamos enviando dados sensíveis
+            data: { cliente_id: clienteId },
+            success: function(data) {
+                document.getElementById('qtd_mensalidades_pagas').textContent = data.qtd_mensalidades_pagas;
+                document.getElementById('qtd_mensalidades_pendentes').textContent = data.qtd_mensalidades_pendentes;
+                document.getElementById('qtd_mensalidades_canceladas').textContent = data.qtd_mensalidades_canceladas;
+
+                var tbody = document.querySelector('#table-invoice tbody');
+                tbody.innerHTML = ''; // Limpa o conteúdo atual da tabela
+
+                data.mensalidades_totais.forEach(function(mensalidade) {
+                    var tr = document.createElement('tr');
+
+                    var tdId = document.createElement('td');
+                    tdId.textContent = mensalidade.id;
+                    tr.appendChild(tdId);
+
+                    function formatarData(data) {
+                        var partes = data.split('-');
+                        var dataFormatada = partes[2] + '/' + partes[1] + '/' + partes[0];
+                        return dataFormatada;
+                    }
+
+                    var tdStatus = document.createElement('td');
+                    if (mensalidade.pgto) {
+                        tdStatus.innerHTML = '<span class="badge rounded-pill bg-success pill-invoice"><i class="bi bi-check-circle"></i>  Pago</span>';
+                    } else if (mensalidade.cancelado) {
+                        tdStatus.innerHTML = '<span class="badge rounded-pill bg-warning pill-invoice"><i class="bi bi-x-square"></i>  Cancelado</span>';
+                    } else if (new Date(mensalidade.dt_vencimento) < new Date()) {
+                        tdStatus.innerHTML = '<span class="badge rounded-pill bg-danger pill-invoice"><i class="bi bi-exclamation-triangle"></i>  Inadimplente</span>';
+                    } else if (new Date(mensalidade.dt_vencimento) >= new Date()) {
+                        tdStatus.innerHTML = '<span class="badge rounded-pill bg-secondary pill-invoice"><i class="bi bi-clock"></i>  Em aberto</span>';
+                    }
+                    tr.appendChild(tdStatus);
+
+                    var tdVencimento = document.createElement('td');
+                    tdVencimento.textContent = formatarData(mensalidade.dt_vencimento);
+                    tr.appendChild(tdVencimento);
+
+                    var tdValor = document.createElement('td');
+                    tdValor.textContent = 'R$ ' + mensalidade.valor;
+                    tr.appendChild(tdValor);
+
+                    tbody.appendChild(tr);
+                });
+            },
+            error: function(error) {
+                console.log(error);
+            }
+        });
+    }
+
     function carregarContasApps(clienteId) {
     $.ajax({
         url: '/contas_apps/',
@@ -1179,7 +1490,7 @@
         success: function(data) {
             var contas = data.conta_app; // Obtém os dados das contas de aplicativo
 
-            var container = $('.charge-summary');
+            var container = $('.dados-apps');
             var container2 = $('.texto-aqui');
 
             container.empty(); // Limpa o container antes de adicionar os novos elementos
@@ -1634,4 +1945,107 @@ $(document).ready(function() {
     exibirElementos();
   });
 });
+</script>
+
+<script>
+    function exibirModalEdicao(botao) {
+      const clienteId = botao.dataset.id;
+      const clienteNome = botao.dataset.nome;
+      const clienteTela = botao.dataset.telas;
+      const clientePlano = botao.dataset.plano;
+      const clienteTelefone = botao.dataset.telefone;
+      const clienteServidor = botao.dataset.servidor;
+      const clienteFormaPgto = botao.dataset.forma_pgto;
+      const clienteAplicativo = botao.dataset.aplicativo;
+      const clienteDispositivo = botao.dataset.dispositivo;
+      const clienteDataPagamento = botao.dataset.data_pagamento;
+      
+      let clienteNotas = botao.dataset.notas;
+      if (clienteNotas == 'None' || clienteNotas == null || clienteNotas == 'undefined'){
+        clienteNotas = '';
+      }
+      
+      let clienteIndicadoPor = botao.dataset.indicado_por;
+      if (clienteIndicadoPor == 'None' || clienteIndicadoPor == null || clienteIndicadoPor == 'undefined'){
+        clienteIndicadoPor = '';
+      }
+  
+      const form = document.querySelector("#edit-cliente-form");
+      form.action = `/editar-cliente/${clienteId}/`;
+      form.querySelector("#cliente-id").value = clienteId;
+      form.querySelector("#edit-cliente-nome").value = clienteNome;
+      form.querySelector("#edit-cliente-telefone").value = clienteTelefone;
+      form.querySelector("#edit-cliente-indicado_por").value = clienteIndicadoPor;
+      form.querySelector("#edit-cliente-servidor").value = clienteServidor;
+      form.querySelector("#edit-cliente-forma_pgto").value = clienteFormaPgto;
+      form.querySelector("#edit-cliente-plano").value = clientePlano;
+      form.querySelector("#edit-cliente-tela").value = clienteTela;
+      form.querySelector("#edit-cliente-dt_pgto").value = clienteDataPagamento;
+      form.querySelector("#edit-cliente-dispositivo").value = clienteDispositivo;
+      form.querySelector("#edit-cliente-aplicativo").value = clienteAplicativo;
+      form.querySelector("#edit-cliente-notas").value = clienteNotas;
+  
+      const modal = new bootstrap.Modal(document.querySelector("#edit-cliente-modal"));
+      modal.show();
+    }
+  
+    $('#edit-cliente-modal').on('click', '.btn-close, .btn-secondary', function () {
+      $('#edit-cliente-modal').modal('hide');
+    });
+</script>
+
+<script>
+    const input1 = document.querySelector('input[name="indicado_por"]');
+    input1.addEventListener('input', (event) => {
+    const value1 = event.target.value;
+    input1.value = value1;
+    });
+
+    const input2 = document.querySelector('input[name="servidor"]');
+    input2.addEventListener('input', (event) => {
+    const value2 = event.target.value;
+    input2.value = value2;
+    });
+
+    const input3 = document.querySelector('input[name="forma_pgto"]');
+    input3.addEventListener('input', (event) => {
+    const value3 = event.target.value;
+    input3.value = value3;
+    });
+
+    const input4 = document.querySelector('input[name="plano"]');
+    input4.addEventListener('input', (event) => {
+    const value4 = event.target.value;
+    input4.value = value4;
+    });
+
+    const input5 = document.querySelector('input[name="tela"]');
+    input5.addEventListener('input', (event) => {
+    const value5 = event.target.value;
+    input5.value = value5;
+    });
+
+    const input6 = document.querySelector('input[name="dt_pgto"]');
+    input6.addEventListener('input', (event) => {
+    const value6 = event.target.value;
+    input6.value = value6;
+    });
+
+    const input7 = document.querySelector('input[name="dispositivo"]');
+    input7.addEventListener('input', (event) => {
+    const value7 = event.target.value;
+    input7.value = value7;
+    });
+
+    const input8 = document.querySelector('input[name="dispositivo"]');
+    input8.addEventListener('input', (event) => {
+    const value8 = event.target.value;
+    input8.value = value8;
+    });
+
+    const input9 = document.querySelector('input[name="aplicativo"]');
+    input9.addEventListener('input', (event) => {
+    const value9 = event.target.value;
+    input9.value = value9;
+    });
 </script>

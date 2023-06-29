@@ -6,7 +6,6 @@ from .views import (
     SessionWpp,
     ObterLogsWpp,
     EditarCliente,
-    ListaClientes,
     DeleteServidor,
     EditarServidor,
     TabelaDashboard,
@@ -25,6 +24,7 @@ from .views import (
     DeleteDispositivo,
     EditarDispositivo,
     CadastroAplicativo,
+    ClientesCancelados,
     CadastroPlanoAdesao,
     CadastroDispositivo,
     DeleteFormaPagamento,
@@ -42,7 +42,7 @@ urlpatterns = [
 
     ############ List and Dashboard ###########
     path("dashboard/", TabelaDashboard.as_view(), name="dashboard"),
-    path("listagem-clientes/", ListaClientes.as_view(), name="listagem-clientes"),
+    path("clientes-cancelados/", ClientesCancelados.as_view(), name="clientes-cancelados"),
     path("cancelar-cliente/<int:cliente_id>/", cancelar_cliente, name="cancelar-cliente"),
     path("pagar-mensalidade/<int:mensalidade_id>/", pagar_mensalidade, name="pagar-mensalidade"),
 
