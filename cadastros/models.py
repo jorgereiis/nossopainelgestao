@@ -275,3 +275,14 @@ class SessaoWpp(models.Model):
 
     def __str__(self) -> str:
         return self.usuario
+    
+
+class SecretTokenAPI(models.Model):
+    token = models.CharField(max_length=255)
+
+    class Meta:
+        verbose_name = "Secret Token API"
+        verbose_name_plural = "Secrets Tokens API"
+
+    def __str__(self) -> str:
+        return self.token

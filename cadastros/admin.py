@@ -1,16 +1,17 @@
 from django.contrib import admin
 from .models import (
-    Servidor,
-    Tipos_pgto,
-    Dispositivo,
-    Aplicativo,
-    Qtd_tela,
-    Cliente,
     Plano,
+    Cliente,
+    Qtd_tela,
+    Servidor,
+    SessaoWpp,
+    Aplicativo,
+    Tipos_pgto,
     Mensalidade,
+    Dispositivo,
+    SecretTokenAPI,
     PlanoIndicacao,
     ContaDoAplicativo,
-    SessaoWpp,
 )
 
 
@@ -90,6 +91,7 @@ admin.site.register(SessaoWpp, SessaoWppAdmin)
 admin.site.register(Cliente, ClienteAdmin)
 admin.site.register(Plano, PlanoAdmin)
 admin.site.register(PlanoIndicacao)
+admin.site.register(SecretTokenAPI)
 admin.site.register(Dispositivo)
 admin.site.register(Aplicativo)
 admin.site.register(Tipos_pgto)

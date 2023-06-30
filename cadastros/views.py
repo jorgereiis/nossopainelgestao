@@ -1,4 +1,4 @@
-from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp)
+from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI)
 from django.http import HttpResponseBadRequest, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -480,6 +480,20 @@ def EnviarMensagemWpp(request):
         return JsonResponse({'success': 'Envio concluído'}, status=200)
 
     return JsonResponse({'error': 'Método inválido'}, status=400)
+
+
+@login_required
+def SecretTokenAPIView(request):
+    """
+        Função de view para consultar o Secret Token da API WPP Connect
+    """
+    if request.method == 'GET':
+        query = SecretTokenAPI.objects.get(id=1)
+        token = query.token
+    else:
+        return JsonResponse({"error_message": "Método da requisição não permitido."}, status=500)
+    
+    return JsonResponse({"stkn": token}, status=200)
 
 
 @login_required
