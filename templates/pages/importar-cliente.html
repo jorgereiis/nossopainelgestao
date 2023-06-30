@@ -50,11 +50,10 @@
                                 </p>
 
                                 <p class="mb-0">
-                                    Recomendamos que após preencher a planilha totalmente, antes de importar ordene as linhas por "data_adesao".
+                                    Recomendamos que após preencher a planilha totalmente, antes de importar ordene as linhas por "data_adesao", clicando no Filtro da coluna e escolhendo a opção "Classifica do Mais Antigo para o Mais Novo".
                                 </p>
                                 <p>
-                                    Dessa forma a importação será realizada seguindo a sequencia dos clientes mais antigos para os mais novos.
-                                    Para fazer essa ordenação, basta clicar no filtro existente na coluna "data_adesao" e "Classificar do Mais Novo para o Mais Antigo".
+                                    Dessa forma a importação será realizada seguindo a sequencia dos clientes mais antigos para os mais novos e caso hajam nomes dos clientes indicados, eles serão associados corretamente.
                                 </p>
 
                                 <p class="mb-0 fs-5 text-muted">Baixe o modelo, preencha e envie.</p>
@@ -79,10 +78,9 @@
                             <p class="mb-0 text-muted small">- O número do telefone deve seguir o padrão mostrado,
                                 contendo prefixo do país + DDD + número, sem parêntese, traços ou qualquer outro
                                 caractere especial;</p>
-                            <p class="mb-0 text-muted small">- Se a data de pagamento estiver em branco no arquivo, será
-                                definida uma data entre 5, 10, 15, 20, 25 e 30, que seja mais a próxima do dia da
-                                importação;</p>
-                            <p class="mb-0 text-muted small">- Para o campo 'tipo_plano', as única opções aceitas serão: Mensal, Semestral ou Anual. Caso seja informado um diferente, o cliente não será salvo.</p>
+                            <p class="mb-0 text-muted small">- Se o valor de "data_pagamento" estiver em branco no arquivo, será
+                                definido o dia da "data_adesao" como dia de pagamento da próxima mensalidade;</p>
+                            <p class="mb-0 text-muted small">- Para o campo 'tipo_plano', as única opções aceitas serão: Mensal, Trimestral, Semestral ou Anual. Caso seja informado um diferente, o cliente não será salvo.</p>
                             <p class="mb-0 text-muted small">- (<span class="text-danger">*</span>) Campos obrigatórios (caso seja escolhido algum aplicativo que possua uma conta de ativação, por exemplo, DuplexPlay, Clouddy ou algum outro, será obrigatório o preenchimento dos dados de "device_id" e "device_key"/"email").
                             </p>
                         </div>
@@ -104,9 +102,9 @@
                                                 <th scope="col">servidor <span class="text-danger">*</span></th>
                                                 <th scope="col">dispositivo <span class="text-danger">*</span></th>
                                                 <th scope="col">sistema <span class="text-danger">*</span></th>
-                                                <th scope="col">device_id</th>
-                                                <th scope="col">email</th>
-                                                <th scope="col">device_key</th>
+                                                <th scope="col">device_id <span class="text-danger">*</span></th>
+                                                <th scope="col">email <span class="text-danger">*</span></th>
+                                                <th scope="col">device_key <span class="text-danger">*</span></th>
                                                 <th scope="col">nome <span class="text-danger">*</span></th>
                                                 <th scope="col">telefone <span class="text-danger">*</span></th>
                                                 <th scope="col">indicado_por</th>

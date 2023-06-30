@@ -1183,11 +1183,11 @@ def ImportarClientes(request):
 @login_required
 def CadastroCliente(request):
     # Criando os queryset para exibir os dados nos campos do fomulário
-    plano_queryset = Plano.objects.filter(usuario=request.user)
+    plano_queryset = Plano.objects.filter(usuario=request.user).order_by('nome')
     telas_queryset = Qtd_tela.objects.all().order_by('telas')
     forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=request.user)
     servidor_queryset = Servidor.objects.filter(usuario=request.user).order_by('nome')
-    sistema_queryset = Aplicativo.objects.filter(usuario=request.user).order_by('-nome')
+    sistema_queryset = Aplicativo.objects.filter(usuario=request.user).order_by('nome')
     indicador_por_queryset = Cliente.objects.filter(usuario=request.user).order_by('nome')
     dispositivo_queryset = Dispositivo.objects.filter(usuario=request.user).order_by('nome')
     usuario = request.user
