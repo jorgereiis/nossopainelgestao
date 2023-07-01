@@ -241,8 +241,8 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         mes_atual = timezone.localtime().date().month
 
         # Variáveis para context do modal de edição do cadastro do cliente
-        indicadores = Cliente.objects.filter(usuario=self.request.user)
-        servidores = Servidor.objects.filter(usuario=self.request.user)
+        indicadores = Cliente.objects.filter(usuario=self.request.user).order_by('nome')
+        servidores = Servidor.objects.filter(usuario=self.request.user).order_by('nome')
         formas_pgtos = Tipos_pgto.objects.filter(usuario=self.request.user)
         planos = Plano.objects.filter(usuario=self.request.user).order_by('valor')
         telas = Qtd_tela.objects.all().order_by('telas')
