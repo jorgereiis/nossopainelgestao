@@ -104,7 +104,7 @@ DATABASES = {
 """DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'os.getenv("DB")',
+        'NAME': os.getenv("DB"),
         'USER': os.getenv("USER"),
         'PASSWORD': os.getenv("PASS"),
         'HOST': 'localhost',
