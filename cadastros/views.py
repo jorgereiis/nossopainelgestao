@@ -601,15 +601,20 @@ def reativar_cliente(request, cliente_id):
     # Se tudo ocorrer corretamente, retorna uma confirmação
     return JsonResponse({"success_message_activate": "Reativação feita!"})
 
-
+import calendar
 # AÇÃO DE PAGAR MENSALIDADE
 @login_required
 def pagar_mensalidade(request, mensalidade_id):
     """
     Função de view para pagar uma mensalidade.
     """
+    hoje = timezone.localtime().date()
     mensalidade = Mensalidade.objects.get(pk=mensalidade_id, usuario=request.user)
 
+    # Verifica se a mensalidade está atrasada por mais de 7 dias
+    if mensalidade.dt_vencimento < hoje - timedelta(days=7):
+        return JsonResponse({"error_message": "erro"})
+    
     # Realiza as modificações na mensalidade paga
     mensalidade.dt_pagamento = timezone.localtime().date()
     mensalidade.pgto = True
@@ -617,10 +622,10 @@ def pagar_mensalidade(request, mensalidade_id):
         mensalidade.save()
     except Exception as erro:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
-        return JsonResponse({"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."})
+        return JsonResponse({"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."}, status=500)
 
     # Retorna uma resposta JSON indicando que a mensalidade foi paga com sucesso
-    return JsonResponse({"success_message_invoice": "Mensalidade paga!"})
+    return JsonResponse({"success_message_invoice": "Mensalidade paga!"}, status=200)
 
 
 # AÇÃO PARA CANCELAMENTO DE CLIENTE

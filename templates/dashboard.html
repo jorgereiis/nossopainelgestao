@@ -1250,7 +1250,7 @@
                         swal.fire({
                             icon: 'info',
                             title: 'Cancelado!',
-                            html: '<span style="font-size: 20px">😮</span><br>' + response.success_message_cancel + '<br>Caso queira reativar, basta acessar a listagem dos seus clientes.',
+                            html: '<span style="font-size: 20px">😮</span><br>' + response.success_message_cancel + '<br>Caso queira reativar, basta acessar seus clientes cancelados.',
                         }).then(function() {
                             location.reload();
                         });
@@ -1330,8 +1330,8 @@
 
                         swal.fire({
                             icon: 'error',
-                            title: 'Oops...',
-                            text: response.error_message,
+                            title: 'Ação não permitida!',
+                            html: 'Não é permitido pagar uma mensalidade com mais de 8 dias de atraso.<br>Cancele este cliente e ative-o novamente.',
                         });
                     }
                 },
@@ -1342,7 +1342,7 @@
                     swal.fire({
                         icon: 'error',
                         title: 'Oops...',
-                        text: 'Ocorreu um erro ao tentar cancelar o cliente.',
+                        text: 'Ocorreu um erro inesperado!',
                     });
                 }
             });
