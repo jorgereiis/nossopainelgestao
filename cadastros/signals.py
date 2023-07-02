@@ -92,7 +92,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
     hoje = timezone.localtime().date()
 
     # Verificar se a mensalidade está paga e a data de vencimento está dentro do intervalo desejado
-    if instance.dt_pagamento and instance.pgto and hoje - timedelta(days=7) >= instance.dt_vencimento:
+    if instance.dt_pagamento and instance.pgto and not instance.dt_vencimento < hoje - timedelta(days=7):
         data_vencimento_anterior = instance.dt_vencimento  # recebe a data de vencimento da mensalidade que foi paga
 
         # Verifica se a data de vencimento da mensalidade anterior é maior que a data atual.
