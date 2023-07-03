@@ -81,7 +81,8 @@ function getSessionToken() {
     const url = base_url + user + '/' + stkn + generate_token_url;
     console.log('STKN: ', stkn);
     console.log('URL: ', url);
-
+    // comentario
+    
     fetch(url, {
         method: 'POST',
         headers: {
