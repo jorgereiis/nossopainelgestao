@@ -75,12 +75,11 @@ function logout() {
 
 // FUNÇÃO DE API 1: get session token
 function getSessionToken() {
-    //const stkn = get_stkn();
-    const s = 'ThiiisIsMyS33cr33tJRG'
+    const stkn = get_stkn();
     const base_url = 'https://api.nossopainel.com.br/api/';
     const user = document.getElementById('user-session').value;
-    const url = base_url + user + '/' + s + generate_token_url;
-    console.log('STKN: ', s);
+    const url = base_url + user + '/' + stkn + generate_token_url;
+    console.log('STKN: ', stkn);
     console.log('URL: ', url);
 
     fetch(url, {
@@ -325,6 +324,7 @@ function get_stkn() {
     })
     .then(response => response.json())
     .then(responseData => {
+        console.log('GET_STKN: ', responseData);
         const data = responseData.stkn;
     })
     .catch(error => {
