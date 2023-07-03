@@ -488,8 +488,11 @@ def SecretTokenAPIView(request):
         Função de view para consultar o Secret Token da API WPP Connect
     """
     if request.method == 'GET':
-        query = SecretTokenAPI.objects.get(id=1)
-        token = query.token
+        if request.user:
+            query = SecretTokenAPI.objects.get(id=1)
+            token = query.token
+        else:
+            return JsonResponse({"error_message": "Usuário da requisição não identificado."}, status=500)
     else:
         return JsonResponse({"error_message": "Método da requisição não permitido."}, status=500)
     
@@ -502,7 +505,7 @@ def ObterSessionWpp(request):
         Função de view para consultar o Token da sessão WhatsApp do usuário da requisição
     """
     if request.method == 'GET':
-        if request.user:    
+        if request.user:
             sessao = get_object_or_404(SessaoWpp, usuario=request.user)
             token = sessao.token
         else:
