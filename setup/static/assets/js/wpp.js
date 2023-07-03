@@ -75,10 +75,13 @@ function logout() {
 
 // FUNÇÃO DE API 1: get session token
 function getSessionToken() {
-    const stkn = get_stkn();
+    //const stkn = get_stkn();
+    const s = 'ThiiisIsMyS33cr33tJRG'
     const base_url = 'https://api.nossopainel.com.br/api/';
     const user = document.getElementById('user-session').value;
-    const url = base_url + user + '/' + stkn + generate_token_url;
+    const url = base_url + user + '/' + s + generate_token_url;
+    console.log('STKN: ', s);
+    console.log('URL: ', url);
 
     fetch(url, {
         method: 'POST',
@@ -240,11 +243,12 @@ function getCookie(name) {
 
 // Requisições para API Django (obter dados da sessão salva)
 function getTokenBackend() {
-    const url = '/obter_session_wpp'
+    const url = '/obter_session_wpp/'
     fetch(url, {
         method: 'GET',
         headers: {
         'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
         },
     })
     .then(response => response.json())
@@ -308,7 +312,7 @@ function deletarSessionToken() {
     });
 }
 
-// Requisições para API Django (deletar token da sessão WhatsApp)
+// Requisições para API Django (obter stkn)
 function get_stkn() {
     const url = '/obter_stkn/';
 
@@ -327,7 +331,6 @@ function get_stkn() {
         console.error('Error', error);
     });
 }
-get_stkn();
 
 // Função para envio das mensagens avulsas
 function enviarMensagemWpp() {
