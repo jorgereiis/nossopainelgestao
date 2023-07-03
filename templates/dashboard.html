@@ -1442,10 +1442,12 @@
 
                 data.mensalidades_totais.forEach(function(mensalidade) {
                     var tr = document.createElement('tr');
-
                     var tdId = document.createElement('td');
                     tdId.textContent = mensalidade.id;
                     tr.appendChild(tdId);
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    const dataVencimento = mensalidade.dt_vencimento.replace(/(\d{4})-(\d{2})-(\d{2})/, '$2/$3/$1');
 
                     function formatarData(data) {
                         var partes = data.split('-');
@@ -1458,9 +1460,9 @@
                         tdStatus.innerHTML = '<span class="badge rounded-pill bg-success pill-invoice"><i class="bi bi-check-circle"></i>  Pago</span>';
                     } else if (mensalidade.cancelado) {
                         tdStatus.innerHTML = '<span class="badge rounded-pill bg-warning pill-invoice"><i class="bi bi-x-square"></i>  Cancelado</span>';
-                    } else if (new Date(mensalidade.dt_vencimento) < new Date()) {
+                    } else if (new Date(dataVencimento) < hoje) {
                         tdStatus.innerHTML = '<span class="badge rounded-pill bg-danger pill-invoice"><i class="bi bi-exclamation-triangle"></i>  Inadimplente</span>';
-                    } else if (new Date(mensalidade.dt_vencimento) >= new Date()) {
+                    } else if (new Date(dataVencimento) >= hoje) {
                         tdStatus.innerHTML = '<span class="badge rounded-pill bg-secondary pill-invoice"><i class="bi bi-clock"></i>  Em aberto</span>';
                     }
                     tr.appendChild(tdStatus);

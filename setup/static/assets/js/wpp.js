@@ -79,10 +79,7 @@ function getSessionToken() {
     const base_url = 'https://api.nossopainel.com.br/api/';
     const user = document.getElementById('user-session').value;
     const url = base_url + user + '/' + stkn + generate_token_url;
-    console.log('STKN: ', stkn);
-    console.log('URL: ', url);
-    // comentario
-    
+
     fetch(url, {
         method: 'POST',
         headers: {
