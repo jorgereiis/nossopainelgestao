@@ -330,6 +330,7 @@ function get_stkn() {
         console.log('GET_STKN: ', responseData);
         const data = responseData.stkn;
         console.log('Data stkn: ', data);
+        return data;
     })
     .catch(error => {
         console.error('Error', error);
