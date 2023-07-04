@@ -185,6 +185,7 @@ function createCookie(token) {
 
 // FUNÇÃO AUXILIAR 2: criação do cookie com token da sessão WhatsApp do usuário
 function createCookieSTKN(token) {
+    console.log('cookie stkn ', token);
     const expirationDate = new Date('9999-12-31');
     const cookieName = 'stkn';
     const cookieOptions = {
