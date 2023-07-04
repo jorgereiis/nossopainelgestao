@@ -5,6 +5,8 @@ let intervalId = null;
 
 // FUNÇÃO DE CONTROLE 1: connect
 async function connect() {
+    console.log('Função inicial: connect');
+
     const user = document.getElementById('user-session').value;
     const showQrCodeDiv = document.getElementById('show-qrcode');
     const cookieName = `token-wpp-${user}`;
@@ -20,7 +22,7 @@ async function connect() {
     } else {
         const token_backend = getTokenBackend(user);
 
-        if (token_backend) { // verifica se existe o token no backend para criar o cookie
+        if (token_backend != undefined) { // verifica se existe o token no backend para criar o cookie
             createCookie(token_backend);
             intervalId = setInterval(checkSession, 15000);
 
@@ -102,6 +104,8 @@ function getSessionToken() {
 
 // FUNÇÃO DE API 2: start session
 function startSession() {
+    console.log('Função: startSession');
+
     const base_url = 'https://api.nossopainel.com.br/api/';
     const start_session_url = '/start-session';
     const user = document.getElementById('user-session').value;
