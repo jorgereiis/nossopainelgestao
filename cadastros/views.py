@@ -42,6 +42,10 @@ class Login(LoginView):
     redirect_authenticated_user = True
     success_url = 'dashboard/'
 
+# PÁGINA DE ERRO 404
+def not_found(request, exception):
+    return render(request, 'pages/404-error.html')
+
 ############################################ LIST VIEW ############################################
 
 class CarregarContasDoAplicativo(LoginRequiredMixin, View):

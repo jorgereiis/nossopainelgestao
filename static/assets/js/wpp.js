@@ -20,7 +20,7 @@ async function connect() {
     } else {
         const token_backend = getTokenBackend(user);
 
-        if (token_backend) { // verifica se existe o token no backend para criar o cookie
+        if (token_backend != undefined && token_backend != null) { // verifica se existe o token no backend para criar o cookie
             createCookie(token_backend);
             intervalId = setInterval(checkSession, 15000);
 
@@ -74,8 +74,8 @@ function logout() {
 }
 
 // FUNÇÃO DE API 1: get session token
-function getSessionToken() {
-    const stkn = get_stkn();
+async function getSessionToken() {
+    const stkn = await get_stkn();
     const base_url = 'https://api.nossopainel.com.br/api/';
     const user = document.getElementById('user-session').value;
     const url = base_url + user + '/' + stkn + generate_token_url;
@@ -159,6 +159,7 @@ async function loadQrcode() {
         qrCodeImage.src = qrcode;
         showQrCodeDiv.appendChild(qrCodeImage);
         return responseJson;
+        
     } catch (error) {
         console.error('Ocorreu um erro:', error);
         throw error;
@@ -240,11 +241,12 @@ function getCookie(name) {
 
 // Requisições para API Django (obter dados da sessão salva)
 function getTokenBackend() {
-    const url = '/obter_session_wpp'
+    const url = '/obter_session_wpp/'
     fetch(url, {
         method: 'GET',
         headers: {
         'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
         },
     })
     .then(response => response.json())
@@ -276,7 +278,7 @@ function salvarSessionToken(token) {
         console.log('Salvando token no backend:', responseData);
     })
     .catch(error => {
-        console.error('Erro ao tentar salvar token no backend:', error);
+        console.error('Erro ao tentar salvar token no backend: ', error);
     });
 }
 
@@ -304,30 +306,31 @@ function deletarSessionToken() {
         // Realizar ações adicionais após deletar o token, se necessário
     })
     .catch(error => {
-        console.error('Erro ao tentar deletar token no backend:', error);
+        console.error('Erro ao tentar deletar token no backend: ', error);
     });
 }
 
-// Requisições para API Django (deletar token da sessão WhatsApp)
-function get_stkn() {
+// Requisições para API Django (obter stkn)
+async function get_stkn() {
     const url = '/obter_stkn/';
 
-    fetch(url, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-    })
-    .then(response => response.json())
-    .then(responseData => {
-        const data = responseData.stkn;
-    })
-    .catch(error => {
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+        });
+        const responseData = await response.json();
+        const data_1 = responseData.stkn;
+        return data_1;
+    } catch (error) {
         console.error('Error', error);
-    });
+        throw error;
+    }
 }
-get_stkn();
+
 
 // Função para envio das mensagens avulsas
 function enviarMensagemWpp() {
