@@ -102,8 +102,6 @@ async function getSessionToken() {
 
 // FUNÇÃO DE API 2: start session
 function startSession() {
-    console.log('Função: startSession');
-
     const base_url = 'https://api.nossopainel.com.br/api/';
     const start_session_url = '/start-session';
     const user = document.getElementById('user-session').value;
@@ -325,9 +323,7 @@ async function get_stkn() {
             },
         });
         const responseData = await response.json();
-        console.log('GET_STKN: ', responseData);
         const data_1 = responseData.stkn;
-        console.log('Data stkn: ', data_1);
         return data_1;
     } catch (error) {
         console.error('Error', error);
