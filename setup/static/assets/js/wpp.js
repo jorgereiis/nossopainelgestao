@@ -76,8 +76,8 @@ function logout() {
 }
 
 // FUNÇÃO DE API 1: get session token
-function getSessionToken() {
-    const stkn = get_stkn();
+async function getSessionToken() {
+    const stkn = await get_stkn();
     const base_url = 'https://api.nossopainel.com.br/api/';
     const user = document.getElementById('user-session').value;
     const url = base_url + user + '/' + stkn + generate_token_url;
