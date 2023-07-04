@@ -76,8 +76,8 @@ function logout() {
 }
 
 // FUNÇÃO DE API 1: get session token
-async function getSessionToken() {
-    const stkn = getCookie('stkn');
+function getSessionToken() {
+    const stkn = get_stkn();
     const base_url = 'https://api.nossopainel.com.br/api/';
     const user = document.getElementById('user-session').value;
     const url = base_url + user + '/' + stkn + generate_token_url;
@@ -183,30 +183,16 @@ function createCookie(token) {
     document.cookie = `${cookieName}=${token}; path=${cookieOptions.path}; expires=${cookieOptions.expires}`;
 }
 
-// FUNÇÃO AUXILIAR 2: criação do cookie com token da sessão WhatsApp do usuário
-function createCookieSTKN(token) {
-    console.log('cookie stkn ', token);
-    const expirationDate = new Date('9999-12-31');
-    const cookieName = 'stkn';
-    const cookieOptions = {
-        path: '/dashboard/', // Define o caminho do cookie
-        expires: expirationDate.toUTCString(), // define expiração do cookie
-    };
-    document.cookie = `${cookieName}=${token}; path=${cookieOptions.path}; expires=${cookieOptions.expires}`;
-}
-
-// FUNÇÃO AUXILIAR 3: deletar o cookie "token-wpp"
+// FUNÇÃO AUXILIAR 2: deletar o cookie "token-wpp"
 function deleteCookie() {
     const expirationDate = new Date('2000-01-01');  // Define uma data passada
     const user = document.getElementById('user-session').value;
-    const cookieName1 = `token-wpp-${user}`;
-    const cookieName2 = 'stkn';
+    const cookieName = `token-wpp-${user}`;
     const cookieOptions = {
         path: '/dashboard/', // Define o caminho do cookie
         expires: expirationDate.toUTCString(), // Define a expiração do cookie
     };
-    document.cookie = `${cookieName1}=; path=${cookieOptions.path}; expires=${cookieOptions.expires}`;
-    document.cookie = `${cookieName2}=; path=${cookieOptions.path}; expires=${cookieOptions.expires}`;
+    document.cookie = `${cookieName}=; path=${cookieOptions.path}; expires=${cookieOptions.expires}`;
 }
 
 // Função para deletar a sessão do usuário logado
@@ -329,28 +315,28 @@ function deletarSessionToken() {
 }
 
 // Requisições para API Django (obter stkn)
-function get_stkn() {
+async function get_stkn() {
     const url = '/obter_stkn/';
 
-    fetch(url, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-    })
-    .then(response => response.json())
-    .then(responseData => {
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+        });
+        const responseData = await response.json();
         console.log('GET_STKN: ', responseData);
-        const data = responseData.stkn;
-        createCookieSTKN(data);
-        console.log('Data stkn: ', data);
-        return data;
-    })
-    .catch(error => {
+        const data_1 = responseData.stkn;
+        console.log('Data stkn: ', data_1);
+        return data_1;
+    } catch (error) {
         console.error('Error', error);
-    });
+        throw error;
+    }
 }
+
 
 // Função para envio das mensagens avulsas
 function enviarMensagemWpp() {
