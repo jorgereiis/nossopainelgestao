@@ -308,7 +308,7 @@ function deletarSessionToken() {
     });
 }
 
-// Requisições para API Django (deletar token da sessão WhatsApp)
+// Requisições para API Django (obter stkn)
 function get_stkn() {
     const url = '/obter_stkn/';
 
@@ -327,7 +327,6 @@ function get_stkn() {
         console.error('Error', error);
     });
 }
-get_stkn();
 
 // Função para envio das mensagens avulsas
 function enviarMensagemWpp() {
