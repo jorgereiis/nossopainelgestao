@@ -278,7 +278,7 @@ function salvarSessionToken(token) {
         console.log('Salvando token no backend:', responseData);
     })
     .catch(error => {
-        console.error('Erro ao tentar salvar token no backend:', error);
+        console.error('Erro ao tentar salvar token no backend: ', error);
     });
 }
 
@@ -306,7 +306,7 @@ function deletarSessionToken() {
         // Realizar ações adicionais após deletar o token, se necessário
     })
     .catch(error => {
-        console.error('Erro ao tentar deletar token no backend:', error);
+        console.error('Erro ao tentar deletar token no backend: ', error);
     });
 }
 
