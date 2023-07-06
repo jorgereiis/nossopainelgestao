@@ -250,7 +250,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         indicadores = Cliente.objects.filter(usuario=self.request.user).order_by('nome')
         servidores = Servidor.objects.filter(usuario=self.request.user).order_by('nome')
         formas_pgtos = Tipos_pgto.objects.filter(usuario=self.request.user)
-        planos = Plano.objects.filter(usuario=self.request.user).order_by('valor')
+        planos = Plano.objects.filter(usuario=self.request.user).order_by('nome')
         telas = Qtd_tela.objects.all().order_by('telas')
         dispositivos = Dispositivo.objects.filter(usuario=self.request.user).order_by('nome')
         aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
