@@ -147,27 +147,3 @@ var offcanvasList = offcanvasElementList.map(function (offcanvasEl) {
 
 
 })();
-
-
-function reativarCliente(clienteId) {
-  const toggleSwitch = document.getElementById(`reativar-${clienteId}`);
-  
-  if (toggleSwitch.checked) {
-      // Realizar a requisição para a URL de reativação do cliente
-      fetch(`/reativar-cliente/${clienteId}/`, {
-          method: 'POST',  // Ou o método HTTP adequado para a sua aplicação
-          headers: {
-              'X-CSRFToken': "{{ csrf_token }}"  // Obter o token CSRF
-          }
-      })
-      .then(response => response.json())
-      .then(data => {
-          // Manipular a resposta da requisição, se necessário
-          console.log(data);
-      })
-      .catch(error => {
-          // Lidar com erros, se necessário
-          console.error(error);
-      });
-  }
-}

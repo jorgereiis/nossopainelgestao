@@ -176,7 +176,7 @@ def mensalidades_vencidas():
 
 # Agendar a execução das funções
 schedule.every().day.at("10:00").do(mensalidades_a_vencer)
-schedule.every().day.at("10:00").do(mensalidades_vencidas)
+schedule.every().day.at("11:30").do(mensalidades_vencidas)
 
 # Executar indefinidamente
 while True:

@@ -3,8 +3,10 @@ from django.contrib.auth import views as auth_views
 from .views import (
     Login,
     Teste,
+    Perfil,
     SessionWpp,
     ObterLogsWpp,
+    EditarPerfil,
     EditarCliente,
     DeleteServidor,
     EditarServidor,
@@ -42,6 +44,7 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
 
     ############ List and Dashboard ###########
+    path("perfil/", Perfil, name="perfil"),
     path("dashboard/", TabelaDashboard.as_view(), name="dashboard"),
     path("clientes-cancelados/", ClientesCancelados.as_view(), name="clientes-cancelados"),
     path("cancelar-cliente/<int:cliente_id>/", cancelar_cliente, name="cancelar-cliente"),
@@ -58,6 +61,7 @@ urlpatterns = [
     path("cadastro-forma-pagamento/", CadastroFormaPagamento, name="cadastro-forma-pagamento"),
 
     ########### Edit ############    
+    path("editar-perfil/", EditarPerfil, name="editar-perfil"),
     path("editar-cliente/<int:cliente_id>/", EditarCliente, name="editar-cliente"),
     path('editar-servidor/<int:servidor_id>/', EditarServidor, name='editar-servidor'),
     path("reativar-cliente/<int:cliente_id>/", reativar_cliente, name="reativar-cliente" ),

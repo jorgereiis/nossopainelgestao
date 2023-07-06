@@ -286,3 +286,17 @@ class SecretTokenAPI(models.Model):
 
     def __str__(self) -> str:
         return self.token
+    
+
+class DadosBancarios(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    beneficiario = models.CharField(max_length=255)
+    instituicao = models.CharField(max_length=255)
+    tipo_chave = models.CharField(max_length=255)
+    chave = models.CharField(max_length=255)
+
+    class Meta:
+        verbose_name_plural = "Dados Bancários"
+
+    def __str__(self) -> str:
+        return '{} {}'.format(self.usuario.first_name, self.usuario.last_name)

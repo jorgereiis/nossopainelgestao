@@ -1,6 +1,6 @@
 {% load static %}
 
-<div class="header @@classList">
+<div class="header">
   <!-- navbar -->
   <nav class="navbar-classic navbar navbar-expand-lg">
     <a id="nav-toggle" href="#"><i data-feather="menu" class="nav-icon me-2 icon-xs"></i></a>
@@ -10,7 +10,7 @@
         <a class="rounded-circle" href="#" role="button" id="dropdownUser" data-bs-toggle="dropdown"
           aria-haspopup="true" aria-expanded="false">
           <div class="avatar avatar-md avatar-indicators avatar-online">
-            <img alt="avatar" src="{% static '/assets/images/svg/person-circle.svg' %}" class="rounded-circle" />
+            <img alt="avatar" src="{% static '/assets/images/avatar/user-avatar.jpg' %}" class="rounded-circle" />
           </div>
         </a>
         <div class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownUser">
@@ -19,7 +19,7 @@
 
             <div class="lh-1 ">
               <h5 class="mb-1"> {{ request.user }}</h5>
-              <a href="#" class="text-inherit fs-6">Editar perfil</a>
+              <a href="{% url 'perfil' %}" class="text-inherit fs-6">Ver perfil</a>
             </div>
             <div class=" dropdown-divider mt-3 mb-2"></div>
           </div>

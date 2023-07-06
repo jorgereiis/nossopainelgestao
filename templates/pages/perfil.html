@@ -1,0 +1,292 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Importar clientes | Nosso Painel - Gestão IPTV</title>
+</head>
+
+<body class="bg-light">
+  <div id="db-wrapper">
+    <!-- navbar vertical -->
+    {% include 'partials/navbar-vertical.html' %}
+    <!-- page content -->
+    <div id="page-content">
+      {% include 'partials/header.html' %}
+      <!-- Container fluid -->
+      <div class="container-fluid p-6">
+        <div class="row">
+          <div class="col-lg-12 col-md-12 col-12">
+            <!-- Page header -->
+            <div class="border-bottom pb-4 mb-4 ">
+              <h3 class="mb-0 fw-bold">Visão geral</h3>
+            </div>
+          </div>
+        </div>
+        <div class="row align-items-center">
+          <div class="col-xl-12 col-lg-12 col-md-12 col-12">
+            <!-- Bg -->
+            <div class="pt-20 rounded-top"
+              style="background: url({% static 'assets/images/background/profile-cover.jpg' %}) no-repeat; background-size: cover;">
+            </div>
+            <div class="bg-white rounded-bottom smooth-shadow-sm ">
+              <div class="d-flex align-items-center justify-content-between
+                  pt-4 pb-6 px-4">
+                <div class="d-flex align-items-center">
+                  <!-- avatar -->
+                  <div class="avatar-xxl avatar-indicators avatar-online me-2
+                      position-relative d-flex justify-content-end
+                      align-items-end mt-n10">
+                    <img src="{% static 'assets/images/avatar/user-avatar.jpg' %}"
+                      class=" avatar-xxl rounded-circle border border-4 border-white-color-40" alt="">
+                    <a href="#!" class="position-absolute top-0 right-0 me-2" data-bs-toggle="tooltip"
+                      data-placement="top" title="" data-original-title="Verified">
+                      <img src="{% static 'assets/images/svg/checked-mark.svg' %}" alt="" height=" 30" width="30">
+                    </a>
+                  </div>
+                  <!-- text -->
+                  <div class="lh-1">
+                    <h2 class="mb-0">{{nome_user}}
+                      <a href="#!" class="text-decoration-none" data-bs-toggle="tooltip" data-placement="top" title=""
+                        data-original-title="Beginner">
+
+                      </a>
+                    </h2>
+                    <p class="mb-0 d-block">@{{username}}</p>
+                  </div>
+                </div>
+                <div class="d-flex">
+                  <a href="#" class="btn btn-outline-primary d-none d-md-block">Alterar Senha</a>
+                  <div class="ms-2"></div>
+                  <a href="#" class="btn btn-outline-primary d-none d-md-block" data-instituicao="{{instituicao}}"
+                  data-beneficiario="{{beneficiario}}" data-tipo_chave="{{tipo_chave}}" data-chave="{{chave}}" data-nome="{{nome_user}}" data-sobrenome="{{sobrenome_user}}" data-email="{{email}}" onclick="exibirModalEdicaoDp(this)">Editar Dados</a>
+                </div>
+              </div>
+              <!-- nav -->
+              <ul class="nav nav-lt-tab px-4" id="pills-tab" role="tablist">
+                <li class="nav-item">
+                  <a class="nav-link active" href="#">Visão Geral</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="#">Outros</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <!-- content -->
+        <div class="py-6">
+          <!-- row -->
+          <div class="row">
+            <div class="col-xl-6 col-lg-12 col-md-12 col-12 mb-6">
+              <!-- card -->
+              <div class="card">
+                <!-- card body -->
+                <div class="card-body">
+                  <!-- card title -->
+                  <h4 class="card-title">Dados pessoais</h4>
+                  <!-- row -->
+                  <div class="row">
+                    <div class="col-6 mb-5">
+                      <h6 class="text-uppercase fs-5 ls-2">Telefone </h6>
+                      <p class="mb-0">--</p>
+                    </div>
+                    <div class="col-6">
+                      <h6 class="text-uppercase fs-5 ls-2">Email </h6>
+                      <p class="mb-0">{{ email }}</p>
+                    </div>
+                    <div class="col-6">
+                      <h6 class="text-uppercase fs-5 ls-2">Criado em </h6>
+                      <p class="mb-0">{{ dt_inicio}}</p>
+                    </div>
+                    <div class="col-6">
+                      <h6 class="text-uppercase fs-5 ls-2">Localização
+                      </h6>
+                      <p class="mb-0">João Pessoa, Brasil</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-6 col-lg-12 col-md-12 col-12 mb-6">
+              <!-- card -->
+              <div class="card">
+                <!-- card body -->
+                <div class="card-body">
+                  <!-- card title -->
+                  <h4 class="card-title">Dados bancários</h4>
+                  <!-- row -->
+                  <div class="row">
+                    <div class="col-6 mb-5">
+                      <h6 class="text-uppercase fs-5 ls-2">Instituição </h6>
+                      <p class="mb-0">{{instituicao}}</p>
+                    </div>
+                    <div class="col-6 mb-5">
+                      <h6 class="text-uppercase fs-5 ls-2">Nome do beneficiário </h6>
+                      <p class="mb-0">{{beneficiario}}</p>
+                    </div>
+                    <div class="col-6">
+                      <h6 class="text-uppercase fs-5 ls-2">Tipo de chave PIX </h6>
+                      <p class="mb-0">{{tipo_chave}}</p>
+                    </div>
+                    <div class="col-6">
+                      <h6 class="text-uppercase fs-5 ls-2">Chave
+                      </h6>
+                      <p class="mb-0">{{chave}}</p>
+                    </div>
+                  </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- Modal de edição dos dados pessoais -->
+  <div class="modal fade" id="edit-dp-modal" tabindex="-1" role="dialog" aria-labelledby="edit-dp-label">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="edit-dp-label">Editar Meus Dados</h4>
+          <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row align-items-center mb-2">
+            <div class="col-md-3 mb-3 mb-md-0">
+              <h4 class="mb-6">Avatar</h4>
+            </div>
+            <div class="col-md-9">
+              <div class="d-flex align-items-center">
+                <div class="me-3">
+                  <img src="{% static 'assets/images/avatar/user-avatar.jpg' %}" class="rounded-circle avatar avatar-lg" alt="">
+                </div>
+                <div>
+                  <button type="submit" class="btn btn-outline-white me-1">Alterar</button>
+                  <button type="submit" class="btn btn-outline-white">Remover</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <form id="form-avatar-modal" action="#" method="post" class="dropzone mb-3 border-dashed">
+              {% csrf_token %}
+              <div class="fallback">
+                <input name="file" type="file" multiple />
+              </div>
+            </form>
+          </div>
+          <div class="mb-6">
+            <h4 class="mb-1">Dados Pessoais</h4>
+          </div>
+          <form id="edit-dp-form" action="" method="post">
+            {% csrf_token %}
+            <div class="mb-3 row">
+              <label for="nome" class="col-sm-4 col-form-label form-label">Nome completo</label>
+              <div class="col-sm-4 mb-3 mb-lg-0">
+                <input type="text" class="form-control" placeholder="Nome" id="nome" name="nome" required>
+              </div>
+              <div class="col-sm-4">
+                <input type="text" class="form-control" placeholder="Sobrenome" id="sobrenome" name="sobrenome" required>
+              </div>
+            </div>
+            <div class="mb-3 row">
+              <label for="email" class="col-sm-4 col-form-label form-label">E-mail</label>
+              <div class="col-md-8 col-12">
+                <input type="email" class="form-control" placeholder="Email" id="email" name="email" required>
+              </div>
+            </div>
+            <div class="mb-6 mt-6">
+              <h4 class="mb-1">Dados de Pagamento</h4>
+            </div>
+            <div class="mb-3 row">
+              <label for="instituicao" class="col-sm-4 col-form-label form-label">Instituição</label>
+              <div class="col-md-8 col-12">
+                <input type="text" class="form-control" placeholder="Instituição bancária" id="instituicao" name="instituicao" required>
+              </div>
+            </div>
+            <div class="mb-3 row">
+              <label for="beneficiario" class="col-sm-4 col-form-label form-label">Beneficiário</label>
+              <div class="col-md-8 col-12">
+                <input type="text" class="form-control" placeholder="Nome do beneficiário" id="beneficiario" name="beneficiario" required>
+              </div>
+            </div>
+            <div class="mb-3 row">
+              <label for="tipo_chave" class="col-sm-4 col-form-label form-label">Tipo de chave</label>
+              <div class="col-md-8 col-12">
+                <select class="form-select" id="tipo_chave" name="tipo_chave" required>
+                  <option value="">Selecione o tipo da chave</option>
+                  <option value="Celular">Celular</option>
+                  <option value="CPF">CPF</option>
+                  <option value="E-mail">E-mail</option>
+                  <option value="Aleatória">Aleatória</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3 row">
+              <label for="chave" class="col-sm-4 col-form-label form-label">Chave</label>
+              <div class="col-md-8 col-12">
+                <input type="text" class="form-control" placeholder="Chave PIX" id="chave" name="chave" required>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" form="edit-dp-form" class="btn btn-primary">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <!-- Scripts -->
+  {% include 'partials/scripts.html' %}
+</body>
+</html>
+
+<script>
+  function exibirModalEdicaoDp(botao) {
+    let nome = botao.dataset.nome;
+    let email = botao.dataset.email;
+    let chave = botao.dataset.chave;
+    let sobrenome = botao.dataset.sobrenome;
+    let tipo_chave = botao.dataset.tipo_chave;
+    let instituicao = botao.dataset.instituicao;
+    let beneficiario = botao.dataset.beneficiario;
+    
+
+    // Verificar se o valor é igual a '--' e alterar para uma variável vazia
+    nome = nome === '--' ? '' : nome;
+    email = email === '--' ? '' : email;
+    chave = chave === '--' ? '' : chave;
+    sobrenome = sobrenome === '--' ? '' : sobrenome;
+    instituicao = instituicao === '--' ? '' : instituicao;
+    beneficiario = beneficiario === '--' ? '' : beneficiario;
+
+    const form = document.querySelector("#edit-dp-form");
+    form.action = '/editar-perfil/';
+    form.querySelector("#beneficiario").value = beneficiario;
+    form.querySelector("#instituicao").value = instituicao;
+    form.querySelector("#sobrenome").value = sobrenome;
+    form.querySelector("#email").value = email;
+    form.querySelector("#chave").value = chave;
+    form.querySelector("#nome").value = nome;
+
+    const tipoChaveSelect = form.querySelector("#tipo_chave");
+    if (tipo_chave === '--') {
+      tipoChaveSelect.selectedIndex = 0;
+    } else {
+      tipoChaveSelect.value = tipo_chave;
+    }
+
+    const modal = new bootstrap.Modal(document.querySelector("#edit-dp-modal"));
+    modal.show();
+  }
+
+  $('#edit-dp-modal').on('click', '.btn-close, .btn-secondary', function () {
+    $('#edit-dp-modal').modal('hide');
+  });
+</script>

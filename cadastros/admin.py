@@ -9,8 +9,9 @@ from .models import (
     Tipos_pgto,
     Mensalidade,
     Dispositivo,
-    SecretTokenAPI,
+    DadosBancarios,
     PlanoIndicacao,
+    SecretTokenAPI,
     ContaDoAplicativo,
 )
 
@@ -91,6 +92,7 @@ admin.site.register(SessaoWpp, SessaoWppAdmin)
 admin.site.register(Cliente, ClienteAdmin)
 admin.site.register(Plano, PlanoAdmin)
 admin.site.register(PlanoIndicacao)
+admin.site.register(DadosBancarios)
 admin.site.register(SecretTokenAPI)
 admin.site.register(Dispositivo)
 admin.site.register(Aplicativo)

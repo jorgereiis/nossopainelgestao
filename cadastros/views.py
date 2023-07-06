@@ -1,4 +1,4 @@
-from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI)
+from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI, DadosBancarios)
 from django.http import HttpResponseBadRequest, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -9,8 +9,10 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.views import LoginView
 from django.views.generic.list import ListView
 from django.forms.models import model_to_dict
+from django.contrib.auth.models import User
 from babel.numbers import format_currency
 from django.http import JsonResponse
+from django.contrib import messages
 from django.shortcuts import render
 from django.utils import timezone
 from django.db import transaction
@@ -531,6 +533,37 @@ def ObterLogsWpp(request):
     return JsonResponse({'logs': logs})
 
 
+def Perfil(request):
+    user = User.objects.get(username=request.user)
+    dados_bancarios = DadosBancarios.objects.filter(usuario=user.id).first()
+
+    dt_inicio = user.date_joined.strftime('%d/%m/%Y') if user.date_joined else '--'
+    f_name = user.first_name if user.first_name else '--'
+    l_name = user.last_name if user.last_name else '--'
+    email = user.email if user.email else '--'
+
+    beneficiario = dados_bancarios.beneficiario if dados_bancarios else '--'
+    instituicao = dados_bancarios.instituicao if dados_bancarios else '--'
+    tipo_chave = dados_bancarios.tipo_chave if dados_bancarios else '--'
+    chave = dados_bancarios.chave if dados_bancarios else '--'
+
+    return render(
+        request,
+        'pages/perfil.html',
+        {
+            'beneficiario': beneficiario,
+            'instituicao': instituicao,
+            'tipo_chave': tipo_chave,
+            'sobrenome_user': l_name,
+            'dt_inicio': dt_inicio,
+            'nome_user': f_name,
+            'username': user,
+            'email': email,
+            'chave': chave
+        },
+    )
+
+
 ############################################ UPDATE VIEW ############################################
 
 @login_required
@@ -1015,6 +1048,45 @@ def EditarAplicativo(request, aplicativo_id):
             )
 
     return redirect("cadastro-aplicativo")
+
+
+@login_required
+def EditarPerfil(request):
+    if request.method == "POST":
+        if request.user.is_authenticated:
+            try:
+                user = request.user
+                dados_usuario = user
+                dados_usuario.last_name = request.POST.get('sobrenome', '')
+                dados_usuario.first_name = request.POST.get('nome', '')
+                dados_usuario.email = request.POST.get('email', '')
+                dados_usuario.save()
+
+                dados_bancarios = DadosBancarios.objects.filter(usuario=user).first()
+                beneficiario = request.POST.get('beneficiario', '')
+                instituicao = request.POST.get('instituicao', '')
+                tipo_chave = request.POST.get('tipo_chave', '')
+                chave = request.POST.get('chave', '')
+
+                if not dados_bancarios:
+                    dados_bancarios = DadosBancarios(usuario=user)
+
+                dados_bancarios.beneficiario = beneficiario
+                dados_bancarios.instituicao = instituicao
+                dados_bancarios.tipo_chave = tipo_chave
+                dados_bancarios.chave = chave
+                dados_bancarios.save()
+
+                messages.success(request, 'Perfil editado com sucesso!')
+            except Exception as e:
+                messages.error(request, 'Ocorreu um erro ao editar o perfil. Verifique o log!')
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+        else:
+            messages.error(request, 'Usuário da requisição não identificado!')
+    else:
+        messages.error(request, 'Método da requisição não permitido!')
+
+    return redirect('perfil')
 
 
 def Teste(request):
