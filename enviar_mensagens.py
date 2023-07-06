@@ -15,6 +15,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 # Carregar as configurações do Django
 django.setup()
 
+from cadastros.models import DadosBancarios
 from cadastros.models import Mensalidade, SessaoWpp
 
 # Função para enviar mensagens e registrar em arquivo de log
@@ -92,6 +93,9 @@ def mensalidades_a_vencer():
     # Calcula a data daqui a 2 dias
     data_daqui_a_2_dias = data_atual + timedelta(days=2)
 
+    # Filtra os dados de pagamento do usuário
+    
+
     # Filtrar as mensalidades
     mensalidades = Mensalidade.objects.filter(
         dt_vencimento=data_daqui_a_2_dias,
@@ -113,10 +117,11 @@ def mensalidades_a_vencer():
 
         try:
             token_user = SessaoWpp.objects.get(usuario=usuario)
-        except SessaoWpp.DoesNotExist:
+            dados_pagamento = DadosBancarios.objects.get(usuario=usuario)
+        except SessaoWpp.DoesNotExist or DadosBancarios.DoesNotExist:
             continue  # Pula para a próxima iteração caso o objeto não seja encontrado
 
-        mensagem = """⚠️ *ATENÇÃO, {} !!!* ⚠️\n\n*A SUA MENSALIDADE VENCERÁ EM {}.*\n\n▶️ Deseja continuar com acesso ao nosso serviço?? Faça o seu pagamento até a data informada e evite a perca do acesso!\n\n▫ *PAGAMENTO COM PIX*\n\nCelular\n83993329190\nNuBank\nJorge Reis Galvão\n\n‼️ _Caso já tenha pago, por favor me envie o comprovante para confirmação e continuidade do acesso._""".format(primeiro_nome, dt_vencimento)
+        mensagem = """⚠️ *ATENÇÃO, {} !!!* ⚠️\n\n*A SUA MENSALIDADE VENCERÁ EM {}.*\n\n▶️ Deseja continuar com acesso ao nosso serviço?? Faça o seu pagamento até a data informada e evite a perca do acesso!\n\n▫ *PAGAMENTO COM PIX*\n\n{}\n{}\n{}\n{}\n\n‼️ _Caso já tenha pago, por favor me envie o comprovante para confirmação e continuidade do acesso._""".format(primeiro_nome, dt_vencimento, dados_pagamento.tipo_chave, dados_pagamento.chave, dados_pagamento.instituicao, dados_pagamento.beneficiario)
 
         enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente)
         
@@ -179,7 +184,7 @@ def mensalidades_vencidas():
 
 
 # Agendar a execução das funções
-schedule.every().day.at("10:00").do(mensalidades_a_vencer)
+schedule.every().day.at("12:25").do(mensalidades_a_vencer)
 schedule.every().day.at("10:00").do(mensalidades_vencidas)
 
 # Executar indefinidamente
