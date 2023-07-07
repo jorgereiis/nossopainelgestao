@@ -747,7 +747,7 @@ def EditarCliente(request, cliente_id):
             if cliente.telas != tela:
                 cliente.telas = tela
 
-            if cliente.data_pagamento != request.POST.get("dt_pgto"):
+            if cliente.data_pagamento != int(request.POST.get("dt_pgto")):
                 # Atribui o tipo do "plano" à variável "plano" para verificar nas condicionais a seguir
                 plano_nome = str(plano.nome)
                 plano_valor = int(plano.valor)
