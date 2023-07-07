@@ -510,7 +510,7 @@ def SecretTokenAPIView(request):
 @login_required
 def ObterSessionWpp(request):
     """
-        Função de view para consultar o Token da sessão WhatsApp do usuário da requisição
+        Função de view para consultar o Token da sessão WhatsApp do usuário da requisição.
     """
     if request.method == 'GET':
         if request.user:
