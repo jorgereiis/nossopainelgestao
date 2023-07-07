@@ -242,6 +242,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         f_name = self.request.user.first_name
         ano_atual = timezone.localtime().year
         proxima_semana = hoje + timedelta(days=7)
+        dt_inicio = str(self.request.user.date_joined)
         context = super().get_context_data(**kwargs)
         total_clientes = self.get_queryset().count()
         mes_atual = timezone.localtime().date().month
@@ -331,6 +332,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "range": range_num,
                 "nome_user": f_name,
                 "aplicativos": aplicativos,
+                "data_criacao_user": dt_inicio,
                 "total_clientes": total_clientes,
                 "valor_total_pago": valor_total_pago,
                 "novos_clientes_qtd": novos_clientes_qtd,

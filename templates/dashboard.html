@@ -135,6 +135,7 @@
                         <div>
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="mb-2 mb-lg-0">
+                                    <input id="data_criacao_user" value="{{data_criacao_user}}" hidden>
                                     <h2 class="mb-0  text-white">Boas-vindas, {{ nome_user }} <i class="bi bi-eye" id="eye"></i></h2>
                                 </div>
 
@@ -902,7 +903,7 @@
                                 <ul class="pagination justify-content-end mb-0">
                                     {% if page_obj.has_previous %}
                                     <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" tabindex="-1" aria-label="Anterior">
+                                    <a class="page-link" href="?page=1" aria-label="Primeira">
                                         <span aria-hidden="true">&laquo;</span>
                                     </a>
                                     </li>
@@ -946,7 +947,7 @@
                             
                                     {% if page_obj.has_next %}
                                     <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Próximo">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Última">
                                         <span aria-hidden="true">&raquo;</span>
                                     </a>
                                     </li>
@@ -2051,3 +2052,49 @@ $(document).ready(function() {
     input9.value = value9;
     });
 </script>
+
+<script>
+    $(document).ready(function () {
+        var lastViewed = localStorage.getItem('lastViewed');
+        var dataCriacaoUser = document.getElementById("data_criacao_user").value;
+        var dataCriacaoUserTimestamp = Date.parse(dataCriacaoUser);
+        console.log(dataCriacaoUser, dataCriacaoUserTimestamp);
+
+        // Verifica se já passou 60 minutos desde a última visualização
+        if (lastViewed && (Date.now() - lastViewed < 30 * 120 * 1000)) {
+            return;
+        }
+
+        // Verifica se a diferença entre a data de criação do usuário e a data atual é maior que 30 dias
+        if (dataCriacaoUserTimestamp && (Date.now() - dataCriacaoUserTimestamp > 30 * 24 * 60 * 60 * 1000)) {
+            return;
+        }
+
+        var youtubeVideoId = "Y_s5SHGhqsY";
+
+        var htmlContent = `
+            <div>
+                <iframe width="750" height="515" src="https://www.youtube.com/embed/${youtubeVideoId}" frameborder="0" allowfullscreen></iframe>
+            </div>
+            <div class="mt-3">
+                Assista este vídeo para entender sobre o funcionamento do sistema, como fazer as suas configurações iniciais e importar os seus clientes.
+            </div>
+        `;
+        
+        // Exibe o swal.fire e atualiza o armazenamento local
+        swal.fire({
+            title: 'Informações de primeiro acesso',
+            html: htmlContent,
+            width: 1000,
+            showCloseButton: true,
+            showConfirmButton: true,
+            confirmButtonText: 'Fechar',
+        });
+
+        // Atualiza o armazenamento local com a data e hora atual
+        localStorage.setItem('lastViewed', Date.now().toString());
+    });
+</script>
+
+
+
