@@ -205,10 +205,3 @@ LOGGING = {
         'level': 'INFO',
     },
 }
-
-# Django contab configs
-CRONJOBS = [
-    ('0 10 * * *', 'cadastros.send_message.mensalidades_a_vencer', [], '>> ./logs/cron_job.log'),
-    ('0 10 * * *', 'cadastros.send_message.mensalidades_vencidas', [], '>> ./logs/cron_job.log'),
-    ('51 16 * * *', 'cadastros.tests.teste', [], '>> /mnt/c/Users/jreii/Desktop/IPTVGestão/logs/cron_job.log'),
-]
