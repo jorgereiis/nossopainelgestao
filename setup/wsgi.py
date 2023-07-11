@@ -15,6 +15,6 @@ def executar_enviar_mensagens():
     with lock:
         os.system('python3 enviar_mensagens.py')
 
-# Iniciar thread para executar enviar_mensagens.py
+# Iniciar thread para executar o script enviar_mensagens.py
 enviar_mensagens_thread = Thread(target=executar_enviar_mensagens)
 enviar_mensagens_thread.start()
