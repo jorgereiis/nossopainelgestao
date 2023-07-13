@@ -300,3 +300,17 @@ class DadosBancarios(models.Model):
 
     def __str__(self) -> str:
         return '{} {}'.format(self.usuario.first_name, self.usuario.last_name)
+    
+
+class HorarioEnvios(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT, unique=True)
+    horario = models.TimeField(null=True)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Horário de Envio"
+        verbose_name_plural = "Horarios de Envio"
+
+    def __str__(self) -> str:
+        return self.usuario
+
