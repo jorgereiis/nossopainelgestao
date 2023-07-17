@@ -32,6 +32,7 @@ class ClienteAdmin(admin.ModelAdmin):
         "data_adesao",
         "data_cancelamento",
         "ultimo_pagamento",
+        "notas",
         "cancelado",
         "usuario",
     )
