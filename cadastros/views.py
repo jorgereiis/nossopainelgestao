@@ -313,6 +313,17 @@ class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
         }
 
         return JsonResponse(data)
+    
+
+class CarregarInidicacoes(LoginRequiredMixin, View):
+
+    def get(self, request):
+        id = self.request.GET.get("cliente_id")
+        indicados = Cliente.objects.filter(indicado_por=id).order_by('-id').values()
+
+        data = {'indicacoes': list(indicados),}
+
+        return JsonResponse(data)
 
 
 class ClientesCancelados(LoginRequiredMixin, ListView):
@@ -823,8 +834,6 @@ def reativar_cliente(request, cliente_id):
 
     # Muda o valor do atributo "cancelado" de True para False
     # Define o valor de "data_cancelamento" como None
-    # Altera o valor de "data_adesao" para a data atual
-    cliente.data_adesao = data_hoje
     cliente.data_pagamento = data_hoje.day
     cliente.data_cancelamento = None
     cliente.cancelado = False
@@ -896,7 +905,7 @@ def cancelar_cliente(request, cliente_id):
             return JsonResponse({"error_message": "Ocorreu um erro ao tentar cancelar esse cliente."}, status=500)
 
         # Cancelar todas as mensalidades relacionadas ao cliente
-        mensalidades = cliente.mensalidade_set.all()
+        mensalidades = cliente.mensalidade_set.filter(dt_vencimento__gte=timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0), pgto=False, cancelado=False)
         for mensalidade in mensalidades:
             mensalidade.cancelado = True
             mensalidade.dt_cancelamento = timezone.localtime().date()
@@ -952,6 +961,8 @@ def EditarCliente(request, cliente_id):
             plano = Plano.objects.filter(nome=plano_list[0], valor=plano_list[1].replace(',', '.'), usuario=request.user).first()
             if cliente.plano != plano:
                 cliente.plano = plano
+                mensalidade.valor = int(plano.valor)
+                mensalidade.save()
 
             tela = Qtd_tela.objects.get(telas=tela_list[0])
             if cliente.telas != tela:
@@ -1438,7 +1449,7 @@ def ImportarClientes(request):
                         if check_sistema == "clouddy" or check_sistema == "duplexplay" or check_sistema == "duplecast" or check_sistema == "metaplayer":
                             device_id = device_id_import
                             email = email_import
-                            device_key = device_key_import
+                            device_key = device_key_import.split('.')[0]
                             dados_do_app = ContaDoAplicativo(
                                 device_id=device_id,
                                 email=email,

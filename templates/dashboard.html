@@ -505,6 +505,29 @@
                                             </table>
                                         </div>
                                     </div>
+                                    <h4 class="fw-bold mb-4">Histórico de indicações</h4>
+                                    <div class="table-responsive mb-8">
+                                        <div class="card p-5 border rounded me-4">
+                                            <table class="table text-nowrap mb-0 table-hover" id="table-indicados">
+                                                <thead class="text-muted fs-6">
+                                                    <tr>
+                                                        <td>
+                                                            <span>ID</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Nome</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Data de adesão</span>
+                                                        </td>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <!-- Os elementos das cobranças serão adicionados dinamicamente aqui -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1373,7 +1396,7 @@
 </script>
 
 <script>
-        function exibirModalDetalhes(botao) {
+    function exibirModalDetalhes(botao) {
         const clienteId = botao.dataset.id;
         const clienteNome = botao.dataset.nome;
         const clienteTela = botao.dataset.telas;
@@ -1425,8 +1448,11 @@
         // chamar a função para carregar e inserir as informações das contas dos aplicativos no modal
         carregarContasApps(clienteId);
 
-        // Chamar a função para carregar as quantidades das mensalidades para o Resumo das Cobranças
+        // chamar a função para carregar as quantidades das mensalidades para o Resumo das Cobranças
         carregarQuantidadeMensalidadesPagas(clienteId);
+
+        // chamar a função para carregar os dados das indicações do cliente
+        carregarIndicacoes(clienteId);
     }
 
     $('#info-cliente-modal').on('click', '.btn-close, .btn-secondary, #add-apps-info, #btn_exclude', function () {
@@ -1447,8 +1473,8 @@
 
     function carregarQuantidadeMensalidadesPagas(clienteId) {
         $.ajax({
-            url: '/qtds_mensalidades/',  // Caminho correto para a sua view
-            type: 'GET',  // Alterado para GET, pois não estamos enviando dados sensíveis
+            url: '/qtds_mensalidades/',
+            type: 'GET',
             data: { cliente_id: clienteId },
             success: function(data) {
                 document.getElementById('qtd_mensalidades_pagas').textContent = data.qtd_mensalidades_pagas;
@@ -1498,6 +1524,60 @@
             },
             error: function(error) {
                 console.log(error);
+            }
+        });
+    }
+
+    function carregarIndicacoes(clienteId) {
+        $.ajax({
+            url: '/indicacoes/',
+            type: 'GET',
+            data: { cliente_id: clienteId },
+            success: function(data) {
+                console.log('Indicacoes: ', data.indicacoes);
+
+                var tbody = document.querySelector('#table-indicados tbody');
+                tbody.innerHTML = ''; // Limpa o conteúdo atual da tabela
+
+                if (data.indicacoes.length === 0) {
+                    // Se não há indicações, adiciona uma única linha com a mensagem
+                    var tr = document.createElement('tr');
+                    var tdMensagem = document.createElement('td');
+                    tdMensagem.setAttribute('colspan', '3');
+                    tdMensagem.textContent = 'Não há indicações desse usuário!';
+                    tdMensagem.style.textAlign = 'center';
+                    tdMensagem.style.verticalAlign = 'middle';
+                    tr.appendChild(tdMensagem);
+                    tbody.appendChild(tr);
+                } else {
+                    // Se houver indicações, adiciona as linhas com informações dos usuários indicados
+                    data.indicacoes.forEach(function(indicado) {
+                        var tr = document.createElement('tr');
+                        var tdId = document.createElement('td');
+                        tdId.textContent = indicado.id;
+                        tr.appendChild(tdId);
+
+                        const dataAdesao = indicado.data_adesao.replace(/(\d{4})-(\d{2})-(\d{2})/, '$2/$3/$1');
+                        function formatarData(data) {
+                            var partes = data.split('-');
+                            var dataFormatada = partes[2] + '/' + partes[1] + '/' + partes[0];
+                            return dataFormatada;
+                        }
+
+                        var tdNome = document.createElement('td');
+                        tdNome.textContent = indicado.nome;
+                        tr.appendChild(tdNome);
+
+                        var tdAdesao = document.createElement('td');
+                        tdAdesao.textContent = formatarData(indicado.data_adesao);
+                        tr.appendChild(tdAdesao);
+
+                        tbody.appendChild(tr);
+                    });
+                }
+            },
+            error: function(error) {
+                console.log('Indicacoes: ', error);
             }
         });
     }
