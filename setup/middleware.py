@@ -5,7 +5,7 @@ class CheckUserLoggedInMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if not request.user.is_authenticated and request.path != '/' and request.path != '/reset-senha/':
+        if not request.user.is_authenticated and request.path != '/':
             return redirect("login")
 
         return self.get_response(request)

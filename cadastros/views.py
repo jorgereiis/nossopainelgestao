@@ -618,11 +618,11 @@ def EnviarMensagemWpp(request):
                         log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] Mensagem enviada!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone))
                     with open(log_send_result_filename, 'a') as log_file:
                         log_file.write('[{}] {} - Mensagem enviada\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
-                    time.sleep(random.uniform(30, 70))
+                    time.sleep(random.uniform(30, 90))
                     break
                 else:
                     if attempts <= max_attempts:
-                        time.sleep(random.uniform(5, 10))
+                        time.sleep(random.uniform(10, 20))
                     # Verificar se o diretório de logs existe e criar se necessário
                     if not os.path.exists(log_directory):
                         os.makedirs(log_directory)

@@ -1673,13 +1673,25 @@
             document.getElementById('btn-salvar-app').disabled = false;
             }else if (selectedApp.replace(/\s/g, '').toLowerCase() === 'duplecast' || 
                         selectedApp.replace(/\s/g, '').toLowerCase() === 'duplexplay' ||
-                        selectedApp.replace(/\s/g, '').toLowerCase() === 'metaplayer' ) {
+                        selectedApp.replace(/\s/g, '').toLowerCase() === 'metaplayer' ||
+                        selectedApp.replace(/\s/g, '').toLowerCase() === 'quickplayer' ) {
             document.getElementById('div-device-id').style.display = 'block';
             document.getElementById('div-device-key').style.display = 'block';
             document.getElementById('div-app-email').style.display = 'none';
             document.getElementById('app-sem-conta').style.display = 'none';
             document.getElementById('device-id').setAttribute('required', 'required');
             document.getElementById('device-key').setAttribute('required', 'required');
+            document.getElementById('app-email').removeAttribute('required');
+            document.getElementById('btn-salvar-app').disabled = false;
+            }else if (selectedApp.replace(/\s/g, '').toLowerCase() === 'xcloud tv' || 
+                        selectedApp.replace(/\s/g, '').toLowerCase() === 'xcloudtv' ||
+                        selectedApp.replace(/\s/g, '').toLowerCase() === 'xcloud' ) {
+            document.getElementById('div-device-id').style.display = 'block';
+            document.getElementById('div-device-key').style.display = 'none';
+            document.getElementById('div-app-email').style.display = 'none';
+            document.getElementById('app-sem-conta').style.display = 'none';
+            document.getElementById('device-id').setAttribute('required', 'required');
+            document.getElementById('device-key').removeAttribute('required');
             document.getElementById('app-email').removeAttribute('required');
             document.getElementById('btn-salvar-app').disabled = false;
             } else {

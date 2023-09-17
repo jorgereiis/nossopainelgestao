@@ -78,8 +78,8 @@ def enviar_mensagem(telefone, mensagem, usuario, token, cliente):
         # Incrementa o número de tentativas
         tentativa += 1
 
-        # Tempo de espera aleatório entre cada tentativa com limite máximo de 40 segundos
-        tempo_espera = random.uniform(20, 40)
+        # Tempo de espera aleatório entre cada tentativa com limite máximo de 50 segundos
+        tempo_espera = random.uniform(20, 50)
         time.sleep(tempo_espera)
 
 
@@ -125,8 +125,8 @@ def mensalidades_a_vencer():
 
         enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente)
         
-        # Tempo de espera aleatório entre cada tentativa com limite máximo de 90 segundos
-        tempo_espera = random.uniform(20, 90)
+        # Tempo de espera aleatório entre cada tentativa com limite máximo de 120 segundos
+        tempo_espera = random.uniform(30, 120)
         time.sleep(tempo_espera)
 
 
@@ -178,8 +178,8 @@ def mensalidades_vencidas():
 
         enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente)
 
-        # Tempo de espera aleatório entre cada tentativa com limite máximo de 90 segundos
-        tempo_espera = random.uniform(20, 90)
+        # Tempo de espera aleatório entre cada tentativa com limite máximo de 120 segundos
+        tempo_espera = random.uniform(30, 120)
         time.sleep(tempo_espera)
 
 
