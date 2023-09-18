@@ -37,6 +37,9 @@ logger = logging.getLogger(__name__)
 
 ############################################ WPP VIEW ############################################
 
+def whatsapp(request):
+    return render(request, 'pages/whatsapp.html')
+
 # VIEW PARA REALIZAR O ENVIO AUTOMÁTICO DAS NOTIFICAÇÕES AOS CLIENTES VIA WHATSAPP
 @login_required
 def notificar_cliente(request):

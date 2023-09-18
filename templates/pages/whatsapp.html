@@ -1,0 +1,85 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        {% include 'partials/head.html' %}
+        <title>Envio de Mensagens | Nosso Painel - Gestão IPTV</title>
+    </head>
+<body>
+    <div class="centered-div" id="whatsapp" role="tabpanel" aria-labelledby="whatsapp-tab">
+        <div class="card mt-5">
+            <div class="card-body">
+                <img src="{% static 'assets/images/background/wpp.png' %}" class="img-fluid" alt="Imagem WhatsApp" id="logo-wpp">
+                <p class="card-text parag-wpp">
+                    Realiza o envio de mensagens para números do WhatsApp.
+                    <a href="#">Saiba mais</a>
+                </p>
+                <p class="fs-6 parag-wpp">
+                    Essa é uma API não-oficial, então use com moderação. <br>Apesar de não termos casos de bloqueios, saiba que há possibilidade da sua conta ser punida por abusos.
+                </p>
+                <br>
+                <form method="post" action="" id="form-wpp">
+                    <div class="d-grid gap-2" id="form-envio">
+                        <label for="telefones">Telefones<span class="text-danger">*</span></label>
+                        <div class="input-group input-group-sm mb-3" id="div-telefones">
+                            <input type="file" class="form-control" id="telefones" name="telefones"
+                                accept=".txt" capture=".txt" required>
+                        </div>
+                        <label for="imagem">Imagem <span class="fs-6">(opcional)</span></label>
+                        <div class="input-group input-group-sm mb-3" id="div-imagem">
+                            <input type="file" class="form-control" id="imagem" name="imagem" accept="image/*">
+                        </div>
+                        <textarea class="form-control mb-3" id="mensagem" name="mensagem" rows="3"
+                            placeholder="Mensagem" required></textarea>
+                        <button class="btn btn-success" type="button" id="botao-enviar">Enviar</button>
+                    </div>
+                </form>
+                <br>
+                <div class="card" id="console">
+                    <div class="card-header bg-dark text-white text-center">
+                      Log de envios
+                    </div>
+
+                    <div class="card-body fs-6" id="console-body" style="max-height: 570px; overflow-y: auto;">
+                      <!-- Mensagens de log aqui -->
+                    </div>
+                    <button class="btn" type="button" id="botao-voltar">Voltar</button>
+                </div>                                      
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+<style>
+.centered-div {
+    min-width: 500pt;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 110vh;
+    margin: 0;
+    background-color: #25D366;
+}
+
+.card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.img-fluid {
+    max-width: 100%;
+    height: 250px;
+}
+
+.parag-wpp{
+    text-align: center;
+}
+
+</style>

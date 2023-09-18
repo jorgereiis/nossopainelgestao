@@ -4,6 +4,7 @@ from .views import (
     Login,
     Teste,
     Perfil,
+    whatsapp,
     SessionWpp,
     ObterLogsWpp,
     EditarPerfil,
@@ -81,12 +82,13 @@ urlpatterns = [
     
     ########## Others ###########
     path("teste/", Teste, name="teste"),
+    path("whatsapp/", whatsapp, name='whatsapp'),
     path("session_wpp/", SessionWpp, name="session_wpp"),
     path("obter_stkn/", SecretTokenAPIView, name="obter_stkn"),
     path("contas_apps/", CarregarContasDoAplicativo.as_view()),
-    path("indicacoes/", CarregarInidicacoes.as_view(), name="indicacoes"),
     path("obter_logs_wpp/", ObterLogsWpp, name="obter_logs_wpp"),
     path("enviar_mensagem/", EnviarMensagemWpp, name="enviar_mensagem"),
+    path("indicacoes/", CarregarInidicacoes.as_view(), name="indicacoes"),
     path("qtds_mensalidades/", CarregarQuantidadesMensalidades.as_view()),
     path("obter_session_wpp/", ObterSessionWpp, name="obter_session_wpp"),
     path("notificar_cliente/", notificar_cliente, name="notificar_cliente"),
