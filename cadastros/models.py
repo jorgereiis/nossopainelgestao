@@ -237,23 +237,28 @@ class ContaDoAplicativo(models.Model):
     email = models.EmailField("E-mail", max_length=255, blank=True, null=True)
     device_key = models.CharField("Senha", max_length=255, blank=True, null=True)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    verificado = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
-        # Verifica se o valor está no formato desejado
-        if self.device_id:
-            if self.device_id[0] == ":":
-                # Remove o caractere ':' do começo se houver
-                self.device_id = self.device_id[1:]
+        if "xcloud" in self.app.nome.lower():
+            # Não altera o device_id
+            pass
+        else:
+            # Verifica se o valor está no formato desejado
+            if self.device_id:
+                if self.device_id[0] == ":":
+                    # Remove o caractere ':' do começo se houver
+                    self.device_id = self.device_id[1:]
 
-            if self.device_id[-1] == ":":
-                # Remove o caractere ':' do final se houver
-                self.device_id = self.device_id[:-1]
+                if self.device_id[-1] == ":":
+                    # Remove o caractere ':' do final se houver
+                    self.device_id = self.device_id[:-1]
 
-            # Adiciona ':' a cada 2 caracteres se não houver ":"
-            if ":" not in self.device_id[2:-2]:
-                self.device_id = ":".join(
-                    [self.device_id[i : i + 2] for i in range(0, len(self.device_id), 2)]
-                )
+                # Adiciona ':' a cada 2 caracteres se não houver ":"
+                if ":" not in self.device_id[2:-2]:
+                    self.device_id = ":".join(
+                        [self.device_id[i : i + 2] for i in range(0, len(self.device_id), 2)]
+                    )
         super(ContaDoAplicativo, self).save(*args, **kwargs)
 
     class Meta:

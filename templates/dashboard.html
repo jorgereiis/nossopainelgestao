@@ -617,7 +617,7 @@
                         <!-- row -->
                         <div class="form-group" id="div-device-id" style="display: none;">
                             <label for="device-id">Device ID</label>
-                            <input type="text" placeholder="Informe o ID da conta do aplicativo" class="form-control" id="device-id" name="device-id" minlength="17">
+                            <input type="text" placeholder="Informe o ID da conta do aplicativo" class="form-control" id="device-id" name="device-id" minlength="6">
                         </div>
                         <!-- row -->
                         <div class="form-group" id="div-app-email" style="display: none;">
@@ -1759,7 +1759,7 @@
       $('#info-cliente-modal').modal('show');
     });
 
-    // Formatar o valor do campo device-id
+/*     // Formatar o valor do campo device-id
     document.addEventListener('DOMContentLoaded', function() {
         var deviceIdInput = document.getElementById('device-id');
 
@@ -1781,7 +1781,7 @@
 
             this.value = formattedDeviceId;
         });
-    });
+    }); */
 
     // Verificando validação dos campos de input do modal de cadastro dos dados do aplicativo do cliente
     document.addEventListener('DOMContentLoaded', function() {
@@ -1801,16 +1801,16 @@
 
         deviceIdInput.addEventListener('input', function() {
             const deviceId = this.value;
-            const isValid = deviceId.length >= 17;
+            const isValid = deviceId.length >= 6;
 
-            this.setCustomValidity(isValid ? '' : 'O mínimo espero é de 12 caracteres.');
+            this.setCustomValidity(isValid ? '' : 'O mínimo esperado é de 6 caracteres.');
         });
 
         deviceKeyInput.addEventListener('input', function() {
             const deviceKey = this.value;
             const isValid = deviceKey.length >= 5;
 
-            this.setCustomValidity(isValid ? '' : 'O mínimo espero é de 5 caracteres.');
+            this.setCustomValidity(isValid ? '' : 'O mínimo esperado é de 5 caracteres.');
         });
     });
 

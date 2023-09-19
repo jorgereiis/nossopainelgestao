@@ -80,8 +80,8 @@ class PlanoAdmin(admin.ModelAdmin):
 
 
 class ContaDoAplicativoAdmin(admin.ModelAdmin):
-    list_display = ("cliente", "app", "device_id", "device_key", "email")
-    list_filter = ("usuario",)
+    list_display = ("cliente", "app", "device_id", "device_key", "email", "verificado")
+    list_filter = ("usuario", "app")
     search_fields = ("email", "cliente__nome",)
 
 
