@@ -43,6 +43,7 @@ class ClienteAdmin(admin.ModelAdmin):
         'forma_pgto',
         'data_pagamento',
         'cancelado',
+        'sistema',
     )
 
     search_fields = (
