@@ -14,6 +14,7 @@ from .models import (
     PlanoIndicacao,
     SecretTokenAPI,
     ContaDoAplicativo,
+    MensagemEnviadaWpp,
 )
 
 
@@ -90,6 +91,11 @@ class SessaoWppAdmin(admin.ModelAdmin):
     list_display = ("usuario", "token", "dt_inicio")
 
 
+class MensagemEnviadaWppAdmin(admin.ModelAdmin):
+    list_display = ("telefone", "data_envio")
+
+
+admin.site.register(MensagemEnviadaWpp, MensagemEnviadaWppAdmin)
 admin.site.register(ContaDoAplicativo, ContaDoAplicativoAdmin)
 admin.site.register(Mensalidade, MensalidadeAdmin)
 admin.site.register(SessaoWpp, SessaoWppAdmin)

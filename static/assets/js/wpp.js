@@ -22,10 +22,12 @@ async function connect() {
 
         if (token_backend != undefined && token_backend != null) { // verifica se existe o token no backend para criar o cookie
             createCookie(token_backend);
+            console.log('connect - createCookie: Cookie criado!')
             intervalId = setInterval(checkSession, 15000);
 
         } else {
             getSessionToken(); // gera novo token caso não esteja salvo no cookie e nem no backend
+            console.log('connect - getSessionToken: Novo token gerado!')
             intervalId = setInterval(checkSession, 15000);
         }
     }
@@ -40,6 +42,8 @@ function checkSession() {
     loadQrcode().then(response => {
         console.log('Status sessão WPP: ', response.status);
         const status = response.status;
+        console.log('loadQrcode - Status: ', response);
+
         if (status === 'CLOSED') {
             startSession();
             showQrCodeDiv.innerHTML = "";
@@ -76,7 +80,7 @@ function logout() {
 // FUNÇÃO DE API 1: get session token
 async function getSessionToken() {
     const stkn = await get_stkn();
-    const base_url = 'https://api.nossopainel.com.br/api/';
+    const base_url = 'http://localhost:21465/api/';
     const user = document.getElementById('user-session').value;
     const url = base_url + user + '/' + stkn + generate_token_url;
 
@@ -102,7 +106,7 @@ async function getSessionToken() {
 
 // FUNÇÃO DE API 2: start session
 function startSession() {
-    const base_url = 'https://api.nossopainel.com.br/api/';
+    const base_url = 'http://localhost:21465/api/';
     const start_session_url = '/start-session';
     const user = document.getElementById('user-session').value;
     const url = base_url + user + start_session_url;
@@ -125,6 +129,7 @@ function startSession() {
     })
     .then(response => response.json())
     .then(responseJson => {
+        console.log('startSession - Response: ', responseJson);
         return responseJson;
     })
     .catch(error => {
@@ -136,7 +141,7 @@ function startSession() {
 // FUNÇÃO DE API 3: load qrcode
 async function loadQrcode() {
     const status_session_url = '/status-session';
-    const base_url = 'https://api.nossopainel.com.br/api/';
+    const base_url = 'http://localhost:21465/api/';
     const user = document.getElementById('user-session').value;
     const cookieName = `token-wpp-${user}`;
     const token = getCookie(cookieName);
@@ -194,7 +199,7 @@ function deleteCookie() {
 // Função para deletar a sessão do usuário logado
 function deleteSession() {
     const logout_session = '/logout-session'
-    const base_url = 'https://api.nossopainel.com.br/api/';
+    const base_url = 'http://localhost:21465/api/';
     const user = document.getElementById('user-session').value;
     const url = base_url + user + logout_session;
     const cookieName = `token-wpp-${user}`;
@@ -343,7 +348,7 @@ function enviarMensagemWpp() {
     var resultado = {};
 
     if (imagem) {
-        var url = 'https://api.nossopainel.com.br/api/' + usuario + '/send-file';
+        var url = 'http://localhost:21465/api/' + usuario + '/send-file';
 
         var formData = new FormData();
         formData.append('message', mensagem);
@@ -375,7 +380,7 @@ function enviarMensagemWpp() {
             request.send(formData);
         });
     } else {
-        var url = 'https://api.nossopainel.com.br/api/' + usuario + '/send-message';
+        var url = 'http://localhost:21465/api/' + usuario + '/send-message';
 
         telefones.forEach(function(telefone) {
             var body = {

@@ -1043,6 +1043,7 @@
       {% endif %}
 </body>
 
+<!-- CSS -->
 <style>
     .page-item.active .page-link {
         background-color: rgb(12, 20, 28);
@@ -1131,10 +1132,12 @@
     font-size: 30pt;
     }
 </style>
-
 </html>
 
+<!-- JS -->
 <script>
+    // FUNÇÕES PARA TRATAR EXIBIÇÃO DE INFORMAÇÕES NO DASHBOARD
+
     const eyeIcon = document.getElementById("eye");
     const values1_h1 = document.querySelectorAll(".values1_h1");
     const values1_span = document.querySelectorAll(".values1_span");
@@ -1261,6 +1264,8 @@
 </script>
 
 <script>
+    // FUNÇÕES PARA O MODAL DE CANCELAMENTO DO CLIENTE
+
     function exibirModalConfirmacaoCancelamento(botao) {
         var cliente_id = $(botao).data('cliente');
         var cliente_nome = $(botao).data('nome');
@@ -1329,6 +1334,8 @@
 
 
 <script>
+    // FUNÇÕES PARA MODAL DE CONFIRMAÇÃO DE PAGAMENTO DA MENSALIDADE DO CLIENTE
+
     function exibirModalConfirmacaoPagamento(botao) {
         var mensalidade_id = $(botao).data('mensalidade');
         var cliente_nome = $(botao).data('nome');
@@ -1396,6 +1403,8 @@
 </script>
 
 <script>
+    // FUNÇÃO PARA TRATAR EXIBIÇÃO DO MODAL DE INFORMAÇÕES DO CLIENTE
+
     function exibirModalDetalhes(botao) {
         const clienteId = botao.dataset.id;
         const clienteNome = botao.dataset.nome;
@@ -1636,7 +1645,8 @@
 </script>
 
 <script>
-// Função para exibir o modal de criação de Conta do Aplicativo
+// FUNÇÃO PARA EXIBIR MODAL DE CRIAÇÃO DE CONTA DO APLICATIVO DO CLIENTE
+
     function exibirModalCriarApp(botao) {
         const clienteId = document.getElementById('info-cliente-id').textContent;
         const appInfoClienteId = document.getElementById('app-info-cliente-id');
@@ -1759,7 +1769,7 @@
       $('#info-cliente-modal').modal('show');
     });
 
-/*     // Formatar o valor do campo device-id
+    /*// Formatar o valor do campo device-id
     document.addEventListener('DOMContentLoaded', function() {
         var deviceIdInput = document.getElementById('device-id');
 
@@ -1817,7 +1827,8 @@
 </script>
 
 <script>
-    // Função para exibir o modal de confirmação de exclusão da conta do app
+    // FUNÇÃO PARA EXIBIR O MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DA CONTA DO APP DO CLIENTE
+
     function exibirModalConfirmacaoExclusao(botao) {
       var app_id = document.getElementById('AppId').value;
       $('#confirm-delete-app-conta-modal #app-conta-id').val(app_id);
@@ -1859,7 +1870,8 @@
 </script>
 
 <script>
-// Funão para manipular os campos do formulário de envio de mensagens do WhatsApp
+// FUNÇÃO PARA EXIBIR/OCULTAR OS CAMPOS DO FORMULÁRIO DE ENVIO DE MENSAGENS DO WHATSAPP
+
 $(document).ready(function () {
     // Ocultar os campos do formulário
     $('#form-envio').hide();
@@ -1937,6 +1949,8 @@ $(document).ready(function () {
 </script>
 
 <script>
+// FUNÇÃO PARA ENVIAR MENSAGENS DO WHATSAPP
+
 document.addEventListener('DOMContentLoaded', function() {
   const form = document.querySelector('form');
   const telefonesInput = document.getElementById('telefones');
@@ -1991,6 +2005,8 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <script>
+// FUNÇÃO PARA EXIBIR O CONSOLE DE LOG DAS MENSAGENS ENVIADAS NO WHATSAPP
+
     $(document).ready(function() {
         function exibirConsole() {
         // Exibir o console
@@ -1998,6 +2014,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Esconder elementos com as classes "parag-wpp", "logo-wpp" e "form-wpp"
         $('.parag-wpp, #logo-wpp, #form-wpp').hide();
       }
+
+        // Função para manter a barra de rolagem na parte inferior
+        function manterBarraRolagemAbaixo() {
+            var consoleBody = $('#console-body');
+            consoleBody.scrollTop(consoleBody[0].scrollHeight);
+        }
+
       // Função para carregar o conteúdo do arquivo de texto
       function carregarConteudoArquivo() {
     
@@ -2016,6 +2039,9 @@ document.addEventListener('DOMContentLoaded', function() {
               var conteudoFormatado = response.logs.replace(/\n/g, "<br>");
               // Atualiza o conteúdo do console com os logs obtidos formatados
               $('#console-body').html(conteudoFormatado);
+
+              // Chama a função para manter a barra de rolagem sempre no final
+              manterBarraRolagemAbaixo();
             }
           },
           complete: function() {
@@ -2037,6 +2063,8 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <script>
+// FUNÇÃO PARA TRATAR CAMPOS DO FORMULÁRIO DE ENVIO DE MENSAGENS DO WHATSAPP
+
 $(document).ready(function() {
   // Função para exibir os elementos e limpar o conteúdo dos campos
   function exibirElementos() {
@@ -2060,6 +2088,8 @@ $(document).ready(function() {
 </script>
 
 <script>
+    // FUNÇÃO PARA EXIBIR O MODAL DE EDIÇÃO DOS DADOS DO CLIENTE
+
     function exibirModalEdicao(botao) {
       const clienteId = botao.dataset.id;
       const clienteNome = botao.dataset.nome;
@@ -2107,6 +2137,8 @@ $(document).ready(function() {
 </script>
 
 <script>
+    // TRATAMENTO DOS CAMPOS SELECT DA EDIÇÃO DO CLIENTE
+
     const input1 = document.querySelector('input[name="indicado_por"]');
     input1.addEventListener('input', (event) => {
     const value1 = event.target.value;
@@ -2163,6 +2195,8 @@ $(document).ready(function() {
 </script>
 
 <script>
+    // FUNÇÃO PARA EXIBIÇÃO DAS INFORMAÇÕES DE PRIMEIRO ACESSO
+
     $(document).ready(function () {
         var lastViewed = localStorage.getItem('lastViewed');
         var dataCriacaoUser = document.getElementById("data_criacao_user").value;
@@ -2204,6 +2238,3 @@ $(document).ready(function() {
         localStorage.setItem('lastViewed', Date.now().toString());
     });
 </script>
-
-
-

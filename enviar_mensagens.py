@@ -20,7 +20,7 @@ from cadastros.models import Mensalidade, SessaoWpp
 
 # Função para enviar mensagens e registrar em arquivo de log
 def enviar_mensagem(telefone, mensagem, usuario, token, cliente):
-    url = 'https://api.nossopainel.com.br/api/{}/send-message'.format(usuario)
+    url = 'http://localhost:21465/api/{}/send-message'.format(usuario)
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -184,8 +184,8 @@ def mensalidades_vencidas():
 
 
 # Agendar a execução das funções
-schedule.every().day.at("8:00").do(mensalidades_a_vencer)
-schedule.every().day.at("8:00").do(mensalidades_vencidas)
+schedule.every().day.at("12:00").do(mensalidades_a_vencer)
+schedule.every().day.at("12:00").do(mensalidades_vencidas)
 
 # Executar indefinidamente
 while True:

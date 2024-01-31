@@ -1,4 +1,4 @@
-from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI, DadosBancarios, HorarioEnvios)
+from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI, DadosBancarios, MensagemEnviadaWpp)
 from django.http import HttpResponseBadRequest, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -47,7 +47,7 @@ def notificar_cliente(request):
 
         # Função para enviar mensagens e registrar em arquivo de log
         def enviar_mensagem(telefone, mensagem, usuario, token, cliente):
-            url = 'https://api.nossopainel.com.br/api/{}/send-message'.format(usuario)
+            url = 'http://localhost:21465/api/{}/send-message'.format(usuario)
             headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
@@ -547,7 +547,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 @login_required
 def EnviarMensagemWpp(request):
     if request.method == 'POST':
-        BASE_URL = 'https://api.nossopainel.com.br/api/{}/send-{}'
+        BASE_URL = 'http://localhost:21465/api/{}/send-{}'
         sessao = get_object_or_404(SessaoWpp, usuario=request.user)
         tipo_envio = request.POST.get('options')
         mensagem = request.POST.get('mensagem')
@@ -562,94 +562,115 @@ def EnviarMensagemWpp(request):
             imagem_base64 = base64.b64encode(imagem.read()).decode('utf-8')
 
         def enviar_mensagem(url, telefone):
-            if not telefone.startswith('55'):
-                telefone = '55' + telefone
+            # Verificar se já enviou uma mensagem para este telefone hoje
+            if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone, data_envio=timezone.now().date()).exists():
+                # Verificar se o diretório de logs existe e criar se necessário
+                if not os.path.exists(log_directory):
+                    os.makedirs(log_directory)
+                # Verificar se o arquivo de log existe e criar se necessário
+                if not os.path.isfile(log_send_result_filename):
+                    open(log_send_result_filename, 'w').close()
+                # Escrever no arquivo de log
+                with open(log_send_result_filename, 'a') as log_file:
+                    log_file.write('[{}] {} - ⚠️ Já foi feito envio hoje!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
 
-            headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': 'Bearer ' + token
-            }
-            body = {
-                'phone': telefone,
-                'isGroup': False,
-                'message': mensagem
-            }
+            else:
+                # Prossegue com o envio da mensagem
+                if not telefone.startswith('55'):
+                    telefone = '55' + telefone
 
-            if imagem:
-                body['filename'] = str(imagem)
-                body['caption'] = mensagem
-                body['base64'] = 'data:image/png;base64,' + imagem_base64
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                }
+                body = {
+                    'phone': telefone,
+                    'isGroup': False,
+                    'message': mensagem
+                }
 
-            max_attempts = 3
-            attempts = 1
-            while attempts <= max_attempts:
-                if attempts == 2:
-                    # Tratando o telefone como padrão Brasileiro para remover o dígito '9' e tentar fazer novo envio
-                    tel = telefone
-                    if tel.startswith('55'):
-                        ddi = tel[:2]
-                        ddd = tel[2:4]
-                        tel = tel[4:]
-                        # Remove o dígito '9' se o telefone tiver 9 dígitos
-                        if len(tel) == 9 and tel.startswith('9'):
-                            tel = tel[1:]
-                            body['phone'] = ddi + ddd + tel
-                
-                if attempts == 3:
-                    # Tratando o telefone como padrão Internacional, revomendo apenas os dígitos '55'
-                    tel = telefone
-                    if tel.startswith('55'):
-                        tel = tel[2:]
-                        body['phone'] = tel
+                if imagem:
+                    body['filename'] = str(imagem)
+                    body['caption'] = mensagem
+                    body['base64'] = 'data:image/png;base64,' + imagem_base64
 
-                response = requests.post(url, headers=headers, json=body)
+                max_attempts = 3
+                attempts = 1
+                while attempts <= max_attempts:
+                    if attempts == 2:
+                        # Tratando o telefone como padrão Brasileiro para remover o dígito '9' e tentar fazer novo envio
+                        tel = telefone
+                        if tel.startswith('55'):
+                            ddi = tel[:2]
+                            ddd = tel[2:4]
+                            tel = tel[4:]
+                            # Remove o dígito '9' se o telefone tiver 9 dígitos
+                            if len(tel) == 9 and tel.startswith('9'):
+                                tel = tel[1:]
+                                body['phone'] = ddi + ddd + tel
+                    
+                    if attempts == 3:
+                        # Tratando o telefone como padrão Internacional, revomendo apenas os dígitos '55'
+                        tel = telefone
+                        if tel.startswith('55'):
+                            tel = tel[2:]
+                            body['phone'] = tel
 
-                if response.status_code == 200 or response.status_code == 201:
-                    # Verificar se o diretório de logs existe e criar se necessário
-                    if not os.path.exists(log_directory):
-                        os.makedirs(log_directory)
-                    if not os.path.exists(log_directory):
-                        os.makedirs(log_directory)
-                    # Verificar se o arquivo de log existe e criar se necessário
-                    if not os.path.isfile(log_filename):
-                        open(log_filename, 'w').close()
-                    if not os.path.isfile(log_send_result_filename):
-                        open(log_send_result_filename, 'w').close()
-                    # Escrever no arquivo de log
-                    with open(log_filename, 'a') as log_file:
-                        log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] Mensagem enviada!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone))
-                    with open(log_send_result_filename, 'a') as log_file:
-                        log_file.write('[{}] {} - Mensagem enviada\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
-                    time.sleep(random.uniform(30, 90))
-                    break
-                else:
-                    if attempts <= max_attempts:
-                        time.sleep(random.uniform(10, 20))
-                    # Verificar se o diretório de logs existe e criar se necessário
-                    if not os.path.exists(log_directory):
-                        os.makedirs(log_directory)
-                    # Verificar se o arquivo de log existe e criar se necessário
-                    if not os.path.isfile(log_filename):
-                        open(log_filename, 'w').close()
-                    # Escrever no arquivo de log
-                    with open(log_filename, 'a') as log_file:
-                        response_data = json.loads(response.text)
-                        error_message = response_data.get('message')
-                        log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone, response.status_code, attempts, error_message))
+                    response = requests.post(url, headers=headers, json=body)
 
-                    attempts += 1
+                    if response.status_code == 200 or response.status_code == 201:
+                        # Verificar se o diretório de logs existe e criar se necessário
+                        if not os.path.exists(log_directory):
+                            os.makedirs(log_directory)
+                        if not os.path.exists(log_directory):
+                            os.makedirs(log_directory)
+                        # Verificar se o arquivo de log existe e criar se necessário
+                        if not os.path.isfile(log_filename):
+                            open(log_filename, 'w').close()
+                        if not os.path.isfile(log_send_result_filename):
+                            open(log_send_result_filename, 'w').close()
+                        # Escrever no arquivo de log
+                        with open(log_filename, 'a') as log_file:
+                            log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] Mensagem enviada!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone))
+                        with open(log_send_result_filename, 'a') as log_file:
+                            log_file.write('[{}] {} - ✅ Mensagem enviada\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
+                        # Registrar o envio da mensagem para o dia atual
+                        if telefone.startswith('55'):
+                            telefone=telefone[2:]
+                        MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone)
+                        time.sleep(random.uniform(30, 90))
+                        break
+                    else:
+                        if attempts <= max_attempts:
+                            time.sleep(random.uniform(10, 20))
+                        # Verificar se o diretório de logs existe e criar se necessário
+                        if not os.path.exists(log_directory):
+                            os.makedirs(log_directory)
+                        # Verificar se o arquivo de log existe e criar se necessário
+                        if not os.path.isfile(log_filename):
+                            open(log_filename, 'w').close()
+                        # Escrever no arquivo de log
+                        with open(log_filename, 'a') as log_file:
+                            response_data={}
+                            try:
+                                response_data = json.loads(response.text)
+                            except json.decoder.JSONDecodeError as e:
+                                error_message = response_data.get('message') if response_data.get('message') else str(e)
+                                log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone, response.status_code, attempts, error_message))
 
-                if attempts == max_attempts:
-                    # Verificar se o diretório de logs existe e criar se necessário
-                    if not os.path.exists(log_directory):
-                        os.makedirs(log_directory)
-                    # Verificar se o arquivo de log existe e criar se necessário
-                    if not os.path.isfile(log_send_result_filename):
-                        open(log_send_result_filename, 'w').close()
-                    # Escrever no arquivo de log
-                    with open(log_send_result_filename, 'a') as log_file:
-                        log_file.write('[{}] {} - Número sem WhatsApp\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
+                        attempts += 1
+
+                    if attempts == max_attempts:
+                        # Verificar se o diretório de logs existe e criar se necessário
+                        if not os.path.exists(log_directory):
+                            os.makedirs(log_directory)
+                        # Verificar se o arquivo de log existe e criar se necessário
+                        if not os.path.isfile(log_send_result_filename):
+                            open(log_send_result_filename, 'w').close()
+                        # Escrever no arquivo de log
+                        with open(log_send_result_filename, 'a') as log_file:
+                            log_file.write('[{}] {} - ❌ Não enviada (consultar log)\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
 
         if tipo_envio == 'ativos':
             clientes = Cliente.objects.filter(usuario=usuario, cancelado=False)
@@ -669,11 +690,16 @@ def EnviarMensagemWpp(request):
         if clientes is not None:
             url = BASE_URL.format(usuario, 'image' if imagem else 'message')
             for cliente in clientes:
-                enviar_mensagem(url, re.sub(r'\s+|\W', '', cliente.telefone))
+                telefone_limpo = re.sub(r'\s+|\W', '', cliente.telefone)
+
+                enviar_mensagem(url, telefone_limpo)
 
         elif telefones:
             url = BASE_URL.format(usuario, 'image' if imagem else 'message')
-            [enviar_mensagem(url, telefone) for telefone in telefones.split(',')]
+            for telefone in telefones.split(','):
+                telefone_limpo = re.sub(r'\s+|\W', '', telefone)
+                
+                enviar_mensagem(url, telefone_limpo)
 
         return JsonResponse({'success': 'Envio concluído'}, status=200)
 
