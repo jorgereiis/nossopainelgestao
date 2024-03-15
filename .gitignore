@@ -9,6 +9,7 @@ errors.log
 access.log
 logs/
 logs
+teste.sh
 
 ### Django ###
 *.log
