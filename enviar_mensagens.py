@@ -20,7 +20,7 @@ from cadastros.models import Mensalidade, SessaoWpp
 
 # Função para enviar mensagens e registrar em arquivo de log
 def enviar_mensagem(telefone, mensagem, usuario, token, cliente):
-    url = 'http://localhost:21465/api/{}/send-message'.format(usuario)
+    url = 'http://meusistema.com.br:21465/api/{}/send-message'.format(usuario)
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -183,9 +183,62 @@ def mensalidades_vencidas():
         time.sleep(tempo_espera)
 
 
+# Função para filtrar as mensalidades dos clientes 3 dias de atraso
+def mensalidades_vencidas_3dias():
+    # Obter a data atual
+    data_atual = datetime.now().date()
+    # Obter o horário atual
+    hora_atual = datetime.now().time()
+    # Obter data e hora formatada
+    data_hora_atual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+
+    # Calcula a data de dois dias atrás
+    data_tres_dias_atras = data_atual - timedelta(days=3)
+
+    # Filtrar as mensalidades vencidas há três dias
+    mensalidades = Mensalidade.objects.filter(
+        dt_vencimento=data_tres_dias_atras,
+        pgto=False,
+        cancelado=False
+    )
+    quantidade_mensalidades = mensalidades.count()
+    print('[{}] [EM ATRASO 3 DIAS] QUANTIDADE DE ENVIOS A SEREM FEITOS: {}'.format(data_hora_atual, quantidade_mensalidades))
+
+    # Iterar sobre as mensalidades e enviar mensagens
+    for mensalidade in mensalidades:
+        usuario = mensalidade.usuario
+        cliente = mensalidade.cliente
+        nome_cliente = str(cliente)
+        primeiro_nome = nome_cliente.split(' ')[0]
+        telefone = str(cliente.telefone)
+        telefone_formatado = '55' + re.sub(r'\D', '', telefone)
+        saudacao = ''
+
+        # Definir a saudação de acordo com o horário atual
+        if hora_atual < datetime.strptime("12:00:00", "%H:%M:%S").time():
+            saudacao = 'Bom dia'
+        elif hora_atual < datetime.strptime("18:00:00", "%H:%M:%S").time():
+            saudacao = 'Boa tarde'
+        else:
+            saudacao = 'Boa noite'
+
+        try:
+            token_user = SessaoWpp.objects.get(usuario=usuario)
+        except SessaoWpp.DoesNotExist:
+            continue  # Pula para a próxima iteração caso o objeto não seja encontrado
+
+        mensagem = """*{}, {}*\n\nFaz uns dias que o seu acesso foi encerrado no nosso sistema e não tivemos confirmação do seu pagamento.\n\nVocê deseja continuar utilizando??""".format(saudacao, primeiro_nome)
+
+        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente)
+
+        # Tempo de espera aleatório entre cada tentativa com limite máximo de 120 segundos
+        tempo_espera = random.uniform(30, 120)
+        time.sleep(tempo_espera)
+
+
 # Agendar a execução das funções
-schedule.every().day.at("12:00").do(mensalidades_a_vencer)
-schedule.every().day.at("12:00").do(mensalidades_vencidas)
+schedule.every().day.at("13:30").do(mensalidades_a_vencer)
+schedule.every().day.at("13:30").do(mensalidades_vencidas)
 
 # Executar indefinidamente
 while True:

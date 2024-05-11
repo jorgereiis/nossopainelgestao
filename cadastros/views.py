@@ -21,7 +21,7 @@ from django.db.models import Q
 from datetime import timedelta
 from datetime import datetime
 from django.views import View
-from .forms import LoginForm
+#from .forms import LoginForm
 import pandas as pd
 import requests
 import operator
@@ -47,7 +47,7 @@ def notificar_cliente(request):
 
         # Função para enviar mensagens e registrar em arquivo de log
         def enviar_mensagem(telefone, mensagem, usuario, token, cliente):
-            url = 'http://localhost:21465/api/{}/send-message'.format(usuario)
+            url = 'http://meusistema.com.br:21465/api/{}/send-message'.format(usuario)
             headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
@@ -219,7 +219,7 @@ def notificar_cliente(request):
 # PÁGINA DE LOGIN
 class Login(LoginView):
     template_name = 'login.html'
-    form_class = LoginForm
+    #form_class = LoginForm
     redirect_authenticated_user = True
     success_url = 'dashboard/'
 
@@ -547,7 +547,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 @login_required
 def EnviarMensagemWpp(request):
     if request.method == 'POST':
-        BASE_URL = 'http://localhost:21465/api/{}/send-{}'
+        BASE_URL = 'http://meusistema.com.br:21465/api/{}/send-{}'
         sessao = get_object_or_404(SessaoWpp, usuario=request.user)
         tipo_envio = request.POST.get('options')
         mensagem = request.POST.get('mensagem')
