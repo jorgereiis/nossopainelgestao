@@ -834,7 +834,7 @@
                                             <th class="fw-bold text-center">Aplicativo</th>
                                             <th class="fw-bold text-center">Último pgto.</th>
                                             <th class="fw-bold text-center">Próximo pgto.</th>
-                                            <th colspan="1"></th>
+                                            <th colspan="2"></th>
                                         </tr>
                                     </thead>
 
@@ -869,13 +869,29 @@
                                             {% for mensalidade in cliente.mensalidade_set.all %}
                                             {% if not mensalidade.cancelado and not mensalidade.pgto %}
                                             {% if mensalidade.dt_pagamento is None and hoje > mensalidade.dt_vencimento %}
-                                            <td class="align-middle text-center"><span
-                                                    class="badge bg-danger">{{mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y'}}]</span></td>
+                                            <td class="align-middle text-center">
+                                                <span class="badge bg-danger">{{mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y'}}]</span>
+                                                <span></span>
+                                            </td>
                                             {% else %}
-                                            <td class="align-middle text-primary text-center"><span
-                                                    class="badge bg-info">{{ mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y' }}]</span></td>
+                                            <td class="align-middle text-primary text-center">
+                                                    <span class="badge bg-info">{{mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y' }}]</span>
+                                                    <span></span>
+                                            </td>
                                             {% endif %}
-
+                                            {% if cliente.forma_pgto.nome == "PIX" %}
+                                            <td>
+                                                <img src="{% static 'assets/images/svg/pix.png' %}">
+                                            </td>
+                                            {% elif cliente.forma_pgto.nome == "Cartão de Crédito" %}
+                                            <td>
+                                                <span class="bi bi-credit-card" style="color: #4DBDB1"></span>
+                                            </td>
+                                            {% elif cliente.forma_pgto.nome == "Boleto" %}
+                                            <td>
+                                                <span class="bi bi-upc-scan" style="color: #4DBDB1"></span>
+                                            </td>
+                                            {% endif %}
                                             <!-- Dropdown da tabela -->
                                             <td>
                                                 <div class="dropdown dropend">
@@ -883,8 +899,7 @@
                                                         class="btn btn-icon btn-white rounded-circle btn-dashed ms-2"
                                                         type="button" id="dropdownMenuButton" data-bs-toggle="dropdown"
                                                         aria-expanded="false">
-                                                        <img
-                                                            src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                                                        <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
                                                     </button>
                                                     <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
                                                         <li>

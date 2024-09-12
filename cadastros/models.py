@@ -138,6 +138,7 @@ class Cliente(models.Model):
         "Último pagamento realizado", blank=True, null=True
     )
     cancelado = models.BooleanField("Cancelado", default=False)
+    nao_enviar_msgs = models.BooleanField("Não enviar", default=False)
     notas = models.TextField("Notas", blank=True, null=True)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
@@ -192,8 +193,14 @@ class Mensalidade(models.Model):
     dt_cancelamento = models.DateField(
         "Data do cancelamento", default=None, null=True, blank=True
     )
+    dt_notif_wpp1 = models.DateField(
+        "Data envio notificação PROMO", default=None, null=True, blank=True
+    )
     pgto = models.BooleanField("Pago", default=False)
     cancelado = models.BooleanField(default=False)
+    notificacao_wpp1 = models.BooleanField(
+        "Notificação PROMO", default=False
+    )
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def __str__(self):

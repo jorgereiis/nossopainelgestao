@@ -36,6 +36,7 @@ class ClienteAdmin(admin.ModelAdmin):
         "indicado_por",
         "notas",
         "cancelado",
+        "nao_enviar_msgs",
         "usuario",
     )
     list_filter = (
@@ -64,6 +65,8 @@ class MensalidadeAdmin(admin.ModelAdmin):
         "valor",
         "pgto",
         "cancelado",
+        "notificacao_wpp1",
+        "dt_notif_wpp1",
     )
 
     list_filter = (

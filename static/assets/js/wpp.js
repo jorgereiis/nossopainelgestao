@@ -80,7 +80,7 @@ function logout() {
 // FUNÇÃO DE API 1: get session token
 async function getSessionToken() {
     const stkn = await get_stkn();
-    const base_url = 'http://meusistema.com.br:21465/api/';
+    const base_url = 'http://localhost:8081/api/';
     const user = document.getElementById('user-session').value;
     const url = base_url + user + '/' + stkn + generate_token_url;
 
@@ -106,7 +106,7 @@ async function getSessionToken() {
 
 // FUNÇÃO DE API 2: start session
 function startSession() {
-    const base_url = 'http://meusistema.com.br:21465/api/';
+    const base_url = 'http://localhost:8081/api/';
     const start_session_url = '/start-session';
     const user = document.getElementById('user-session').value;
     const url = base_url + user + start_session_url;
@@ -141,7 +141,7 @@ function startSession() {
 // FUNÇÃO DE API 3: load qrcode
 async function loadQrcode() {
     const status_session_url = '/status-session';
-    const base_url = 'http://meusistema.com.br:21465/api/';
+    const base_url = 'http://localhost:8081/api/';
     const user = document.getElementById('user-session').value;
     const cookieName = `token-wpp-${user}`;
     const token = getCookie(cookieName);
@@ -199,7 +199,7 @@ function deleteCookie() {
 // Função para deletar a sessão do usuário logado
 function deleteSession() {
     const logout_session = '/logout-session'
-    const base_url = 'http://meusistema.com.br:21465/api/';
+    const base_url = 'http://localhost:8081/api/';
     const user = document.getElementById('user-session').value;
     const url = base_url + user + logout_session;
     const cookieName = `token-wpp-${user}`;
@@ -348,7 +348,7 @@ function enviarMensagemWpp() {
     var resultado = {};
 
     if (imagem) {
-        var url = 'http://meusistema.com.br:21465/api/' + usuario + '/send-file';
+        var url = 'http://localhost:8081/api/' + usuario + '/send-file';
 
         var formData = new FormData();
         formData.append('message', mensagem);
@@ -380,7 +380,7 @@ function enviarMensagemWpp() {
             request.send(formData);
         });
     } else {
-        var url = 'http://meusistema.com.br:21465/api/' + usuario + '/send-message';
+        var url = 'http://localhost:8081/api/' + usuario + '/send-message';
 
         telefones.forEach(function(telefone) {
             var body = {

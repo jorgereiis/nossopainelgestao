@@ -10,11 +10,13 @@ access.log
 logs/
 logs
 teste.sh
+*.sh
 
 ### Django ###
 *.log
 *.pot
 *.pyc
+*.sqlite3
 __pycache__/
 local_settings.py
 db.sqlite3

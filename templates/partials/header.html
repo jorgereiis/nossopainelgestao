@@ -39,9 +39,12 @@
             </li>
 
             <li>
-              <a class="dropdown-item" href="{% url 'logout' %}">
-                <i class="me-2 icon-xxs dropdown-item-icon" data-feather="power"></i>Logout
-              </a>
+              <form method="POST" action="{% url 'logout' %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item" style="border: none; background: none;">
+                  <i class="me-2 icon-xxs dropdown-item-icon" data-feather="power"></i>Logout
+                </button>
+              </form>
             </li>
           </ul>
 

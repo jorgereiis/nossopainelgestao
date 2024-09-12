@@ -26,6 +26,7 @@ import pandas as pd
 import requests
 import operator
 import logging
+import codecs
 import random
 import base64
 import json
@@ -47,7 +48,7 @@ def notificar_cliente(request):
 
         # Função para enviar mensagens e registrar em arquivo de log
         def enviar_mensagem(telefone, mensagem, usuario, token, cliente):
-            url = 'http://meusistema.com.br:21465/api/{}/send-message'.format(usuario)
+            url = 'http://localhost:8081/api/{}/send-message'.format(usuario)
             headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
@@ -547,7 +548,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 @login_required
 def EnviarMensagemWpp(request):
     if request.method == 'POST':
-        BASE_URL = 'http://meusistema.com.br:21465/api/{}/send-{}'
+        BASE_URL = 'http://localhost:8081/api/{}/send-{}'
         sessao = get_object_or_404(SessaoWpp, usuario=request.user)
         tipo_envio = request.POST.get('options')
         mensagem = request.POST.get('mensagem')
@@ -571,7 +572,7 @@ def EnviarMensagemWpp(request):
                 if not os.path.isfile(log_send_result_filename):
                     open(log_send_result_filename, 'w').close()
                 # Escrever no arquivo de log
-                with open(log_send_result_filename, 'a') as log_file:
+                with codecs.open(log_send_result_filename, 'a', encoding='utf-8') as log_file:
                     log_file.write('[{}] {} - ⚠️ Já foi feito envio hoje!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
 
             else:
@@ -633,7 +634,7 @@ def EnviarMensagemWpp(request):
                         # Escrever no arquivo de log
                         with open(log_filename, 'a') as log_file:
                             log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] Mensagem enviada!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone))
-                        with open(log_send_result_filename, 'a') as log_file:
+                        with codecs.open(log_send_result_filename, 'a', encoding='utf-8') as log_file:
                             log_file.write('[{}] {} - ✅ Mensagem enviada\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
                         # Registrar o envio da mensagem para o dia atual
                         if telefone.startswith('55'):
@@ -669,7 +670,7 @@ def EnviarMensagemWpp(request):
                         if not os.path.isfile(log_send_result_filename):
                             open(log_send_result_filename, 'w').close()
                         # Escrever no arquivo de log
-                        with open(log_send_result_filename, 'a') as log_file:
+                        with codecs.open(log_send_result_filename, 'a', encoding='utf-8') as log_file:
                             log_file.write('[{}] {} - ❌ Não enviada (consultar log)\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
 
         if tipo_envio == 'ativos':
@@ -677,7 +678,7 @@ def EnviarMensagemWpp(request):
             telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
 
         elif tipo_envio == 'cancelados':
-            clientes = Cliente.objects.filter(usuario=usuario, cancelado=True)
+            clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=40))
             telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
 
         elif tipo_envio == 'avulso':
@@ -745,7 +746,7 @@ def ObterLogsWpp(request):
     if request.method == 'POST':
 
         file_path = './logs/Envios manuais/{}_send_result.log'.format(request.user)
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
             logs = file.read()
 
     return JsonResponse({'logs': logs})
