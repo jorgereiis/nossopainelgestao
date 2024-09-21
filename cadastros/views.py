@@ -41,180 +41,6 @@ logger = logging.getLogger(__name__)
 def whatsapp(request):
     return render(request, 'pages/whatsapp.html')
 
-# VIEW PARA REALIZAR O ENVIO AUTOMÁTICO DAS NOTIFICAÇÕES AOS CLIENTES VIA WHATSAPP
-@login_required
-def notificar_cliente(request):
-    if request.method == 'POST':
-
-        # Função para enviar mensagens e registrar em arquivo de log
-        def enviar_mensagem(telefone, mensagem, usuario, token, cliente):
-            url = 'http://localhost:8081/api/{}/send-message'.format(usuario)
-            headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': 'Bearer ' + token
-            }
-            body = {
-                'phone': telefone,
-                'message': mensagem,
-                'isGroup': False
-            }
-
-            max_tentativas = 3  # Definir o número máximo de tentativas
-            tentativa = 1
-
-            # Nome do arquivo de log baseado no nome do usuário
-            log_directory = './logs/Envios agendados/'
-            log_filename = os.path.join(log_directory, '{}.log'.format(usuario))
-
-            while tentativa <= max_tentativas:
-                if tentativa == 2:
-                    tel = telefone
-                    if tel.startswith('55'):
-                        tel = tel[2:]
-
-                        body = {
-                            'phone': tel,
-                            'message': mensagem,
-                            'isGroup': False
-                        }
-                response = requests.post(url, headers=headers, json=body)
-
-                # Verificar se o diretório de logs existe e criar se necessário
-                if not os.path.exists(log_directory):
-                    os.makedirs(log_directory)
-                # Verificar se o arquivo de log existe e criar se necessário
-                if not os.path.isfile(log_filename):
-                    open(log_filename, 'w').close()
-                # Verificar o status da resposta e tomar ações apropriadas, se necessário
-                if response.status_code == 200 or response.status_code == 201:
-                    with open(log_filename, 'a') as log_file:
-                        log_file.write('[{}] [TIPO][Agendado] [USUÁRIO][{}] [CLIENTE][{}] Mensagem enviada!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, cliente))
-                    break  # Sai do loop se a resposta for de sucesso
-                elif response.status_code == 400:
-                    response_data = json.loads(response.text)
-                    error_message = response_data.get('message')
-                    with open(log_filename, 'a') as log_file:
-                        log_file.write('[{}] [TIPO][Agendado] [USUÁRIO][{}] [CLIENTE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, cliente, response.status_code, tentativa, error_message))
-                else:
-                    response_data = json.loads(response.text)
-                    error_message = response_data.get('message')
-                    with open(log_filename, 'a') as log_file:
-                        log_file.write('[{}] [TIPO][Agendado] [USUÁRIO][{}] [CLIENTE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, cliente, response.status_code, tentativa, error_message))
-
-                # Incrementa o número de tentativas
-                tentativa += 1
-
-                # Tempo de espera aleatório entre cada tentativa com limite máximo de 40 segundos
-                tempo_espera = random.uniform(20, 40)
-                time.sleep(tempo_espera)
-
-
-        # Função para filtrar as mensalidades dos clientes a vencer
-        def mensalidades_a_vencer():
-            # Obter a data atual
-            data_atual = datetime.now().date()
-            # Obter data e hora formatada
-            data_hora_atual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-
-            # Calcula a data daqui a 2 dias
-            data_daqui_a_2_dias = data_atual + timedelta(days=2)
-
-            # Filtra os dados de pagamento do usuário
-            
-
-            # Filtrar as mensalidades
-            mensalidades = Mensalidade.objects.filter(
-                dt_vencimento=data_daqui_a_2_dias,
-                pgto=False,
-                cancelado=False,
-                usuario=request.user
-            )
-            quantidade_mensalidades = mensalidades.count()
-            print('[{}] [A VENCER] QUANTIDADE DE ENVIOS A SEREM FEITOS: {}'.format(data_hora_atual, quantidade_mensalidades))
-
-            # Iterar sobre as mensalidades e enviar mensagens
-            for mensalidade in mensalidades:
-                usuario = mensalidade.usuario
-                cliente = mensalidade.cliente
-                nome_cliente = str(cliente)
-                primeiro_nome = nome_cliente.split(' ')[0].upper()
-                dt_vencimento = mensalidade.dt_vencimento.strftime("%d/%m")
-                telefone = str(cliente.telefone)
-                telefone_formatado = '55' + re.sub(r'\D', '', telefone)
-
-                try:
-                    token_user = SessaoWpp.objects.get(usuario=usuario)
-                    dados_pagamento = DadosBancarios.objects.get(usuario=usuario)
-                except SessaoWpp.DoesNotExist or DadosBancarios.DoesNotExist:
-                    continue  # Pula para a próxima iteração caso o objeto não seja encontrado
-
-                mensagem = """⚠️ *ATENÇÃO, {} !!!* ⚠️\n\n*A SUA MENSALIDADE VENCERÁ EM {}.*\n\n▶️ Deseja continuar com acesso ao nosso serviço?? Faça o seu pagamento até a data informada e evite a perca do acesso!\n\n▫ *PAGAMENTO COM PIX*\n\n{}\n{}\n{}\n{}\n\n‼️ _Caso já tenha pago, por favor me envie o comprovante para confirmação e continuidade do acesso._""".format(primeiro_nome, dt_vencimento, dados_pagamento.tipo_chave, dados_pagamento.chave, dados_pagamento.instituicao, dados_pagamento.beneficiario)
-
-                enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente)
-                
-                # Tempo de espera aleatório entre cada tentativa com limite máximo de 90 segundos
-                tempo_espera = random.uniform(20, 90)
-                time.sleep(tempo_espera)
-
-        # Função para filtrar as mensalidades dos clientes em atraso
-        def mensalidades_vencidas():
-            # Obter a data atual
-            data_atual = datetime.now().date()
-            # Obter o horário atual
-            hora_atual = datetime.now().time()
-            # Obter data e hora formatada
-            data_hora_atual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-
-            # Calcula a data de dois dias atrás
-            data_dois_dias_atras = data_atual - timedelta(days=2)
-
-            # Filtrar as mensalidades vencidas há dois dias
-            mensalidades = Mensalidade.objects.filter(
-                dt_vencimento=data_dois_dias_atras,
-                pgto=False,
-                cancelado=False,
-                usuario=request.user
-            )
-            quantidade_mensalidades = mensalidades.count()
-            print('[{}] [EM ATRASO] QUANTIDADE DE ENVIOS A SEREM FEITOS: {}'.format(data_hora_atual, quantidade_mensalidades))
-
-            # Iterar sobre as mensalidades e enviar mensagens
-            for mensalidade in mensalidades:
-                usuario = mensalidade.usuario
-                cliente = mensalidade.cliente
-                nome_cliente = str(cliente)
-                primeiro_nome = nome_cliente.split(' ')[0]
-                telefone = str(cliente.telefone)
-                telefone_formatado = '55' + re.sub(r'\D', '', telefone)
-                saudacao = ''
-
-                # Definir a saudação de acordo com o horário atual
-                if hora_atual < datetime.strptime("12:00:00", "%H:%M:%S").time():
-                    saudacao = 'Bom dia'
-                elif hora_atual < datetime.strptime("18:00:00", "%H:%M:%S").time():
-                    saudacao = 'Boa tarde'
-                else:
-                    saudacao = 'Boa noite'
-
-                try:
-                    token_user = SessaoWpp.objects.get(usuario=usuario)
-                except SessaoWpp.DoesNotExist:
-                    continue  # Pula para a próxima iteração caso o objeto não seja encontrado
-
-                mensagem = """*{}, {} 😊*\n\n*Vejo que você ainda não renovou o seu acesso ao nosso sistema, é isso mesmo??*\n\nPara continuar usando normalmente você precisa regularizar a sua mensalidade.\n\nMe dá um retorno, por favor??""".format(saudacao, primeiro_nome)
-
-                enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente)
-
-                # Tempo de espera aleatório entre cada tentativa com limite máximo de 90 segundos
-                tempo_espera = random.uniform(20, 90)
-                time.sleep(tempo_espera)
-
-
-        # Agendar a execução das funções
-        mensalidades_a_vencer()
-        mensalidades_vencidas()
-
 ############################################ AUTH VIEW ############################################
 
 # PÁGINA DE LOGIN
@@ -640,7 +466,7 @@ def EnviarMensagemWpp(request):
                         if telefone.startswith('55'):
                             telefone=telefone[2:]
                         MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone)
-                        time.sleep(random.uniform(30, 90))
+                        time.sleep(random.uniform(5, 12))
                         break
                     else:
                         if attempts <= max_attempts:
@@ -686,7 +512,6 @@ def EnviarMensagemWpp(request):
             if telefones_file:
                 telefones_data = telefones_file.read().decode('utf-8').split('\n')
                 telefones = ','.join([re.sub(r'\s+|\W', '', telefone) for telefone in telefones_data if telefone.strip()])
-
 
         if clientes is not None:
             url = BASE_URL.format(usuario, 'image' if imagem else 'message')

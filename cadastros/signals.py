@@ -1,11 +1,11 @@
-from .models import Mensalidade, Cliente, Plano, definir_dia_pagamento
+from .models import Mensalidade, Cliente, Plano, PlanoIndicacao, definir_dia_pagamento
 from django.db.models.signals import post_save, pre_save
+import os, json, random, time, requests, calendar, re
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
 from django.dispatch import receiver
 from django.utils import timezone
-import calendar
-
+from .models import SessaoWpp
 
 # Função para definir o dia de pagamento com base em um dia fornecido
 def definir_dia_renovacao(dia):
@@ -130,3 +130,157 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         # Atualiza a `data_pagamento` do cliente com o dia de `nova_data_vencimento` da mensalidade.
         instance.cliente.data_pagamento = nova_data_vencimento.day
         instance.cliente.save()
+
+
+# REALIZA ENVIO PARA CLIENTE INDICADOR QUANDO HOUVER CADASTRO DE NOVO CLIENTE COM INDICAÇÃO
+@receiver(post_save, sender=Cliente)
+def envio_apos_novo_cadastro(sender, instance, created, **kwargs):
+    if created:
+        usuario = instance.usuario
+        cliente = instance
+        nome_cliente = str(cliente)
+        primeiro_nome = nome_cliente.split(' ')[0]
+        telefone = str(cliente.telefone)
+        telefone_formatado = '55' + re.sub(r'\D', '', telefone)
+        indicador = cliente.indicado_por
+        tipo_envio = "Cadastro"
+
+        try:
+            token_user = SessaoWpp.objects.get(usuario=usuario)
+        except SessaoWpp.DoesNotExist:
+            pass
+
+        mensagem = f"""Obrigado, {primeiro_nome}. O seu pagamento foi confirmado e o seu acesso já foi disponibilizado!\n\nA partir daqui, caso precise de algum auxílio pode entrar em contato.\nPeço que salve o nosso contato para que receba as nossas notificações aqui no WhatsApp."""
+
+        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente,tipo_envio)
+
+        if cliente.indicado_por:
+            envio_apos_nova_indicacao(usuario, cliente, cliente.indicado_por)
+
+
+# Função para realizar envio de mensagem após cadastro de um novo cliente. Além disso, verifica se o novo cliente veio por indicação e realiza envio ao cliente indicador.
+def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
+    nome_cliente = str(cliente_indicador)
+    primeiro_nome = nome_cliente.split(' ')[0]
+    telefone = str(cliente_indicador.telefone)
+    telefone_formatado = '55' + re.sub(r'\D', '', telefone)
+    hora_atual = datetime.now().time()
+    tipo_envio = "Indicação"
+
+    mensalidade = Mensalidade.objects.filter(
+        cliente=cliente_indicador, dt_pagamento=None, dt_cancelamento=None, dt_vencimento__month__gte=timezone.now().month
+    ).first()
+
+    qtd_indicacoes = Cliente.objects.filter(
+        indicado_por=cliente_indicador, data_adesao__year=timezone.now().year, data_adesao__month=timezone.now().month
+    ).count()
+
+    valor_desconto = PlanoIndicacao.objects.filter(tipo_plano="desconto").first()
+    if valor_desconto:
+        valor_desconto = valor_desconto.valor
+    else:
+        valor_desconto = 0  # Tratar o caso onde não há plano de desconto
+
+    try:
+        token_user = SessaoWpp.objects.get(usuario=usuario)
+    except SessaoWpp.DoesNotExist:
+        return  # Tratar o caso onde a sessão WPP não existe
+
+    # Definir a saudação de acordo com o horário atual
+    if hora_atual < datetime.strptime("12:00:00", "%H:%M:%S").time():
+        saudacao = 'Bom dia'
+    elif hora_atual < datetime.strptime("18:00:00", "%H:%M:%S").time():
+        saudacao = 'Boa tarde'
+    else:
+        saudacao = 'Boa noite'
+
+    # Definir tipo da mensagem com base na quantidade de indicações já realizadas
+
+    if qtd_indicacoes == 1 and mensalidade:
+        valor = mensalidade.valor - valor_desconto
+        valor = max(valor, 5)
+        valor_formatado = f"{valor:.2f}".replace(",", ".")
+        vencimento = f"{mensalidade.dt_vencimento.day}/{mensalidade.dt_vencimento.month}"       
+        mensagem = f"""Olá, {primeiro_nome}. {saudacao}!\n\nAgradeço pela indicação do(a) {novo_cliente.nome}. A adesão dele(a) foi concluída e você terá desconto no seu próximo pagamento, certo?\n\n*NO DIA {vencimento} VOCÊ PAGARÁ O VALOR DE R$ {valor_formatado} APENAS!*"""
+        mensalidade.valor = valor
+        mensalidade.save()
+
+        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
+
+    elif qtd_indicacoes == 2:
+        linhas_indicacoes = []
+
+        for indicacao in Cliente.objects.filter(indicado_por=cliente_indicador):
+            data_adesao = indicacao.data_adesao.strftime('%d/%m')
+            nome = indicacao.nome
+            linhas_indicacoes.append(f"- [{data_adesao}] [{nome}]")
+
+        mensagem = f"""Olá, {primeiro_nome}. {saudacao}! Tudo bem?\n\nEstamos aqui mais uma vez para lhe agradecer pela parceria e confiança em nosso serviço. Neste mês registramos algumas indicações feitas por você:\n\n""" + "\n".join(linhas_indicacoes) + """\n\nComo forma de agradecer, você tem um valor de R$50 a receber de nós! 🤩\n\nEsse valor pode ser repassado para você por PIX ou, se preferir, pode ser aplicado desconto na(s) sua(s) próxima(s) mensalidade(s).\n\nInforme aqui como deseja fazer, tá bom? 😁"""
+
+        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
+
+
+# Função para enviar mensagens e registrar em arquivo de log
+def enviar_mensagem(telefone, mensagem, usuario, token, cliente, tipo):
+    url = 'http://localhost:8081/api/{}/send-message'.format(usuario)
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ' + token
+    }
+    body = {
+        'phone': telefone,
+        'message': mensagem,
+        'isGroup': False
+    }
+
+    max_tentativas = 3  # Definir o número máximo de tentativas
+    tentativa = 1
+
+    # Nome do arquivo de log baseado no nome do usuário
+    log_directory = './logs/Envios indicacoes realizadas/'
+    log_filename = os.path.join(log_directory, '{}.log'.format(usuario))
+    data_hora_atual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+
+    while tentativa <= max_tentativas:
+        if tentativa == 2:
+            tel = telefone
+            if tel.startswith('55'):
+                tel = tel[2:]
+
+                body = {
+                    'phone': tel,
+                    'message': mensagem,
+                    'isGroup': False
+                }
+        response = requests.post(url, headers=headers, json=body)
+
+        # Verificar se o diretório de logs existe e criar se necessário
+        if not os.path.exists(log_directory):
+            os.makedirs(log_directory)
+        # Verificar se o arquivo de log existe e criar se necessário
+        if not os.path.isfile(log_filename):
+            open(log_filename, 'w').close()
+        # Verificar o status da resposta e tomar ações apropriadas, se necessário
+        if response.status_code == 200 or response.status_code == 201:
+            with open(log_filename, 'a') as log_file:
+                log_file.write('[{}] [TIPO][{}] [USUÁRIO][{}] [CLIENTE][{}] Mensagem enviada!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), tipo, usuario, cliente))
+            break  # Sai do loop se a resposta for de sucesso
+        elif response.status_code == 400:
+            response_data = json.loads(response.text)
+            error_message = response_data.get('message')
+            with open(log_filename, 'a') as log_file:
+                log_file.write('[{}] [TIPO][{}] [USUÁRIO][{}] [CLIENTE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), tipo, usuario, cliente, response.status_code, tentativa, error_message))
+        else:
+            print(f"[ERRO ENVIO DE MSGS] [{response.status_code}] \n [{response.text}]")
+            response_data = json.loads(response.text)
+            error_message = response_data.get('message')
+            with open(log_filename, 'a') as log_file:
+                log_file.write('[{}] [TIPO][{}] [USUÁRIO][{}] [CLIENTE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), tipo, usuario, cliente, response.status_code, tentativa, error_message))
+
+        # Incrementa o número de tentativas
+        tentativa += 1
+
+        # Tempo de espera aleatório entre cada tentativa com limite máximo de 50 segundos
+        tempo_espera = random.uniform(20, 50)
+        time.sleep(tempo_espera)

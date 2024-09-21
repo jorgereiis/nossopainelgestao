@@ -21,7 +21,7 @@ from .views import (
     DeleteAplicativo,
     EditarAplicativo,
     EnviarMensagemWpp,
-    notificar_cliente,
+    #notificar_cliente,
     pagar_mensalidade,
     EditarPlanoAdesao,
     DeletePlanoAdesao,
@@ -91,5 +91,5 @@ urlpatterns = [
     path("indicacoes/", CarregarInidicacoes.as_view(), name="indicacoes"),
     path("qtds_mensalidades/", CarregarQuantidadesMensalidades.as_view()),
     path("obter_session_wpp/", ObterSessionWpp, name="obter_session_wpp"),
-    path("notificar_cliente/", notificar_cliente, name="notificar_cliente"),
+    #path("notificar_cliente/", notificar_cliente, name="notificar_cliente"),
 ]

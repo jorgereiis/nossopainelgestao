@@ -130,7 +130,6 @@ class Cliente(models.Model):
     plano = models.ForeignKey(Plano, on_delete=models.CASCADE, default=1)
     telas = models.ForeignKey(Qtd_tela, on_delete=models.CASCADE, default=1)
     data_adesao = models.DateField(
-        #"Data de adesão", default=timezone.localtime().date()
         "Data de adesão", default=timezone.now
     )
     data_cancelamento = models.DateField("Data de cancelamento", blank=True, null=True)
@@ -200,6 +199,9 @@ class Mensalidade(models.Model):
     cancelado = models.BooleanField(default=False)
     notificacao_wpp1 = models.BooleanField(
         "Notificação PROMO", default=False
+    )
+    recebeu_pix_indicacao = models.BooleanField(
+        "PIX R$50", default=False
     )
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
