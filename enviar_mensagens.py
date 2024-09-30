@@ -193,7 +193,7 @@ def mensalidades_vencidas():
         except SessaoWpp.DoesNotExist:
             continue  # Pula para a próxima iteração caso o objeto não seja encontrado
 
-        mensagem = """*{}, {} 😊*\n\n*Vejo que você ainda não renovou o seu acesso ao nosso sistema, é isso mesmo??*\n\nPara continuar usando normalmente você precisa regularizar a sua mensalidade.\n\nMe dá um retorno, por favor??""".format(saudacao, primeiro_nome)
+        mensagem = """*{}, {} 😊*\n\n*Ainda não identificamos o pagamento da sua mensalidade para renovação.*\n\nCaso já tenha feito, envie aqui novamente o seu comprovante, por favor!""".format(saudacao, primeiro_nome)
 
         enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente)
 
@@ -266,7 +266,7 @@ def mensalidades_canceladas():
         )
 
         quantidade = mensalidades.count()
-        print(f'[{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}] [VENCIDAS HÁ {qtd_dias} DIAS] QUANTIDADE DE ENVIOS A SEREM FEITOS: {quantidade}')
+        print(f'[{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}] [CANCELADAS HÁ {qtd_dias} DIAS] QUANTIDADE DE ENVIOS A SEREM FEITOS: {quantidade}')
         
         if quantidade > 0:
             enviar_mensagem_formatada(mensalidades, mensagem_template, datetime.now().time())
@@ -410,11 +410,11 @@ def wpp_msg_ativos(type, image_name, message):
                         log_file.write('[{}] {} - ❌ Não enviada (consultar log)\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
 
     if tipo_envio == 'ativos':
-        clientes = Cliente.objects.filter(usuario=usuario, cancelado=False)
+        clientes = Cliente.objects.filter(usuario=usuario, cancelado=False, nao_enviar_msgs=False)
         telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
 
     elif tipo_envio == 'cancelados':
-        clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=40))
+        clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=40), nao_enviar_msgs=False)
         telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
 
     elif tipo_envio == 'avulso':
@@ -601,6 +601,8 @@ def run_scheduled_tasks():
         if type_schedule and img_schedule and msg_schedule:
             envio_avulso = functools.partial(wpp_msg_ativos, type_schedule, img_schedule, msg_schedule)
             envio_avulso()
+        else:
+            print(f'[{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}] [ENVIO] Não há envios para hoje.')
 
     except Exception as e:
         print(f"Erro durante a execução de [run_scheduled_tasks()]: {str(e)}")
@@ -623,7 +625,7 @@ schedule.every().day.at("11:05").do(
 schedule.every().day.at("11:30").do(
     run_threaded, mensalidades_vencidas
 )
-schedule.every().day.at("20:00").do(
+schedule.every().day.at("17:00").do(
     run_threaded, mensalidades_canceladas
 )
 schedule.every().day.at("23:59").do(

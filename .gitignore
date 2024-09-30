@@ -5,7 +5,7 @@
 backup
 notes.txt
 notes.py
-bkp
+bkp/*
 errors.log
 access.log
 logs/

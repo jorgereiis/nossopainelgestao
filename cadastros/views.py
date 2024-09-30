@@ -500,11 +500,11 @@ def EnviarMensagemWpp(request):
                             log_file.write('[{}] {} - ❌ Não enviada (consultar log)\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
 
         if tipo_envio == 'ativos':
-            clientes = Cliente.objects.filter(usuario=usuario, cancelado=False)
+            clientes = Cliente.objects.filter(usuario=usuario, cancelado=False, nao_enviar_msgs=False)
             telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
 
         elif tipo_envio == 'cancelados':
-            clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=40))
+            clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=40),nao_enviar_msgs=False)
             telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
 
         elif tipo_envio == 'avulso':
