@@ -210,12 +210,12 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     elif qtd_indicacoes == 2:
         linhas_indicacoes = []
 
-        for indicacao in Cliente.objects.filter(indicado_por=cliente_indicador):
+        for indicacao in Cliente.objects.filter(indicado_por=cliente_indicador, data_adesao__month=timezone.now().month):
             data_adesao = indicacao.data_adesao.strftime('%d/%m')
             nome = indicacao.nome
             linhas_indicacoes.append(f"- [{data_adesao}] [{nome}]")
 
-        mensagem = f"""Olá, {primeiro_nome}. {saudacao}! Tudo bem?\n\nEstamos aqui mais uma vez para lhe agradecer pela parceria e confiança em nosso serviço. Neste mês registramos algumas indicações feitas por você:\n\n""" + "\n".join(linhas_indicacoes) + """\n\nComo forma de agradecer, você tem um valor de R$50 a receber de nós! 🤩\n\nEsse valor pode ser repassado para você por PIX ou, se preferir, pode ser aplicado desconto na(s) sua(s) próxima(s) mensalidade(s).\n\nInforme aqui como deseja fazer, tá bom? 😁"""
+        mensagem = f"""🎉 *PARABÉNS PELAS INDICAÇÕES!* 🎉\n\nOlá, {primeiro_nome}. {saudacao}! Tudo bem?\n\nAgradecemos muito pela sua parceria e confiança em nossos serviços. Este mês, registramos as seguintes indicações feitas por você:\n\n""" + "\n".join(linhas_indicacoes) + """\n\nCom isso, você tem um *bônus de R$ 50* para receber de nós! 😍\n\nAgora, você pode escolher como prefere:\n\n- *Receber o valor via PIX* em sua conta.\n- *Aplicar como desconto* nas suas próximas mensalidades.\n\nNos avise aqui qual opção prefere, e nós registraremos a sua bonificação.."""
 
         enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
 
