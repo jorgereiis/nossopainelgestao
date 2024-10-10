@@ -35,6 +35,7 @@ import re
 import os
 
 logger = logging.getLogger(__name__)
+url_api = os.getenv("URL_API")
 
 ############################################ WPP VIEW ############################################
 
@@ -374,7 +375,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 @login_required
 def EnviarMensagemWpp(request):
     if request.method == 'POST':
-        BASE_URL = 'http://localhost:8081/api/{}/send-{}'
+        BASE_URL = url_api + '/{}/send-{}'
         sessao = get_object_or_404(SessaoWpp, usuario=request.user)
         tipo_envio = request.POST.get('options')
         mensagem = request.POST.get('mensagem')
