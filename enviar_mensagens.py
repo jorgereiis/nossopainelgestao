@@ -629,7 +629,7 @@ schedule.every().day.at("11:30").do(
 schedule.every().day.at("17:00").do(
     run_threaded, mensalidades_canceladas
 )
-schedule.every().day.at("23:59").do(
+schedule.every(1).minutes.do(
     run_threaded, backup_db_sh
 )
 #####
