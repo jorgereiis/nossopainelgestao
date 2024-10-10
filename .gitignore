@@ -12,8 +12,8 @@ logs/
 logs
 teste.sh
 *.sh
-images/*
-archives/*
+#images/*
+#archives/*
 
 ### Django ###
 *.log
