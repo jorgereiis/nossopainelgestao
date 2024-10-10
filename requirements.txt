@@ -14,7 +14,7 @@ et-xmlfile==1.1.0
 idna==3.6
 numpy
 openpyxl
-pandas==2.2.1
+pandas
 pillow==10.2.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
