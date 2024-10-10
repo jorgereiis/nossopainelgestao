@@ -13,7 +13,7 @@ django-simple-captcha==0.6.0
 et-xmlfile==1.1.0
 idna==3.6
 numpy
-openpyxl==3.1.2
+openpyxl
 pandas==2.2.1
 pillow==10.2.0
 python-dateutil==2.9.0.post0
