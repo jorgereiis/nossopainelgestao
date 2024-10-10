@@ -17,3 +17,4 @@ $(document).ajaxStart(function() {
 }).ajaxStop(function() {
     $("#loader").hide();
 });
+
