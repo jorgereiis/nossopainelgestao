@@ -8,15 +8,10 @@ notes.py
 bkp/*
 errors.log
 access.log
-logs/
-logs
 teste.sh
 *.sh
-#images/*
-#archives/*
 
 ### Django ###
-*.log
 *.pot
 *.pyc
 *.sqlite3
