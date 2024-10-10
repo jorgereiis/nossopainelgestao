@@ -620,16 +620,16 @@ def run_threaded(job):
 schedule.every().day.at("10:00").do(
     run_threaded, run_scheduled_tasks
 )
-schedule.every().day.at("16:00").do(
+schedule.every().day.at("11:00").do(
     run_threaded, mensalidades_a_vencer
 )
-schedule.every().day.at("16:30").do(
+schedule.every().day.at("11:30").do(
     run_threaded, mensalidades_vencidas
 )
 schedule.every().day.at("17:00").do(
     run_threaded, mensalidades_canceladas
 )
-schedule.every(60).minutes.do(
+schedule.every(15).minutes.do(
     run_threaded, backup_db_sh
 )
 #####
