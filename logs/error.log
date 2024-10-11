@@ -1,1 +1,47 @@
-[2024-10-10 10:48:49] [WARNING] log - Not Found: /favicon.ico
+[2024-10-10 23:13:25] [ERROR] views - [2024-10-10 23:13:25.336412-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][local variable 'token_user' referenced before assignment]
+Traceback (most recent call last):
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/cadastros/views.py", line 1410, in CadastroCliente
+    cliente.save()
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/cadastros/models.py", line 151, in save
+    super().save(*args, **kwargs)
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/.venv/lib/python3.10/site-packages/django/db/models/base.py", line 822, in save
+    self.save_base(
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/.venv/lib/python3.10/site-packages/django/db/models/base.py", line 924, in save_base
+    post_save.send(
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/.venv/lib/python3.10/site-packages/django/dispatch/dispatcher.py", line 189, in send
+    response = receiver(signal=self, sender=sender, **named)
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/cadastros/signals.py", line 157, in envio_apos_novo_cadastro
+    enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente,tipo_envio)
+UnboundLocalError: local variable 'token_user' referenced before assignment
+[2024-10-11 00:30:06] [ERROR] views - [2024-10-11 00:30:06.939462-03:00] [USER][admin] [IP][127.0.0.1] [ERRO][local variable 'token_user' referenced before assignment]
+Traceback (most recent call last):
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/cadastros/views.py", line 1410, in CadastroCliente
+    cliente.save()
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/cadastros/models.py", line 151, in save
+    super().save(*args, **kwargs)
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/.venv/lib/python3.10/site-packages/django/db/models/base.py", line 822, in save
+    self.save_base(
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/.venv/lib/python3.10/site-packages/django/db/models/base.py", line 924, in save_base
+    post_save.send(
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/.venv/lib/python3.10/site-packages/django/dispatch/dispatcher.py", line 189, in send
+    response = receiver(signal=self, sender=sender, **named)
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/cadastros/signals.py", line 157, in envio_apos_novo_cadastro
+    enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente,tipo_envio)
+UnboundLocalError: local variable 'token_user' referenced before assignment
+[2024-10-11 01:05:58] [ERROR] views - [2024-10-11 01:05:58.816384-03:00] [USER][jrg] [IP][127.0.0.1] [ERRO]['NoneType' object has no attribute 'valor']
+Traceback (most recent call last):
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/cadastros/views.py", line 1410, in CadastroCliente
+    cliente.save()
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/cadastros/models.py", line 151, in save
+    super().save(*args, **kwargs)
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/.venv/lib/python3.10/site-packages/django/db/models/base.py", line 822, in save
+    self.save_base(
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/.venv/lib/python3.10/site-packages/django/db/models/base.py", line 924, in save_base
+    post_save.send(
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/.venv/lib/python3.10/site-packages/django/dispatch/dispatcher.py", line 189, in send
+    response = receiver(signal=self, sender=sender, **named)
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/cadastros/signals.py", line 160, in envio_apos_novo_cadastro
+    envio_apos_nova_indicacao(usuario, cliente, cliente.indicado_por)
+  File "/mnt/c/Users/Jorge/Desktop/iptvgestao-11-05/cadastros/signals.py", line 227, in envio_apos_nova_indicacao
+    if mensalidade.valor < 20 and mensalidade.pgto:
+AttributeError: 'NoneType' object has no attribute 'valor'

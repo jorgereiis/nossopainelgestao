@@ -166,15 +166,19 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     primeiro_nome = nome_cliente.split(' ')[0]
     telefone = str(cliente_indicador.telefone)
     telefone_formatado = '55' + re.sub(r'\D', '', telefone)
-    hora_atual = datetime.now().time()
     tipo_envio = "Indicação"
+    now = datetime.now()
+    hora_atual = now.time()
 
     mensalidade = Mensalidade.objects.filter(
-        cliente=cliente_indicador, dt_pagamento=None, dt_cancelamento=None, dt_vencimento__month__gte=timezone.now().month
+        cliente=cliente_indicador,
+        dt_vencimento__month=now.month,
+        dt_vencimento__year=now.year
     ).first()
 
     qtd_indicacoes = Cliente.objects.filter(
-        indicado_por=cliente_indicador, data_adesao__year=timezone.now().year, data_adesao__month=timezone.now().month
+        indicado_por=cliente_indicador,
+        data_adesao__gte=now.replace(day=1)
     ).count()
 
     valor_desconto = PlanoIndicacao.objects.filter(tipo_plano="desconto").first()
@@ -203,23 +207,58 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
         valor = max(valor, 5)
         valor_formatado = f"{valor:.2f}".replace(",", ".")
         vencimento = f"{mensalidade.dt_vencimento.day}/{mensalidade.dt_vencimento.month}"       
-        mensagem = f"""Olá, {primeiro_nome}. {saudacao}!\n\nAgradeço pela indicação do(a) {novo_cliente.nome}. A adesão dele(a) foi concluída e você terá desconto no seu próximo pagamento, certo?\n\n*NO DIA {vencimento} VOCÊ PAGARÁ O VALOR DE R$ {valor_formatado} APENAS!*"""
+        mensagem = f"""Olá, {primeiro_nome}. {saudacao}!\n\nAgradeço pela indicação do(a) *{novo_cliente.nome}*.\nA adesão dele(a) foi concluída e por isso estamos lhe bonificando com desconto.\n\n*FIQUE ATENTO AO SEU VENCIMENTO:*\n- [{vencimento}] R$ {valor_formatado}\n\nObrigado! 😁"""
         mensalidade.valor = valor
         mensalidade.save()
 
-        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
+        enviar_mensagem(
+            telefone_formatado,
+            mensagem,
+            usuario,
+            token_user.token,
+            nome_cliente,
+            tipo_envio
+        )
 
     elif qtd_indicacoes == 2:
-        linhas_indicacoes = []
 
-        for indicacao in Cliente.objects.filter(indicado_por=cliente_indicador, data_adesao__month=timezone.now().month):
-            data_adesao = indicacao.data_adesao.strftime('%d/%m')
-            nome = indicacao.nome
-            linhas_indicacoes.append(f"- [{data_adesao}] [{nome}]")
+        if mensalidade.valor < 20 and mensalidade.pgto:
 
-        mensagem = f"""🎉 *PARABÉNS PELAS INDICAÇÕES!* 🎉\n\nOlá, {primeiro_nome}. {saudacao}! Tudo bem?\n\nAgradecemos muito pela sua parceria e confiança em nossos serviços. Este mês, registramos as seguintes indicações feitas por você:\n\n""" + "\n".join(linhas_indicacoes) + """\n\nCom isso, você tem um *bônus de R$ 50* para receber de nós! 😍\n\nAgora, você pode escolher como prefere:\n\n- *Receber o valor via PIX* em sua conta.\n- *Aplicar como desconto* nas suas próximas mensalidades.\n\nNos avise aqui qual opção prefere, e nós registraremos a sua bonificação.."""
+            mensalidade = Mensalidade.objects.filter(
+                cliente=cliente_indicador,
+                dt_pagamento=None,
+                dt_cancelamento=None,
+                pgto=False,
+                cancelado=False
+            ).first()
 
-        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
+            valor = mensalidade.valor - valor_desconto
+            valor = max(valor, 5)
+            valor_formatado = f"{valor:.2f}".replace(",", ".")
+            vencimento = f"{mensalidade.dt_vencimento.day}/{mensalidade.dt_vencimento.month}"       
+            mensagem = f"""Olá, {primeiro_nome}. {saudacao}!\n\nAgradeço pela indicação do(a) *{novo_cliente.nome}*.\nA adesão dele(a) foi concluída e por isso estamos lhe bonificando com desconto.\n\n*FIQUE ATENTO AO SEU VENCIMENTO:*\n- [{vencimento}] R$ {valor_formatado}\n\nObrigado! 😁"""
+            mensalidade.valor = valor
+            mensalidade.save()
+
+        else:    
+
+            linhas_indicacoes = []
+
+            for indicacao in Cliente.objects.filter(indicado_por=cliente_indicador, data_adesao__gte=datetime.now().replace(day=1)):
+                data_adesao = indicacao.data_adesao.strftime('%d/%m')
+                nome = indicacao.nome
+                linhas_indicacoes.append(f"- [{data_adesao}] [{nome}]")
+
+            mensagem = f"""🎉 *PARABÉNS PELAS INDICAÇÕES!* 🎉\n\nOlá, {primeiro_nome}. {saudacao}! Tudo bem?\n\nAgradecemos muito pela sua parceria e confiança em nossos serviços. Este mês, registramos as seguintes indicações feitas por você:\n\n""" + "\n".join(linhas_indicacoes) + """\n\nCom isso, você tem um *bônus de R$ 50* para receber de nós! 😍\n\nAgora, você pode escolher como prefere:\n\n- *Receber o valor via PIX* em sua conta.\n- *Aplicar como desconto* nas suas próximas mensalidades.\n\nNos avise aqui qual opção prefere, e nós registraremos a sua bonificação.."""
+        
+        enviar_mensagem(
+            telefone_formatado,
+            mensagem,
+            usuario,
+            token_user.token,
+            nome_cliente,
+            tipo_envio
+        )
 
 
 # Função para enviar mensagens e registrar em arquivo de log
