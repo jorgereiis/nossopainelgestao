@@ -492,7 +492,7 @@ def process_telefones_from_file(sub_directory):
 
 def get_message_from_file(file_name, sub_directory):
     # Caminho do diretório onde o arquivo "msg" está localizado
-    file_path = os.path.join(os.path.dirname(__file__), f'archives\{sub_directory}', file_name)
+    file_path = os.path.join(os.path.dirname(__file__), f'archives/{sub_directory}', file_name)
 
     try:
         # Abrir e ler o arquivo
@@ -617,7 +617,7 @@ def run_threaded(job):
 
 
 ##### Agendar a execução das tarefas
-schedule.every().day.at("10:00").do(
+schedule.every().day.at("10:10").do(
     run_threaded, run_scheduled_tasks
 )
 schedule.every().day.at("11:00").do(
