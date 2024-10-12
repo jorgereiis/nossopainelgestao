@@ -600,6 +600,7 @@ def run_scheduled_tasks():
 
         # Verifica se todas as variáveis foram corretamente definidas e executa a função agendada
         if type_schedule and img_schedule and msg_schedule:
+            print(f"type_schedule: {type_schedule}\nimg_schedule: {img_schedule}\nmsg_schedule: {msg_schedule}")
             envio_avulso = functools.partial(wpp_msg_ativos, type_schedule, img_schedule, msg_schedule)
             envio_avulso()
         else:
