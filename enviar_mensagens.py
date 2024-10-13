@@ -617,7 +617,7 @@ def run_threaded(job):
 
 
 ##### Agendar a execução das tarefas
-schedule.every().day.at("10:30").do(
+schedule.every().day.at("10:00").do(
     run_threaded, run_scheduled_tasks
 )
 schedule.every().day.at("11:00").do(
