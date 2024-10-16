@@ -170,7 +170,15 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     now = datetime.now()
     hora_atual = now.time()
 
-    mensalidade = Mensalidade.objects.filter(
+    mensalidade_em_aberto = Mensalidade.objects.filter(
+        cliente=cliente_indicador,
+        dt_pagamento=None,
+        dt_cancelamento=None,
+        pgto=False,
+        cancelado=False
+    ).first()
+
+    mensalidade_mes_atual = Mensalidade.objects.filter(
         cliente=cliente_indicador,
         dt_vencimento__month=now.month,
         dt_vencimento__year=now.year
@@ -202,14 +210,14 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
 
     # Definir tipo da mensagem com base na quantidade de indicações já realizadas
 
-    if qtd_indicacoes == 1 and mensalidade:
-        valor = mensalidade.valor - valor_desconto
+    if qtd_indicacoes == 1 and mensalidade_em_aberto:
+        valor = mensalidade_em_aberto.valor - valor_desconto
         valor = max(valor, 5)
         valor_formatado = f"{valor:.2f}".replace(",", ".")
-        vencimento = f"{mensalidade.dt_vencimento.day}/{mensalidade.dt_vencimento.month}"       
+        vencimento = f"{mensalidade_em_aberto.dt_vencimento.day}/{mensalidade_em_aberto.dt_vencimento.month}"       
         mensagem = f"""Olá, {primeiro_nome}. {saudacao}!\n\nAgradeço pela indicação do(a) *{novo_cliente.nome}*.\nA adesão dele(a) foi concluída e por isso estamos lhe bonificando com desconto.\n\n*FIQUE ATENTO AO SEU VENCIMENTO:*\n- [{vencimento}] R$ {valor_formatado}\n\nObrigado! 😁"""
-        mensalidade.valor = valor
-        mensalidade.save()
+        mensalidade_em_aberto.valor = valor
+        mensalidade_em_aberto.save()
 
         enviar_mensagem(
             telefone_formatado,
@@ -222,23 +230,15 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
 
     elif qtd_indicacoes == 2:
 
-        if mensalidade.valor < 20 and mensalidade.pgto:
+        if mensalidade_mes_atual.valor < 20 and mensalidade_mes_atual.pgto:
 
-            mensalidade = Mensalidade.objects.filter(
-                cliente=cliente_indicador,
-                dt_pagamento=None,
-                dt_cancelamento=None,
-                pgto=False,
-                cancelado=False
-            ).first()
-
-            valor = mensalidade.valor - valor_desconto
+            valor = mensalidade_em_aberto.valor - valor_desconto
             valor = max(valor, 5)
             valor_formatado = f"{valor:.2f}".replace(",", ".")
-            vencimento = f"{mensalidade.dt_vencimento.day}/{mensalidade.dt_vencimento.month}"       
+            vencimento = f"{mensalidade_em_aberto.dt_vencimento.day}/{mensalidade_em_aberto.dt_vencimento.month}"       
             mensagem = f"""Olá, {primeiro_nome}. {saudacao}!\n\nAgradeço pela indicação do(a) *{novo_cliente.nome}*.\nA adesão dele(a) foi concluída e por isso estamos lhe bonificando com desconto.\n\n*FIQUE ATENTO AO SEU VENCIMENTO:*\n- [{vencimento}] R$ {valor_formatado}\n\nObrigado! 😁"""
-            mensalidade.valor = valor
-            mensalidade.save()
+            mensalidade_em_aberto.valor = valor
+            mensalidade_em_aberto.save()
 
         else:    
 

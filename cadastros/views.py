@@ -1351,7 +1351,7 @@ def CadastroCliente(request):
     forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=request.user)
     servidor_queryset = Servidor.objects.filter(usuario=request.user).order_by('nome')
     sistema_queryset = Aplicativo.objects.filter(usuario=request.user).order_by('nome')
-    indicador_por_queryset = Cliente.objects.filter(usuario=request.user).order_by('nome')
+    indicador_por_queryset = Cliente.objects.filter(usuario=request.user, cancelado=False).order_by('nome')
     dispositivo_queryset = Dispositivo.objects.filter(usuario=request.user).order_by('nome')
     usuario = request.user
     page_group = "clientes"
