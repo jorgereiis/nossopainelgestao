@@ -107,7 +107,7 @@ def mensalidades_a_vencer():
     data_hora_atual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
     # Calcula a data daqui a 2 dias
-    data_daqui_a_2_dias = data_atual + timedelta(days=1)
+    data_daqui_a_2_dias = data_atual + timedelta(days=2)
 
     # Filtra os dados de pagamento do usuário
     
@@ -159,7 +159,7 @@ def mensalidades_vencidas():
     data_hora_atual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
     # Calcula a data de dois dias atrás
-    data_dois_dias_atras = data_atual - timedelta(days=3)
+    data_dois_dias_atras = data_atual - timedelta(days=2)
 
     # Filtrar as mensalidades vencidas há dois dias
     mensalidades = Mensalidade.objects.filter(
@@ -617,13 +617,13 @@ def run_threaded(job):
 
 
 ##### Agendar a execução das tarefas
-schedule.every().day.at("10:00").do(
+schedule.every().day.at("12:00").do(
     run_threaded, run_scheduled_tasks
 )
-schedule.every().day.at("10:00").do(
+schedule.every().day.at("11:30").do(
     run_threaded, mensalidades_a_vencer
 )
-schedule.every().day.at("10:30").do(
+schedule.every().day.at("12:30").do(
     run_threaded, mensalidades_vencidas
 )
 schedule.every().day.at("17:00").do(
