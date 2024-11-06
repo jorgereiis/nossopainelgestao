@@ -572,7 +572,7 @@ def run_scheduled_tasks():
             elif current_day == last_saturday:
                 msg_schedule = get_message_from_file('msg2.txt', type_schedule)
 
-        elif current_weekday == "Wednesday":
+        elif current_weekday == "Wednesday" or current_weekday == "Sunday":
             type_schedule = "avulso"
             
             if current_day in range(1, 11):
