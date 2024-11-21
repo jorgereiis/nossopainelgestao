@@ -562,7 +562,7 @@ def run_scheduled_tasks():
         second_saturday = get_second_saturday(year, month)
         last_saturday = get_last_saturday(year, month)
 
-        if current_weekday == "Saturday":
+        if current_weekday == "SUSPENSO":
             type_schedule = "ativos"
             img_schedule = 'img1.png'
 
