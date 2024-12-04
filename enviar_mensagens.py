@@ -415,7 +415,7 @@ def wpp_msg_ativos(type, image_name, message):
         telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
 
     elif tipo_envio == 'cancelados':
-        clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=40), nao_enviar_msgs=False)
+        clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=10), nao_enviar_msgs=False)
         telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
 
     elif tipo_envio == 'avulso':
@@ -585,7 +585,7 @@ def run_scheduled_tasks():
                 img_schedule = 'img2-3.png'
                 msg_schedule = get_message_from_file('msg2-3.txt', type_schedule)
 
-        elif current_weekday == "Monday":
+        elif current_weekday == "Monday" or current_weekday == "Friday":
             type_schedule = "cancelados"
 
             if current_day in range(1, 11):
