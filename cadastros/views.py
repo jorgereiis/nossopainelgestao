@@ -1,3 +1,4 @@
+from decimal import Decimal
 from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI, DadosBancarios, MensagemEnviadaWpp)
 from django.http import HttpResponseBadRequest, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required
@@ -814,10 +815,10 @@ def EditarCliente(request, cliente_id):
             if cliente.forma_pgto != forma_pgto:
                 cliente.forma_pgto = forma_pgto
 
-            plano = Plano.objects.filter(nome=plano_list[0], valor=plano_list[1].replace(',', '.'), usuario=request.user).first()
+            plano = Plano.objects.filter(nome=plano_list[0], valor=Decimal(plano_list[1].replace(',', '.')), usuario=request.user).first()
             if cliente.plano != plano:
                 cliente.plano = plano
-                mensalidade.valor = int(plano.valor)
+                mensalidade.valor = plano.valor
                 mensalidade.save()
 
             tela = Qtd_tela.objects.get(telas=tela_list[0])
@@ -827,7 +828,7 @@ def EditarCliente(request, cliente_id):
             if cliente.data_pagamento != int(request.POST.get("dt_pgto")):
                 # Atribui o tipo do "plano" à variável "plano" para verificar nas condicionais a seguir
                 plano_nome = str(plano.nome)
-                plano_valor = int(plano.valor)
+                plano_valor = plano.valor
 
                 # Dicionário de planos com a quantidade de meses a serem adicionados
                 planos = {
