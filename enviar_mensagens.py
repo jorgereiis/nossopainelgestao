@@ -415,7 +415,7 @@ def wpp_msg_ativos(type, image_name, message):
         telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
 
     elif tipo_envio == 'cancelados':
-        clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=10), nao_enviar_msgs=False)
+        clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=40), nao_enviar_msgs=False)
         telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
 
     elif tipo_envio == 'avulso':
@@ -562,7 +562,7 @@ def run_scheduled_tasks():
         second_saturday = get_second_saturday(year, month)
         last_saturday = get_last_saturday(year, month)
 
-        if current_weekday == "SUSPENSO":
+        if current_weekday == "Saturday":
             type_schedule = "ativos"
             img_schedule = 'img1.png'
 
@@ -585,7 +585,7 @@ def run_scheduled_tasks():
                 img_schedule = 'img2-3.png'
                 msg_schedule = get_message_from_file('msg2-3.txt', type_schedule)
 
-        elif current_weekday == "Monday" or current_weekday == "Friday":
+        elif current_weekday == "Monday":
             type_schedule = "cancelados"
 
             if current_day in range(1, 11):
@@ -617,7 +617,7 @@ def run_threaded(job):
 
 
 ##### Agendar a execução das tarefas
-schedule.every().day.at("16:45").do(
+schedule.every().day.at("10:00").do(
     run_threaded, run_scheduled_tasks
 )
 schedule.every().day.at("11:00").do(
