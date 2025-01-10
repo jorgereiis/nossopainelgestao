@@ -247,9 +247,9 @@ def calcular_data_atraso(qtd_dias):
 ##### Função principal para filtrar as mensalidades dos clientes cancelados entre 3 e 35 dias
 def mensalidades_canceladas():
     atrasos = [
-        {"dias": 3, "mensagem": "*{}, {}.* 👍🏼\n\nVimos em nosso sistema que já fazem uns dias que o seu acesso foi encerrado e gostaríamos de saber se você deseja continuar utilizando?"},
+        {"dias": 5, "mensagem": "*{}, {}.* 👍🏼\n\nVimos em nosso sistema que já fazem uns dias que o seu acesso foi encerrado e gostaríamos de saber se você deseja continuar utilizando?"},
         {"dias": 15, "mensagem": "*{}, {}* 🫡\n\nTudo bem? Espero que sim.\n\nFaz um tempo que você deixou de ser nosso cliente ativo, e ficamos preocupados. Houve algo que não agradou em nosso sistema?\n\nPergunto, pois se algo não agradou, nos informe para fornecermos uma plataforma melhor para você, tá bom?\n\nEstamos à disposição! 🙏🏼"},
-        {"dias": 40, "mensagem": "*Opa.. {}!! Tudo bacana?*\n\nComo você já foi nosso cliente, trago uma notícia que talvez você goste muuuiito!!\n\nVocê pode renovar a sua mensalidade conosco pagando *APENAS R$ 24.90* nos próximos 3 meses. Olha só que bacana?!?!\n\nEsse tipo de desconto não oferecemos a qualquer um, viu? rsrs\n\nCaso tenha interesse, avise aqui, pois iremos garantir essa oferta apenas essa semana. 👏🏼👏🏼"}
+        {"dias": 45, "mensagem": "*Opa.. {}!! Tudo bacana?*\n\nComo você já foi nosso cliente, trago uma notícia que talvez você goste muuuiito!!\n\nVocê pode renovar a sua mensalidade conosco pagando *APENAS R$ 24.90* nos próximos 3 meses. Olha só que bacana?!?!\n\nEsse tipo de desconto não oferecemos a qualquer um, viu? rsrs\n\nCaso tenha interesse, avise aqui, pois iremos garantir essa oferta apenas essa semana. 👏🏼👏🏼"}
     ]
 
     for atraso in atrasos:
