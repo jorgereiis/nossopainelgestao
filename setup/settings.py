@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     "cadastros.apps.CadastrosConfig",
     "crispy_forms",
     "crispy_bootstrap5",
-    "captcha",
+    "django_recaptcha",
 ]
 
 CRISPY_TEMPLATE_PACK = "bootstrap5"

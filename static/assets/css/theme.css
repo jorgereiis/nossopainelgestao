@@ -37926,3 +37926,8 @@ div.code-toolbar > .toolbar > .toolbar-item > span:hover, div.code-toolbar > .to
 /* O Firefox não suporta pseudo-elementos (::) para a barra de rolagem */
 scrollbar-width: thin;
 scrollbar-color: #f1f1f1 #888;
+
+.g-recaptcha {
+  border: none !important; /* Remove qualquer borda aplicada */
+  box-shadow: none !important; /* Remove sombras que possam simular uma borda */
+}

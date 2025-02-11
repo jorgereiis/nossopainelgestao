@@ -1,9 +1,8 @@
 from django.contrib.auth.forms import AuthenticationForm
-from captcha.fields import CaptchaField
-from captcha.widgets import CaptchaV2Checkbox
+from django_recaptcha.fields import ReCaptchaField
+from django_recaptcha.widgets import ReCaptchaV2Checkbox
 
-"""class LoginForm(AuthenticationForm):
+class LoginForm(AuthenticationForm):
     captcha = ReCaptchaField(
         widget=ReCaptchaV2Checkbox()
     )
-"""

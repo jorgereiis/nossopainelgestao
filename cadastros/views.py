@@ -22,7 +22,7 @@ from django.db.models import Q
 from datetime import timedelta
 from datetime import datetime
 from django.views import View
-#from .forms import LoginForm
+from .forms import LoginForm
 import pandas as pd
 import requests
 import operator
@@ -48,7 +48,7 @@ def whatsapp(request):
 # PÁGINA DE LOGIN
 class Login(LoginView):
     template_name = 'login.html'
-    #form_class = LoginForm
+    form_class = LoginForm
     redirect_authenticated_user = True
     success_url = 'dashboard/'
 
