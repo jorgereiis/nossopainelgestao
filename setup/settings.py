@@ -38,7 +38,7 @@ SILENCED_SYSTEM_CHECKS = ['captcha.recaptcha_test_key_error']
 RECAPTCHA_REQUIRED_SCORE = 0.85
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
