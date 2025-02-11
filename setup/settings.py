@@ -38,7 +38,7 @@ SILENCED_SYSTEM_CHECKS = ['captcha.recaptcha_test_key_error']
 RECAPTCHA_REQUIRED_SCORE = 0.85
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "cadastros.apps.CadastrosConfig",
     "crispy_forms",
     "crispy_bootstrap5",
+    "django_recaptcha",
 ]
 
 CRISPY_TEMPLATE_PACK = "bootstrap5"
