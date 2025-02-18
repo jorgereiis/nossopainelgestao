@@ -1,41 +1,27 @@
-from decimal import Decimal
 from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI, DadosBancarios, MensagemEnviadaWpp)
-from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse
+import requests, operator, logging, codecs, random, base64, json, time, re, os, io
+from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse, JsonResponse
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
-from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.deletion import ProtectedError
-from django.core.exceptions import ValidationError
+from django.db.models.functions import ExtractMonth
 from django.contrib.auth.views import LoginView
 from django.views.generic.list import ListView
 from django.forms.models import model_to_dict
 from django.contrib.auth.models import User
-from babel.numbers import format_currency
-from django.http import JsonResponse
+from django.db.models import Sum, Q, Count
+from datetime import timedelta, datetime
 from django.contrib import messages
 from django.shortcuts import render
 from django.utils import timezone
 from django.db import transaction
-from django.db.models import Sum
 import matplotlib.pyplot as plt
-from django.db.models import Q
-from datetime import timedelta
-from datetime import datetime
 from django.views import View
 from .forms import LoginForm
+from decimal import Decimal
 import pandas as pd
-import requests
-import operator
-import logging
-import codecs
-import random
-import base64
-import json
-import time
-import re
-import os
-import io
 
 logger = logging.getLogger(__name__)
 url_api = os.getenv("URL_API")
@@ -613,32 +599,61 @@ def Perfil(request):
 
 
 def gerar_grafico(request):
-    # Dados
-    meses = ['Outubro']
-    adesoes = [3]
-    cancelamentos = [1]
+    # Obtendo o ano escolhido (se não for informado, pega o atual)
+    ano = request.GET.get("ano", timezone.now().year)
 
-    # Criando a figura
-    plt.figure(figsize=(6, 4))
-    plt.bar(meses, adesoes, color='#4CAF50', width=0.4, label='Adesões')  # Verde
-    plt.bar(meses, cancelamentos, color='#F44336', width=0.4, label='Cancelamentos', bottom=adesoes)  # Vermelho (empilhado)
+    # Filtrando os dados do banco com base no ano escolhido
+    dados_adesoes = Cliente.objects.filter(data_adesao__year=ano) \
+        .annotate(mes=ExtractMonth("data_adesao")) \
+        .values("mes") \
+        .annotate(total=Count("id")) \
+        .order_by("mes")
+
+    dados_cancelamentos = Cliente.objects.filter(data_cancelamento__year=ano) \
+        .annotate(mes=ExtractMonth("data_cancelamento")) \
+        .values("mes") \
+        .annotate(total=Count("id")) \
+        .order_by("mes")
+
+    # Criando listas dinâmicas de meses, adesões e cancelamentos
+    meses = []
+    adesoes = []
+    cancelamentos = []
+
+    # Criando um dicionário auxiliar para facilitar a busca
+    adesoes_dict = {dado["mes"]: dado["total"] for dado in dados_adesoes}
+    cancelamentos_dict = {dado["mes"]: dado["total"] for dado in dados_cancelamentos}
+
+    # Preenchendo os dados de acordo com os meses existentes no banco
+    for mes in range(1, 13):
+        if mes in adesoes_dict or mes in cancelamentos_dict:
+            meses.append(f"{mes:02d}")  # Ex: "01", "02", ..., "12"
+            adesoes.append(adesoes_dict.get(mes, 0))
+            cancelamentos.append(cancelamentos_dict.get(mes, 0))
+
+    # Criando o gráfico de colunas
+    plt.figure(figsize=(7, 4))
+    plt.bar(meses, adesoes, color='#4CAF50', width=0.4, label='Adesões')
+    plt.bar(meses, cancelamentos, color='#F44336', width=0.4, label='Cancelamentos', bottom=adesoes)
 
     # Adicionando rótulos nas barras
     for i, v in enumerate(adesoes):
-        plt.text(i, v / 2, str(v), ha='center', va='center', fontsize=12, fontweight='bold', color='white')
+        if v > 0:
+            plt.text(i, v / 2, str(v), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
 
     for i, v in enumerate(cancelamentos):
-        plt.text(i, adesoes[i] + v / 2, str(v), ha='center', va='center', fontsize=12, fontweight='bold', color='white')
+        if v > 0:
+            plt.text(i, adesoes[i] + v / 2, str(v), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
 
-    # Melhorando a estética
+    # Melhorando a estética do gráfico
     plt.xlabel('Mês', fontsize=12, fontweight='bold')
     plt.ylabel('Quantidade', fontsize=12, fontweight='bold')
-    plt.title('Relatório de Clientes', fontsize=14, fontweight='bold')
+    plt.title(f'Relatório de Clientes - {ano}', fontsize=14, fontweight='bold')
     plt.xticks(fontsize=10, fontweight='bold')
     plt.yticks(fontsize=10)
     plt.legend()
 
-    # Removendo borda superior e direita para um design mais clean
+    # Removendo bordas superiores e laterais para um design mais limpo
     plt.gca().spines['top'].set_visible(False)
     plt.gca().spines['right'].set_visible(False)
 
