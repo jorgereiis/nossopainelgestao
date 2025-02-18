@@ -601,7 +601,7 @@ def Perfil(request):
 
 def gerar_grafico(request):
     # Obtendo o ano escolhido (se não for informado, pega o atual)
-    ano = request.GET.get("ano", now().year)
+    ano = request.GET.get("ano", timezone.now().year)
 
     # Filtrando os dados do banco com base no ano escolhido
     dados_adesoes = Cliente.objects.filter(data_adesao__year=ano) \
