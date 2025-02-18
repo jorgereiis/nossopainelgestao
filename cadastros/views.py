@@ -1,6 +1,6 @@
 from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI, DadosBancarios, MensagemEnviadaWpp)
-import requests, operator, logging, codecs, random, base64, json, time, re, os, io
 from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse, JsonResponse
+import requests, operator, logging, codecs, random, base64, json, time, re, os, io
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -12,6 +12,7 @@ from django.views.generic.list import ListView
 from django.forms.models import model_to_dict
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q, Count
+from babel.numbers import format_currency
 from datetime import timedelta, datetime
 from django.contrib import messages
 from django.shortcuts import render
