@@ -1,6 +1,6 @@
 from decimal import Decimal
 from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI, DadosBancarios, MensagemEnviadaWpp)
-from django.http import HttpResponseBadRequest, HttpResponseNotFound
+from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
@@ -18,6 +18,7 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Sum
+import matplotlib.pyplot as plt
 from django.db.models import Q
 from datetime import timedelta
 from datetime import datetime
@@ -34,6 +35,7 @@ import json
 import time
 import re
 import os
+import io
 
 logger = logging.getLogger(__name__)
 url_api = os.getenv("URL_API")
@@ -608,6 +610,44 @@ def Perfil(request):
             'chave': chave
         },
     )
+
+
+def gerar_grafico(request):
+    # Dados
+    meses = ['Outubro']
+    adesoes = [3]
+    cancelamentos = [1]
+
+    # Criando a figura
+    plt.figure(figsize=(6, 4))
+    plt.bar(meses, adesoes, color='#4CAF50', width=0.4, label='Adesões')  # Verde
+    plt.bar(meses, cancelamentos, color='#F44336', width=0.4, label='Cancelamentos', bottom=adesoes)  # Vermelho (empilhado)
+
+    # Adicionando rótulos nas barras
+    for i, v in enumerate(adesoes):
+        plt.text(i, v / 2, str(v), ha='center', va='center', fontsize=12, fontweight='bold', color='white')
+
+    for i, v in enumerate(cancelamentos):
+        plt.text(i, adesoes[i] + v / 2, str(v), ha='center', va='center', fontsize=12, fontweight='bold', color='white')
+
+    # Melhorando a estética
+    plt.xlabel('Mês', fontsize=12, fontweight='bold')
+    plt.ylabel('Quantidade', fontsize=12, fontweight='bold')
+    plt.title('Relatório de Clientes', fontsize=14, fontweight='bold')
+    plt.xticks(fontsize=10, fontweight='bold')
+    plt.yticks(fontsize=10)
+    plt.legend()
+
+    # Removendo borda superior e direita para um design mais clean
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
+
+    # Salvando o gráfico como imagem
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format='png', bbox_inches="tight", dpi=100)
+    buffer.seek(0)
+
+    return HttpResponse(buffer.getvalue(), content_type="image/png")
 
 
 ############################################ UPDATE VIEW ############################################

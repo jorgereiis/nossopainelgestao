@@ -8,6 +8,7 @@ from .views import (
     SessionWpp,
     ObterLogsWpp,
     EditarPerfil,
+    gerar_grafico,
     EditarCliente,
     DeleteServidor,
     EditarServidor,
@@ -48,6 +49,7 @@ urlpatterns = [
 
     ############ List and Dashboard ###########
     path("perfil/", Perfil, name="perfil"),
+    path('grafico/', gerar_grafico, name='grafico'),
     path("dashboard/", TabelaDashboard.as_view(), name="dashboard"),
     path("clientes-cancelados/", ClientesCancelados.as_view(), name="clientes-cancelados"),
     path("cancelar-cliente/<int:cliente_id>/", cancelar_cliente, name="cancelar-cliente"),
