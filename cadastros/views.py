@@ -601,7 +601,7 @@ def Perfil(request):
 
 def gerar_grafico(request):
     # Obtendo o ano escolhido (se não for informado, pega o atual)
-    ano = request.GET.get("ano", timezone.now().year)
+    ano = request.GET.get("ano", now().year)
 
     # Filtrando os dados do banco com base no ano escolhido
     dados_adesoes = Cliente.objects.filter(data_adesao__year=ano) \
@@ -621,21 +621,27 @@ def gerar_grafico(request):
     adesoes = []
     cancelamentos = []
 
-    # Criando um dicionário auxiliar para facilitar a busca
+    # Criando dicionários auxiliares
     adesoes_dict = {dado["mes"]: dado["total"] for dado in dados_adesoes}
     cancelamentos_dict = {dado["mes"]: dado["total"] for dado in dados_cancelamentos}
 
     # Preenchendo os dados de acordo com os meses existentes no banco
     for mes in range(1, 13):
         if mes in adesoes_dict or mes in cancelamentos_dict:
-            meses.append(f"{mes:02d}")  # Ex: "01", "02", ..., "12"
+            meses.append(calendar.month_abbr[mes])  # Ex: "Jan", "Feb", ...
             adesoes.append(adesoes_dict.get(mes, 0))
             cancelamentos.append(cancelamentos_dict.get(mes, 0))
 
+    # Cálculo do saldo final
+    total_adesoes = sum(adesoes)
+    total_cancelamentos = sum(cancelamentos)
+    saldo_final = total_adesoes - total_cancelamentos
+
     # Criando o gráfico de colunas
-    plt.figure(figsize=(7, 4))
-    plt.bar(meses, adesoes, color='#4CAF50', width=0.4, label='Adesões')
-    plt.bar(meses, cancelamentos, color='#F44336', width=0.4, label='Cancelamentos', bottom=adesoes)
+    plt.figure(figsize=(8, 5))
+    
+    plt.bar(meses, adesoes, color="#4CAF50", width=0.4, label="Adesões")  # Verde
+    plt.bar(meses, cancelamentos, color="#F44336", width=0.4, bottom=adesoes, label="Cancelamentos")  # Vermelho
 
     # Adicionando rótulos nas barras
     for i, v in enumerate(adesoes):
@@ -652,7 +658,19 @@ def gerar_grafico(request):
     plt.title(f'Relatório de Clientes - {ano}', fontsize=14, fontweight='bold')
     plt.xticks(fontsize=10, fontweight='bold')
     plt.yticks(fontsize=10)
-    plt.legend()
+
+    # Definição da cor do saldo na legenda
+    cor_saldo = "#624BFF" if saldo_final >= 0 else "#F44336"
+    texto_saldo = f"Saldo {ano}: {'+' if saldo_final > 0 else ''}{saldo_final}"
+
+    # Criando um proxy para adicionar o saldo na legenda
+    from matplotlib.patches import Patch
+    saldo_patch = Patch(color=cor_saldo, label=texto_saldo)
+
+    # Adicionando a legenda com "Saldo" personalizado
+    plt.legend(handles=[Patch(color="#4CAF50", label="Adesões"), 
+                        Patch(color="#F44336", label="Cancelamentos"), 
+                        saldo_patch])
 
     # Removendo bordas superiores e laterais para um design mais limpo
     plt.gca().spines['top'].set_visible(False)
