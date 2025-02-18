@@ -638,7 +638,7 @@ def gerar_grafico(request):
     saldo_final = total_adesoes - total_cancelamentos
 
     # Criando o gráfico de colunas
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize=(7, 3))
     
     plt.bar(meses, adesoes, color="#4CAF50", width=0.4, label="Adesões")  # Verde
     plt.bar(meses, cancelamentos, color="#F44336", width=0.4, bottom=adesoes, label="Cancelamentos")  # Vermelho
@@ -653,9 +653,9 @@ def gerar_grafico(request):
             plt.text(i, adesoes[i] + v / 2, str(v), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
 
     # Melhorando a estética do gráfico
-    plt.xlabel('Mês', fontsize=12, fontweight='bold')
-    plt.ylabel('Quantidade', fontsize=12, fontweight='bold')
-    plt.title(f'Relatório de Clientes - {ano}', fontsize=14, fontweight='bold')
+    plt.xlabel('Mês', fontsize=12)
+    plt.ylabel('Quantidade', fontsize=12)
+    plt.title(f'Adesão e Cancelamentos por ano - {ano}', fontsize=14)
     plt.xticks(fontsize=10, fontweight='bold')
     plt.yticks(fontsize=10)
 

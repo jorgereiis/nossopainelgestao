@@ -308,6 +308,42 @@
                             </div>
                         </div>
                     </div>
+                    <div class="col-xl-13 col-lg-6 col-md-12 col-12 mt-6 objeto">
+                        <!-- card -->
+                        <div class="card">
+                            <!-- card body -->
+                            <div class="card-body">
+                                <!-- filter -->
+                                <div class="d-flex justify-content-between align-items-center mb-3 objeto">
+                                    <div class="ms-auto">
+                                        <form id="filtro-ano" class="me-3">
+                                            <label for="ano">Escolha o Ano:</label>
+                                            <select id="ano" name="ano" class="mb-0 rounded border border-light-200 px-1 py-2 bg-transparent">
+                                                <option value="2025" selected>Ano atual</option>
+                                                <option value="2024">2024</option>
+                                                <option value="2023">2023</option>
+                                                <option value="2022">2022</option>
+                                                <option value="2025">Sem mais</option>
+                                            </select>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- graphic -->
+                                <div class="d-flex align-items-center justify-content-center flex-column flex-md-row">
+                    
+                                    <img id="grafico" src="{% url 'grafico' %}" alt="Gráfico de Adesões e Cancelamentos" />
+                    
+                                    <script>
+                                    document.getElementById("ano").addEventListener("change", function() {
+                                        let anoSelecionado = this.value;
+                                        document.getElementById("grafico").src = `{% url 'grafico' %}?ano=${anoSelecionado}`;
+                                    });
+                                    </script>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Modal de confirmação de cancelamento de cliente -->
@@ -1014,29 +1050,6 @@
                     </div>
                 </div>
                 <!-- row  -->
-
-                <!-- Formulário para filtrar o ano do gráfico -->
-                <form id="filtro-ano">
-                    <label for="ano">Escolha o Ano:</label>
-                    <select id="ano" name="ano">
-                        <option value="2025" selected>Ano atual</option>
-                        <option value="2024">2024</option>
-                        <option value="2023">2023</option>
-                        <option value="2022">2022</option>
-                        <option value="2025">Sem mais</option>
-                    </select>
-                </form>
-                
-                <!-- Imagem para gráfico de adesão e cancelamentos dos clientes -->
-                <img id="grafico" src="{% url 'grafico' %}" alt="Gráfico de Adesões e Cancelamentos" />
-
-                <!-- Script para atualizar o gráfico de acordo com o ano selecionado -->
-                <script>
-                document.getElementById("ano").addEventListener("change", function() {
-                    let anoSelecionado = this.value;
-                    document.getElementById("grafico").src = `{% url 'grafico' %}?ano=${anoSelecionado}`;
-                });
-                </script>
 
                 <!-- Scripts -->
                 {% include 'partials/scripts.html' %}
