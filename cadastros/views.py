@@ -680,6 +680,7 @@ def gerar_grafico(request):
     buffer = io.BytesIO()
     plt.savefig(buffer, format='png', bbox_inches="tight", dpi=100)
     buffer.seek(0)
+    plt.close()
 
     return HttpResponse(buffer.getvalue(), content_type="image/png")
 
