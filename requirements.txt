@@ -27,3 +27,4 @@ urllib3==2.2.1
 xlrd==2.0.1
 gunicorn
 matplotlib
+whitenoise

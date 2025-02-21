@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    'whitenoise.runserver_nostatic', # whitenoise para servir arquivos estáticos
     "django.contrib.staticfiles",
     "cadastros.apps.CadastrosConfig",
     "crispy_forms",
@@ -67,6 +68,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'setup.middleware.CheckUserLoggedInMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # whitenoise para servir arquivos estáticos
 ]
 
 ROOT_URLCONF = "setup.urls"
@@ -150,8 +152,6 @@ STATIC_URL = "/static/"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "setup/static")]
 
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-
-#STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
