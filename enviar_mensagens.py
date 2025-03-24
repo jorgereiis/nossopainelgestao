@@ -260,6 +260,7 @@ def mensalidades_canceladas():
         mensalidades = Mensalidade.objects.filter(
             cliente__cancelado=True,
             cliente__nao_enviar_msgs=False,
+            cliente__enviado_oferta_promo=False,
             dt_cancelamento=data_atraso,
             pgto=False,
             cancelado=True,
@@ -271,15 +272,20 @@ def mensalidades_canceladas():
         
         if quantidade > 0:
             enviar_mensagem_formatada(mensalidades, mensagem_template, datetime.now().time())
+
             if qtd_dias > 30:
-                for mensalidade in mensalidades:
-                    try:
-                        mensalidade.notificacao_wpp1 = True
-                        mensalidade.dt_notif_wpp1 = datetime.now()
-                        mensalidade.save()
-                        print(f"[ENVIO PROMO REALIZADO] {mensalidade.cliente.nome} - [DT CANCEL] {mensalidade.dt_cancelamento}")
-                    except Exception as e:
-                        print(f"[ERROR] Erro ao salvar Mensalidade ID {mensalidade.id}: {e}")
+                ids_mensalidades = mensalidades.values_list('id', flat=True)
+                
+                # Atualiza as mensalidades em lote para `notificacao_wpp1 = True` e `dt_notif_wpp1 = datetime.now()`
+                Mensalidade.objects.filter(id__in=ids_mensalidades).update(
+                    notificacao_wpp1=True,
+                    dt_notif_wpp1=datetime.now()
+                )
+
+                # Atualiza os clientes associados para `enviado_oferta_promo = True`
+                Cliente.objects.filter(mensalidade__id__in=ids_mensalidades).update(enviado_oferta_promo=True)
+
+                print(f"[ENVIO PROMO REALIZADO] {quantidade} clientes atualizados para 'enviado_oferta_promo = True'")
         else:
             print(f"Nenhum envio realizado para mensalidades vencidas há {qtd_dias} dias")
 ##### FIM
@@ -626,7 +632,7 @@ schedule.every().day.at("13:00").do(
 schedule.every().day.at("13:30").do(
     run_threaded, mensalidades_vencidas
 )
-schedule.every().day.at("17:00").do(
+schedule.every().day.at("20:00").do(
     run_threaded, mensalidades_canceladas
 )
 schedule.every(60).minutes.do(

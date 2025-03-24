@@ -854,8 +854,6 @@
                                     <input type="text" name="q" class="form-control" placeholder="Pesquisar"
                                         aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput"
                                         autocomplete="off">
-                                    <button class="btn btn-outline-secondary" type="submit"
-                                        id="button-pesquisar">Buscar</button>
                                 </div>
                             </form>
 
@@ -2289,3 +2287,28 @@ $(document).ready(function() {
         localStorage.setItem('lastViewed', Date.now().toString());
     });
 </script>
+
+
+<script>
+    // FUNÇÃO PARA FILTRAR OS CLIENTES NA TABELA
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const searchInput = document.getElementById("searchInput");
+        const tableRows = document.querySelectorAll("#myTable tbody tr");
+    
+        searchInput.addEventListener("input", function () {
+            const searchTerm = searchInput.value.trim().toLowerCase();
+    
+            tableRows.forEach(row => {
+                const clienteNome = row.querySelector("h5").innerText.toLowerCase();
+                
+                if (clienteNome.includes(searchTerm)) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        });
+    });
+    </script>
+    

@@ -138,6 +138,7 @@ class Cliente(models.Model):
     )
     cancelado = models.BooleanField("Cancelado", default=False)
     nao_enviar_msgs = models.BooleanField("Não enviar", default=False)
+    enviado_oferta_promo = models.BooleanField("Oferta PROMO", default=False)
     notas = models.TextField("Notas", blank=True, null=True)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
