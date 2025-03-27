@@ -166,7 +166,7 @@ LOGIN_URL = "login"
 
 # Session Configs
 
-SESSION_COOKIE_AGE = 1800  # tempo em segundos
+SESSION_COOKIE_AGE = 7200  # tempo em segundos
 SESSION_SAVE_EVERY_REQUEST = True
 
 # Logger Configs
