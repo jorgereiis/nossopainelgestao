@@ -139,7 +139,7 @@ def mensalidades_a_vencer():
         except SessaoWpp.DoesNotExist or DadosBancarios.DoesNotExist:
             continue  # Pula para a próxima iteração caso o objeto não seja encontrado
 
-        mensagem = """⚠️ *ATENÇÃO, {} !!!* ⚠️\n\n*SUA MENSALIDADE VENCE EM:*\n\n💰 [{}] R$ {}\n\n_Faça o seu pagamento até a data informada e evite a perca do acesso!_\n\n▫ *PAGAMENTO COM PIX*\n\n{}\n{}\n{}\n{}\n\n‼️ _Caso já tenha pago, por favor, nos envie o comprovante para confirmação e continuidade do acesso._""".format(primeiro_nome, dt_vencimento, valor, dados_pagamento.tipo_chave, dados_pagamento.chave, dados_pagamento.instituicao, dados_pagamento.beneficiario)
+        mensagem = """⚠️ *ATENÇÃO, {} !!!* ⚠️\n\n*SEU PLANO VENCERÁ EM:*\n\n💰 [{}] R$ {}\n\n_Antecipe o seu pagamento e evite perder o acesso!_\n\n▫ *PAGAMENTO COM PIX*\n\n{}\n{}\n{}\n{}\n\n‼️ _Caso já tenha pago, por favor, nos envie o comprovante para confirmação._""".format(primeiro_nome, dt_vencimento, valor, dados_pagamento.tipo_chave, dados_pagamento.chave, dados_pagamento.instituicao, dados_pagamento.beneficiario)
 
         enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente)
         
