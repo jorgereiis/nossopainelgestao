@@ -212,7 +212,7 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
 
     if qtd_indicacoes == 1 and mensalidade_em_aberto:
         valor = mensalidade_em_aberto.valor - valor_desconto
-        valor = max(valor, 5)
+        valor = max(valor, 13.99) # Garantir que o valor não fique abaixo de 13.99
         valor_formatado = f"{valor:.2f}".replace(",", ".")
         vencimento = f"{mensalidade_em_aberto.dt_vencimento.day}/{mensalidade_em_aberto.dt_vencimento.month}"       
         mensagem = f"""Olá, {primeiro_nome}. {saudacao}!\n\nAgradeço pela indicação do(a) *{novo_cliente.nome}*.\nA adesão dele(a) foi concluída e por isso estamos lhe bonificando com desconto.\n\n⚠ *FIQUE ATENTO AO SEU VENCIMENTO:*\n\n- [{vencimento}] R$ {valor_formatado}\n\nObrigado! 😁"""
