@@ -623,16 +623,16 @@ def run_threaded(job):
 
 
 ##### Agendar a execução das tarefas
-schedule.every().day.at("19:00").do(
+schedule.every().day.at("13:00").do(
     run_threaded, run_scheduled_tasks
 )
-schedule.every().day.at("19:30").do(
+schedule.every().day.at("13:00").do(
     run_threaded, mensalidades_a_vencer
 )
-schedule.every().day.at("20:30").do(
+schedule.every().day.at("13:30").do(
     run_threaded, mensalidades_vencidas
 )
-schedule.every().day.at("21:00").do(
+schedule.every().day.at("17:00").do(
     run_threaded, mensalidades_canceladas
 )
 schedule.every(60).minutes.do(
