@@ -629,7 +629,7 @@ schedule.every().day.at("12:00").do(
 schedule.every().day.at("13:00").do(
     run_threaded, mensalidades_a_vencer
 )
-schedule.every().day.at("14:00").do(
+schedule.every().day.at("14:05").do(
     run_threaded, mensalidades_vencidas
 )
 schedule.every().day.at("17:00").do(
