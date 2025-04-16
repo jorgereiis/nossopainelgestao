@@ -23,6 +23,7 @@ from django.views import View
 from .forms import LoginForm
 from decimal import Decimal
 import pandas as pd
+    
 
 logger = logging.getLogger(__name__)
 url_api = os.getenv("URL_API")
@@ -191,16 +192,12 @@ class ClientesCancelados(LoginRequiredMixin, ListView):
             }
         )
         return context
+    
 
-
-class TabelaDashboard(LoginRequiredMixin, ListView):
-    """
-    View para listagem de clientes, suas mensalidades e outras informações exibidas no dashboard.
-    """
-    login_url = "login"
+class TabelaDashboardAjax(LoginRequiredMixin, ListView):
     model = Cliente
-    template_name = "dashboard.html"
-    paginate_by = 1000
+    template_name = "partials/table-clients.html"
+    paginate_by = 10
 
     def get_queryset(self):
         """
@@ -224,6 +221,38 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         if query:
             queryset = queryset.filter(nome__icontains=query)
         return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["hoje"] = timezone.localtime().date()
+        return context
+
+
+class TabelaDashboard(LoginRequiredMixin, ListView):
+    """
+    View para listagem de clientes e outras informações exibidas no dashboard.
+    """
+    login_url = "login"
+    model = Cliente
+    template_name = "dashboard.html"
+    paginate_by = 10
+
+    def get_queryset(self):
+
+        query = self.request.GET.get("q")
+        queryset = (
+            Cliente.objects.filter(cancelado=False).filter(
+                mensalidade__cancelado=False,
+                mensalidade__dt_cancelamento=None,
+                mensalidade__dt_pagamento=None,
+                mensalidade__pgto=False,
+                usuario=self.request.user,
+            ).order_by("mensalidade__dt_vencimento").distinct()
+        )
+        if query:
+            queryset = queryset.filter(nome__icontains=query)
+        return queryset
+    
 
     def get_context_data(self, **kwargs):
         """

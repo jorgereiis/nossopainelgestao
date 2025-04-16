@@ -849,200 +849,16 @@
                             </div>
 
                             <!-- campo de pesquisa  -->
-                            <form method="GET">
-                                <div class="input-group mb-3 card-header bg-white py-4">
-                                    <input type="text" name="q" class="form-control" placeholder="Pesquisar"
-                                        aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput"
-                                        autocomplete="off">
-                                </div>
-                            </form>
+                            <div class="input-group mb-3 card-header bg-white py-4">
+                                <input type="text" name="q" class="form-control" placeholder="Pesquisar"
+                                    aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput"
+                                    autocomplete="off">
+                            </div>
+                            
 
                             <!-- TABELA  -->
-                            <div class="table-responsive">
-                                <table class="table text-nowrap mb-0 table-hover" id="myTable">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th class="fw-bold text-center">Nome</th>
-                                            <th class="fw-bold text-center">Data adesão</th>
-                                            <th class="fw-bold text-center">Dispositivo</th>
-                                            <th class="fw-bold text-center">Aplicativo</th>
-                                            <th class="fw-bold text-center">Último pgto.</th>
-                                            <th class="fw-bold text-center">Próximo pgto.</th>
-                                            <th colspan="2"></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        {% for cliente in object_list %}
-                                        <!-- COMEÇO DA LINHA -->
-                                        <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent align-middle">
-                                            <td class="dtr-control align-middle">
-                                                <div class="d-flex align-items-center">
-                                                    <div>
-                                                        <div class="icon-shape icon-md border p-1 rounded-circle">
-                                                            <img src="{% static 'assets/images/logo-apps/'|add:cliente.servidor.nome|lower|add:'.png' %}"
-                                                                class="rounded-circle">
-                                                        </div>
-                                                    </div>
-                                                    <div class="ms-3 lh-1">
-                                                        <h5 class="text-capitalize small" class="text-inherit"
-                                                            onmouseover="this.style.color='#624BFF'"
-                                                            onmouseout="this.style.color=''">{{cliente.nome}}</h5>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td class="small text-center">{{cliente.data_adesao|date:'d/m/Y'}}</td>
-                                            <td class="small text-center">{{cliente.dispositivo}}</td>
-                                            <td class="text-capitalize small text-center">{{cliente.sistema}}</td>
-                                            {% if cliente.ultimo_pagamento %}
-                                            <td class="small text-center">{{cliente.ultimo_pagamento|date:'d/m/Y'}}</td>
-                                            {% else %}
-                                            <td class="small text-center"></td>
-                                            {% endif %}
-
-                                            {% for mensalidade in cliente.mensalidade_set.all %}
-                                            {% if not mensalidade.cancelado and not mensalidade.pgto %}
-                                            {% if mensalidade.dt_pagamento is None and hoje > mensalidade.dt_vencimento %}
-                                            <td class="align-middle text-center">
-                                                <span class="badge bg-danger">{{mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y'}}]</span>
-                                                <span></span>
-                                            </td>
-                                            {% else %}
-                                            <td class="align-middle text-primary text-center">
-                                                    <span class="badge bg-info">{{mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y' }}]</span>
-                                                    <span></span>
-                                            </td>
-                                            {% endif %}
-                                            {% if cliente.forma_pgto.nome == "PIX" %}
-                                            <td>
-                                                <img src="{% static 'assets/images/svg/pix.png' %}">
-                                            </td>
-                                            {% elif cliente.forma_pgto.nome == "Cartão de Crédito" %}
-                                            <td>
-                                                <span class="bi bi-credit-card" style="color: #4DBDB1"></span>
-                                            </td>
-                                            {% elif cliente.forma_pgto.nome == "Boleto" %}
-                                            <td>
-                                                <span class="bi bi-upc-scan" style="color: #4DBDB1"></span>
-                                            </td>
-                                            {% endif %}
-                                            <!-- Dropdown da tabela -->
-                                            <td>
-                                                <div class="dropdown dropend">
-                                                    <button
-                                                        class="btn btn-icon btn-white rounded-circle btn-dashed ms-2"
-                                                        type="button" id="dropdownMenuButton" data-bs-toggle="dropdown"
-                                                        aria-expanded="false">
-                                                        <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
-                                                    </button>
-                                                    <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
-                                                        <li>
-                                                            <button class="dropdown-item" 
-                                                                    data-id="{{cliente.id}}"
-                                                                    data-nome="{{cliente.nome}}"
-                                                                    data-plano="{{cliente.plano}}"
-                                                                    data-telas="{{cliente.telas}}"
-                                                                    data-notas="{{cliente.notas}}"
-                                                                    data-telefone="{{cliente.telefone}}"
-                                                                    data-servidor="{{cliente.servidor}}"
-                                                                    data-aplicativo="{{cliente.sistema}}"
-                                                                    data-forma_pgto="{{cliente.forma_pgto}}"
-                                                                    data-dispositivo="{{cliente.dispositivo}}"
-                                                                    data-data_adesao="{{cliente.data_adesao}}"
-                                                                    data-indicado_por="{{cliente.indicado_por}}"
-                                                                    data-data_pagamento="{{cliente.data_pagamento}}"
-                                                                    data-ultimo_pagamento="{{cliente.ultimo_pagamento|date:'d/m/Y'}}"
-                                                                    data-conta_aplicativo="{{cliente.conta_aplicativo.all}}"
-                                                                    onclick="exibirModalDetalhes(this)">Ver Infos.
-                                                                </button>
-                                                        </li>
-                                                        <li>
-                                                            <button class="dropdown-item" data-id="{{cliente.id}}" data-nome="{{cliente.nome}}" data-telefone="{{cliente.telefone}}" data-indicado_por="{{cliente.indicado_por}}" data-servidor="{{cliente.servidor}}" data-forma_pgto="{{cliente.forma_pgto}}" data-plano="{{cliente.plano.nome}} - {{cliente.plano.valor}}" data-telas="{{cliente.telas}}" data-data_pagamento="{{cliente.data_pagamento}}" data-dispositivo="{{cliente.dispositivo}}" data-aplicativo="{{cliente.sistema}}" data-notas="{{cliente.notas}}" onclick="exibirModalEdicao(this)"> Editar Infos.
-                                                            </button>
-                                                        </li>
-                                                        <li>
-                                                            <button class="dropdown-item"
-                                                                data-nome="{{cliente.nome}}"
-                                                                data-mensalidade="{{mensalidade.id}}"
-                                                                onclick="exibirModalConfirmacaoPagamento(this)">Pagar Mensal.
-                                                            </button>
-                                                        </li>
-                                                        <li>
-                                                            <button class="dropdown-item"
-                                                                data-nome="{{cliente.nome}}"
-                                                                data-cliente="{{cliente.id}}"
-                                                                onclick="exibirModalConfirmacaoCancelamento(this)">Cancelar cliente
-                                                            </button>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </td>
-                                            {% endif %}
-                                            {% endfor %}
-                                        </tr>
-                                        <!-- TÉRMINO DA LINHA -->
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- card footer  -->
-                            <div class="card-footer bg-white text-center">
-                                <nav aria-label="Page navigation" class="mt-3 mt-sm-0 ms-sm-3 paginator-nav" style="max-width: 100%; margin: auto;">
-                                <ul class="pagination justify-content-end mb-0">
-                                    {% if page_obj.has_previous %}
-                                    <li class="page-item">
-                                    <a class="page-link" href="?page=1" aria-label="Primeira">
-                                        <span aria-hidden="true">&laquo;</span>
-                                    </a>
-                                    </li>
-                                    {% endif %}
-                            
-                                    {% if page_obj.number > 3 %}
-                                    <li class="page-item">
-                                    <span class="page-link">...</span>
-                                    </li>
-                                    {% endif %}
-                            
-                                    {% for page in page_obj.paginator.page_range %}
-                                    {% if page == page_obj.number %}
-                                        <li class="page-item active">
-                                        <a class="page-link" href="#">
-                                            {{ page }}
-                                            <span class="sr-only"></span>
-                                        </a>
-                                        </li>
-                                    {% elif page > page_obj.number|add:'-2' and page < page_obj.number|add:'2' %}
-                                        <li class="page-item">
-                                        <a class="page-link" href="?page={{ page }}">
-                                            {{ page }}
-                                        </a>
-                                        </li>
-                                    {% endif %}
-                                    {% if page == page_obj.number|add:'2' and page_obj.number|add:'1' < page_obj.paginator.num_pages %}
-                                        <li class="page-item">
-                                        <span class="page-link">...</span>
-                                        </li>
-                                    {% endif %}
-                                    {% endfor %}
-                            
-                                    {% if page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
-                                    <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
-                                        {{ page_obj.paginator.num_pages }}
-                                    </a>
-                                    </li>
-                                    {% endif %}
-                            
-                                    {% if page_obj.has_next %}
-                                    <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Última">
-                                        <span aria-hidden="true">&raquo;</span>
-                                    </a>
-                                    </li>
-                                    {% endif %}
-                                </ul>
-                                </nav>
+                            <div id="tabela-container">
+                                {% include 'partials/table-clients.html' %}
                             </div>
                         </div>
                     </div>
@@ -2294,20 +2110,19 @@ $(document).ready(function() {
 
     document.addEventListener("DOMContentLoaded", function () {
         const searchInput = document.getElementById("searchInput");
-        const tableRows = document.querySelectorAll("#myTable tbody tr");
-    
+
         searchInput.addEventListener("input", function () {
-            const searchTerm = searchInput.value.trim().toLowerCase();
-    
-            tableRows.forEach(row => {
-                const clienteNome = row.querySelector("h5").innerText.toLowerCase();
-                
-                if (clienteNome.includes(searchTerm)) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
-                }
-            });
+            const searchTerm = searchInput.value.trim();
+
+            fetch(`/dashboard/busca/?q=${encodeURIComponent(searchTerm)}`)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById("tabela-container").innerHTML = html;
+                })
+                .catch(error => {
+                    console.error("Erro ao buscar clientes:", error);
+                });
         });
     });
     </script>
+

@@ -40,6 +40,7 @@ from .views import (
     CadastroContaAplicativo,
     CarregarContasDoAplicativo,
     CarregarQuantidadesMensalidades,
+    TabelaDashboardAjax
 )
 
 urlpatterns = [
@@ -54,6 +55,7 @@ urlpatterns = [
     path("clientes-cancelados/", ClientesCancelados.as_view(), name="clientes-cancelados"),
     path("cancelar-cliente/<int:cliente_id>/", cancelar_cliente, name="cancelar-cliente"),
     path("pagar-mensalidade/<int:mensalidade_id>/", pagar_mensalidade, name="pagar-mensalidade"),
+    path('dashboard/busca/', TabelaDashboardAjax.as_view(), name='dashboard-busca'),
 
     ########### Create ###########
     path("cadastro-cliente/", CadastroCliente, name="cadastro-cliente"),
