@@ -117,7 +117,6 @@ class Cliente(models.Model):
     email = models.EmailField(max_length=255, blank=True, null=True)
     telefone = models.CharField(max_length=16)
     uf = models.CharField(max_length=2, blank=True, null=True)
-    telefone = models.CharField(max_length=16)
     indicado_por = models.ForeignKey(
         "self", on_delete=models.SET_NULL, null=True, blank=True
     )
