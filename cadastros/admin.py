@@ -22,7 +22,9 @@ class ClienteAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "nome",
+        "email",
         "telefone",
+        "uf",
         "servidor",
         "dispositivo",
         "sistema",
