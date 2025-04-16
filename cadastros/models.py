@@ -114,6 +114,9 @@ class Cliente(models.Model):
     dispositivo = models.ForeignKey(Dispositivo, on_delete=models.CASCADE, default=None)
     sistema = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, default=None)
     nome = models.CharField(max_length=255)
+    email = models.EmailField(max_length=255, blank=True, null=True)
+    telefone = models.CharField(max_length=16)
+    uf = models.CharField(max_length=2, blank=True, null=True)
     telefone = models.CharField(max_length=16)
     indicado_por = models.ForeignKey(
         "self", on_delete=models.SET_NULL, null=True, blank=True
