@@ -31,7 +31,9 @@ from .views import (
     CadastroAplicativo,
     SecretTokenAPIView,
     ClientesCancelados,
+    TabelaDashboardAjax,
     CarregarInidicacoes,
+    gerar_mapa_clientes,
     CadastroPlanoAdesao,
     CadastroDispositivo,
     DeleteFormaPagamento,
@@ -40,7 +42,6 @@ from .views import (
     CadastroContaAplicativo,
     CarregarContasDoAplicativo,
     CarregarQuantidadesMensalidades,
-    TabelaDashboardAjax
 )
 
 urlpatterns = [
@@ -56,6 +57,7 @@ urlpatterns = [
     path("cancelar-cliente/<int:cliente_id>/", cancelar_cliente, name="cancelar-cliente"),
     path("pagar-mensalidade/<int:mensalidade_id>/", pagar_mensalidade, name="pagar-mensalidade"),
     path('dashboard/busca/', TabelaDashboardAjax.as_view(), name='dashboard-busca'),
+    path('grafico/mapa-clientes/', gerar_mapa_clientes, name='grafico_mapa_clientes'),
 
     ########### Create ###########
     path("cadastro-cliente/", CadastroCliente, name="cadastro-cliente"),

@@ -329,7 +329,7 @@
                                     </div>
                                 </div>
 
-                                <!-- graphic -->
+                                <!-- graphic 1 -->
                                 <div class="d-flex align-items-center justify-content-center flex-column flex-md-row">
                     
                                     <img id="grafico" src="{% url 'grafico' %}" alt="Gráfico de Adesões e Cancelamentos" />
@@ -340,6 +340,19 @@
                                         document.getElementById("grafico").src = `{% url 'grafico' %}?ano=${anoSelecionado}`;
                                     });
                                     </script>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-13 col-lg-6 col-md-12 col-12 mt-6 objeto">
+                        <!-- card graphic 2 -->
+                        <div class="card">
+                            <!-- card body graphic 2 -->
+                            <div class="card-body">
+                                <!-- graphic 2 image -->
+                                <div class="d-flex align-items-center justify-content-center flex-column flex-md-row">
+                                    <iframe src="{% url 'grafico_mapa_clientes' %}" width="100%" height="378" frameborder="0"></iframe>
                                 </div>
                             </div>
                         </div>

@@ -28,3 +28,5 @@ xlrd==2.0.1
 gunicorn
 matplotlib
 whitenoise
+plotly
+geopandas

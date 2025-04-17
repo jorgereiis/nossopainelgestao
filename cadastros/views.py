@@ -2,10 +2,13 @@ from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Pla
 from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse, JsonResponse
 import requests, operator, logging, codecs, random, base64, json, time, re, os, io
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.views.decorators.clickjacking import xframe_options_exempt
+from plotly.colors import sample_colorscale, make_colorscale
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models.deletion import ProtectedError
+from django.views.decorators.cache import cache_page
 from django.db.models.functions import ExtractMonth
 from django.contrib.auth.views import LoginView
 from django.views.generic.list import ListView
@@ -19,9 +22,12 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.db import transaction
 import matplotlib.pyplot as plt
+from plotly.offline import plot
 from django.views import View
 from .forms import LoginForm
 from decimal import Decimal
+import plotly.express as px
+import geopandas as gpd
 import pandas as pd
     
 
@@ -713,6 +719,127 @@ def gerar_grafico(request):
 
     return HttpResponse(buffer.getvalue(), content_type="image/png")
 
+
+@cache_page(60 * 120)  # cache por 1 hora
+@xframe_options_exempt  # permite ser exibido em iframe
+def gerar_mapa_clientes(request):
+    # Consulta os clientes ativos por estado (uf)
+    dados = dict(
+        Cliente.objects.filter(cancelado=False)
+        .values('uf')
+        .annotate(total=Count('id'))
+        .values_list('uf', 'total')
+    )
+
+    # Carrega o arquivo GeoJSON local
+    mapa = gpd.read_file("archives/brasil_estados.geojson")
+
+    # Mapeia os nomes dos estados para siglas
+    siglas = {
+        "Acre": "AC", "Alagoas": "AL", "Amapá": "AP", "Amazonas": "AM",
+        "Bahia": "BA", "Ceará": "CE", "Distrito Federal": "DF", "Espírito Santo": "ES",
+        "Goiás": "GO", "Maranhão": "MA", "Mato Grosso": "MT", "Mato Grosso do Sul": "MS",
+        "Minas Gerais": "MG", "Pará": "PA", "Paraíba": "PB", "Paraná": "PR",
+        "Pernambuco": "PE", "Piauí": "PI", "Rio de Janeiro": "RJ", "Rio Grande do Norte": "RN",
+        "Rio Grande do Sul": "RS", "Rondônia": "RO", "Roraima": "RR", "Santa Catarina": "SC",
+        "São Paulo": "SP", "Sergipe": "SE", "Tocantins": "TO"
+    }
+
+    # Adiciona a sigla e clientes ao GeoDataFrame
+    mapa["sigla"] = mapa["name"].map(siglas)
+    mapa["clientes"] = mapa["sigla"].apply(lambda uf: dados.get(uf, 0))
+
+    # Remove colunas com Timestamp (não serializáveis)
+    mapa = mapa.drop(columns=["created_at", "updated_at"], errors="ignore")
+
+    # Converte para GeoJSON
+    geojson_data = json.loads(mapa.to_json())
+
+    # Definindo a  escala de 1 ao máximo
+    max_clientes = max(mapa["clientes"]) if mapa["clientes"].any() else 1
+
+    mapa["clientes_cor"] = mapa["clientes"].apply(lambda x: x if x > 0 else None)
+
+    # Gera o gráfico interativo
+    fig = px.choropleth_mapbox(
+        mapa,
+        geojson=geojson_data,
+        locations="sigla",
+        color="clientes",
+        color_continuous_scale=[
+            [0.0, "#FFFFFF"],   # clientes = 0
+            [0.01, "#cdbfff"],  # mínimo relevante
+            [1.0, "#624BFF"]    # máximo
+        ],
+        range_color=[0, max_clientes],
+        labels={"clientes": "Clientes Ativos"},
+        featureidkey="properties.sigla",
+        hover_name="name",
+        hover_data={"clientes": True, "sigla": False, "clientes_cor": False},
+        mapbox_style="white-bg",
+        center={"lat": -19.29285, "lon": -49.35954},
+        zoom=2.6,
+        opacity=0.6,
+    )
+
+    fig.update_traces(
+        hoverlabel=dict(
+            bgcolor="#fff",
+            bordercolor="#724BFF",
+            font=dict(size=14, color="black", family="Arial")
+        ),
+        marker_line_color="gray",
+        marker_line_width=0.5
+    )
+
+    fig.update_layout(
+        margin={"r": 0, "t": 0, "l": 0, "b": 0},
+        title_text="Clientes Ativos por Estado",
+        title_x=0.5,
+        title_y=0.95,
+        title_font=dict(size=25),
+        title_font_color="black",
+        title_font_family="Arial",
+        title_xanchor="center",
+        coloraxis_showscale=False
+    )
+
+    # Gera o HTML do gráfico
+    grafico_html = plot(fig, output_type="div", include_plotlyjs="cdn")
+
+    # Envolve com estrutura HTML e CSS responsivo
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Mapa Interativo</title>
+        <style>
+            html, body {{
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                max-width: 100%;
+                overflow: hidden;
+            }}
+            .plotly-graph-div {{
+                height: 100% !important;
+                width: 100% !important;
+            }}
+            @media (max-width: 576px) {{
+                .plotly-graph-div {{
+                    height: 400px !important;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        {grafico_html}
+    </body>
+    </html>
+    """
+
+    return HttpResponse(html, content_type="text/html")
 
 ############################################ UPDATE VIEW ############################################
 
