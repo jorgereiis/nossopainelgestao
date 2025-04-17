@@ -29,6 +29,7 @@ from decimal import Decimal
 import plotly.express as px
 import geopandas as gpd
 import pandas as pd
+from django.db.models.functions import Upper
     
 
 logger = logging.getLogger(__name__)
@@ -720,15 +721,19 @@ def gerar_grafico(request):
     return HttpResponse(buffer.getvalue(), content_type="image/png")
 
 
-@cache_page(60 * 120)  # cache por 1 hora
+@cache_page(60 * 120)  # cache por 2 hora
 @xframe_options_exempt  # permite ser exibido em iframe
 def gerar_mapa_clientes(request):
     # Consulta os clientes ativos por estado (uf)
     dados = dict(
-        Cliente.objects.filter(cancelado=False)
-        .values('uf')
-        .annotate(total=Count('id'))
-        .values_list('uf', 'total')
+        Cliente.objects
+        .filter(cancelado=False)
+        .exclude(uf__isnull=True)
+        .exclude(uf__exact='')
+        .annotate(uf_upper=Upper("uf"))
+        .values_list("uf_upper")
+        .annotate(total=Count("id"))
+        .values_list("uf_upper", "total")
     )
 
     # Carrega o arquivo GeoJSON local
