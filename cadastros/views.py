@@ -1010,6 +1010,8 @@ from datetime import datetime
 
 @login_required
 def EditarCliente(request, cliente_id):
+    from .utils import DDD_UF_MAP
+
     """
     Função de view para editar um cliente.
     """
@@ -1028,11 +1030,23 @@ def EditarCliente(request, cliente_id):
                 cliente.nome = request.POST.get("nome")
 
             if cliente.telefone != request.POST.get("telefone"):
-                telefone = Cliente.objects.filter(telefone=request.POST.get("telefone"), usuario=request.user)
-                if not telefone:
-                    cliente.telefone = request.POST.get("telefone")
+                novo_telefone = request.POST.get("telefone")
+                telefone_existente = Cliente.objects.filter(telefone=novo_telefone, usuario=request.user)
+
+                if not telefone_existente:
+                    cliente.telefone = novo_telefone
+
+                    # Lógica para extrair o DDD e atualizar o UF
+                    import re
+                    telefone_digits = re.sub(r'\D+', '', novo_telefone)
+                    if telefone_digits.startswith('55'):
+                        telefone_digits = telefone_digits[2:]
+                    ddd = telefone_digits[:2]
+                    cliente.uf = DDD_UF_MAP.get(ddd, '')
                 else:
-                    return render(request, "dashboard.html", {"error_message_edit": "Já existe um cliente com este telefone informado."}, status=400)
+                    return render(request, "dashboard.html", {
+                        "error_message_edit": "Já existe um cliente com este telefone informado."
+                    }, status=400)
                 
             if request.POST.get("indicado_por"):
                 indicado_por = Cliente.objects.get(nome=request.POST.get("indicado_por"), usuario=request.user)
