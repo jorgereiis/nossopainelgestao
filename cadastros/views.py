@@ -726,14 +726,10 @@ def gerar_grafico(request):
 def gerar_mapa_clientes(request):
     # Consulta os clientes ativos por estado (uf)
     dados = dict(
-        Cliente.objects
-        .filter(cancelado=False)
-        .exclude(uf__isnull=True)
-        .exclude(uf__exact='')
-        .annotate(uf_upper=Upper("uf"))
-        .values_list("uf_upper")
-        .annotate(total=Count("id"))
-        .values_list("uf_upper", "total")
+        Cliente.objects.filter(cancelado=False)
+        .values('uf')
+        .annotate(total=Count('id'))
+        .values_list('uf', 'total')
     )
 
     # Carrega o arquivo GeoJSON local
