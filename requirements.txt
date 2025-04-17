@@ -12,7 +12,6 @@ et-xmlfile==1.1.0
 idna==3.6
 numpy
 openpyxl
-pandas
 pillow==10.2.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
@@ -28,5 +27,9 @@ xlrd==2.0.1
 gunicorn
 matplotlib
 whitenoise
-plotly
-geopandas
+geopandas==0.12.2
+fiona==1.8.22
+shapely==1.8.5.post1
+pyproj==3.3.1
+plotly>=5.16.1
+pandas>=1.3
