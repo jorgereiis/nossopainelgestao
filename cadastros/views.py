@@ -731,6 +731,7 @@ def gerar_mapa_clientes(request):
         .annotate(total=Count('id'))
         .values_list('uf', 'total')
     )
+    total_geral = sum(dados.values())
 
     # Carrega o arquivo GeoJSON local
     mapa = gpd.read_file("archives/brasil_estados.geojson")
@@ -749,6 +750,9 @@ def gerar_mapa_clientes(request):
     # Adiciona a sigla e clientes ao GeoDataFrame
     mapa["sigla"] = mapa["name"].map(siglas)
     mapa["clientes"] = mapa["sigla"].apply(lambda uf: dados.get(uf, 0))
+    mapa["porcentagem"] = mapa["clientes"].apply(
+        lambda x: round((x / total_geral) * 100, 1) if total_geral > 0 else 0
+    )
 
     # Remove colunas com Timestamp (não serializáveis)
     mapa = mapa.drop(columns=["created_at", "updated_at"], errors="ignore")
@@ -773,10 +777,18 @@ def gerar_mapa_clientes(request):
             [1.0, "#624BFF"]    # máximo
         ],
         range_color=[0, max_clientes],
-        labels={"clientes": "Clientes Ativos"},
+        labels={
+            "clientes": "Clientes Ativos",
+            "porcentagem": "% do Total"
+        },
         featureidkey="properties.sigla",
         hover_name="name",
-        hover_data={"clientes": True, "sigla": False, "clientes_cor": False},
+        hover_data={
+            "clientes": True,
+            "sigla": False,
+            "clientes_cor": False,
+            "porcentagem": True
+        },
         mapbox_style="white-bg",
         center={"lat": -19.29285, "lon": -49.35954},
         zoom=2.6,
@@ -789,7 +801,7 @@ def gerar_mapa_clientes(request):
             bordercolor="#724BFF",
             font=dict(size=14, color="black", family="Arial")
         ),
-        marker_line_color="#ABA5D9",
+        marker_line_color="gray",
         marker_line_width=0.5
     )
 
