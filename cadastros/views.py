@@ -801,7 +801,7 @@ def gerar_mapa_clientes(request):
             bordercolor="#724BFF",
             font=dict(size=14, color="black", family="Arial")
         ),
-        marker_line_color="gray",
+        marker_line_color="#ABA5D9",
         marker_line_width=0.5
     )
 
