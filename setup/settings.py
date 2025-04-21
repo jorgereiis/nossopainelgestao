@@ -39,7 +39,7 @@ RECAPTCHA_REQUIRED_SCORE = 0.85
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['meusistema.com.br','nossopainel.com.br', 'www.nossopainel.com.br', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['meusistema.com.br','nossopainel.com.br', 'www.nossopainel.com.br', 'localhost', '127.0.0.1', '198.49.75.145']
 
 # Application definition
 

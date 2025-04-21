@@ -2142,7 +2142,7 @@ def wpp_webhook(request):
             print("❌ Erro ao fazer parse do JSON:", e)
             return JsonResponse({'error': 'JSON inválido'}, status=400)
     
-    return JsonResponse({'success': 'accepted'}, status=200)
+    return JsonResponse({'status': 'invalid method'}, status=405)
 
 
 def chatgpt_response(texto_usuario):
