@@ -2134,22 +2134,13 @@ def DeletePlanoAdesao(request, pk):
 @csrf_exempt
 def wpp_webhook(request):
     if request.method == 'POST':
-        body = json.loads(request.body.decode('utf-8'))
+        print("📩 RAW BODY:", request.body)
 
-        message = body.get('body', {}).get('message')
-        sender = body.get('body', {}).get('from')
-
-        if not message or not sender:
-            return JsonResponse({'status': 'ignored'})
-
-        # Chamar a OpenAI
-        resposta = chatgpt_response(message)
-
-        # Enviar de volta para o cliente
-        #send_message_to_wpp(sender, resposta)
-
-        print(f"wpp_webhook: [{request}]")
-        return JsonResponse({'status': 'ok', 'resposta': resposta})
+        try:
+            data = json.loads(request.body)
+        except Exception as e:
+            print("❌ Erro ao fazer parse do JSON:", e)
+            return JsonResponse({'error': 'JSON inválido'}, status=400)
     
     return JsonResponse({'status': 'invalid method'}, status=405)
 
