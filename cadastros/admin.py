@@ -9,10 +9,11 @@ from .models import (
     Tipos_pgto,
     Mensalidade,
     Dispositivo,
+    ConteudoM3U8,
     HorarioEnvios,
+    SecretTokenAPI,
     DadosBancarios,
     PlanoIndicacao,
-    SecretTokenAPI,
     ContaDoAplicativo,
     MensagemEnviadaWpp,
 )
@@ -22,9 +23,7 @@ class ClienteAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "nome",
-        "email",
         "telefone",
-        "uf",
         "servidor",
         "dispositivo",
         "sistema",
@@ -100,8 +99,14 @@ class MensagemEnviadaWppAdmin(admin.ModelAdmin):
     list_display = ("telefone", "data_envio")
 
 
+class ConteudoM3U8Admin(admin.ModelAdmin):
+    list_display = ("id", "nome", "capa", "temporada", "episodio", "criado_em", "upload")
+    list_filter = ("criado_em",)
+    search_fields = ("nome",)
+
 admin.site.register(MensagemEnviadaWpp, MensagemEnviadaWppAdmin)
 admin.site.register(ContaDoAplicativo, ContaDoAplicativoAdmin)
+admin.site.register(ConteudoM3U8, ConteudoM3U8Admin)
 admin.site.register(Mensalidade, MensalidadeAdmin)
 admin.site.register(SessaoWpp, SessaoWppAdmin)
 admin.site.register(Cliente, ClienteAdmin)

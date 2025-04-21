@@ -349,3 +349,16 @@ class MensagemEnviadaWpp(models.Model):
 
     def __str__(self) -> str:
         return self.telefone
+    
+
+class ConteudoM3U8(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    nome = models.CharField(max_length=255)
+    capa = models.URLField()
+    temporada = models.IntegerField(null=True, blank=True)
+    episodio = models.IntegerField(null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    upload = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.nome
