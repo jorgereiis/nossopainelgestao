@@ -59,7 +59,7 @@ schedule.every(60).minutes.do(
 )
 
 # Executa imediatamente ao iniciar o servidor
-run_threaded(executar_comparar_lista_m3u8)
+# run_threaded(executar_comparar_lista_m3u8)
 
 # Executar indefinidamente
 while True:
