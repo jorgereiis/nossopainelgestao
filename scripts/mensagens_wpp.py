@@ -467,7 +467,7 @@ def wpp_msg_ativos(type, image_name, message):
 # Função para obter a imagem em base64
 def get_img_base64(image_name, sub_directory):
     # Caminho do diretório onde as imagens estão localizadas
-    image_path = os.path.join(os.path.dirname(__file__), f'images/{sub_directory}', image_name)
+    image_path = os.path.join(os.path.dirname(__file__), f'../images/{sub_directory}', image_name)
 
     try:
         # Abrir a imagem e ler o conteúdo como binário
@@ -483,7 +483,7 @@ def get_img_base64(image_name, sub_directory):
 # Função para processar os números de telefone a partir de um arquivo
 def process_telefones_from_file(sub_directory):
     # Caminho do diretório onde o arquivo "telefones" está localizado
-    telefones_path = os.path.join(os.path.dirname(__file__), f'archives/{sub_directory}', 'telefones.txt')
+    telefones_path = os.path.join(os.path.dirname(__file__), f'../archives/{sub_directory}', 'telefones.txt')
 
     try:
         # Abrir e ler o arquivo
@@ -503,7 +503,7 @@ def process_telefones_from_file(sub_directory):
 # Função para obter a mensagem a partir de um arquivo
 def get_message_from_file(file_name, sub_directory):
     # Caminho do diretório onde o arquivo "msg" está localizado
-    file_path = os.path.join(os.path.dirname(__file__), f'archives/{sub_directory}', file_name)
+    file_path = os.path.join(os.path.dirname(__file__), f'../archives/{sub_directory}', file_name)
 
     try:
         # Abrir e ler o arquivo
