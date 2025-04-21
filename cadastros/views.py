@@ -3,6 +3,7 @@ from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpRespon
 import requests, operator, logging, codecs, random, base64, json, time, re, os, io
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.views.decorators.clickjacking import xframe_options_exempt
+from django.views.decorators.csrf import csrf_exempt
 from plotly.colors import sample_colorscale, make_colorscale
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -2128,3 +2129,51 @@ def DeletePlanoAdesao(request, pk):
         )
 
     return redirect('cadastro-plano-adesao')
+
+
+@csrf_exempt
+def wpp_webhook(request):
+    if request.method == 'POST':
+        body = json.loads(request.body.decode('utf-8'))
+
+        message = body.get('body', {}).get('message')
+        sender = body.get('body', {}).get('from')
+
+        if not message or not sender:
+            return JsonResponse({'status': 'ignored'})
+
+        # Chamar a OpenAI
+        resposta = chatgpt_response(message)
+
+        # Enviar de volta para o cliente
+        #send_message_to_wpp(sender, resposta)
+
+        print(f"wpp_webhook: [{request}]")
+        return JsonResponse({'status': 'ok', 'resposta': resposta})
+    
+    return JsonResponse({'status': 'invalid method'}, status=405)
+
+
+def chatgpt_response(texto_usuario):
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": "gpt-3.5-turbo",
+        "messages": [
+            {"role": "system", "content": "Você é um atendente educado da empresa MultiPlayer Pro."},
+            {"role": "user", "content": texto_usuario}
+        ]
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+    resposta = response.json()
+    print(f"chatgpt_response: [{resposta}]")
+
+    return resposta['choices'][0]['message']['content']
+
+

@@ -42,6 +42,7 @@ from .views import (
     CadastroContaAplicativo,
     CarregarContasDoAplicativo,
     CarregarQuantidadesMensalidades,
+    wpp_webhook,
 )
 
 urlpatterns = [
@@ -98,4 +99,5 @@ urlpatterns = [
     path("qtds_mensalidades/", CarregarQuantidadesMensalidades.as_view()),
     path("obter_session_wpp/", ObterSessionWpp, name="obter_session_wpp"),
     #path("notificar_cliente/", notificar_cliente, name="notificar_cliente"),
+    path('webhook/', wpp_webhook, name='wpp_webhook'),
 ]
