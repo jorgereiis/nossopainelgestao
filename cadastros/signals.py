@@ -7,7 +7,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from .models import SessaoWpp
 
-url_api = os.getenv("URL_API")
+URL_API_WPP = os.getenv("URL_API")
 
 # Função para definir o dia de pagamento com base em um dia fornecido
 def definir_dia_renovacao(dia):
@@ -263,7 +263,7 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
 
 # Função para enviar mensagens e registrar em arquivo de log
 def enviar_mensagem(telefone, mensagem, usuario, token, cliente, tipo):
-    url = url_api + '/{}/send-message'.format(usuario)
+    url = URL_API_WPP + '/{}/send-message'.format(usuario)
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
