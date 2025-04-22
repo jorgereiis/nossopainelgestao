@@ -41,7 +41,7 @@ def upload_status_sem_imagem(texto_status, usuario, token):
     }
     body = {"text": texto_status}
     try:
-        response = requests.post(url, json=body, headers=headers, timeout=10)
+        response = requests.post(url, json=body, headers=headers, timeout=30)
         response.raise_for_status()
         registrar_log(f"[OK] Mensagem de status enviada para {usuario}")
         delay()
@@ -63,7 +63,7 @@ def upload_imagem_status(imagem, legenda, usuario, token):
         "caption": legenda
     }
     try:
-        response = requests.post(url, json=body, headers=headers, timeout=10)
+        response = requests.post(url, json=body, headers=headers, timeout=30)
         response.raise_for_status()
         registrar_log(f"[OK] Capa enviada para {usuario}: {legenda}")
         delay()
@@ -86,7 +86,7 @@ def enviar_mensagem(telefone, mensagem, usuario, token):
         'isGroup': False
     }
     try:
-        response = requests.post(url, json=body, headers=headers, timeout=10)
+        response = requests.post(url, json=body, headers=headers, timeout=30)
         response.raise_for_status()
         registrar_log(f"[OK] Mensagem enviada para número {telefone}")
     except Exception as e:
