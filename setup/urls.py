@@ -18,6 +18,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
-urlpatterns = [path("painel-configs/", admin.site.urls), path("", include("cadastros.urls"))]
+urlpatterns = [
+    path("painel-configs/", admin.site.urls),
+    path("", include("cadastros.urls"))
+]
 
 handler404 = 'cadastros.views.not_found'
