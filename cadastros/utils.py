@@ -33,7 +33,7 @@ DDD_UF_MAP = {
 ##### FUNÇÕES PARA CONEXÃO COM API WPPCONNECT #####
 ###################################################
 
-import os
+"""import os
 from cadastros.models import SessaoWpp
 
 URL_API_WPP = os.getenv('URL_API_WPP')
@@ -61,4 +61,4 @@ def altera_label(telefone, label_add, label_remove, usuario, token):
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Authorization': 'Bearer ' + token
-    }
+    }"""
