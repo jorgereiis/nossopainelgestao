@@ -54,7 +54,7 @@ schedule.every().day.at("00:30").do(
 schedule.every().day.at("01:10").do(
     run_threaded, processar_novos_titulos_com_lock
 )
-schedule.every().day.at("01:20").do(
+schedule.every().day.at("01:40").do(
     run_threaded, executar_upload_status_com_lock
 )
 schedule.every(60).minutes.do(
