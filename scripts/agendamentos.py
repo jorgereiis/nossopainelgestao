@@ -48,7 +48,7 @@ schedule.every().day.at("13:30").do(
 schedule.every().day.at("17:00").do(
     run_threaded, mensalidades_canceladas
 )
-schedule.every().day.at("22:00").do(
+schedule.every().day.at("23:55").do(
     run_threaded, processar_novos_titulos_com_lock
 )
 schedule.every().day.at("23:59").do(
