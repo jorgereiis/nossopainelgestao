@@ -1,5 +1,6 @@
 import os
 import django
+import threading
 
 # Definir a variável de ambiente DJANGO_SETTINGS_MODULE
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
@@ -88,3 +89,27 @@ def comparar_listas():
 def executar_comparar_lista_m3u8():
     if baixar_lista():
         comparar_listas()
+
+
+#######################################################################################
+##### LOCK PARA EVITAR EXECUÇÃO SIMULTÂNEA DA FUNÇÃO EXECUTAR_COMPARAR_LISTA_M3U8 #####
+#######################################################################################
+
+executar_comparar_lista_m3u8_lock = threading.Lock()
+def executar_comparar_lista_m3u8_com_lock():
+    if executar_comparar_lista_m3u8_lock.locked():
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"[{timestamp}] [IGNORADO] [EXECUTAR_COMPARAR_LISTA_M3U8] Execução ignorada — processo ainda em andamento.")
+        return
+
+    with executar_comparar_lista_m3u8_lock:
+        inicio = datetime.now()
+        executar_comparar_lista_m3u8()
+        fim = datetime.now()
+
+        duracao = (fim - inicio).total_seconds()
+        minutos = duracao // 60
+        segundos = duracao % 60
+
+        print(f"[{fim.strftime('%Y-%m-%d %H:%M:%S')}] [CONCLUÍDO] [EXECUTAR_COMPARAR_LISTA_M3U8] Tempo de execução: {int(minutos)} min {segundos:.1f} s.")
+##### FIM #####

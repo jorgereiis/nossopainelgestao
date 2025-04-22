@@ -22,7 +22,7 @@ from mensagens_wpp import (
     backup_db_sh,
 )
 from processar_novos_dados_m3u8 import processar_novos_titulos_com_lock
-from comparar_lista_m3u8 import executar_comparar_lista_m3u8
+from comparar_lista_m3u8 import executar_comparar_lista_m3u8_com_lock
 from upload_status_wpp import executar_upload_status_com_lock
 
 ################################################
@@ -48,10 +48,13 @@ schedule.every().day.at("13:30").do(
 schedule.every().day.at("17:00").do(
     run_threaded, mensalidades_canceladas
 )
-schedule.every().day.at("00:05").do(
+schedule.every().day.at("00:10").do(
+    run_threaded, executar_comparar_lista_m3u8_com_lock
+)
+schedule.every().day.at("00:20").do(
     run_threaded, processar_novos_titulos_com_lock
 )
-schedule.every().day.at("00:10").do(
+schedule.every().day.at("00:30").do(
     run_threaded, executar_upload_status_com_lock
 )
 schedule.every(60).minutes.do(
@@ -59,7 +62,7 @@ schedule.every(60).minutes.do(
 )
 
 # Executa imediatamente ao iniciar o servidor
-run_threaded(executar_comparar_lista_m3u8)
+#run_threaded(executar_comparar_lista_m3u8_com_lock)
 
 # Executar indefinidamente
 while True:
