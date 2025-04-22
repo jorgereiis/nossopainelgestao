@@ -48,13 +48,13 @@ schedule.every().day.at("13:30").do(
 schedule.every().day.at("17:00").do(
     run_threaded, mensalidades_canceladas
 )
-schedule.every().day.at("01:50").do(
+schedule.every().day.at("00:10").do(
     run_threaded, executar_comparar_lista_m3u8_com_lock
 )
-schedule.every().day.at("02:00").do(
+schedule.every().day.at("03:00").do(
     run_threaded, processar_novos_titulos_com_lock
 )
-schedule.every().day.at("02:10").do(
+schedule.every().day.at("03:10").do(
     run_threaded, executar_upload_status_com_lock
 )
 schedule.every(60).minutes.do(

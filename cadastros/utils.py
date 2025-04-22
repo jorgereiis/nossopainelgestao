@@ -1,3 +1,4 @@
+# UTILIZADO NAS MODELS
 DDD_UF_MAP = {
     '11': 'SP', '12': 'SP', '13': 'SP', '14': 'SP', '15': 'SP', '16': 'SP', '17': 'SP', '18': 'SP', '19': 'SP',
     '21': 'RJ', '22': 'RJ', '24': 'RJ',
@@ -27,3 +28,37 @@ DDD_UF_MAP = {
     '96': 'AP',
     '98': 'MA', '99': 'MA',
 }
+
+###################################################
+##### FUNÇÕES PARA CONEXÃO COM API WPPCONNECT #####
+###################################################
+
+import os
+from cadastros.models import SessaoWpp
+
+URL_API_WPP = os.getenv('URL_API_WPP')
+
+token_obj = SessaoWpp.objects.filter(usuario=usuario).first()
+
+if not token_obj:
+    registrar_log(f"[ERRO] [EXECUTAR_UPLOAD_STATUS] Token do usuário {usuario.username} não encontrado.")
+    return
+
+token = token_obj.token
+# Consulta as labels de um contato no WhatsApp
+def consulta_label(usuario, token):
+    url = f"{URL_API_WPP}/{usuario}/get-all-labels"
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ' + token
+    }
+
+# Altera o label de um contato no WhatsApp
+def altera_label(telefone, label_add, label_remove, usuario, token):
+    url = f"{URL_API_WPP}/{usuario}/add-or-remove-label"
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ' + token
+    }
