@@ -7,7 +7,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from .models import SessaoWpp
 
-URL_API_WPP = os.getenv("URL_API")
+URL_API_WPP = os.getenv("URL_API_WPP")
 
 # Função para definir o dia de pagamento com base em um dia fornecido
 def definir_dia_renovacao(dia):
