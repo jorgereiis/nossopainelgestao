@@ -62,7 +62,7 @@ def buscar_capa_por_titulo(titulo_original):
     titulo_limpo = re.sub(r"\(?\b(19|20)\d{2}\)?", "", titulo_limpo).strip()
 
     # Logs
-    log_dir = "logs/TMDb"
+    log_dir = "../logs/TMDb"
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, "busca-capas.log")
 
@@ -145,8 +145,8 @@ def buscar_capa_por_titulo(titulo_original):
 
 # --- Função principal de monitoramento
 def processar_novos_titulos():
-    caminho_novos = "archives/m3u8/novos.txt"
-    log_dir = "logs/M3U8"
+    caminho_novos = "../archives/m3u8/novos.txt"
+    log_dir = "../logs/M3U8"
     log_novos = os.path.join(log_dir, "novos-conteudos.log")
     log_erros = os.path.join(log_dir, "error.log")
     os.makedirs(log_dir, exist_ok=True)
@@ -236,7 +236,7 @@ def processar_novos_titulos():
 
 processar_novos_titulos_lock = threading.Lock()
 def processar_novos_titulos_com_lock():
-    log_dir = "logs/M3U8"
+    log_dir = "../logs/M3U8"
     log_erros = os.path.join(log_dir, "thread_processar-novos-titulos.log")
     os.makedirs(log_dir, exist_ok=True)
 
