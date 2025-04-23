@@ -26,8 +26,10 @@ def registrar_log(mensagem):
     with open(LOG_FILE, "a", encoding="utf-8") as log:
         log.write(linha + "\n")
 
+# --- Atraso aleatório entre envios ---
 def delay():
     segundos = random.randint(10, 30)
+    print(f"[INFO] [UPLOAD_WPP] Aguardando {segundos} segundos antes do próximo envio...")
     registrar_log(f"[INFO] Aguardando {segundos} segundos antes do próximo envio...")
     time.sleep(segundos)
 
@@ -43,10 +45,13 @@ def upload_status_sem_imagem(texto_status, usuario, token):
     try:
         response = requests.post(url, json=body, headers=headers, timeout=30)
         response.raise_for_status()
+
+        print(f"[OK] [UPLOAD_STATUS_SEM_IMAGEM] Mensagem de status enviada para {usuario}")
         registrar_log(f"[OK] Mensagem de status enviada para {usuario}")
         delay()
         return True
     except Exception as e:
+        print(f"[ERRO] [UPLOAD_STATUS_SEM_IMAGEM] {usuario} => {e}")
         registrar_log(f"[ERRO] [UPLOAD_STATUS_SEM_IMAGEM] {usuario} => {e}")
         return False
 
@@ -65,6 +70,8 @@ def upload_imagem_status(imagem, legenda, usuario, token):
     try:
         response = requests.post(url, json=body, headers=headers, timeout=30)
         response.raise_for_status()
+
+        print(f"[OK] [UPLOAD_IMAGEM_STATUS] Capa enviada para {usuario}: {legenda}")
         registrar_log(f"[OK] Capa enviada para {usuario}: {legenda}")
         delay()
         return True
@@ -88,9 +95,11 @@ def enviar_mensagem(telefone, mensagem, usuario, token):
     try:
         response = requests.post(url, json=body, headers=headers, timeout=30)
         response.raise_for_status()
+
+        print(f"[OK] [UPLOAD_STATUS-ENVIAR_MENSAGEM] Mensagem enviada para número {telefone}")
         registrar_log(f"[OK] Mensagem enviada para número {telefone}")
     except Exception as e:
-        registrar_log(f"[ERRO] [ENVIAR_MENSAGEM] {telefone} => {e}")
+        registrar_log(f"[ERRO] [UPLOAD_STATUS-ENVIAR_MENSAGEM] {telefone} => {e}")
 
 # --- Gera legenda com base nas informações do conteúdo ---
 def gerar_legenda(conteudo):
@@ -103,6 +112,7 @@ def executar_upload_status():
     conteudos = ConteudoM3U8.objects.filter(upload=False).order_by('criado_em')
 
     if not conteudos.exists():
+        print("[INFO] [EXECUTAR_UPLOAD_STATUS] Nenhum conteúdo novo para enviar.")
         registrar_log("[INFO] [EXECUTAR_UPLOAD_STATUS] Nenhum conteúdo novo para enviar.")
         return
 
@@ -111,6 +121,7 @@ def executar_upload_status():
     token_obj = SessaoWpp.objects.filter(usuario=usuario).first()
 
     if not token_obj:
+        print(f"[ERRO] [EXECUTAR_UPLOAD_STATUS] Token do usuário {usuario.username} não encontrado.")
         registrar_log(f"[ERRO] [EXECUTAR_UPLOAD_STATUS] Token do usuário {usuario.username} não encontrado.")
         return
 
@@ -122,6 +133,7 @@ def executar_upload_status():
     sucesso_abertura = upload_status_sem_imagem(mensagem_inicial, usuario.username, token)
 
     if not sucesso_abertura:
+        print(f"[AVISO] [EXECUTAR_UPLOAD_STATUS] Abortando envio para {usuario.username} — erro na mensagem de abertura.")
         registrar_log(f"[AVISO] [EXECUTAR_UPLOAD_STATUS] Abortando envio para {usuario.username} — erro na mensagem de abertura.")
         return
 
@@ -151,25 +163,31 @@ def executar_upload_status():
             if item.temporada and item.episodio:
                 resumo_envios[item.nome].append(f"T{item.temporada}E{item.episodio}")
         else:
+            print(f"[AVISO] [EXECUTAR_UPLOAD_STATUS] Conteúdo não enviado: {item.nome}")
             registrar_log(f"[AVISO] Conteúdo não marcado como enviado: {item.nome}")
 
     if enviados > 0:
         linhas_resumo = ["🎬 *Resumo das Atualizações de Hoje:*\n"]
+        linhas_resumo_com_data = [f"🎬 *Resumo das Atualizações*\n📅 Data: *{datetime.now().strftime('%d/%m/%Y')}*\n"]
+        
         for titulo, episodios in resumo_envios.items():
             if episodios:
                 ep_str = ", ".join(sorted(set(episodios)))
                 linhas_resumo.append(f"🎞️ *{titulo}* ({ep_str})")
+                linhas_resumo_com_data.append(f"🎞️ *{titulo}* ({ep_str})")
             else:
                 linhas_resumo.append(f"🎬 *{titulo}* — Filme")
+                linhas_resumo_com_data.append(f"🎬 *{titulo}* — Filme")
 
-        texto_resumo = "\n".join(linhas_resumo)
-        upload_status_sem_imagem(texto_resumo, usuario.username, token)
+        texto_resumo_status = "\n".join(linhas_resumo)
+        texto_resumo_mensagem = "\n".join(linhas_resumo_com_data)
+        upload_status_sem_imagem(texto_resumo_status, usuario.username, token)
 
         # Envio como mensagem privada para o número definido
         if MEU_NUM:
-            enviar_mensagem(MEU_NUM, texto_resumo, usuario.username, token)
+            enviar_mensagem(MEU_NUM, texto_resumo_mensagem, usuario.username, token)
 
-        mensagem_final = "✅ Encerramos por aqui! Agradecemos por acompanhar nossas novidades. Em breve, mais conteúdos incríveis pra você!"
+        mensagem_final = "✅ Encerramos por aqui! Agradecemos por acompanhar nossas novidades. Em breve, mais conteúdos incríveis para vocês!"
         upload_status_sem_imagem(mensagem_final, usuario.username, token)
 
     registrar_log(f"[OK] [EXECUTAR_UPLOAD_STATUS] Status atualizado para {usuario.username} ({enviados} conteúdos enviados)")

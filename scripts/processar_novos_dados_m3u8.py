@@ -78,7 +78,7 @@ def buscar_capa_por_titulo(titulo_original):
         params["first_air_date_year"] = ano
 
     try:
-        response = requests.get(TMDB_API_URL, params=params, timeout=10)
+        response = requests.get(TMDB_API_URL, params=params, timeout=30)
         response.raise_for_status()
         data = response.json()
 
@@ -90,9 +90,7 @@ def buscar_capa_por_titulo(titulo_original):
 
             # Verificar ano retornado
             data_api = primeiro.get("release_date") or primeiro.get("first_air_date")
-            ano_api = None
-            if data_api:
-                ano_api = int(data_api[:4])
+            ano_api = int(data_api[:4]) if data_api else None
 
             # Se o ano bater e houver título razoável, aceita
             if ano and ano_api and ano == ano_api:
@@ -123,8 +121,7 @@ def buscar_capa_por_titulo(titulo_original):
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             with open(log_path, "a", encoding="utf-8") as log_file:
                 log_file.write(
-                    f"[{timestamp}] [CONFLITO] '{titulo_original}' -> '{nome_tmdb}' "
-                    f"(não confere com '{titulo_limpo}', ano: {ano}, retornado: {ano_api})\n"
+                    f"[{timestamp}] [CONFLITO] '{titulo_original}' -> '{nome_tmdb}' (não confere com '{titulo_limpo}', ano: {ano}, retornado: {ano_api})\n"
                 )
             return None
 
@@ -153,18 +150,26 @@ def processar_novos_titulos():
 
     usuario_env = os.getenv("USER_SESSION_WPP")
     if not usuario_env:
-        print("[ERRO] Variável USER_SESSION_WPP não definida.")
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"[{timestamp}] [ERRO] Variável USER_SESSION_WPP não definida.")
+        with open(log_erros, "a", encoding="utf-8") as erro_file:
+            erro_file.write(f"[{timestamp}] [ERRO] Variável USER_SESSION_WPP não definida.\n")
         return
 
     try:
         usuario = User.objects.get(username=usuario_env)
     except User.DoesNotExist:
-        print(f"[ERRO] Usuário '{usuario_env}' não encontrado no sistema.")
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"[{timestamp}] [ERRO] Usuário '{usuario_env}' não encontrado no sistema.")
+        with open(log_erros, "a", encoding="utf-8") as erro_file:
+            erro_file.write(f"[{timestamp}] [ERRO] Usuário '{usuario_env}' não encontrado no sistema.\n")
         return
 
     if not os.path.exists(caminho_novos):
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print(f"[{timestamp}] [INFO] [PROCESSAR_NOVOS_TITULOS] Nenhum conteúdo novo para processar.")
+        with open(log_novos, "a", encoding="utf-8") as log_file:
+            log_file.write(f"[{timestamp}] [INFO] Nenhum conteúdo novo para processar.\n")
         return
 
     with open(caminho_novos, encoding="utf-8") as f:
@@ -173,6 +178,8 @@ def processar_novos_titulos():
     if not linhas:
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print(f"[{timestamp}] [INFO] [PROCESSAR_NOVOS_TITULOS] Arquivo 'novos.txt' está vazio.")
+        with open(log_novos, "a", encoding="utf-8") as log_file:
+            log_file.write(f"[{timestamp}] [INFO] Arquivo 'novos.txt' está vazio.\n")
         os.remove(caminho_novos)
         return
 
@@ -219,14 +226,17 @@ def processar_novos_titulos():
 
         except Exception as e:
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"[{timestamp}] [ERRO] [PROCESSAR_NOVOS_TITULOS] {nome_m3u8} => {str(e)}")
             with open(log_erros, "a", encoding="utf-8") as erro_file:
                 erro_file.write(f"[{timestamp}] [ERRO] [PROCESSAR_NOVOS_TITULOS] {nome_m3u8} => {str(e)}\n")
 
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    print(f"[{timestamp}] [INFO] [PROCESSAR_NOVOS_TITULOS] {novos} novos conteúdos processados.")
     with open(log_novos, "a", encoding="utf-8") as log_file:
         log_file.write(f"[{timestamp}] [TOTAL DE NOVOS CONTEÚDOS] {novos}\n\n")
 
     os.remove(caminho_novos)
+
 ##### FIM #####
 
 
