@@ -21,8 +21,8 @@ from mensagens_wpp import (
     mensalidades_canceladas,
     backup_db_sh,
 )
-from processar_novos_dados_m3u8 import processar_novos_titulos_com_lock
-from comparar_lista_m3u8 import executar_comparar_lista_m3u8_com_lock
+from processar_novos_titulos_m3u8 import executar_processar_novos_titulos_com_lock
+from comparar_m3u8 import executar_comparar_lista_m3u8_com_lock
 from upload_status_wpp import executar_upload_status_com_lock
 
 ################################################
@@ -52,7 +52,7 @@ schedule.every().day.at("00:10").do(
     run_threaded, executar_comparar_lista_m3u8_com_lock
 )
 schedule.every().day.at("00:20").do(
-    run_threaded, processar_novos_titulos_com_lock
+    run_threaded, executar_processar_novos_titulos_com_lock
 )
 schedule.every().day.at("00:30").do(
     run_threaded, executar_upload_status_com_lock
