@@ -179,7 +179,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/clientes-cancelados';
+          var newPath = '/clientes-cancelados/';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -198,7 +198,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/clientes-cancelados';
+          var newPath = '/clientes-cancelados/';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'error',
@@ -295,7 +295,7 @@
                 title: 'Reativação realizada.',
                 text: response.success_message_activate,
                 didClose: function () {
-                  window.location.href = '/clientes-cancelados';
+                  window.location.href = '/clientes-cancelados/';
                 }
               });
             } else {

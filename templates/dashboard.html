@@ -887,7 +887,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/dashboard';
+          var newPath = '/dashboard/';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -906,7 +906,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/dashboard';
+          var newPath = '/dashboard/';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'error',
@@ -2072,6 +2072,7 @@ $(document).ready(function() {
     });
 </script>
 
+<!--
 <script>
     // FUNÇÃO PARA EXIBIÇÃO DAS INFORMAÇÕES DE PRIMEIRO ACESSO
 
@@ -2116,7 +2117,7 @@ $(document).ready(function() {
         localStorage.setItem('lastViewed', Date.now().toString());
     });
 </script>
-
+-->
 
 <script>
     // FUNÇÃO PARA FILTRAR OS CLIENTES NA TABELA
