@@ -1,9 +1,11 @@
 from .models import Mensalidade, Cliente, Plano, PlanoIndicacao, definir_dia_pagamento
+from .utils import check_number_status, get_label_contact, add_or_remove_label_contact, get_all_labels, criar_label_se_nao_existir
 from django.db.models.signals import post_save, pre_save
-import os, json, random, time, requests, calendar, re
+import os, json, random, time, requests, re
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
 from django.dispatch import receiver
+from django.contrib import messages
 from django.utils import timezone
 from .models import SessaoWpp
 
@@ -325,3 +327,91 @@ def enviar_mensagem(telefone, mensagem, usuario, token, cliente, tipo):
         # Tempo de espera aleatório entre cada tentativa com limite máximo de 50 segundos
         tempo_espera = random.uniform(20, 50)
         time.sleep(tempo_espera)
+
+
+# ALTERAR LABEL DO CONTATO NO WHATSAPP APÓS O CADASTRO DO CLIENTE
+# Armazena valores antigos antes do save
+_clientes_servidor_anterior = {}
+_clientes_cancelado_anterior = {}
+
+@receiver(pre_save, sender=Cliente)
+def registrar_valores_anteriores(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            cliente_existente = Cliente.objects.get(pk=instance.pk)
+            _clientes_servidor_anterior[instance.pk] = cliente_existente.servidor_id
+            _clientes_cancelado_anterior[instance.pk] = cliente_existente.cancelado
+        except Cliente.DoesNotExist:
+            pass
+
+@receiver(post_save, sender=Cliente)
+def cliente_post_save(sender, instance, created, **kwargs):
+    servidor_foi_modificado = False
+    cliente_foi_cancelado = False
+    cliente_foi_reativado = False
+
+    if not created:
+        # Detecta mudança de servidor
+        if instance.pk in _clientes_servidor_anterior:
+            servidor_anterior_id = _clientes_servidor_anterior.pop(instance.pk)
+            servidor_foi_modificado = servidor_anterior_id != instance.servidor_id
+
+        # Detecta mudança de cancelamento
+        if instance.pk in _clientes_cancelado_anterior:
+            cancelado_anterior = _clientes_cancelado_anterior.pop(instance.pk)
+            cliente_foi_cancelado = not cancelado_anterior and instance.cancelado
+            cliente_foi_reativado = cancelado_anterior and not instance.cancelado
+
+    # Se for novo, ou mudou servidor, ou cancelado, ou reativado
+    if created or servidor_foi_modificado or cliente_foi_cancelado or cliente_foi_reativado:
+        telefone = re.sub(r'\D+', '', instance.telefone)
+        telefone_com_55 = f'55{telefone}'
+
+        # Obtém token da sessão
+        try:
+            token = SessaoWpp.objects.get(usuario=instance.usuario).token
+        except SessaoWpp.DoesNotExist:
+            print(f"⚠️ Sessão do WhatsApp não encontrada para o usuário {instance.usuario}")
+            return
+
+        # Verifica se número existe no WhatsApp
+        try:
+            numero_existe = check_number_status(telefone_com_55, token)
+            if not numero_existe:
+                print(f"⚠️ Número {telefone} não é válido no WhatsApp.")
+                return
+        except Exception as e:
+            print(f"❌ Erro ao verificar número no WhatsApp: {e}")
+            return
+
+        # Obtém labels atuais
+        try:
+            labels_atuais = get_label_contact(telefone_com_55, token)
+        except Exception as e:
+            print(f"❌ Erro ao obter labels atuais do contato: {e}")
+            labels_atuais = []
+
+        # Define a nova label de acordo com o contexto
+        try:
+            if cliente_foi_cancelado:
+                label_desejada = "CANCELADOS"
+            else:  # tanto para criação, reativação ou troca de servidor
+                label_desejada = instance.servidor.nome
+
+            # Cria label se necessário
+            nova_label_id = criar_label_se_nao_existir(label_desejada, token)
+            if not nova_label_id:
+                print(f"⚠️ Não foi possível obter ou criar a label '{label_desejada}'")
+                return
+
+            # Altera labels do contato
+            add_or_remove_label_contact(
+                label_id_1=nova_label_id,
+                label_id_2=labels_atuais,
+                label_name=label_desejada,
+                telefone=telefone_com_55,
+                token=token
+            )
+
+        except Exception as e:
+            print(f"❌ Erro ao alterar label do contato: {e}")

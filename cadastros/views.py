@@ -14,6 +14,7 @@ from django.db.models.functions import ExtractMonth
 from django.contrib.auth.views import LoginView
 from django.views.generic.list import ListView
 from django.forms.models import model_to_dict
+from django.db.models.functions import Upper
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q, Count
 from babel.numbers import format_currency
@@ -30,8 +31,8 @@ from decimal import Decimal
 import plotly.express as px
 import geopandas as gpd
 import pandas as pd
-from django.db.models.functions import Upper
-    
+import calendar
+
 
 logger = logging.getLogger(__name__)
 url_api = os.getenv("URL_API")
@@ -964,7 +965,7 @@ def reativar_cliente(request, cliente_id):
     # Se tudo ocorrer corretamente, retorna uma confirmação
     return JsonResponse({"success_message_activate": "Reativação feita!"})
 
-import calendar
+
 # AÇÃO DE PAGAR MENSALIDADE
 @login_required
 def pagar_mensalidade(request, mensalidade_id):
@@ -1018,8 +1019,6 @@ def cancelar_cliente(request, cliente_id):
     else:
         return redirect("login")
 
-
-from datetime import datetime
 
 @login_required
 def EditarCliente(request, cliente_id):
@@ -2129,42 +2128,5 @@ def DeletePlanoAdesao(request, pk):
         )
 
     return redirect('cadastro-plano-adesao')
-
-
-@csrf_exempt
-def wpp_webhook(request):
-    if request.method == 'POST':
-        print("📩 RAW BODY:", request.body)
-
-        try:
-            data = json.loads(request.body)
-        except Exception as e:
-            print("❌ Erro ao fazer parse do JSON:", e)
-            return JsonResponse({'error': 'JSON inválido'}, status=400)
-    
-    return JsonResponse({'status': 'invalid method'}, status=405)
-
-
-def chatgpt_response(texto_usuario):
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "model": "gpt-3.5-turbo",
-        "messages": [
-            {"role": "system", "content": "Você é um atendente educado da empresa MultiPlayer Pro."},
-            {"role": "user", "content": texto_usuario}
-        ]
-    }
-
-    response = requests.post(url, headers=headers, json=data)
-    resposta = response.json()
-    print(f"chatgpt_response: [{resposta}]")
-
-    return resposta['choices'][0]['message']['content']
 
 
