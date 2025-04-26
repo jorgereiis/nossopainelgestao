@@ -329,10 +329,22 @@ def enviar_mensagem(telefone, mensagem, usuario, token, cliente, tipo):
         time.sleep(tempo_espera)
 
 
-# ALTERAR LABEL DO CONTATO NO WHATSAPP APÓS O CADASTRO DO CLIENTE
+# ALTERAR LABEL DO CONTATO NO WHATSAPP APÓS NOVO CADASTRO OU ALTERAÇÃO DE CLIENTE
 # Armazena valores antigos antes do save
 _clientes_servidor_anterior = {}
 _clientes_cancelado_anterior = {}
+
+# Mapeamento fixo de labels para hexColor
+LABELS_CORES_FIXAS = {
+    "LEADS": "#F0B330",
+    "CLUB": "#8B6990",
+    "PLAY": "#792138",
+    "REVENDA": "#6E257E",
+    "CANCELADOS": "#F0B330",
+    "NOVOS": "#A62C71",
+    "SEVEN": "#26C4DC",
+    "WAREZ": "#54C265",
+}
 
 @receiver(pre_save, sender=Cliente)
 def registrar_valores_anteriores(sender, instance, **kwargs):
@@ -395,11 +407,14 @@ def cliente_post_save(sender, instance, created, **kwargs):
         try:
             if cliente_foi_cancelado:
                 label_desejada = "CANCELADOS"
-            else:  # tanto para criação, reativação ou troca de servidor
+            else:
                 label_desejada = instance.servidor.nome
 
-            # Cria label se necessário
-            nova_label_id = criar_label_se_nao_existir(label_desejada, token)
+            # Escolhe a cor fixa, se existir
+            hex_color = LABELS_CORES_FIXAS.get(label_desejada.upper())
+
+            # Cria label se necessário (agora passando a cor fixa)
+            nova_label_id = criar_label_se_nao_existir(label_desejada, token, hex_color=hex_color)
             if not nova_label_id:
                 print(f"⚠️ Não foi possível obter ou criar a label '{label_desejada}'")
                 return

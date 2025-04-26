@@ -177,40 +177,54 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
     return response.status_code, response_data
 
 
-def criar_label_se_nao_existir(nome_label, token):
-
-    # Converte cor hexadecimal para decimal inteiro
-    hex_color = "#F0B330"
-    color_int = int(hex_color.lstrip("#"), 16) + (255 << 24)  # 0xFFF0B330
-
+def criar_label_se_nao_existir(nome_label, token, hex_color=None):
+    """
+    Cria a label no WhatsApp se não existir. Se hex_color for fornecido, aplica a cor.
+    Após criação, busca novamente todas as labels para obter o ID correto.
+    """
     labels = get_all_labels(token)
 
+    # Verifica se a label já existe
     label_existente = next((label for label in labels if label["name"].strip().lower() == nome_label.lower()), None)
     if label_existente:
         return label_existente.get("id")
 
-    # Se não existir, cria nova
+    # Monta requisição
     url = f"{URL_API_WPP}/{USER_SESSION_WPP}/add-new-label"
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
         "Authorization": f"Bearer {token}"
     }
-    body = {
-        "name": nome_label,
-        "options": {
-            "labelColor": color_int
-        }
-    }
 
+    body = {"name": nome_label}
+
+    if hex_color:
+        try:
+            color_int = int(hex_color.lstrip("#"), 16) + (255 << 24)  # adiciona alpha FF
+            body["options"] = {"labelColor": color_int}
+        except ValueError:
+            print(f"⚠️ Cor inválida para a label '{nome_label}': {hex_color}")
+
+    # Faz a requisição
     response = requests.post(url, headers=headers, json=body)
     if response.status_code in [200, 201]:
+        print(f"✅ Label '{nome_label}' criada com sucesso.")
+
+        # --- Correção ---
+        # Após criar, buscar novamente todas as labels para encontrar o ID
         try:
-            label_id = response.json().get("response", {}).get("id")
-            return label_id
+            labels = get_all_labels(token)
+            nova_label = next((label for label in labels if label["name"].strip().lower() == nome_label.lower()), None)
+            if nova_label:
+                return nova_label.get("id")
+            else:
+                print(f"⚠️ Label '{nome_label}' criada mas não encontrada após criação.")
+                return None
         except Exception as e:
-            print(f"⚠️ Label criada, mas não foi possível extrair o ID: {e}")
+            print(f"❌ Erro ao buscar labels após criação: {e}")
             return None
+
     else:
-        print(f"❌ Erro ao criar label: {response.status_code} - {response.text}")
+        print(f"❌ Erro ao criar label '{nome_label}': {response.status_code} - {response.text}")
         return None
