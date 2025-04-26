@@ -18,3 +18,4 @@
 [2025-04-21 00:37:39] [INFO] category - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
 [2025-04-21 00:37:39] [INFO] category - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
 [2025-04-21 00:37:39] [WARNING] log - Not Found: /static/assets/fonts/feather-icons/icons/chevron-down.svg
+[2025-04-26 00:29:54] [WARNING] log - Not Found: /static/assets/fonts/feather-icons/icons/chevron-down.svg
