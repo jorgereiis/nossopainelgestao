@@ -37,7 +37,7 @@ SILENCED_SYSTEM_CHECKS = ['captcha.recaptcha_test_key_error']
 RECAPTCHA_REQUIRED_SCORE = 0.85
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['meusistema.com.br','nossopainel.com.br', 'www.nossopainel.com.br', 'localhost', '127.0.0.1', '198.49.75.145']
 
