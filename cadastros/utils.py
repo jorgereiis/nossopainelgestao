@@ -118,7 +118,7 @@ def get_all_labels(token):
     }
 
     body = {
-        "phone": "all",
+        "phone": "8393329190",
     }
 
     try:
