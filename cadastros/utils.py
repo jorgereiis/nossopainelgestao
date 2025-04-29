@@ -48,9 +48,13 @@ def get_label_contact(telefone, token):
         'Authorization': f'Bearer {token}'
     }
 
+    body = {
+        "phone": telefone,
+    }
+
     try:
         # Faz uma requisição GET para obter informações do contato
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, json=body)
 
         # Se a resposta for bem-sucedida (200 ou 201)
         if response.status_code in [200, 201]:
@@ -79,9 +83,13 @@ def check_number_status(telefone, token):
         'Authorization': f'Bearer {token}'
     }
 
+    body = {
+        "phone": telefone,
+    }
+
     try:
         # Envia requisição GET para verificar se o número existe no WhatsApp
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, json=body)
 
         if response.status_code in [200, 201]:
             # Converte a resposta em JSON
@@ -109,9 +117,13 @@ def get_all_labels(token):
         'Authorization': f'Bearer {token}'
     }
 
+    body = {
+        "phone": "all",
+    }
+
     try:
         # Envia requisição GET
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, json=body)
 
         if response.status_code in [200, 201]:
             # Converte resposta para JSON
