@@ -37,6 +37,7 @@ import requests
 
 URL_API_WPP = os.getenv("URL_API_WPP")
 USER_SESSION_WPP = os.getenv("USER_SESSION_WPP")
+MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
 
 def get_label_contact(telefone, token):
     # Monta a URL da requisição com o número de telefone
@@ -118,7 +119,7 @@ def get_all_labels(token):
     }
 
     body = {
-        "phone": "8393329190",
+        "phone": MEU_NUM_CLARO,
     }
 
     try:

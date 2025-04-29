@@ -13,7 +13,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "setup.settings")
 django.setup()
 
 # Variáveis de ambiente e caminhos
-MEU_NUM = os.getenv("MEU_NUM")
+MEU_NUM = os.getenv("MEU_NUM_TIM")
 NOME_SCRIPT = "UPLOAD STATUS WPP"
 URL_API_WPP = os.getenv("URL_API_WPP")
 LOG_FILE = "logs/UploadStatusWpp/upload_status.log"
