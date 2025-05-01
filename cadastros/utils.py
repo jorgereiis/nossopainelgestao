@@ -146,38 +146,41 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
     # Normaliza o telefone (remove + e @c.us, caso existam)
     telefone = telefone.replace('+', '').replace('@c.us', '').strip()
 
-    # URL para adicionar ou remover label
-    url = f'{URL_API_WPP}/{USER_SESSION_WPP}/add-or-remove-label'
+    # Garante que label_id_2 seja lista
+    labels_atual = label_id_2 if isinstance(label_id_2, list) else [label_id_2]
 
-    # Headers com content-type e autenticação
+    # ⚠️ Se a label desejada já está aplicada, não faz nada
+    if label_id_1 in labels_atual:
+        print(f"ℹ️ Label '{label_name}' já atribuída ao contato {telefone}. Nenhuma alteração necessária.")
+        return 200, {"status": "skipped", "message": "Label já atribuída"}
+
+    # Prepara headers e URL
+    url = f'{URL_API_WPP}/{USER_SESSION_WPP}/add-or-remove-label'
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Authorization': f'Bearer {token}'
     }
 
-    # Garante que label_id_2 seja uma lista
-    labels_to_remove = label_id_2 if isinstance(label_id_2, list) else [label_id_2]
-
-    # Corpo da requisição: adiciona uma label e remove outra
+    # Remove todas as labels anteriores e adiciona a nova
     body = {
         "chatIds": [telefone],
         "options": [
             {"labelId": label_id_1, "type": "add"}
         ] + [
-            {"labelId": label, "type": "remove"} for label in labels_to_remove if label
+            {"labelId": label, "type": "remove"} for label in labels_atual if label and label != label_id_1
         ]
     }
-
+  
     # Envia requisição POST com JSON
     response = requests.post(url, headers=headers, json=body)
 
     if response.status_code in [200, 201]:
         # Mensagem de sucesso
-        print(f"Label do contato alterada para {label_id_1} - {label_name}.")
+        print(f"✅ Label do contato alterada para {label_id_1} - {label_name}.")
     else:
         # Mensagem de erro com status code e texto da resposta
-        print(f"Erro ao alterar label do contato Nº {telefone}: {response.status_code} - {response.text}")
+        print(f"❌ Erro ao alterar label do contato Nº {telefone}: {response.status_code} - {response.text}")
 
     try:
         # Tenta converter a resposta para JSON
