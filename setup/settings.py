@@ -39,7 +39,7 @@ RECAPTCHA_REQUIRED_SCORE = 0.85
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['meusistema.com.br','nossopainel.com.br', 'www.nossopainel.com.br', 'localhost', '127.0.0.1', '67.23.235.238']
+ALLOWED_HOSTS = ['nossopainel.com.br', 'www.nossopainel.com.br', 'localhost', '127.0.0.1', '67.23.235.238']
 
 # Application definition
 
@@ -70,6 +70,10 @@ MIDDLEWARE = [
     'setup.middleware.CheckUserLoggedInMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware', # whitenoise para servir arquivos estáticos
 ]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+#CSRF_TRUSTED_ORIGINS = ['https://nossopainel.com.br', 'http://nossopainel.com.br']
 
 ROOT_URLCONF = "setup.urls"
 
