@@ -72,8 +72,15 @@ MIDDLEWARE = [
 ]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
-#CSRF_TRUSTED_ORIGINS = ['https://nossopainel.com.br', 'http://nossopainel.com.br']
+CSRF_TRUSTED_ORIGINS = [
+    'https://nossopainel.com.br',
+    'http://nossopainel.com.br',
+    'https://www.nossopainel.com.br',
+    'http://www.nossopainel.com.br',
+]
 
 ROOT_URLCONF = "setup.urls"
 
