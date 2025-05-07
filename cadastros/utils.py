@@ -1,4 +1,5 @@
 from django.utils import timezone
+from typing import Union
 from datetime import datetime
 import requests
 import re
@@ -86,7 +87,7 @@ def registrar_log(mensagem: str, usuario: str, log_directory: str) -> None:
 ################ FUNÇÃO PARA VALIDAR NÚMEROS DE TELEFONE #########
 ##################################################################
 
-def validar_numero_whatsapp(telefone: str, token: str) -> str | None:
+def validar_numero_whatsapp(telefone: str, token: str) -> Union[str, None]:
     """
     Tenta validar e corrigir o número informado para verificar se existe no WhatsApp.
     
