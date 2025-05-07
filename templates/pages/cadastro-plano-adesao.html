@@ -62,6 +62,16 @@
 
                     <!-- row -->
                     <div class="mb-3 row">
+                      <label for="valor" class="col-sm-2 col-form-label form-label">Telas</label>
+                      <div class="col-md-5 col-5">
+                        <div class="input-group">
+                          <input type="number" class="form-control" id="telas" name="telas" min="0" step="1" required>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- row -->
+                    <div class="mb-3 row">
                       <label for="valor" class="col-sm-2 col-form-label form-label">Valor</label>
                       <div class="col-md-5 col-5">
                         <div class="input-group">
@@ -135,10 +145,14 @@
                         </select>
                       </div>
                       <div class="form-group">
+                        <label for="edit-plano-telas">Telas</label>
+                        <input type="number" class="form-control" id="edit-plano-telas" name="telas" min="0" step="1" required>
+                      </div>
+                      <div class="form-group">
                         <label for="edit-plano-valor">Valor</label>
                         <div class="input-group">
                           <span class="input-group-text">R$</span>
-                          <input type="number" class="form-control" id="edit-plano-valor" name="valor" min="0" step="1" required>
+                          <input type="text" class="form-control" id="edit-plano-valor" name="valor" min="0" step="1" required>
                         </div>
                       </div>
                       <input type="hidden" name="plano_id" id="plano-id">
@@ -160,6 +174,7 @@
                     <thead class="table-light">
                       <tr>
                         <th class="fw-bold text-center">Plano</th>
+                        <th class="fw-bold text-center">Telas</th>
                         <th class="fw-bold text-center">Valor</th>
                         <th class="fw-bold text-center">Ação</th>
                       </tr>
@@ -171,6 +186,10 @@
                         <td class="align-middle">
                           <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
                             onmouseout="this.style.color=''">{{plano.nome}}</h5>
+                        </td>
+                        <td class="align-middle">
+                          <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
+                            onmouseout="this.style.color=''">{{plano.telas}}</h5>
                         </td>
                         <td class="align-middle">
                           <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
@@ -187,7 +206,7 @@
                             <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
                               <li>
                                 <button class="dropdown-item" data-servidor="{{plano.id}}" data-nome="{{plano.nome}}"
-                                  data-valor="{{plano.valor}}" onclick="exibirModalEdicao(this)">Editar</button>
+                                  data-telas="{{plano.telas}}" data-valor="{{plano.valor|floatformat:'-0'}}" onclick="exibirModalEdicao(this)">Editar</button>
                               </li>
                               <li>
                                 <button class="dropdown-item" data-plano="{{plano.id}}" data-nome="{{plano.nome}}"
@@ -322,13 +341,13 @@
     const planoId = botao.dataset.servidor;
     const planoNome = botao.dataset.nome;
     const planoValor = botao.dataset.valor;
-
-    console.log('planoId', planoId);
+    const planoTelas = botao.dataset.telas;
 
     const form = document.querySelector("#edit-plano-form");
     form.action = `/editar-plano-adesao/${planoId}/`;
     form.querySelector("#edit-plano-nome").value = planoNome;
     form.querySelector("#edit-plano-valor").value = planoValor;
+    form.querySelector("#edit-plano-telas").value = planoTelas;
     form.querySelector("#plano-id").value = planoId;
 
     const modal = new bootstrap.Modal(document.querySelector("#edit-plano-modal"));

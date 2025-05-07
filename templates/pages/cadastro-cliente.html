@@ -122,23 +122,10 @@
                     </div>
                     <!-- row -->
                     <div class="mb-3 row">
-                      <label for="telas" class="col-sm-4 col-form-label
-                          form-label">Qtd. telas <span class="text-danger">*</span></label>
-
+                      <label for="data_pagamento" class="col-sm-4 col-form-label form-label">
+                        Data vencimento inicial</label>
                       <div class="col-md-8 col-12">
-                        <select class="form-select" id="telas" name="telas" required>
-                          <option value="">Selecione a quantidade de telas</option>
-                          {% for tela in telas %}
-                          <option value="{{ tela.telas }}">{{ tela.telas }}</option>
-                          {% endfor %}
-                        </select>
-                      </div>
-                    </div>
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="data_pagamento" class="col-sm-4 col-form-label form-label">Dia de pagamento mensal</label>
-                      <div class="col-md-8 col-12">
-                        <input type="number" class="form-control" placeholder="Informe o dia do pagamento mensal" id="data_pagamento" min="1" max="31"
+                        <input type="date" class="form-control" id="data_pagamento" min="1" max="31"
                           name="data_pagamento">
                       </div>
                     </div>
@@ -371,4 +358,10 @@
       this.value = formattedDeviceId;
     });
   });
+</script>
+
+<script>
+  // Define a data atual no formato AAAA-MM-DD para o campo "Data Vencimento Inicial"
+  const hoje = new Date().toISOString().split('T')[0];
+  document.getElementById('data_pagamento').value = hoje;
 </script>

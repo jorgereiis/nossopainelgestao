@@ -1,30 +1,24 @@
+"""
+Módulo de definição das models principais da aplicação.
+Inclui entidades como Cliente, Plano, Mensalidade, Aplicativo, Sessão WhatsApp, entre outras.
+"""
+
 import re
 from django.db import models
 from django.utils import timezone
+from datetime import timedelta
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
-from .utils import DDD_UF_MAP # dicionário de estados brasileiros
+from .utils import DDD_UF_MAP
 
 
-# funcão para definir o dia de pagamento
-def definir_dia_pagamento(dia_adesao):
-    if dia_adesao in range(3, 8):
-        dia_pagamento = 5
-    elif dia_adesao in range(8, 13):
-        dia_pagamento = 10
-    elif dia_adesao in range(13, 18):
-        dia_pagamento = 15
-    elif dia_adesao in range(18, 23):
-        dia_pagamento = 20
-    elif dia_adesao in range(23, 28):
-        dia_pagamento = 25
-    else:
-        dia_pagamento = 30
-    return dia_pagamento
+def default_vencimento():
+    """Retorna a data de vencimento padrão: 30 dias a partir da data atual."""
+    return timezone.now().date() + timedelta(days=30)
 
 
-# Cadastro de novos servidores
 class Servidor(models.Model):
+    """Representa os servidores associados aos clientes."""
     CLUB = "CLUB"
     PLAY = "PlayON"
     ALPHA = "ALPHA"
@@ -43,8 +37,8 @@ class Servidor(models.Model):
         return self.nome
 
 
-# Tipos de pagamentos disponíveis no sistema
 class Tipos_pgto(models.Model):
+    """Define os tipos de pagamento disponíveis para o cliente."""
     PIX = "PIX"
     CARTAO = "Cartão de Crédito"
     BOLETO = "Boleto"
@@ -55,15 +49,15 @@ class Tipos_pgto(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     class Meta:
-        verbose_name = "Tipo de pagamento"
-        verbose_name_plural = "Tipos de pagamentos"
+        verbose_name = "Tipo de Pagamento"
+        verbose_name_plural = "Tipos de Pagamentos"
 
     def __str__(self):
         return self.nome
 
 
-# Dispositivos utilizados pelos clientes (TVs, TVBOX, celulares, etc.)
 class Dispositivo(models.Model):
+    """Define o nome de um dispositivo utilizado por clientes."""
     nome = models.CharField(max_length=255, null=False, blank=False)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
@@ -72,26 +66,17 @@ class Dispositivo(models.Model):
 
 
 class Aplicativo(models.Model):
+    """Modela os aplicativos utilizados na conta do cliente."""
     nome = models.CharField(max_length=255)
+    device_has_mac = models.BooleanField(default=False)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def __str__(self):
         return self.nome
 
 
-# Quantidade de telas que o cliente utilizará em seu plano
-class Qtd_tela(models.Model):
-    telas = models.PositiveSmallIntegerField("Quantidade de telas", unique=True)
-
-    class Meta:
-        verbose_name_plural = "Quantidade de telas"
-
-    def __str__(self):
-        return "{} tela(s)".format(self.telas)
-
-
-# Planos de mensalidades ofertados
 class Plano(models.Model):
+    """Modela os planos de mensalidade disponíveis para os clientes."""
     MENSAL = "Mensal"
     TRIMESTRAL = "Trimestral"
     SEMESTRAL = "Semestral"
@@ -99,142 +84,106 @@ class Plano(models.Model):
 
     CHOICES = ((MENSAL, MENSAL), (TRIMESTRAL, TRIMESTRAL), (SEMESTRAL, SEMESTRAL), (ANUAL, ANUAL))
 
-    nome = models.CharField(
-        "Nome do plano", max_length=255, choices=CHOICES, default=MENSAL
-    )
+    nome = models.CharField("Nome do plano", max_length=255, choices=CHOICES, default=MENSAL)
+    telas = models.IntegerField("Número de telas", default=1)
     valor = models.DecimalField("Valor", max_digits=5, decimal_places=2)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def __str__(self):
-        return "{} - {}".format(self.nome, self.valor)
+        return f"{self.nome} - {self.valor}"
 
 
-# Cadastro do cliente
 class Cliente(models.Model):
+    """Modela o cliente da plataforma com todos os seus dados cadastrais e plano."""
     servidor = models.ForeignKey(Servidor, on_delete=models.CASCADE)
     dispositivo = models.ForeignKey(Dispositivo, on_delete=models.CASCADE, default=None)
     sistema = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, default=None)
     nome = models.CharField(max_length=255)
     email = models.EmailField(max_length=255, blank=True, null=True)
-    telefone = models.CharField(max_length=16)
+    telefone = models.CharField(max_length=20)
     uf = models.CharField(max_length=2, blank=True, null=True)
-    indicado_por = models.ForeignKey(
-        "self", on_delete=models.SET_NULL, null=True, blank=True
-    )
-    data_pagamento = models.IntegerField(
-        "Data de pagamento", default=None, blank=True, null=True
-    )
-    forma_pgto = models.ForeignKey(
-        Tipos_pgto,
-        on_delete=models.CASCADE,
-        default=1,
-        verbose_name="Forma de pagamento",
-    )
+    indicado_por = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
+    data_vencimento = models.DateField("Data de vencimento inicial", blank=True, null=True)
+    forma_pgto = models.ForeignKey(Tipos_pgto, on_delete=models.CASCADE, default=1, verbose_name="Forma de pagamento")
     plano = models.ForeignKey(Plano, on_delete=models.CASCADE, default=1)
-    telas = models.ForeignKey(Qtd_tela, on_delete=models.CASCADE, default=1)
-    data_adesao = models.DateField(
-        "Data de adesão", default=timezone.now
-    )
+    data_adesao = models.DateField("Data de adesão", default=timezone.now)
     data_cancelamento = models.DateField("Data de cancelamento", blank=True, null=True)
-    ultimo_pagamento = models.DateField(
-        "Último pagamento realizado", blank=True, null=True
-    )
+    ultimo_pagamento = models.DateField("Último pagamento realizado", blank=True, null=True)
     cancelado = models.BooleanField("Cancelado", default=False)
     nao_enviar_msgs = models.BooleanField("Não enviar", default=False)
     enviado_oferta_promo = models.BooleanField("Oferta PROMO", default=False)
     notas = models.TextField("Notas", blank=True, null=True)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
+    class Meta:
+        ordering = ['-data_adesao']
+
     def save(self, *args, **kwargs):
-        if self.data_adesao and self.data_pagamento == None:
-            dia = self.data_adesao.day
-            self.data_pagamento = dia
+        """Salva o cliente ajustando a data de pagamento e formatando telefone/UF."""
+        if self.data_adesao and self.data_vencimento is None:
+            self.data_vencimento = self.data_adesao
 
         self.formatar_telefone()
         self.definir_uf()
-
         super().save(*args, **kwargs)
 
     def formatar_telefone(self):
-        self.telefone = re.sub(r'\D+', '', self.telefone)  # Remove caracteres especiais
-
+        """Formata o telefone do cliente conforme padrão nacional ou internacional."""
+        self.telefone = re.sub(r'\D+', '', self.telefone)
         if self.telefone.startswith('55'):
-            self.telefone = self.telefone[2:]  # Remove o prefixo '55' do início do número
+            self.telefone = self.telefone[2:]
 
-        if len(self.telefone) <= 11:
-            ddd = self.telefone[:2]  # Obtém os 2 primeiros dígitos após remover o DDI
-            numero = self.telefone[2:]  # Obtém o restante do número
-
+        if len(self.telefone) == 10 or len(self.telefone) == 11:
+            ddd = self.telefone[:2]
+            numero = self.telefone[2:]
             if len(numero) == 9 and numero.startswith('9'):
-                numero = numero[1:]  # remove o dígito '9' do início caso possua 9 dígitos
-
-            if numero.startswith(('6', '7', '8', '9')):  # Verifica se o número começa com algum valor entre '6' e '9'
-                if int(ddd) > 30:
-                    self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}'  # Formato (DD) DDDD-DDDD
-                else:
-                    self.telefone = f'({ddd}) 9{numero[:4]}-{numero[4:]}'  # Formato (DD) DDDDD-DDDD
+                numero = numero[1:]
+            if numero.startswith(('6', '7', '8', '9')):
+                self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}' if int(ddd) > 30 else f'({ddd}) 9{numero[:4]}-{numero[4:]}'
             else:
-                if int(ddd) > 30:
-                    self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}'  # Formato (DD) DDDD-DDDD
-                else:
-                    self.telefone = f'({ddd}) 9{numero[:4]}-{numero[4:]}'  # Formato (DD) DDDDD-DDDD
+                self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}' if int(ddd) > 30 else f'({ddd}) 9{numero[:4]}-{numero[4:]}'
+        else:
+            self.telefone = '+' + self.telefone
 
     def definir_uf(self):
+        """Define a unidade federativa (UF) com base no DDD do telefone."""
         raw_telefone = re.sub(r'\D+', '', self.telefone)
         if raw_telefone.startswith('55'):
             raw_telefone = raw_telefone[2:]
-        ddd = raw_telefone[:2]
-        self.uf = DDD_UF_MAP.get(ddd, None)
+        self.uf = DDD_UF_MAP.get(raw_telefone[:2], None) if len(raw_telefone) >= 2 else None
 
     def __str__(self):
         return self.nome
 
 
-# Cadastro das mensalidades de cada cliente
 class Mensalidade(models.Model):
+    """Modela a mensalidade de um cliente com informações de pagamento, vencimento e status."""
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT)
     valor = models.DecimalField("Valor", max_digits=5, decimal_places=2, default=None)
-    dt_vencimento = models.DateField(
-        "Data do vencimento",
-        default=timezone.localtime().date() + timezone.timedelta(days=30),
-    )
-    dt_pagamento = models.DateField(
-        "Data do pagamento", default=None, null=True, blank=True
-    )
-    dt_cancelamento = models.DateField(
-        "Data do cancelamento", default=None, null=True, blank=True
-    )
-    dt_notif_wpp1 = models.DateField(
-        "Data envio notificação PROMO", default=None, null=True, blank=True
-    )
+    dt_vencimento = models.DateField("Data do vencimento", default=default_vencimento)
+    dt_pagamento = models.DateField("Data do pagamento", null=True, blank=True)
+    dt_cancelamento = models.DateField("Data do cancelamento", null=True, blank=True)
+    dt_notif_wpp1 = models.DateField("Data envio notificação PROMO", null=True, blank=True)
     pgto = models.BooleanField("Pago", default=False)
     cancelado = models.BooleanField(default=False)
-    notificacao_wpp1 = models.BooleanField(
-        "Notificação PROMO", default=False
-    )
-    recebeu_pix_indicacao = models.BooleanField(
-        "PIX R$50", default=False
-    )
+    notificacao_wpp1 = models.BooleanField("Notificação PROMO", default=False)
+    recebeu_pix_indicacao = models.BooleanField("PIX R$50", default=False)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def __str__(self):
-        return str(
-            "[{}] {} - {}".format(
-                self.dt_vencimento.strftime("%d/%m/%Y"), self.valor, self.cliente
-            )
-        )
+        return f"[{self.dt_vencimento.strftime('%d/%m/%Y')}] {self.valor} - {self.cliente}"
 
 
 class PlanoIndicacao(models.Model):
+    """Representa um plano de indicação que oferece desconto ou valor em dinheiro."""
     TIPOS_PLANO = [
         ("desconto", "Desconto na mensalidade"),
         ("dinheiro", "Valor em dinheiro"),
     ]
-    nome = models.CharField(max_length=255, default="Desconto na mensalidade")
+    nome = models.CharField(max_length=255)
     tipo_plano = models.CharField(max_length=10, choices=TIPOS_PLANO)
-    valor = models.DecimalField(
-        max_digits=6, decimal_places=2, validators=[MinValueValidator(0)]
-    )
+    valor = models.DecimalField('Valor para desconto ou bonificação', max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
+    valor_minimo_mensalidade = models.DecimalField('Valor mínimo a ser mantido na mensalidade', max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
     ativo = models.BooleanField(default=True)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
@@ -246,15 +195,9 @@ class PlanoIndicacao(models.Model):
 
 
 class ContaDoAplicativo(models.Model):
-    cliente = models.ForeignKey(
-        Cliente, on_delete=models.CASCADE, related_name="conta_aplicativo"
-    )
-    app = models.ForeignKey(
-        Aplicativo,
-        on_delete=models.CASCADE,
-        related_name="aplicativos",
-        verbose_name="Aplicativo",
-    )
+    """Armazena as credenciais de acesso de um cliente a um determinado aplicativo."""
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name="conta_aplicativo")
+    app = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, related_name="aplicativos", verbose_name="Aplicativo")
     device_id = models.CharField("ID", max_length=255, blank=True, null=True)
     email = models.EmailField("E-mail", max_length=255, blank=True, null=True)
     device_key = models.CharField("Senha", max_length=255, blank=True, null=True)
@@ -262,36 +205,29 @@ class ContaDoAplicativo(models.Model):
     verificado = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
-        if "xcloud" in self.app.nome.lower():
-            # Não altera o device_id
-            pass
-        else:
-            # Verifica se o valor está no formato desejado
-            if self.device_id:
-                if self.device_id[0] == ":":
-                    # Remove o caractere ':' do começo se houver
-                    self.device_id = self.device_id[1:]
-
-                if self.device_id[-1] == ":":
-                    # Remove o caractere ':' do final se houver
-                    self.device_id = self.device_id[:-1]
-
-                # Adiciona ':' a cada 2 caracteres se não houver ":"
-                if ":" not in self.device_id[2:-2]:
-                    self.device_id = ":".join(
-                        [self.device_id[i : i + 2] for i in range(0, len(self.device_id), 2)]
-                    )
-        super(ContaDoAplicativo, self).save(*args, **kwargs)
+        """Formata o device_id em formato de MAC address se aplicável."""
+        if self.device_id:
+            raw = re.sub(r'[^A-Fa-f0-9]', '', self.device_id)
+            self.device_id = ':'.join(raw[i:i+2] for i in range(0, len(raw), 2))
+        super().save(*args, **kwargs)
 
     class Meta:
-        verbose_name = "Conta do aplicativo"
-        verbose_name_plural = "Contas dos aplicativos"
+        verbose_name = "Conta do Aplicativo"
+        verbose_name_plural = "Contas dos Aplicativos"
+        constraints = [
+            models.UniqueConstraint(fields=['cliente', 'app', 'device_id'], name='unique_device_per_cliente_app')
+        ]
+        indexes = [
+            models.Index(fields=['cliente', 'app']),
+            models.Index(fields=['device_id']),
+        ]
 
     def __str__(self):
-        return super().__str__()
+        return self.app.nome
 
 
 class SessaoWpp(models.Model):
+    """Armazena as informações da sessão do WhatsApp integrada."""
     usuario = models.CharField(max_length=255)
     token = models.CharField(max_length=255)
     dt_inicio = models.DateTimeField()
@@ -302,10 +238,13 @@ class SessaoWpp(models.Model):
 
     def __str__(self) -> str:
         return self.usuario
-    
+
 
 class SecretTokenAPI(models.Model):
+    """Armazena tokens secretos para autenticação via API personalizada."""
     token = models.CharField(max_length=255)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    dt_criacao = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Secret Token API"
@@ -313,24 +252,51 @@ class SecretTokenAPI(models.Model):
 
     def __str__(self) -> str:
         return self.token
-    
+
 
 class DadosBancarios(models.Model):
+    """Modela os dados bancários do usuário para recebimentos."""
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    wpp = models.CharField(max_length=20)
     beneficiario = models.CharField(max_length=255)
     instituicao = models.CharField(max_length=255)
     tipo_chave = models.CharField(max_length=255)
     chave = models.CharField(max_length=255)
 
+    def formatar_telefone(self):
+        """Formata o telefone do cliente conforme padrão nacional ou internacional."""
+        self.wpp = re.sub(r'\D+', '', self.wpp)
+        if self.wpp.startswith('55'):
+            self.wpp = self.wpp[2:]
+
+        if len(self.wpp) == 10 or len(self.wpp) == 11:
+            ddd = self.wpp[:2]
+            numero = self.wpp[2:]
+            if len(numero) == 9 and numero.startswith('9'):
+                numero = numero[1:]
+            if numero.startswith(('6', '7', '8', '9')):
+                self.wpp = f'({ddd}) {numero[:4]}-{numero[4:]}' if int(ddd) > 30 else f'({ddd}) 9{numero[:4]}-{numero[4:]}'
+            else:
+                self.wpp = f'({ddd}) {numero[:4]}-{numero[4:]}' if int(ddd) > 30 else f'({ddd}) 9{numero[:4]}-{numero[4:]}'
+        else:
+            self.wpp = '+' + self.wpp
+
+    def save(self, *args, **kwargs):
+        """Salva o cliente ajustando a data de pagamento e formatando telefone/UF."""
+
+        self.formatar_telefone()
+        super().save(*args, **kwargs)
+
     class Meta:
         verbose_name_plural = "Dados Bancários"
 
     def __str__(self) -> str:
-        return '{} {}'.format(self.usuario.first_name, self.usuario.last_name)
-    
+        return f'{self.usuario.first_name} {self.usuario.last_name}'
+
 
 class HorarioEnvios(models.Model):
-    usuario = models.ForeignKey(User, on_delete=models.PROTECT, unique=True)
+    """Define o horário preferencial de envio de mensagens automáticas."""
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     horario = models.TimeField(null=True)
     ativo = models.BooleanField(default=True)
 
@@ -343,15 +309,21 @@ class HorarioEnvios(models.Model):
 
 
 class MensagemEnviadaWpp(models.Model):
+    """Registra o histórico de mensagens enviadas ao WhatsApp."""
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     telefone = models.CharField(max_length=20)
     data_envio = models.DateField(auto_now_add=True)
 
+    class Meta:
+        verbose_name = "Mensagem Enviada ao WhatsApp"
+        verbose_name_plural = "Mensagens Enviadas ao WhatsApp"
+
     def __str__(self) -> str:
         return self.telefone
-    
+
 
 class ConteudoM3U8(models.Model):
+    """Modela os conteúdos processados a partir de arquivos M3U8 (filmes, séries etc)."""
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     nome = models.CharField(max_length=255)
     capa = models.URLField()
@@ -359,6 +331,10 @@ class ConteudoM3U8(models.Model):
     episodio = models.IntegerField(null=True, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     upload = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Conteúdo M3U8"
+        verbose_name_plural = "Conteúdos M3U8"
 
     def __str__(self):
         return self.nome

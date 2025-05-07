@@ -5,7 +5,7 @@
 
 <head>
   {% include 'partials/head.html' %}
-  <title>Importar clientes | Nosso Painel - Gestão IPTV</title>
+  <title>Meu Perfil | Nosso Painel - Gestão IPTV</title>
 </head>
 
 <body class="bg-light">
@@ -61,7 +61,7 @@
                   <a href="#" class="btn btn-outline-primary d-none d-md-block">Alterar Senha</a>
                   <div class="ms-2"></div>
                   <a href="#" class="btn btn-outline-primary d-none d-md-block" data-instituicao="{{instituicao}}"
-                  data-beneficiario="{{beneficiario}}" data-tipo_chave="{{tipo_chave}}" data-chave="{{chave}}" data-nome="{{nome_user}}" data-sobrenome="{{sobrenome_user}}" data-email="{{email}}" onclick="exibirModalEdicaoDp(this)">Editar Dados</a>
+                  data-beneficiario="{{beneficiario}}" data-tipo_chave="{{tipo_chave}}" data-chave="{{chave}}" data-nome="{{nome_user}}" data-sobrenome="{{sobrenome_user}}" data-email="{{email}}" data-wpp="{{wpp}}" onclick="exibirModalEdicaoDp(this)">Editar Dados</a>
                 </div>
               </div>
               <!-- nav -->
@@ -90,8 +90,8 @@
                   <!-- row -->
                   <div class="row">
                     <div class="col-6 mb-5">
-                      <h6 class="text-uppercase fs-5 ls-2">Telefone </h6>
-                      <p class="mb-0">--</p>
+                      <h6 class="text-uppercase fs-5 ls-2">WhatsApp </h6>
+                      <p class="mb-0">{{ wpp }}</p>
                     </div>
                     <div class="col-6">
                       <h6 class="text-uppercase fs-5 ls-2">Email </h6>
@@ -104,7 +104,7 @@
                     <div class="col-6">
                       <h6 class="text-uppercase fs-5 ls-2">Localização
                       </h6>
-                      <p class="mb-0">João Pessoa, Brasil</p>
+                      <p class="mb-0">{{ localizacao }}</p>
                     </div>
                   </div>
                 </div>
@@ -200,6 +200,12 @@
                 <input type="email" class="form-control" placeholder="Email" id="email" name="email" required>
               </div>
             </div>
+            <div class="mb-3 row">
+              <label for="wpp" class="col-sm-4 col-form-label form-label">WhatsApp</label>
+              <div class="col-md-8 col-12">
+                <input type="text" class="form-control" placeholder="Contato" id="wpp" name="wpp" required>
+              </div>
+            </div>
             <div class="mb-6 mt-6">
               <h4 class="mb-1">Dados de Pagamento</h4>
             </div>
@@ -249,6 +255,7 @@
 
 <script>
   function exibirModalEdicaoDp(botao) {
+    let wpp = botao.dataset.wpp;
     let nome = botao.dataset.nome;
     let email = botao.dataset.email;
     let chave = botao.dataset.chave;
@@ -259,6 +266,7 @@
     
 
     // Verificar se o valor é igual a '--' e alterar para uma variável vazia
+    wpp = wpp === '--' ? '' : wpp;
     nome = nome === '--' ? '' : nome;
     email = email === '--' ? '' : email;
     chave = chave === '--' ? '' : chave;
@@ -274,6 +282,7 @@
     form.querySelector("#email").value = email;
     form.querySelector("#chave").value = chave;
     form.querySelector("#nome").value = nome;
+    form.querySelector("#wpp").value = wpp;
 
     const tipoChaveSelect = form.querySelector("#tipo_chave");
     if (tipo_chave === '--') {
@@ -288,5 +297,30 @@
 
   $('#edit-dp-modal').on('click', '.btn-close, .btn-secondary', function () {
     $('#edit-dp-modal').modal('hide');
+  });
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var telefoneInput = document.getElementById('wpp');
+
+    telefoneInput.addEventListener('input', function() {
+      var telefone = this.value.replace(/\D/g, ''); // Remove todos os caracteres não numéricos
+      telefone = telefone.substring(0, 11); // Limita o número de telefone a 11 dígitos
+
+      var formattedTelefone = '';
+      if (telefone.length > 0) {
+        formattedTelefone = '(' + telefone.substring(0, 2) + ')';
+
+        if (telefone.length > 2) {
+          formattedTelefone += ' ' + telefone.substring(2, 7);
+
+          if (telefone.length > 7) {
+            formattedTelefone += telefone.substring(7, 11);
+          }
+        }
+      }
+      this.value = formattedTelefone;
+    });
   });
 </script>

@@ -1,3 +1,19 @@
+from django.utils import timezone
+from datetime import datetime
+import requests
+import re
+import os
+
+URL_API_WPP = os.getenv("URL_API_WPP")
+USER_SESSION_WPP = os.getenv("USER_SESSION_WPP")
+MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
+DIR_LOGS_AGENDADOS = os.getenv("DIR_LOGS_AGENDADOS")
+DIR_LOGS_INDICACOES = os.getenv("DIR_LOGS_INDICACOES")
+TEMPLATE_LOG_MSG_SUCESSO = os.getenv("TEMPLATE_LOG_MSG_SUCESSO")
+TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
+TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
+
+
 # UTILIZADO NAS MODELS
 DDD_UF_MAP = {
     '11': 'SP', '12': 'SP', '13': 'SP', '14': 'SP', '15': 'SP', '16': 'SP', '17': 'SP', '18': 'SP', '19': 'SP',
@@ -29,15 +45,86 @@ DDD_UF_MAP = {
     '98': 'MA', '99': 'MA',
 }
 
+
+###################################################################
+############## FUNÇÃO PARA RETORNAR MSG DE SAUDAÇÃO ###############
+###################################################################
+
+def get_saudacao_por_hora(hora_referencia=None):
+    """
+    Retorna uma saudação apropriada com base no horário.
+    """
+    if not hora_referencia:
+        hora_referencia = timezone.now().time()
+
+    if hora_referencia < datetime.strptime("12:00:00", "%H:%M:%S").time():
+        return "Bom dia"
+    elif hora_referencia < datetime.strptime("18:00:00", "%H:%M:%S").time():
+        return "Boa tarde"
+    return "Boa noite"
+##### FIM #####
+
+
+##################################################################
+################ FUNÇÃO PARA REGISTRAR LOGS ######################
+##################################################################
+
+# Função para registrar mensagens no arquivo de log principal
+def registrar_log(mensagem: str, usuario: str, log_directory: str) -> None:
+    """
+    Registra uma mensagem no arquivo de log do usuário.
+    """
+    os.makedirs(log_directory, exist_ok=True)
+    log_filename = os.path.join(log_directory, f'{usuario}.log')
+
+    with open(log_filename, "a", encoding="utf-8") as log:
+        log.write(mensagem)
+#### FIM #####
+
+
+##################################################################
+################ FUNÇÃO PARA VALIDAR NÚMEROS DE TELEFONE #########
+##################################################################
+
+def validar_numero_whatsapp(telefone: str, token: str) -> str | None:
+    """
+    Tenta validar e corrigir o número informado para verificar se existe no WhatsApp.
+    
+    Etapas:
+    1. Testa o número original sem caracteres especiais.
+    2. Tenta novamente com prefixo '55'.
+    3. Remove o primeiro '9' após o DDD e tenta novamente com '55'.
+    
+    Retorna:
+        - Número formatado válido para envio via WhatsApp
+        - None, se nenhuma variação for válida
+    """
+    numero = re.sub(r'\D', '', telefone)  # Remove tudo que não for número
+
+    # Etapa 1: verificar número como está
+    if check_number_status(numero, token):
+        return numero
+
+    # Etapa 2: adicionar DDI '55'
+    com_ddi = '55' + numero
+    if check_number_status(com_ddi, token):
+        return com_ddi
+
+    # Etapa 3: remover '9' após o DDD e adicionar '55'
+    if len(numero) >= 11 and numero[2] == '9':
+        sem_nove = numero[:2] + numero[3:]
+        com_ddi_sem_nove = '55' + sem_nove
+        if check_number_status(com_ddi_sem_nove, token):
+            return com_ddi_sem_nove
+
+    # Nenhuma variação funcionou
+    return None
+##### FIM #####
+
+
 ###################################################
 ##### FUNÇÕES PARA CONEXÃO COM API WPPCONNECT #####
 ###################################################
-import os
-import requests
-
-URL_API_WPP = os.getenv("URL_API_WPP")
-USER_SESSION_WPP = os.getenv("USER_SESSION_WPP")
-MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
 
 def get_label_contact(telefone, token):
     # Monta a URL da requisição com o número de telefone

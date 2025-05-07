@@ -13,7 +13,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "setup.settings")
 django.setup()
 
 # Variáveis de ambiente e caminhos
-MEU_NUM = os.getenv("MEU_NUM_TIM")
+MEU_NUM = os.getenv("MEU_NUM")
 NOME_SCRIPT = "UPLOAD STATUS WPP"
 URL_API_WPP = os.getenv("URL_API_WPP")
 LOG_FILE = "logs/UploadStatusWpp/upload_status.log"
@@ -157,9 +157,9 @@ def executar_upload_status():
         else:
             registrar_log(f"[AVISO] Conteúdo não marcado como enviado: {item.nome}", LOG_FILE)
 
-    # --- Gera resumo para status e mensagem privada ---
     if enviados > 0:
-        linhas_status = []
+        # --- Gera resumo para status e mensagem privada ---
+        linhas_status = ["🎬 *Resumo das Atualizações de Hoje:*\n"]
         linhas_mensagem = [f"🎬 *Resumo das Atualizações*\n📅 Data: *{data_hoje}*\n"]
 
         for titulo, episodios in resumo_envios.items():
@@ -171,23 +171,16 @@ def executar_upload_status():
                 linhas_status.append(f"🎬 *{titulo}* — Filme")
                 linhas_mensagem.append(f"🎬 *{titulo}* — Filme")
 
-        # Dividir linhas_status em blocos de no máximo 14 linhas cada
-        blocos = [linhas_status[i:i+14] for i in range(0, len(linhas_status), 14)]
-        total_blocos = len(blocos)
+        texto_resumo_status = "\n".join(linhas_status)
+        texto_resumo_mensagem = "\n".join(linhas_mensagem)
 
-        for idx, bloco in enumerate(blocos, start=1):
-            texto_bloco = f"🎬 *Resumo das Atualizações de Hoje (página {idx}/{total_blocos}):*\n\n"
-            texto_bloco += "\n".join(bloco)
-            upload_status_sem_imagem(texto_bloco, usuario.username, token)
+        upload_status_sem_imagem(texto_resumo_status, usuario.username, token)
 
-        # Envia também a mensagem privada (tudo de uma vez)
         if MEU_NUM:
-            texto_mensagem_privada = "\n".join(linhas_mensagem)
-            enviar_mensagem(MEU_NUM, texto_mensagem_privada, usuario.username, token)
+            enviar_mensagem(MEU_NUM, texto_resumo_mensagem, usuario.username, token)
 
-        # Mensagem final
         upload_status_sem_imagem(
-            "✅ Encerramos por aqui!\nMuito obrigado por acompanhar nossas atualizações. Em breve, mais conteúdos incríveis chegando pra você! 🎉",
+            "✅ Encerramos por aqui! Agradecemos por acompanhar nossas novidades. Em breve, mais conteúdos incríveis para vocês!",
             usuario.username,
             token
         )

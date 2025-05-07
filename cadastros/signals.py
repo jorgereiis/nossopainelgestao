@@ -1,129 +1,170 @@
-from .models import Mensalidade, Cliente, Plano, PlanoIndicacao, definir_dia_pagamento
-from .utils import check_number_status, get_label_contact, add_or_remove_label_contact, get_all_labels, criar_label_se_nao_existir
-from django.db.models.signals import post_save, pre_save
-import os, json, random, time, requests, re
-from dateutil.relativedelta import relativedelta
+import os
+import re
+import json
+import time
+import random
+import requests
+from decimal import Decimal
 from datetime import datetime, timedelta
-from django.dispatch import receiver
-from django.contrib import messages
-from django.utils import timezone
-from .models import SessaoWpp
+from dateutil.relativedelta import relativedelta
+import logging
 
+from django.utils import timezone
+from django.db.models.signals import post_save, pre_save
+from django.dispatch import receiver
+
+from .models import Mensalidade, Cliente, Plano, PlanoIndicacao, SessaoWpp
+from .utils import (
+    check_number_status,
+    get_label_contact,
+    add_or_remove_label_contact,
+    get_all_labels,
+    criar_label_se_nao_existir,
+    get_saudacao_por_hora,
+)
+# URL base da API do WhatsApp
 URL_API_WPP = os.getenv("URL_API_WPP")
 
-# Função para definir o dia de pagamento com base em um dia fornecido
-def definir_dia_renovacao(dia):
-    if dia in range(5, 10):
-        dia_pagamento = 5
-    elif dia in range(10, 15):
-        dia_pagamento = 10
-    elif dia in range(15, 20):
-        dia_pagamento = 15
-    elif dia in range(20, 25):
-        dia_pagamento = 20
-    elif dia in range(25, 30):
-        dia_pagamento = 25
-    else:
-        dia_pagamento = 30  # Se nenhum dos intervalos anteriores for correspondido, atribui o dia 30 como padrão
-    return dia_pagamento
+# Configure logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-# Signal para atualizar o `ultimo_pagamento` do cliente com base na Mensalidade
+def definir_dia_pagamento(dia_adesao):
+    """
+    Define o dia padrão de pagamento com base no dia de adesão.
+    Utiliza faixas de dias para arredondar a data de pagamento para dias fixos do mês.
+    """
+    if dia_adesao in range(3, 8):
+        return 5
+    elif dia_adesao in range(8, 13):
+        return 10
+    elif dia_adesao in range(13, 18):
+        return 15
+    elif dia_adesao in range(18, 23):
+        return 20
+    elif dia_adesao in range(23, 28):
+        return 25
+    return 30
+
+
 @receiver(post_save, sender=Mensalidade)
 def atualiza_ultimo_pagamento(sender, instance, **kwargs):
+    """
+    Atualiza o campo `ultimo_pagamento` do cliente sempre que uma mensalidade for paga com sucesso.
+    """
     cliente = instance.cliente
 
-    # Verifica se `dt_pagamento` e `pgto` da Mensalidade são verdadeiros
     if instance.dt_pagamento and instance.pgto:
-        # Verifica se o `ultimo_pagamento` do cliente não existe ou se a data de pagamento da Mensalidade é posterior ao `ultimo_pagamento`
         if not cliente.ultimo_pagamento or instance.dt_pagamento > cliente.ultimo_pagamento:
             cliente.ultimo_pagamento = instance.dt_pagamento
             cliente.save()
 
 
-# CRIA NOVA MENSALIDADE QUANDO UM NOVO CLIENTE FOR CRIADO
 @receiver(post_save, sender=Cliente)
 def criar_mensalidade(sender, instance, created, **kwargs):
-    request = kwargs.get('request')
-    if request is not None and request.user.is_authenticated:
-        usuario = request.user
+    """
+    Cria automaticamente uma nova mensalidade ao cadastrar um novo cliente.
+    A data de vencimento é calculada com base em:
+    - Último pagamento (se houver)
+    - Data de adesão (se houver)
+    - Data de vencimento definida manualmente (fallback)
+    O vencimento sempre aponta para o próximo ciclo válido, conforme o tipo do plano.
+    """
+    if not created:
+        return
 
-    # Verifica se o Cliente acabou de ser criado
-    if created:
-        # Define o dia de pagamento com base em diferentes cenários
-        if instance.ultimo_pagamento:
-            dia = instance.ultimo_pagamento.day
-            dia_pagamento = definir_dia_pagamento(dia)
-        elif instance.data_adesao and instance.data_pagamento is None:
-            dia = instance.data_adesao.day
-            dia_pagamento = definir_dia_pagamento(dia)
-        else:
-            dia_pagamento = instance.data_pagamento
+    hoje = timezone.localdate()
 
-        # Obtém o mês e o ano atual
-        mes = timezone.localtime().date().month
-        ano = timezone.localtime().date().year
+    # Define o dia de pagamento com base na lógica disponível
+    if instance.ultimo_pagamento:
+        dia_pagamento = definir_dia_pagamento(instance.ultimo_pagamento.day)
+    elif instance.data_adesao and instance.data_vencimento is None:
+        dia_pagamento = definir_dia_pagamento(instance.data_adesao.day)
+    else:
+        dia_pagamento = instance.data_vencimento.day if instance.data_vencimento else hoje.day
 
-        # Define a data de vencimento com base no dia de pagamento
+    # Calcula a data inicial do vencimento no mês atual
+    mes = hoje.month
+    ano = hoje.year
+
+    try:
         vencimento = datetime(ano, mes, dia_pagamento)
+    except ValueError:
+        # Ex: 31 de fevereiro → último dia válido do mês
+        vencimento = (datetime(ano, mes, 1) + relativedelta(months=1)) - timedelta(days=1)
 
-        # Se o dia de vencimento for menor do que a data atual,
-        # cria a primeira mensalidade com vencimento para o próximo mês
-        # ou para o mês de acordo com o plano mensal escolhido.
-        # Caso contrário, cria para o mês atual.
-        if vencimento.day < timezone.localtime().date().day:
-            if instance.plano.nome == Plano.CHOICES[0][0]:
-                vencimento += relativedelta(months=1)
-            elif instance.plano.nome == Plano.CHOICES[1][0]:
-                vencimento += relativedelta(months=3)
-            elif instance.plano.nome == Plano.CHOICES[2][0]:
-                vencimento += relativedelta(months=6)
-            elif instance.plano.nome == Plano.CHOICES[3][0]:
-                vencimento += relativedelta(years=1)
+    # Se o vencimento caiu no passado, ajusta com base no tipo de plano
+    if vencimento.date() < hoje:
+        plano_nome = instance.plano.nome.lower()
+        if "mensal" in plano_nome:
+            vencimento += relativedelta(months=1)
+        elif "trimestral" in plano_nome:
+            vencimento += relativedelta(months=3)
+        elif "semestral" in plano_nome:
+            vencimento += relativedelta(months=6)
+        elif "anual" in plano_nome:
+            vencimento += relativedelta(years=1)
 
-        # Cria uma nova instância de Mensalidade com os valores definidos
-        Mensalidade.objects.create(
-            cliente=instance,
-            valor=instance.plano.valor,
-            dt_vencimento=vencimento,
-            usuario=instance.usuario,
-        )
+    # Cria a mensalidade
+    Mensalidade.objects.create(
+        cliente=instance,
+        valor=instance.plano.valor,
+        dt_vencimento=vencimento.date(),
+        usuario=instance.usuario,
+    )
 
 
 # CRIA NOVA MENSALIDADE APÓS A ATUAL SER PAGA
 @receiver(pre_save, sender=Mensalidade)
 def criar_nova_mensalidade(sender, instance, **kwargs):
-    hoje = timezone.localtime().date()
+    """
+    Cria automaticamente a próxima mensalidade após o pagamento da atual.
 
-    # Verificar se a mensalidade está paga e a data de vencimento está dentro do intervalo desejado
+    Regras:
+    - A nova mensalidade só será criada se:
+        - A mensalidade atual estiver marcada como paga (`pgto=True`) e possuir `dt_pagamento`.
+        - A data de vencimento da mensalidade não for muito antiga (até 7 dias de defasagem).
+        - Não existir já uma mensalidade futura não paga para o cliente (evita duplicidade).
+    - A data base para o novo vencimento será:
+        - A data de vencimento anterior (caso tenha sido pagamento antecipado), ou
+        - A data atual (caso tenha sido em atraso).
+    - O novo vencimento será ajustado conforme o tipo do plano do cliente (mensal, trimestral, etc).
+    - Ao final, além de criar a nova mensalidade, o campo `data_vencimento` do cliente será atualizado.
+
+    Parâmetros:
+        sender (Model): O modelo que acionou o signal (Mensalidade).
+        instance (Mensalidade): A instância da mensalidade que está sendo salva.
+        kwargs: Argumentos adicionais do signal.
+    """
+    hoje = timezone.localdate()
+
     if instance.dt_pagamento and instance.pgto and not instance.dt_vencimento < hoje - timedelta(days=7):
-        data_vencimento_anterior = instance.dt_vencimento  # recebe a data de vencimento da mensalidade que foi paga
+        if Mensalidade.objects.filter(
+            cliente=instance.cliente,
+            dt_vencimento__gt=instance.dt_vencimento,
+            pgto=False,
+            cancelado=False
+        ).exists():
+            return
 
-        # Verifica se a data de vencimento da mensalidade anterior é maior que a data atual.
-        # Se verdadeiro, significa que a mensalidade anterior foi paga antecipadamente e
-        # atribui à `nova_data_vencimento` o valor de `data_vencimento_anterior`
+        data_vencimento_anterior = instance.dt_vencimento
+
         if data_vencimento_anterior > hoje:
             nova_data_vencimento = data_vencimento_anterior
-
-        # Se não, significa que a mensalidade foi paga em atraso e atribui à `nova_data_vencimento` baseado no valor de `hoje`
         else:
-            nova_data_vencimento = datetime(
-                hoje.year,
-                hoje.month,
-                hoje.day,
-            )
+            nova_data_vencimento = hoje
 
-        # Define o mês/ano de vencimento de acordo com o plano do cliente
-        if instance.cliente.plano.nome == Plano.CHOICES[0][0]:
+        plano_nome = instance.cliente.plano.nome.lower()
+        if "mensal" in plano_nome:
             nova_data_vencimento += relativedelta(months=1)
-        elif instance.cliente.plano.nome == Plano.CHOICES[1][0]:
+        elif "trimestral" in plano_nome:
             nova_data_vencimento += relativedelta(months=3)
-        elif instance.cliente.plano.nome == Plano.CHOICES[2][0]:
+        elif "semestral" in plano_nome:
             nova_data_vencimento += relativedelta(months=6)
-        elif instance.cliente.plano.nome == Plano.CHOICES[3][0]:
+        elif "anual" in plano_nome:
             nova_data_vencimento += relativedelta(years=1)
 
-        # Cria uma nova instância de Mensalidade com os valores atualizados
         Mensalidade.objects.create(
             cliente=instance.cliente,
             valor=instance.cliente.plano.valor,
@@ -131,59 +172,96 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
             usuario=instance.usuario,
         )
 
-        # Atualiza a `data_pagamento` do cliente com o dia de `nova_data_vencimento` da mensalidade.
-        instance.cliente.data_pagamento = nova_data_vencimento.day
+        instance.cliente.data_vencimento = nova_data_vencimento
         instance.cliente.save()
+
 
 
 # REALIZA ENVIO PARA CLIENTE INDICADOR QUANDO HOUVER CADASTRO DE NOVO CLIENTE COM INDICAÇÃO
 @receiver(post_save, sender=Cliente)
 def envio_apos_novo_cadastro(sender, instance, created, **kwargs):
-    if created:
-        usuario = instance.usuario
-        cliente = instance
-        nome_cliente = str(cliente)
-        primeiro_nome = nome_cliente.split(' ')[0]
-        telefone = str(cliente.telefone)
-        telefone_formatado = '55' + re.sub(r'\D', '', telefone)
-        indicador = cliente.indicado_por
-        tipo_envio = "Cadastro"
+    """
+    Quando um novo cliente é criado, envia uma mensagem de boas-vindas e verifica se ele foi indicado por outro cliente.
+    Caso tenha sido indicado e o cliente indicador possua PlanoIndicacao ativo, executa a rotina de bonificação ao indicador.
+    """
+    if not created:
+        return
 
-        try:
-            token_user = SessaoWpp.objects.get(usuario=usuario)
-        except SessaoWpp.DoesNotExist:
-            pass
+    usuario = instance.usuario
+    nome_cliente = str(instance)
+    primeiro_nome = nome_cliente.split(' ')[0]
 
-        mensagem = f"""Obrigado, {primeiro_nome}. O seu pagamento foi confirmado e o seu acesso já foi disponibilizado!\n\nA partir daqui, caso precise de algum auxílio pode entrar em contato.\nPeço que salve o nosso contato para que receba as nossas notificações aqui no WhatsApp."""
+    telefone_raw = str(instance.telefone or "").strip()
+    telefone_digits = re.sub(r'\D', '', telefone_raw)
 
-        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente,tipo_envio)
+    if len(telefone_digits) < 10:
+        return  # Número inválido
 
-        if cliente.indicado_por:
-            envio_apos_nova_indicacao(usuario, cliente, cliente.indicado_por)
+    telefone_formatado = '55' + telefone_digits
+    tipo_envio = "Cadastro"
+
+    token_user = SessaoWpp.objects.filter(usuario=usuario).first()
+    if not token_user:
+        return
+
+    mensagem = (
+        f"Obrigado, {primeiro_nome}. O seu pagamento foi confirmado e o seu acesso já foi disponibilizado!\n\n"
+        "A partir daqui, caso precise de algum auxílio pode entrar em contato.\n"
+        "Peço que salve o nosso contato para que receba as nossas notificações aqui no WhatsApp."
+    )
+
+    try:
+        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
+    except Exception as e:
+        logger.error(f"[WPP] Falha ao enviar mensagem para {telefone_formatado}: {e}", exc_info=True)
+
+    plano_indicacao_ativo = PlanoIndicacao.objects.filter(usuario=usuario, ativo=True).first()
+
+    if instance.indicado_por and plano_indicacao_ativo:
+        envio_apos_nova_indicacao(usuario, instance, instance.indicado_por)
 
 
 # Função para realizar envio de mensagem após cadastro de um novo cliente. Além disso, verifica se o novo cliente veio por indicação e realiza envio ao cliente indicador.
 def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
+    """
+    Avalia a quantidade de indicações feitas por um cliente e envia mensagem de bonificação com descontos ou prêmios.
+
+    - 1 indicação: aplica desconto na mensalidade atual em aberto (com valor cheio), ou na próxima disponível.
+    - 2 indicações: bonificação em dinheiro (deduzindo eventual desconto já concedido se a mensalidade foi paga).
+
+    Regras:
+    - Para aplicar desconto, deve haver PlanoIndicacao ativo do tipo 'desconto'.
+    - Para aplicar bonificação, deve haver PlanoIndicacao ativo do tipo 'dinheiro'.
+    - Valor final da mensalidade não pode ser inferior ao valor mínimo definido no plano.
+    - Caso a mensalidade com desconto ainda esteja em aberto ao receber a segunda indicação, ela será ajustada de volta ao valor original, e o bônus será pago integralmente.
+    """
     nome_cliente = str(cliente_indicador)
     primeiro_nome = nome_cliente.split(' ')[0]
-    telefone = str(cliente_indicador.telefone)
-    telefone_formatado = '55' + re.sub(r'\D', '', telefone)
+    telefone_formatado = '55' + re.sub(r'\D', '', str(cliente_indicador.telefone))
     tipo_envio = "Indicação"
     now = datetime.now()
-    hora_atual = now.time()
 
-    mensalidade_em_aberto = Mensalidade.objects.filter(
+    # Planos ativos
+    plano_desconto = PlanoIndicacao.objects.filter(tipo_plano="desconto", usuario=usuario, ativo=True).first()
+    plano_dinheiro = PlanoIndicacao.objects.filter(tipo_plano="dinheiro", usuario=usuario, ativo=True).first()
+
+    if not plano_desconto and not plano_dinheiro:
+        return # Nenhum plano ativo, então não há benefício
+
+    # Mensalidades
+    mensalidades_em_aberto = Mensalidade.objects.filter(
         cliente=cliente_indicador,
         dt_pagamento=None,
         dt_cancelamento=None,
         pgto=False,
         cancelado=False
-    ).first()
+    ).order_by('dt_vencimento')
 
-    mensalidade_mes_atual = Mensalidade.objects.filter(
+    mensalidade_mes_atual_paga = Mensalidade.objects.filter(
         cliente=cliente_indicador,
-        dt_vencimento__month=now.month,
-        dt_vencimento__year=now.year
+        dt_pagamento__month=now.month,
+        dt_pagamento__year=now.year,
+        pgto=True
     ).first()
 
     qtd_indicacoes = Cliente.objects.filter(
@@ -191,76 +269,94 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
         data_adesao__gte=now.replace(day=1)
     ).count()
 
-    valor_desconto = PlanoIndicacao.objects.filter(tipo_plano="desconto").first()
-    if valor_desconto:
-        valor_desconto = valor_desconto.valor
-    else:
-        valor_desconto = 0  # Tratar o caso onde não há plano de desconto
-
     try:
         token_user = SessaoWpp.objects.get(usuario=usuario)
     except SessaoWpp.DoesNotExist:
-        return  # Tratar o caso onde a sessão WPP não existe
+        return
 
-    # Definir a saudação de acordo com o horário atual
-    if hora_atual < datetime.strptime("12:00:00", "%H:%M:%S").time():
-        saudacao = 'Bom dia'
-    elif hora_atual < datetime.strptime("18:00:00", "%H:%M:%S").time():
-        saudacao = 'Boa tarde'
-    else:
-        saudacao = 'Boa noite'
+    saudacao = get_saudacao_por_hora()
 
-    # Definir tipo da mensagem com base na quantidade de indicações já realizadas
+    # 1 INDICAÇÃO - DESCONTO
+    if qtd_indicacoes == 1 and plano_desconto:
+        mensalidade_alvo = None
+        for m in mensalidades_em_aberto:
+            if m.valor == cliente_indicador.plano.valor:
+                mensalidade_alvo = m
+                break
+        if not mensalidade_alvo:
+            for m in mensalidades_em_aberto:
+                if m.valor > plano_desconto.valor_minimo_mensalidade:
+                    mensalidade_alvo = m
+                    break
 
-    if qtd_indicacoes == 1 and mensalidade_em_aberto:
-        valor = mensalidade_em_aberto.valor - valor_desconto
-        valor = max(valor, 13.99) # Garantir que o valor não fique abaixo de 13.99
-        valor_formatado = f"{valor:.2f}".replace(",", ".")
-        vencimento = f"{mensalidade_em_aberto.dt_vencimento.day}/{mensalidade_em_aberto.dt_vencimento.month}"       
-        mensagem = f"""Olá, {primeiro_nome}. {saudacao}!\n\nAgradeço pela indicação do(a) *{novo_cliente.nome}*.\nA adesão dele(a) foi concluída e por isso estamos lhe bonificando com desconto.\n\n⚠ *FIQUE ATENTO AO SEU VENCIMENTO:*\n\n- [{vencimento}] R$ {valor_formatado}\n\nObrigado! 😁"""
-        mensalidade_em_aberto.valor = valor
-        mensalidade_em_aberto.save()
+        if mensalidade_alvo:
+            novo_valor = max(mensalidade_alvo.valor - plano_desconto.valor, plano_desconto.valor_minimo_mensalidade)
+            vencimento = mensalidade_alvo.dt_vencimento.strftime("%d/%m")
+            valor_formatado = f"{novo_valor:.2f}"
 
-        enviar_mensagem(
-            telefone_formatado,
-            mensagem,
-            usuario,
-            token_user.token,
-            nome_cliente,
-            tipo_envio
+            mensagem = (
+                f"Olá, {primeiro_nome}. {saudacao}!\n\n"
+                f"Agradeço pela indicação do(a) *{novo_cliente.nome}*.\n"
+                f"A adesão dele(a) foi concluída e por isso estamos lhe bonificando com desconto.\n\n"
+                f"⚠ *FIQUE ATENTO AO SEU VENCIMENTO:*\n\n- [{vencimento}] R$ {valor_formatado}\n\nObrigado! 😁"
+            )
+
+            mensalidade_alvo.valor = novo_valor
+            mensalidade_alvo.save()
+            enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
+
+    # 2 INDICAÇÕES - BONIFICAÇÃO
+    elif qtd_indicacoes == 2 and plano_dinheiro:
+        bonus_total = plano_dinheiro.valor
+        desconto_aplicado = Decimal("0.00")
+        mensagem_extra = ""
+        aplicar_deducao = False
+
+        mensalidade_aberta_com_desconto = None
+        for m in mensalidades_em_aberto:
+            if m.valor < cliente_indicador.plano.valor:
+                mensalidade_aberta_com_desconto = m
+                break
+
+        if mensalidade_aberta_com_desconto:
+            desconto_aplicado = cliente_indicador.plano.valor - mensalidade_aberta_com_desconto.valor
+            mensalidade_aberta_com_desconto.valor = cliente_indicador.plano.valor
+            mensalidade_aberta_com_desconto.save()
+            # Não aplica dedução no bônus
+            aplicar_deducao = False
+
+        elif mensalidade_mes_atual_paga and mensalidade_mes_atual_paga.valor < cliente_indicador.plano.valor:
+            desconto_aplicado = cliente_indicador.plano.valor - mensalidade_mes_atual_paga.valor
+            aplicar_deducao = True
+
+        if aplicar_deducao:
+            bonus_final = max(bonus_total - desconto_aplicado, Decimal("0.00"))
+            mensagem_extra = (
+                f"💡 Como você já havia recebido R$ {desconto_aplicado:.2f} de desconto em sua mensalidade deste mês, este valor foi deduzido do bônus.\n"
+                f"Seu bônus total é de R$ {bonus_total:.2f}, e após a dedução você receberá R$ {bonus_final:.2f}.\n\n"
+            )
+        else:
+            bonus_final = bonus_total
+
+        indicacoes = Cliente.objects.filter(
+            indicado_por=cliente_indicador,
+            data_adesao__gte=now.replace(day=1)
+        )
+        linhas = [f"- [{c.data_adesao.strftime('%d/%m')}] [{c.nome}]" for c in indicacoes]
+
+        mensagem = (
+            f"🎉 *PARABÉNS PELAS INDICAÇÕES!* 🎉\n\nOlá, {primeiro_nome}. {saudacao}! Tudo bem?\n\n"
+            f"Agradecemos muito pela sua parceria e confiança em nossos serviços. Este mês, registramos as seguintes indicações feitas por você:\n\n"
+            + "\n".join(linhas) +
+            f"\n\n{mensagem_extra}"
+            "Agora, você pode escolher como prefere:\n\n"
+            "- *Receber o valor via PIX* em sua conta.\n"
+            "- *Aplicar como desconto* nas suas próximas mensalidades.\n\n"
+            "Nos avise aqui qual opção prefere, e nós registraremos a sua bonificação."
         )
 
-    elif qtd_indicacoes == 2:
+        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
 
-        if mensalidade_mes_atual.valor < 20 and mensalidade_mes_atual.pgto:
-
-            valor = mensalidade_em_aberto.valor - valor_desconto
-            valor = max(valor, 5)
-            valor_formatado = f"{valor:.2f}".replace(",", ".")
-            vencimento = f"{mensalidade_em_aberto.dt_vencimento.day}/{mensalidade_em_aberto.dt_vencimento.month}"       
-            mensagem = f"""Olá, {primeiro_nome}. {saudacao}!\n\nAgradeço pela indicação do(a) *{novo_cliente.nome}*.\nA adesão dele(a) foi concluída e por isso estamos lhe bonificando com desconto.\n\n⚠ *FIQUE ATENTO AO SEU VENCIMENTO:*\n\n- [{vencimento}] R$ {valor_formatado}\n\nObrigado! 😁"""
-            mensalidade_em_aberto.valor = valor
-            mensalidade_em_aberto.save()
-
-        else:    
-
-            linhas_indicacoes = []
-
-            for indicacao in Cliente.objects.filter(indicado_por=cliente_indicador, data_adesao__gte=datetime.now().replace(day=1)):
-                data_adesao = indicacao.data_adesao.strftime('%d/%m')
-                nome = indicacao.nome
-                linhas_indicacoes.append(f"- [{data_adesao}] [{nome}]")
-
-            mensagem = f"""🎉 *PARABÉNS PELAS INDICAÇÕES!* 🎉\n\nOlá, {primeiro_nome}. {saudacao}! Tudo bem?\n\nAgradecemos muito pela sua parceria e confiança em nossos serviços. Este mês, registramos as seguintes indicações feitas por você:\n\n""" + "\n".join(linhas_indicacoes) + """\n\nCom isso, você tem um *bônus de R$ 50* para receber de nós! 😍\n\nAgora, você pode escolher como prefere:\n\n- *Receber o valor via PIX* em sua conta.\n- *Aplicar como desconto* nas suas próximas mensalidades.\n\nNos avise aqui qual opção prefere, e nós registraremos a sua bonificação.."""
-        
-        enviar_mensagem(
-            telefone_formatado,
-            mensagem,
-            usuario,
-            token_user.token,
-            nome_cliente,
-            tipo_envio
-        )
 
 
 # Função para enviar mensagens e registrar em arquivo de log

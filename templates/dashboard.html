@@ -352,7 +352,7 @@
                             <div class="card-body">
                                 <!-- graphic 2 image -->
                                 <div class="d-flex align-items-center justify-content-center flex-column flex-md-row">
-                                    <iframe src="{% url 'grafico_mapa_clientes' %}" width="100%" height="378" frameborder="0"></iframe>
+                                    <iframe src="{% url 'grafico-mapa-clientes' %}" width="100%" height="378" frameborder="0"></iframe>
                                 </div>
                             </div>
                         </div>
@@ -455,8 +455,8 @@
                                     </div>
                                     <div class="row mb-4">
                                         <div class="col-4">
-                                            <span class="fs-9 text-muted">Data de pagamento</span>
-                                            <div class="fs-8" id="info-cliente-data_pagamento"></div>
+                                            <span class="fs-9 text-muted">Próximo pagamento</span>
+                                            <div class="fs-8" id="info-cliente-data_vencimento"></div>
                                         </div>
                                         <div class="col-5">
                                             <span class="fs-9 text-muted">Plano de adesão</span>
@@ -655,12 +655,17 @@
                         <div class="form-group">
                             <label for="app-nome">Aplicativo</label>
                             <div class="input-group">
-                                <select class="form-control" id="app-nome" name="app-nome" required>
-                                <option value="">Selecione um aplicativo</option>
-                                {% for aplicativo in aplicativos %}
-                                <option value="{{ aplicativo.nome }}">{{ aplicativo.nome }}</option>
-                                {% endfor %}
-                                </select>
+                                <select id="app-nome" name="app_id" class="form-control" required>
+                                    <option value="">Selecione um aplicativo</option>
+                                    {% for app in aplicativos %}
+                                      <option
+                                        value="{{ app.id }}"
+                                        data-device-has-mac="{{ app.device_has_mac|yesno:'true,false' }}"
+                                      >
+                                        {{ app.nome }}
+                                      </option>
+                                    {% endfor %}
+                                  </select>
                             </div>
                         </div>
                         <!-- row -->
@@ -702,6 +707,11 @@
                     <div class="modal-content">
                     <div class="modal-header">
                         <h4 class="modal-title" id="edit-cliente-label">Editar Cliente</h4>
+                        {% if cliente.data_vencimento %}
+                        {{cliente.data_vencimento}}
+                        {% else %}
+                        Nada ainda
+                        {% endif %}
                         <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
                     </div>
                     <div class="modal-body">
@@ -775,27 +785,9 @@
                         
                         <!-- row -->
                         <div class="form-group">
-                            <label for="edit-cliente-telas">Qtd. telas</label>
+                            <label for="edit-cliente-dt_pgto">Data de vencimento</label>
                             <div class="input-group">
-                            <select class="form-control" id="edit-cliente-tela" name="tela" required>
-                                <option value="">Selecione a quantidade de telas</option>
-                                {% for tela in telas %}
-                                <option value="{{ tela.telas }} tela(s)">{{ tela.telas }}</option>
-                                {% endfor %}
-                            </select>
-                            </div>
-                        </div>
-                        
-                        <!-- row -->
-                        <div class="form-group">
-                            <label for="edit-cliente-dt_pgto">Dia do pagamento mensal</label>
-                            <div class="input-group">
-                                <select class="form-control" id="edit-cliente-dt_pgto" name="dt_pgto" required>
-                                    <option value="">Informe o dia do pagamento</option>
-                                    {% for x in range %}
-                                    <option value="{{ x }}">{{ x }}</option>
-                                    {% endfor %}
-                                </select>
+                                <input type="date" class="form-control" id="edit-cliente-dt_pgto" name="dt_pgto" required>
                             </div>
                         </div>
                         <!-- end modal -->
@@ -887,7 +879,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/dashboard/';
+          var newPath = '/dashboard';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -906,7 +898,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/dashboard/';
+          var newPath = '/dashboard';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'error',
@@ -1286,15 +1278,15 @@
     function exibirModalDetalhes(botao) {
         const clienteId = botao.dataset.id;
         const clienteNome = botao.dataset.nome;
-        const clienteTela = botao.dataset.telas;
         const clientePlano = botao.dataset.plano;
+        const clienteTelas = botao.dataset.telas;
         const clienteTelefone = botao.dataset.telefone;
         const clienteServidor = botao.dataset.servidor;
         const clienteFormaPgto = botao.dataset.forma_pgto;
         const clienteAplicativo = botao.dataset.aplicativo;
         const clienteDataAdesao = botao.dataset.data_adesao;
         const clienteDispositivo = botao.dataset.dispositivo;
-        const clienteDataPagamento = botao.dataset.data_pagamento;
+        const clienteDataVencimento = botao.dataset.data_vencimento;
         const clienteContaAplicativo = botao.dataset.conta_aplicativo;
 
         let clienteUltimoPagamento = botao.dataset.ultimo_pagamento;
@@ -1315,8 +1307,8 @@
         const table = document.querySelector("#info-cliente-table");
 
         document.getElementById('info-cliente-id').textContent = clienteId;
+        document.getElementById('info-cliente-tela').textContent = clienteTelas;
         document.getElementById('info-cliente-nome').textContent = clienteNome;
-        document.getElementById('info-cliente-tela').textContent =  clienteTela;
         document.getElementById('info-cliente-notas').textContent =  clienteNotas;
         document.getElementById('info-cliente-plano').textContent =  clientePlano;
         document.getElementById('info-cliente-servidor').textContent =  clienteServidor;
@@ -1325,7 +1317,7 @@
         document.getElementById('info-cliente-dispositivo').textContent =  clienteDispositivo;
         document.getElementById('info-cliente-indicado_por').textContent =  clienteIndicadoPor;
         document.getElementById('info-cliente-ultimo_pgto').textContent =  clienteUltimoPagamento;
-        document.getElementById('info-cliente-data_pagamento').textContent =  clienteDataPagamento;
+        document.getElementById('info-cliente-data_vencimento').textContent =  clienteDataVencimento;
         document.getElementById('info-cliente-telefone').textContent = clienteTelefone;
         document.getElementById('info-cliente-data_adesao').textContent = 'Cliente desde ' + clienteDataAdesao;
 
@@ -1360,7 +1352,7 @@
 
     function carregarQuantidadeMensalidadesPagas(clienteId) {
         $.ajax({
-            url: '/qtds_mensalidades/',
+            url: '/qtds-mensalidades/',
             type: 'GET',
             data: { cliente_id: clienteId },
             success: function(data) {
@@ -1471,7 +1463,7 @@
 
     function carregarContasApps(clienteId) {
     $.ajax({
-        url: '/contas_apps/',
+        url: '/contas-apps/',
         type: 'GET',
         data: { cliente_id: clienteId },
         success: function(data) {
@@ -1523,186 +1515,134 @@
 </script>
 
 <script>
-// FUNÇÃO PARA EXIBIR MODAL DE CRIAÇÃO DE CONTA DO APLICATIVO DO CLIENTE
-
+    // FUNÇÃO PARA EXIBIR MODAL DE CRIAÇÃO DE CONTA DO APLICATIVO DO CLIENTE
     function exibirModalCriarApp(botao) {
-        const clienteId = document.getElementById('info-cliente-id').textContent;
-        const appInfoClienteId = document.getElementById('app-info-cliente-id');
-
-        // Atribuir o valor do clienteId ao campo cliente-id no formulário
-        appInfoClienteId.value = clienteId;
-
-        const form = document.querySelector("#create-app-info-form");
-        form.action = "/cadastro-app-conta/";
-
-        const modal = new bootstrap.Modal(document.querySelector("#create-app-info-modal"));
-
-        // Limpar campos do modal antes de exibir
-        document.getElementById('device-id').value = '';
-        document.getElementById('device-key').value = '';
-        document.getElementById('app-email').value = '';
-
-        // Exibir ou ocultar os campos corretos com base no aplicativo selecionado
-        const appNomeSelect = document.getElementById('app-nome');
-        const appNome = appNomeSelect.value;
-        modal.show();
-
-        appNomeSelect.addEventListener('change', function() {
-            const selectedApp = appNomeSelect.value;
-
-            if (selectedApp.toLowerCase() === 'clouddy') {
-            document.getElementById('div-device-id').style.display = 'none';
-            document.getElementById('app-sem-conta').style.display = 'none';
-            document.getElementById('div-device-key').style.display = 'block';
-            document.getElementById('div-app-email').style.display = 'block';
-            document.getElementById('device-id').removeAttribute('required');
-            document.getElementById('device-key').setAttribute('required', 'required');
-            document.getElementById('app-email').setAttribute('required', 'required');
-            document.getElementById('btn-salvar-app').disabled = false;
-            }else if (selectedApp.replace(/\s/g, '').toLowerCase() === 'duplecast' || 
-                        selectedApp.replace(/\s/g, '').toLowerCase() === 'duplexplay' ||
-                        selectedApp.replace(/\s/g, '').toLowerCase() === 'metaplayer' ||
-                        selectedApp.replace(/\s/g, '').toLowerCase() === 'quickplayer' ) {
-            document.getElementById('div-device-id').style.display = 'block';
-            document.getElementById('div-device-key').style.display = 'block';
-            document.getElementById('div-app-email').style.display = 'none';
-            document.getElementById('app-sem-conta').style.display = 'none';
-            document.getElementById('device-id').setAttribute('required', 'required');
-            document.getElementById('device-key').setAttribute('required', 'required');
-            document.getElementById('app-email').removeAttribute('required');
-            document.getElementById('btn-salvar-app').disabled = false;
-            }else if (selectedApp.replace(/\s/g, '').toLowerCase() === 'xcloud tv' || 
-                        selectedApp.replace(/\s/g, '').toLowerCase() === 'xcloudtv' ||
-                        selectedApp.replace(/\s/g, '').toLowerCase() === 'xcloud' ) {
-            document.getElementById('div-device-id').style.display = 'block';
-            document.getElementById('div-device-key').style.display = 'none';
-            document.getElementById('div-app-email').style.display = 'none';
-            document.getElementById('app-sem-conta').style.display = 'none';
-            document.getElementById('device-id').setAttribute('required', 'required');
-            document.getElementById('device-key').removeAttribute('required');
-            document.getElementById('app-email').removeAttribute('required');
-            document.getElementById('btn-salvar-app').disabled = false;
-            } else {
-            // Caso nenhum aplicativo seja selecionado, exibir mensagem
-            document.getElementById('div-device-id').style.display = 'none';
-            document.getElementById('div-device-key').style.display = 'none';
-            document.getElementById('div-app-email').style.display = 'none';
-            document.getElementById('device-id').removeAttribute('required');
-            document.getElementById('device-key').removeAttribute('required');
-            document.getElementById('app-email').removeAttribute('required');
-            document.getElementById('app-sem-conta').style.display = 'block';
-            document.getElementById('btn-salvar-app').disabled = true;
-            }
-        });
+      const clienteId = document.getElementById('info-cliente-id').textContent;
+      const appInfoClienteId = document.getElementById('app-info-cliente-id');
+      appInfoClienteId.value = clienteId;
+  
+      const form = document.querySelector("#create-app-info-form");
+      form.action = "/cadastro-app-conta/";
+  
+      // Limpa os campos do formulário
+      document.getElementById('device-id').value = '';
+      document.getElementById('device-key').value = '';
+      document.getElementById('app-email').value = '';
+  
+      // Exibe o modal
+      const modal = new bootstrap.Modal(document.querySelector("#create-app-info-modal"));
+      modal.show();
+  
+      // Dispara evento change para atualizar campos conforme app selecionado
+      document.getElementById('app-nome').dispatchEvent(new Event('change'));
     }
   
-    // Função para tratar o evento de submissão do formulário
-    function handleFormSubmit(event) {
-        event.preventDefault(); // Impede o envio normal do formulário
-
-        const form = event.target;
+    document.addEventListener('DOMContentLoaded', function () {
+      const appNomeSelect = document.getElementById('app-nome');
+  
+      appNomeSelect.addEventListener('change', function () {
+        const selectedOption = this.options[this.selectedIndex];
+        const deviceHasMac = selectedOption.dataset.deviceHasMac === 'true';
+        const appName = selectedOption.textContent.trim().toLowerCase();
+  
+        const divDeviceId = document.getElementById('div-device-id');
+        const divDeviceKey = document.getElementById('div-device-key');
+        const divAppEmail = document.getElementById('div-app-email');
+        const avisoSemConta = document.getElementById('app-sem-conta');
+        const btnSalvar = document.getElementById('btn-salvar-app');
+  
+        const deviceId = document.getElementById('device-id');
+        const deviceKey = document.getElementById('device-key');
+        const email = document.getElementById('app-email');
+  
+        // Resetar visibilidade e requisitos
+        divDeviceId.style.display = 'none';
+        divDeviceKey.style.display = 'none';
+        divAppEmail.style.display = 'none';
+        avisoSemConta.style.display = 'none';
+        btnSalvar.disabled = false;
+  
+        deviceId.removeAttribute('required');
+        deviceKey.removeAttribute('required');
+        email.removeAttribute('required');
+  
+        if (deviceHasMac) {
+          if (appName === 'clouddy') {
+            divDeviceKey.style.display = 'block';
+            divAppEmail.style.display = 'block';
+  
+            deviceKey.setAttribute('required', 'required');
+            email.setAttribute('required', 'required');
+          } else {
+            divDeviceId.style.display = 'block';
+            divDeviceKey.style.display = 'block';
+  
+            deviceId.setAttribute('required', 'required');
+            deviceKey.setAttribute('required', 'required');
+          }
+        } else {
+          avisoSemConta.style.display = 'block';
+          btnSalvar.disabled = true;
+        }
+      });
+  
+      // Validação de submissão do formulário
+      const form = document.getElementById('create-app-info-form');
+      form.addEventListener('submit', function (event) {
+        if (!form.checkValidity()) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+      }, false);
+  
+      // Validação de tamanho mínimo dos campos
+      document.getElementById('device-id').addEventListener('input', function () {
+        this.setCustomValidity(this.value.length >= 6 ? '' : 'O mínimo esperado é de 6 caracteres.');
+      });
+  
+      document.getElementById('device-key').addEventListener('input', function () {
+        this.setCustomValidity(this.value.length >= 5 ? '' : 'O mínimo esperado é de 5 caracteres.');
+      });
+  
+      // Submissão com fetch
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
         const url = form.action;
-
         const formData = new FormData(form);
-
+  
         fetch(url, {
-            method: 'POST',
-            body: formData
+          method: 'POST',
+          body: formData
         })
-            .then(response => {
-                if (response.status === 200) {
-                    // Se a resposta do backend for bem-sucedida, fechar o modal
-                    $('#create-app-info-modal').modal('hide');
-
-                    // Exibir o swal.fire com a mensagem de cadastro realizado
-                    Swal.fire({
-                    title: 'Cadastro realizado',
-                    text: 'O cadastro foi realizado com sucesso!',
-                    icon: 'success',
-                    confirmButtonText: 'OK'
-                    }).then(() => {
-                    // Após pressionar "OK" no swal.fire, atualizar a página para o mesmo caminho
-                    window.location.href = window.location.pathname;
-                    });
-                } else {
-                    // Tratar outros status de resposta, se necessário
-                    console.log('Erro na resposta do servidor:', response.status);
-                }
-                })
-                .catch(error => {
-                // Tratar erros de comunicação com o backend
-                console.error(error);
-            });
-    }
-    
-    // Adicionar o ouvinte de evento de submissão ao formulário
-    document.addEventListener('DOMContentLoaded', function() {
-      const createAppInfoForm = document.getElementById('create-app-info-form');
-      createAppInfoForm.addEventListener('submit', handleFormSubmit);
+          .then(response => {
+            if (response.status === 200) {
+              $('#create-app-info-modal').modal('hide');
+              Swal.fire({
+                title: 'Cadastro realizado',
+                text: 'O cadastro foi realizado com sucesso!',
+                icon: 'success',
+                confirmButtonText: 'OK'
+              }).then(() => {
+                window.location.href = window.location.pathname;
+              });
+            } else {
+              console.log('Erro na resposta do servidor:', response.status);
+            }
+          })
+          .catch(error => {
+            console.error(error);
+          });
+      });
+  
+      // Fechar o modal e voltar ao modal anterior
+      $('#create-app-info-modal').on('click', '.btn-close, .btn-secondary', function () {
+        $('#create-app-info-modal').modal('hide');
+        $('#info-cliente-modal').modal('show');
+      });
     });
+</script>  
 
-    // Fechar o modal quando clicado no botão fechar
-    $('#create-app-info-modal').on('click', '.btn-close, .btn-secondary', function () {
-      $('#create-app-info-modal').modal('hide');
-      $('#info-cliente-modal').modal('show');
-    });
-
-    /*// Formatar o valor do campo device-id
-    document.addEventListener('DOMContentLoaded', function() {
-        var deviceIdInput = document.getElementById('device-id');
-
-        deviceIdInput.addEventListener('input', function() {
-            var deviceId = this.value.replace(/[^0-9A-Fa-f]/g, ''); // Remove todos os caracteres não alfanuméricos
-
-            var formattedDeviceId = '';
-            if (deviceId.length > 0) {
-            formattedDeviceId = deviceId.match(/.{1,2}/g).join(':'); // Adiciona ":" a cada 2 caracteres
-
-            // Remove ":" do começo e do final, se existirem
-            if (formattedDeviceId.startsWith(':')) {
-                formattedDeviceId = formattedDeviceId.substring(1);
-            }
-            if (formattedDeviceId.endsWith(':')) {
-                formattedDeviceId = formattedDeviceId.substring(0, formattedDeviceId.length - 1);
-            }
-            }
-
-            this.value = formattedDeviceId;
-        });
-    }); */
-
-    // Verificando validação dos campos de input do modal de cadastro dos dados do aplicativo do cliente
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.getElementById('create-app-info-form');
-        const deviceIdInput = document.getElementById('device-id');
-        const deviceKeyInput = document.getElementById('device-key');
-
-        form.addEventListener('submit', function(event) {
-            if (!form.checkValidity()) {
-            // Se o formulário não for válido, interrompa o envio dos dados
-            event.preventDefault();
-            event.stopPropagation();
-            }
-
-            form.classList.add('was-validated');
-        }, false);
-
-        deviceIdInput.addEventListener('input', function() {
-            const deviceId = this.value;
-            const isValid = deviceId.length >= 6;
-
-            this.setCustomValidity(isValid ? '' : 'O mínimo esperado é de 6 caracteres.');
-        });
-
-        deviceKeyInput.addEventListener('input', function() {
-            const deviceKey = this.value;
-            const isValid = deviceKey.length >= 5;
-
-            this.setCustomValidity(isValid ? '' : 'O mínimo esperado é de 5 caracteres.');
-        });
-    });
-
-</script>
 
 <script>
     // FUNÇÃO PARA EXIBIR O MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DA CONTA DO APP DO CLIENTE
@@ -1856,7 +1796,7 @@ document.addEventListener('DOMContentLoaded', function() {
     formData.append('mensagem', mensagem);
     formData.append('telefones', telefones);
 
-    fetch('/enviar_mensagem/', {
+    fetch('/enviar-mensagem/', {
       method: 'POST',
       headers: {
         'X-CSRFToken': getCookie('csrftoken')
@@ -1903,7 +1843,7 @@ document.addEventListener('DOMContentLoaded', function() {
       function carregarConteudoArquivo() {
     
         $.ajax({
-          url: '/obter_logs_wpp/',
+          url: '/obter-logs-wpp/',
           headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCookie('csrftoken')
@@ -1971,14 +1911,12 @@ $(document).ready(function() {
     function exibirModalEdicao(botao) {
       const clienteId = botao.dataset.id;
       const clienteNome = botao.dataset.nome;
-      const clienteTela = botao.dataset.telas;
       const clientePlano = botao.dataset.plano;
       const clienteTelefone = botao.dataset.telefone;
       const clienteServidor = botao.dataset.servidor;
       const clienteFormaPgto = botao.dataset.forma_pgto;
       const clienteAplicativo = botao.dataset.aplicativo;
       const clienteDispositivo = botao.dataset.dispositivo;
-      const clienteDataPagamento = botao.dataset.data_pagamento;
       
       let clienteNotas = botao.dataset.notas;
       if (clienteNotas == 'None' || clienteNotas == null || clienteNotas == 'undefined'){
@@ -1988,6 +1926,10 @@ $(document).ready(function() {
       let clienteIndicadoPor = botao.dataset.indicado_por;
       if (clienteIndicadoPor == 'None' || clienteIndicadoPor == null || clienteIndicadoPor == 'undefined'){
         clienteIndicadoPor = '';
+      }
+      let clienteDataVencimento = botao.dataset.data_vencimento;
+      if (clienteDataVencimento == 'None' || clienteDataVencimento == null || clienteDataVencimento == 'undefined'){
+        clienteDataVencimento = '';
       }
   
       const form = document.querySelector("#edit-cliente-form");
@@ -1999,8 +1941,7 @@ $(document).ready(function() {
       form.querySelector("#edit-cliente-servidor").value = clienteServidor;
       form.querySelector("#edit-cliente-forma_pgto").value = clienteFormaPgto;
       form.querySelector("#edit-cliente-plano").value = clientePlano;
-      form.querySelector("#edit-cliente-tela").value = clienteTela;
-      form.querySelector("#edit-cliente-dt_pgto").value = clienteDataPagamento;
+      form.querySelector("#edit-cliente-dt_pgto").value = clienteDataVencimento;
       form.querySelector("#edit-cliente-dispositivo").value = clienteDispositivo;
       form.querySelector("#edit-cliente-aplicativo").value = clienteAplicativo;
       form.querySelector("#edit-cliente-notas").value = clienteNotas;
@@ -2041,12 +1982,6 @@ $(document).ready(function() {
     input4.value = value4;
     });
 
-    const input5 = document.querySelector('input[name="tela"]');
-    input5.addEventListener('input', (event) => {
-    const value5 = event.target.value;
-    input5.value = value5;
-    });
-
     const input6 = document.querySelector('input[name="dt_pgto"]');
     input6.addEventListener('input', (event) => {
     const value6 = event.target.value;
@@ -2072,53 +2007,6 @@ $(document).ready(function() {
     });
 </script>
 
-<!--
-<script>
-    // FUNÇÃO PARA EXIBIÇÃO DAS INFORMAÇÕES DE PRIMEIRO ACESSO
-
-    $(document).ready(function () {
-        var lastViewed = localStorage.getItem('lastViewed');
-        var dataCriacaoUser = document.getElementById("data_criacao_user").value;
-        var dataCriacaoUserTimestamp = Date.parse(dataCriacaoUser);
-        console.log(dataCriacaoUser, dataCriacaoUserTimestamp);
-
-        // Verifica se já passou 60 minutos desde a última visualização
-        if (lastViewed && (Date.now() - lastViewed < 30 * 120 * 1000)) {
-            return;
-        }
-
-        // Verifica se a diferença entre a data de criação do usuário e a data atual é maior que 30 dias
-        if (dataCriacaoUserTimestamp && (Date.now() - dataCriacaoUserTimestamp > 30 * 24 * 60 * 60 * 1000)) {
-            return;
-        }
-
-        var youtubeVideoId = "Y_s5SHGhqsY";
-
-        var htmlContent = `
-            <div>
-                <iframe width="750" height="515" src="https://www.youtube.com/embed/${youtubeVideoId}" frameborder="0" allowfullscreen></iframe>
-            </div>
-            <div class="mt-3">
-                Assista este vídeo para entender sobre o funcionamento do sistema, como fazer as suas configurações iniciais e importar os seus clientes.
-            </div>
-        `;
-        
-        // Exibe o swal.fire e atualiza o armazenamento local
-        swal.fire({
-            title: 'Informações de primeiro acesso',
-            html: htmlContent,
-            width: 1000,
-            showCloseButton: true,
-            showConfirmButton: true,
-            confirmButtonText: 'Fechar',
-        });
-
-        // Atualiza o armazenamento local com a data e hora atual
-        localStorage.setItem('lastViewed', Date.now().toString());
-    });
-</script>
--->
-
 <script>
     // FUNÇÃO PARA FILTRAR OS CLIENTES NA TABELA
 
@@ -2138,5 +2026,22 @@ $(document).ready(function() {
                 });
         });
     });
-    </script>
+</script>
 
+<script>
+    // FUNÇÃO PARA LIMITAR CALENDÁRIO DO FORMULÁRIO DE EDITAR CLIENTE
+    document.addEventListener("DOMContentLoaded", function () {
+      const inputData = document.getElementById("edit-cliente-dt_pgto");
+    
+      // Calcula a data de 7 dias atrás
+      const hoje = new Date();
+      hoje.setDate(hoje.getDate() - 7);
+    
+      const ano = hoje.getFullYear();
+      const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+      const dia = String(hoje.getDate()).padStart(2, "0");
+    
+      const dataMinima = `${ano}-${mes}-${dia}`;
+      inputData.setAttribute("min", dataMinima);
+    });
+</script>

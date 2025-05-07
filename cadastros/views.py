@@ -1,26 +1,25 @@
-from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Qtd_tela, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI, DadosBancarios, MensagemEnviadaWpp)
+from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI, DadosBancarios, MensagemEnviadaWpp)
 from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse, JsonResponse
 import requests, operator, logging, codecs, random, base64, json, time, re, os, io
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.views.decorators.clickjacking import xframe_options_exempt
+from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from plotly.colors import sample_colorscale, make_colorscale
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, redirect
 from django.db.models.deletion import ProtectedError
 from django.views.decorators.cache import cache_page
 from django.db.models.functions import ExtractMonth
 from django.contrib.auth.views import LoginView
 from django.views.generic.list import ListView
+from datetime import timedelta, datetime, date
 from django.forms.models import model_to_dict
 from django.db.models.functions import Upper
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q, Count
 from babel.numbers import format_currency
-from datetime import timedelta, datetime
 from django.contrib import messages
-from django.shortcuts import render
 from django.utils import timezone
 from django.db import transaction
 import matplotlib.pyplot as plt
@@ -32,7 +31,19 @@ import plotly.express as px
 import geopandas as gpd
 import pandas as pd
 import calendar
+from django.utils.dateparse import parse_date
 
+from .utils import DDD_UF_MAP
+
+# Constantes
+PLANOS_MESES = {
+    'mensal': 1,
+    'trimestral': 3,
+    'semestral': 6,
+    'anual': 12
+}
+
+MESES_31_DIAS = [1, 3, 5, 7, 8, 10, 12]
 
 logger = logging.getLogger(__name__)
 url_api = os.getenv("URL_API")
@@ -59,7 +70,7 @@ def not_found(request, exception):
 
 class CarregarContasDoAplicativo(LoginRequiredMixin, View):
     """
-    View para carregar as contas dos aplicativos existentes por cliente e exibi-las no modal de informações do cliente no painel de controle.
+    View para carregar as contas dos aplicativos existentes por cliente e exibi-las no modal de informações do cliente.
     """
     def get(self, request):
         """
@@ -297,8 +308,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         indicadores = Cliente.objects.filter(usuario=self.request.user).order_by('nome')
         servidores = Servidor.objects.filter(usuario=self.request.user).order_by('nome')
         formas_pgtos = Tipos_pgto.objects.filter(usuario=self.request.user)
-        planos = Plano.objects.filter(usuario=self.request.user).order_by('nome')
-        telas = Qtd_tela.objects.all().order_by('telas')
+        planos = Plano.objects.filter(usuario=self.request.user).order_by('nome', 'telas', 'valor')
         dispositivos = Dispositivo.objects.filter(usuario=self.request.user).order_by('nome')
         aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
 
@@ -388,7 +398,6 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "valor_total_receber_qtd": valor_total_receber_qtd,
                 "clientes_cancelados_qtd": clientes_cancelados_qtd,
                 ## context para modal de edição
-                "telas": telas,
                 "planos": planos,
                 "servidores": servidores,
                 "aplicativos": aplicativos,
@@ -401,7 +410,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 
 
 @login_required
-def EnviarMensagemWpp(request):
+def send_message_wpp(request):
     if request.method == 'POST':
         BASE_URL = url_api + '/{}/send-{}'
         sessao = get_object_or_404(SessaoWpp, usuario=request.user)
@@ -562,7 +571,7 @@ def EnviarMensagemWpp(request):
 
 
 @login_required
-def SecretTokenAPIView(request):
+def secret_token_api(request):
     """
         Função de view para consultar o Secret Token da API WPP Connect
     """
@@ -579,7 +588,7 @@ def SecretTokenAPIView(request):
 
 
 @login_required
-def ObterSessionWpp(request):
+def get_session_wpp(request):
     """
         Função de view para consultar o Token da sessão WhatsApp do usuário da requisição.
     """
@@ -596,7 +605,7 @@ def ObterSessionWpp(request):
 
 
 @login_required
-def ObterLogsWpp(request):
+def get_logs_wpp(request):
     if request.method == 'POST':
 
         file_path = './logs/Envios manuais/{}_send_result.log'.format(request.user)
@@ -606,7 +615,7 @@ def ObterLogsWpp(request):
     return JsonResponse({'logs': logs})
 
 
-def Perfil(request):
+def profile_page(request):
     user = User.objects.get(username=request.user)
     dados_bancarios = DadosBancarios.objects.filter(usuario=user.id).first()
 
@@ -619,12 +628,17 @@ def Perfil(request):
     instituicao = dados_bancarios.instituicao if dados_bancarios else '--'
     tipo_chave = dados_bancarios.tipo_chave if dados_bancarios else '--'
     chave = dados_bancarios.chave if dados_bancarios else '--'
+    wpp = dados_bancarios.wpp if dados_bancarios else '--'
+
+    ip = get_client_ip(request)
+    localizacao = get_location_from_ip(ip)
 
     return render(
         request,
         'pages/perfil.html',
         {
             'beneficiario': beneficiario,
+            'localizacao': localizacao,
             'instituicao': instituicao,
             'tipo_chave': tipo_chave,
             'sobrenome_user': l_name,
@@ -632,23 +646,25 @@ def Perfil(request):
             'nome_user': f_name,
             'username': user,
             'email': email,
-            'chave': chave
+            'chave': chave,
+            'wpp': wpp,
         },
     )
 
 
-def gerar_grafico(request):
+def generate_graphic_columns(request):
     # Obtendo o ano escolhido (se não for informado, pega o atual)
     ano = request.GET.get("ano", timezone.now().year)
+    usuario = request.user
 
     # Filtrando os dados do banco com base no ano escolhido
-    dados_adesoes = Cliente.objects.filter(data_adesao__year=ano) \
+    dados_adesoes = Cliente.objects.filter(data_adesao__year=ano, usuario=usuario) \
         .annotate(mes=ExtractMonth("data_adesao")) \
         .values("mes") \
         .annotate(total=Count("id")) \
         .order_by("mes")
 
-    dados_cancelamentos = Cliente.objects.filter(data_cancelamento__year=ano) \
+    dados_cancelamentos = Cliente.objects.filter(data_cancelamento__year=ano, usuario=usuario) \
         .annotate(mes=ExtractMonth("data_cancelamento")) \
         .values("mes") \
         .annotate(total=Count("id")) \
@@ -725,10 +741,12 @@ def gerar_grafico(request):
 
 @cache_page(60 * 120)  # cache por 2 hora
 @xframe_options_exempt  # permite ser exibido em iframe
-def gerar_mapa_clientes(request):
+def generate_graphic_map_customers(request):
+    usuario = request.user
+
     # Consulta os clientes ativos por estado (uf)
     dados = dict(
-        Cliente.objects.filter(cancelado=False)
+        Cliente.objects.filter(cancelado=False, usuario=usuario)
         .values('uf')
         .annotate(total=Count('id'))
         .values_list('uf', 'total')
@@ -893,7 +911,7 @@ def HorarioEnvio(request):
 
 
 @login_required
-def SessionWpp(request):
+def session_wpp(request):
     """
     Função de view para criar ou deletar uma sessão do WhatsApp
     """
@@ -928,47 +946,70 @@ def SessionWpp(request):
 
 
 @login_required
-def reativar_cliente(request, cliente_id):
+def reactivate_customer(request, cliente_id):
     """
-    Função de view para reativar um cliente previamente cancelado.
+    View para reativar um cliente anteriormente cancelado.
+    Avalia a última mensalidade e cria nova se necessário.
     """
-    cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
-    data_hoje = timezone.localtime().date()
-
-    # Muda o valor do atributo "cancelado" de True para False
-    # Define o valor de "data_cancelamento" como None
-    cliente.data_pagamento = data_hoje.day
-    cliente.data_cancelamento = None
-    cliente.cancelado = False
-    dia = cliente.data_pagamento
-    mes = data_hoje.month
-    ano = data_hoje.year
-
-    # Tratando possíveis erros
     try:
-        cliente.save()
+        cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
+    except Cliente.DoesNotExist:
+        return JsonResponse({"error_message": "Cliente não encontrado."}, status=404)
 
-        # Cria uma nova Mensalidade para o cliente reativado
-        mensalidade = Mensalidade.objects.create(
-            cliente=cliente,
-            valor=cliente.plano.valor,
-            dt_vencimento=datetime(ano, mes, dia),
-            usuario=cliente.usuario
-        )
-        mensalidade.save()
+    data_hoje = timezone.localdate()
+    sete_dias_atras = data_hoje - timedelta(days=7)
+
+    # Atualiza os campos de reativação
+    cliente.cancelado = False
+    cliente.data_cancelamento = None
+    cliente.data_vencimento = data_hoje
+    cliente.save()
+
+    try:
+        # Obtém a última mensalidade do cliente
+        ultima_mensalidade = Mensalidade.objects.filter(cliente=cliente).order_by('-dt_vencimento').first()
+
+        if ultima_mensalidade:
+            if sete_dias_atras <= ultima_mensalidade.dt_vencimento <= data_hoje:
+                # Apenas remove o cancelamento da mensalidade
+                ultima_mensalidade.cancelado = False
+                ultima_mensalidade.dt_cancelamento = None
+                ultima_mensalidade.save()
+            else:
+                # Mantém a mensalidade anterior como cancelada
+                ultima_mensalidade.cancelado = True
+                ultima_mensalidade.dt_cancelamento = data_hoje
+                ultima_mensalidade.save()
+
+                # Cria nova mensalidade
+                Mensalidade.objects.create(
+                    cliente=cliente,
+                    valor=cliente.plano.valor,
+                    dt_vencimento=data_hoje,
+                    usuario=cliente.usuario
+                )
+        else:
+            # Caso não exista mensalidade anterior, cria uma nova
+            Mensalidade.objects.create(
+                cliente=cliente,
+                valor=cliente.plano.valor,
+                dt_vencimento=data_hoje,
+                usuario=cliente.usuario
+            )
 
     except Exception as erro:
-        # Registra o erro no log
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
-        return JsonResponse({"error_message": "Ocorreu um erro ao tentar reativar esse cliente."})
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
+                     timezone.localtime(), request.user,
+                     request.META.get('REMOTE_ADDR', ''), erro,
+                     exc_info=True)
+        return JsonResponse({"error_message": "Erro ao processar mensalidade na reativação."}, status=500)
 
-    # Se tudo ocorrer corretamente, retorna uma confirmação
-    return JsonResponse({"success_message_activate": "Reativação feita!"})
+    return JsonResponse({"success_message_activate": "Reativação feita com sucesso!"})
 
 
 # AÇÃO DE PAGAR MENSALIDADE
 @login_required
-def pagar_mensalidade(request, mensalidade_id):
+def pay_monthly_fee(request, mensalidade_id):
     """
     Função de view para pagar uma mensalidade.
     """
@@ -994,7 +1035,7 @@ def pagar_mensalidade(request, mensalidade_id):
 
 # AÇÃO PARA CANCELAMENTO DE CLIENTE
 @login_required
-def cancelar_cliente(request, cliente_id):
+def cancel_customer(request, cliente_id):
     if request.user.is_authenticated:
         cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
 
@@ -1020,167 +1061,148 @@ def cancelar_cliente(request, cliente_id):
         return redirect("login")
 
 
+# Função para extrair UF pelo DDD
+def extrair_uf_do_telefone(telefone):
+    telefone_digits = re.sub(r'\D+', '', telefone)
+    if telefone_digits.startswith('55'):
+        telefone_digits = telefone_digits[2:]
+    ddd = telefone_digits[:2]
+    return DDD_UF_MAP.get(ddd, '')
+
+# Função ajustada para calcular a nova data de vencimento com base no plano e data base
+def calcular_nova_data_vencimento(plano_nome, data_base):
+    meses = PLANOS_MESES.get(plano_nome.lower(), 0)
+    mes = data_base.month + meses
+    ano = data_base.year
+
+    if mes > 12:
+        mes -= 12
+        ano += 1
+
+    dia = data_base.day
+    if dia == 31 and mes not in MESES_31_DIAS:
+        dia = 1
+        mes += 1
+        if mes > 12:
+            mes = 1
+            ano += 1
+
+    try:
+        return date(year=ano, month=mes, day=dia)
+    except ValueError:
+        return date(year=ano, month=mes, day=1)
+
 @login_required
-def EditarCliente(request, cliente_id):
-    from .utils import DDD_UF_MAP
+@transaction.atomic
+def edit_customer(request, cliente_id):
+    if request.method != "POST":
+        return redirect("dashboard")
 
-    """
-    Função de view para editar um cliente.
-    """
-    if request.method == "POST":
-        telefone = Cliente.objects.filter(telefone=request.POST.get("telefone"), usuario=request.user)
+    try:
+        post = request.POST
+        user = request.user
+        cliente = get_object_or_404(Cliente, pk=cliente_id, usuario=user)
+        mensalidade = get_object_or_404(Mensalidade, cliente=cliente, pgto=False, cancelado=False, usuario=user)
 
-        try:
-            clientes = Cliente.objects.filter(usuario=request.user).order_by("-data_adesao")
-            cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
-            mensalidade = Mensalidade.objects.get(cliente=cliente, pgto=False, cancelado=False, usuario=request.user)
-            plano_list = request.POST.get("plano").replace(' ', '').split('-')
-            tela_list = request.POST.get("tela").split(' ')
+        # Nome
+        nome = post.get("nome", "").strip()
+        if cliente.nome != nome:
+            cliente.nome = nome
 
-            # Verificar e atualizar os campos modificados
-            if cliente.nome != request.POST.get("nome"):
-                cliente.nome = request.POST.get("nome")
+        # Telefone + UF
+        telefone = post.get("telefone", "").strip()
+        if cliente.telefone != telefone:
+            if not Cliente.objects.filter(telefone=telefone, usuario=user).exclude(pk=cliente.pk).exists():
+                cliente.telefone = telefone
+                cliente.uf = extrair_uf_do_telefone(telefone)
+            else:
+                return render(request, "dashboard.html", {
+                    "error_message_edit": "Já existe um cliente com este telefone informado."
+                }, status=400)
 
-            if cliente.telefone != request.POST.get("telefone"):
-                novo_telefone = request.POST.get("telefone")
-                telefone_existente = Cliente.objects.filter(telefone=novo_telefone, usuario=request.user)
+        # Indicação
+        indicado_nome = post.get("indicado_por")
+        if indicado_nome:
+            indicado = Cliente.objects.filter(nome=indicado_nome, usuario=user).first()
+            if indicado and cliente.indicado_por != indicado:
+                cliente.indicado_por = indicado
 
-                if not telefone_existente:
-                    cliente.telefone = novo_telefone
+        # Servidor
+        servidor = get_object_or_404(Servidor, nome=post.get("servidor"), usuario=user)
+        if cliente.servidor != servidor:
+            cliente.servidor = servidor
 
-                    # Lógica para extrair o DDD e atualizar o UF
-                    import re
-                    telefone_digits = re.sub(r'\D+', '', novo_telefone)
-                    if telefone_digits.startswith('55'):
-                        telefone_digits = telefone_digits[2:]
-                    ddd = telefone_digits[:2]
-                    cliente.uf = DDD_UF_MAP.get(ddd, '')
-                else:
-                    return render(request, "dashboard.html", {
-                        "error_message_edit": "Já existe um cliente com este telefone informado."
-                    }, status=400)
-                
-            if request.POST.get("indicado_por"):
-                indicado_por = Cliente.objects.get(nome=request.POST.get("indicado_por"), usuario=request.user)
-                if cliente.indicado_por != indicado_por:
-                    cliente.indicado_por = indicado_por
+        # Forma de pagamento
+        forma_pgto = Tipos_pgto.objects.filter(nome=post.get("forma_pgto"), usuario=user).first()
+        if forma_pgto and cliente.forma_pgto != forma_pgto:
+            cliente.forma_pgto = forma_pgto
 
-            servidor = Servidor.objects.get(nome=request.POST.get("servidor"), usuario=request.user)
-            if cliente.servidor != servidor:
-                cliente.servidor = servidor
+        # Plano
+        plano_nome, plano_valor = post.get("plano", "").replace(' ', '').split('-')
+        plano_valor = Decimal(plano_valor.replace(',', '.'))
+        plano = Plano.objects.filter(nome=plano_nome, valor=plano_valor, usuario=user).first()
+        if plano and cliente.plano != plano:
+            cliente.plano = plano
+            mensalidade.valor = plano.valor
 
-            forma_pgto = Tipos_pgto.objects.filter(nome=request.POST.get("forma_pgto"), usuario=request.user).first()
-            if cliente.forma_pgto != forma_pgto:
-                cliente.forma_pgto = forma_pgto
+        # Data de vencimento
+        data_vencimento_str = post.get("dt_pgto", "").strip()
+        data_base = None
 
-            plano = Plano.objects.filter(nome=plano_list[0], valor=Decimal(plano_list[1].replace(',', '.')), usuario=request.user).first()
-            if cliente.plano != plano:
-                cliente.plano = plano
-                mensalidade.valor = plano.valor
-                mensalidade.save()
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                data_base = datetime.strptime(data_vencimento_str, fmt).date()
+                break
+            except ValueError:
+                continue
 
-            tela = Qtd_tela.objects.get(telas=tela_list[0])
-            if cliente.telas != tela:
-                cliente.telas = tela
+        if not data_base:
+            return render(request, "dashboard.html", {
+                "error_message_edit": "Data de vencimento inválida. Use o formato DD/MM/AAAA ou AAAA-MM-DD."
+            }, status=400)
 
-            if cliente.data_pagamento != int(request.POST.get("dt_pgto")):
-                # Atribui o tipo do "plano" à variável "plano" para verificar nas condicionais a seguir
-                plano_nome = str(plano.nome)
-                plano_valor = plano.valor
+        #nova_data_vencimento = calcular_nova_data_vencimento(plano.nome, data_base)
+        nova_data_vencimento = data_base
 
-                # Dicionário de planos com a quantidade de meses a serem adicionados
-                planos = {
-                    'mensal': 1,
-                    'trimestral': 3,
-                    'semestral': 6,
-                    'anual': 12
-                }
+        if cliente.data_vencimento != nova_data_vencimento:
+            cliente.data_vencimento = nova_data_vencimento
+            mensalidade.dt_vencimento = nova_data_vencimento
+            mensalidade.valor = plano.valor
 
-                # Atualizar a data de vencimento da mensalidade do cliente de acordo com o tipo do plano
-                novo_dia_vencimento = int(request.POST.get("dt_pgto"))
-                hoje = datetime.now().date()
-                meses31dias = [1, 3, 5, 7, 8, 10, 12]
-                
-                if plano_nome.lower() == 'mensal':
-                    cliente_inalterado = Cliente.objects.get(pk=cliente_id, usuario=request.user)
-                    
-                    if not 'mensal' or not 'Mensal' in cliente_inalterado.plano.nome:
-                        data_vencimento_atual = cliente_inalterado.ultimo_pagamento if cliente_inalterado.ultimo_pagamento != None else cliente_inalterado.data_adesao
-                    else:
-                        data_vencimento_atual = mensalidade.dt_vencimento
-                    
-                    if data_vencimento_atual.month == hoje.month:
-                        if novo_dia_vencimento < hoje.day:
-                            # Dia de vencimento já passou, atualizar para o próximo mês
-                            mes_vencimento = data_vencimento_atual.month + 1
-                            ano_vencimento = data_vencimento_atual.year
-                            
-                            if mes_vencimento > 12:
-                                mes_vencimento -= 12
-                                ano_vencimento += 1
-                        else:
-                            mes_vencimento = data_vencimento_atual.month
-                            ano_vencimento = data_vencimento_atual.year
-                    else:
-                        mes_vencimento = data_vencimento_atual.month
-                        ano_vencimento = data_vencimento_atual.year
+        # Dispositivo
+        dispositivo = get_object_or_404(Dispositivo, nome=post.get("dispositivo"), usuario=user)
+        if cliente.dispositivo != dispositivo:
+            cliente.dispositivo = dispositivo
 
-                    if novo_dia_vencimento == 31 and mes_vencimento not in meses31dias:
-                        novo_dia_vencimento = 1
-                        mes_vencimento += 1
+        # Aplicativo
+        aplicativo = get_object_or_404(Aplicativo, nome=post.get("aplicativo"), usuario=user)
+        if cliente.sistema != aplicativo:
+            cliente.sistema = aplicativo
 
-                else:
-                    if cliente.ultimo_pagamento:
-                        mes_vencimento = cliente.ultimo_pagamento.month +  planos.get(plano_nome.lower(), 0)
-                        ano_vencimento = cliente.ultimo_pagamento.year
+        # Notas
+        notas = post.get("notas", "").strip()
+        if cliente.notas != notas:
+            cliente.notas = notas
 
-                    elif cliente.data_adesao:
-                        mes_vencimento = cliente.data_adesao.month + planos.get(plano_nome.lower(), 0)
-                        ano_vencimento = cliente.data_adesao.year
+        cliente.save()
+        mensalidade.save()
 
-                    if mes_vencimento > 12:
-                        mes_vencimento -= 12
-                        ano_vencimento += 1
+        return render(request, "dashboard.html", {
+            "success_message_edit": f"{cliente.nome} foi atualizado com sucesso."
+        }, status=200)
 
-                    if novo_dia_vencimento == 31 and mes_vencimento not in meses31dias:
-                        novo_dia_vencimento = 1
-                        mes_vencimento += 1
-                            
-                nova_data_vencimento = datetime(year=ano_vencimento, month=mes_vencimento, day=novo_dia_vencimento)
-                mensalidade.dt_vencimento = nova_data_vencimento
-                cliente.data_pagamento = novo_dia_vencimento
-                mensalidade.valor = plano_valor
-
-                mensalidade.save()
-                cliente.save()
-
-            dispositivo = Dispositivo.objects.get(nome=request.POST.get("dispositivo"), usuario=request.user)
-            if cliente.dispositivo != dispositivo:
-                cliente.dispositivo = dispositivo
-
-            aplicativo = Aplicativo.objects.get(nome=request.POST.get("aplicativo"), usuario=request.user)
-            if cliente.sistema != aplicativo:
-                cliente.sistema = aplicativo
-
-            if cliente.notas != request.POST.get("notas"):
-                cliente.notas = request.POST.get("notas")
-
-            cliente.save()
-
-            # Em caso de sucesso, renderiza a página de listagem de clientes com uma mensagem de sucesso
-            return render(request, "dashboard.html", {"success_message_edit": "{} foi atualizado com sucesso.".format(cliente.nome)}, status=200)
-
-        except Exception as e:
-            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
-            return render(request, "dashboard.html", {"error_message_edi": "Ocorreu um erro ao tentar atualizar esse cliente."}, status=500)
-
-    # Redireciona para a página de listagem de clientes se o método HTTP não for POST
-    return redirect("dashboard")
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
+                     timezone.localtime(), request.user,
+                     request.META.get('REMOTE_ADDR'), e, exc_info=True)
+        return render(request, "dashboard.html", {
+            "error_message_edit": "Ocorreu um erro ao tentar atualizar esse cliente."
+        }, status=500)
 
 
 # AÇÃO PARA EDITAR O OBJETO PLANO MENSAL
 @login_required
-def EditarPlanoAdesao(request, plano_id):
+def edit_payment_plan(request, plano_id):
     """
     Função de view para editar um plano de adesão mensal.
     """
@@ -1190,10 +1212,12 @@ def EditarPlanoAdesao(request, plano_id):
 
     if request.method == "POST":
         nome = request.POST.get("nome")
+        telas = request.POST.get("telas")
         valor = request.POST.get("valor")
 
         if nome and valor:
             plano_mensal.nome = nome
+            plano_mensal.telas = telas
             plano_mensal.valor = valor
 
             try:
@@ -1246,7 +1270,7 @@ def EditarPlanoAdesao(request, plano_id):
 
 # AÇÃO PARA EDITAR O OBJETO SERVIDOR
 @login_required
-def EditarServidor(request, servidor_id):
+def edit_server(request, servidor_id):
     servidor = get_object_or_404(Servidor, pk=servidor_id, usuario=request.user)
 
     servidores = Servidor.objects.filter(usuario=request.user).order_by('nome')
@@ -1294,7 +1318,7 @@ def EditarServidor(request, servidor_id):
 
 # AÇÃO PARA EDITAR O OBJETO DISPOSITIVO
 @login_required
-def EditarDispositivo(request, dispositivo_id):
+def edit_device(request, dispositivo_id):
     dispositivo = get_object_or_404(Dispositivo, pk=dispositivo_id, usuario=request.user)
 
     dispositivos = Dispositivo.objects.filter(usuario=request.user).order_by('nome')
@@ -1342,16 +1366,19 @@ def EditarDispositivo(request, dispositivo_id):
 
 # AÇÃO PARA EDITAR O OBJETO APLICATIVO
 @login_required
-def EditarAplicativo(request, aplicativo_id):
+def editar_app(request, aplicativo_id):
     aplicativo = get_object_or_404(Aplicativo, pk=aplicativo_id, usuario=request.user)
 
     aplicativos = Aplicativo.objects.filter(usuario=request.user).order_by('nome')
 
     if request.method == "POST":
         nome = request.POST.get("nome")
+        mac = request.POST.get("mac")
 
-        if nome:         
+        if nome and mac:
             aplicativo.nome = nome
+            aplicativo.device_has_mac = True if mac == "true" else False
+
             try:
                 aplicativo.save()
 
@@ -1389,7 +1416,7 @@ def EditarAplicativo(request, aplicativo_id):
 
 
 @login_required
-def EditarPerfil(request):
+def edit_profile(request):
     if request.method == "POST":
         if request.user.is_authenticated:
             try:
@@ -1405,6 +1432,7 @@ def EditarPerfil(request):
                 instituicao = request.POST.get('instituicao', '')
                 tipo_chave = request.POST.get('tipo_chave', '')
                 chave = request.POST.get('chave', '')
+                wpp = request.POST.get('wpp', '')
 
                 if not dados_bancarios:
                     dados_bancarios = DadosBancarios(usuario=user)
@@ -1413,6 +1441,7 @@ def EditarPerfil(request):
                 dados_bancarios.instituicao = instituicao
                 dados_bancarios.tipo_chave = tipo_chave
                 dados_bancarios.chave = chave
+                dados_bancarios.wpp = wpp
                 dados_bancarios.save()
 
                 messages.success(request, 'Perfil editado com sucesso!')
@@ -1427,7 +1456,7 @@ def EditarPerfil(request):
     return redirect('perfil')
 
 
-def Teste(request):
+def test(request):
     clientes = Cliente.objects.all()
 
     return render(
@@ -1442,16 +1471,24 @@ def Teste(request):
 ############################################ CREATE VIEW ############################################
 
 @login_required
-def CadastroContaAplicativo(request):
+def create_app_account(request):
 
     if request.method == "POST":
-        app = Aplicativo.objects.get(nome=request.POST.get('app-nome'))
+        app_id = request.POST.get('app_id')
+        app = Aplicativo.objects.get(id=app_id, usuario=request.user)
         cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
-        device_id = request.POST.get('device-id') if request.POST.get('device-id') != None or '' or ' ' else None
-        device_key = request.POST.get('device-key') if request.POST.get('device-key') != None or '' or ' ' else None
-        app_email = request.POST.get('app-email') if request.POST.get('app-email') != None or '' or ' ' else None
+        device_id = request.POST.get('device-id') or None
+        device_key = request.POST.get('device-key') or None
+        app_email = request.POST.get('app-email') or None
     
-        nova_conta_app = ContaDoAplicativo(cliente=cliente, app=app, device_id=device_id, device_key=device_key, email=app_email, usuario=request.user)
+        nova_conta_app = ContaDoAplicativo(
+            cliente=cliente,
+            app=app,
+            device_id=device_id,
+            device_key=device_key,
+            email=app_email,
+            usuario=request.user
+        )
 
         try:
             nova_conta_app.save()
@@ -1468,7 +1505,7 @@ def CadastroContaAplicativo(request):
 
 
 @login_required
-def ImportarClientes(request):
+def import_customers(request):
 
     num_linhas_importadas = 0  # Inicializa o contador de linhas importadas
     num_linhas_nao_importadas = 0  # Inicializa o contador de linhas não importadas
@@ -1510,11 +1547,10 @@ def ImportarClientes(request):
                 nome_import = str(dado['nome']).title() if not pd.isna(dado['nome']) else None
                 telefone_import = str(dado['telefone']).replace(" ", "") if not pd.isna(dado['telefone']) else None
                 indicado_por_import = str(dado['indicado_por']) if not pd.isna(dado['indicado_por']) else None
-                data_pagamento_import = int(dado['data_pagamento']) if not pd.isna(dado['data_pagamento']) else None
+                data_vencimento_import = str(dado['data_vencimento']) if not pd.isna(dado['data_vencimento']) else None
                 forma_pgto_import = str(dado['forma_pgto']) if not pd.isna(dado['forma_pgto']) else 'PIX'
                 tipo_plano_import = str(dado['tipo_plano']).replace(" ", "").title() if not pd.isna(dado['tipo_plano']) else None
                 plano_valor_import = int(dado['plano_valor']) if not pd.isna(dado['plano_valor']) else None
-                telas_import = str(dado['telas']).replace(" ", "") if not pd.isna(dado['telas']) else None
                 data_adesao_import = dado['data_adesao'] if not pd.isna(dado['data_adesao']) else None
 
                 if (servidor_import is None) or (dispositivo_import is None) or (sistema_import is None) or (nome_import is None) or (telefone_import is None) or (data_adesao_import is None) or (forma_pgto_import is None) or (plano_valor_import is None) or (tipo_plano_import is None):
@@ -1538,10 +1574,9 @@ def ImportarClientes(request):
                         indicado_por = None
                         if indicado_por_import:
                             indicado_por = Cliente.objects.filter(nome__iexact=nome_import, usuario=usuario_request).first()
-                        data_pagamento = data_pagamento_import
+                        data_vencimento = data_vencimento_import
                         forma_pgto, created = Tipos_pgto.objects.get_or_create(nome=forma_pgto_import, usuario=usuario_request)
                         plano, created = Plano.objects.get_or_create(nome=tipo_plano_import, valor=plano_valor_import, usuario=usuario_request)
-                        telas, created = Qtd_tela.objects.get_or_create(telas=int(telas_import))
                         data_adesao = data_adesao_import
 
                         novo_cliente = Cliente(
@@ -1551,10 +1586,9 @@ def ImportarClientes(request):
                             nome=nome_import,
                             telefone=telefone_import,
                             indicado_por=indicado_por,
-                            data_pagamento=data_pagamento,
+                            data_vencimento=data_vencimento,
                             forma_pgto=forma_pgto,
                             plano=plano,
-                            telas=telas,
                             data_adesao=data_adesao,
                             usuario=usuario_request,
                         )
@@ -1603,142 +1637,142 @@ def ImportarClientes(request):
 
 # AÇÃO PARA CRIAR NOVO CLIENTE ATRAVÉS DO FORMULÁRIO
 @login_required
-def CadastroCliente(request):
-    # Criando os queryset para exibir os dados nos campos do fomulário
-    plano_queryset = Plano.objects.filter(usuario=request.user).order_by('nome')
-    telas_queryset = Qtd_tela.objects.all().order_by('telas')
-    forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=request.user)
-    servidor_queryset = Servidor.objects.filter(usuario=request.user).order_by('nome')
-    sistema_queryset = Aplicativo.objects.filter(usuario=request.user).order_by('nome')
-    indicador_por_queryset = Cliente.objects.filter(usuario=request.user, cancelado=False).order_by('nome')
-    dispositivo_queryset = Dispositivo.objects.filter(usuario=request.user).order_by('nome')
+def create_customer(request):
     usuario = request.user
     page_group = "clientes"
     page = "cadastro-cliente"
 
-    # Recebendo os dados da requisição para criar um novo cliente
+    # Querysets para preencher os selects do formulário
+    plano_queryset = Plano.objects.filter(usuario=usuario).order_by('nome', 'telas', 'valor')
+    forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=usuario)
+    servidor_queryset = Servidor.objects.filter(usuario=usuario).order_by('nome')
+    sistema_queryset = Aplicativo.objects.filter(usuario=usuario).order_by('nome')
+    indicador_por_queryset = Cliente.objects.filter(usuario=usuario, cancelado=False).order_by('nome')
+    dispositivo_queryset = Dispositivo.objects.filter(usuario=usuario).order_by('nome')
+
+    # Processa requisição POST (cadastro)
     if request.method == 'POST' and 'cadastrar' in request.POST:
-        nome = request.POST.get('nome')
-        notas = request.POST.get('notas')
-        telefone = request.POST.get('telefone')
-        sobrenome = request.POST.get('sobrenome')
-        indicador = request.POST.get('indicador_list')
-        lista_plano = request.POST.get('plano').split("-")
-        nome_do_plano = lista_plano[0]
-        valor_do_plano = float(lista_plano[1].replace(',', '.'))
-        plano, created = Plano.objects.get_or_create(nome=nome_do_plano, valor=valor_do_plano, usuario=usuario)
-        telas, created = Qtd_tela.objects.get_or_create(telas=request.POST.get('telas'))
-        sistema, created = Aplicativo.objects.get_or_create(nome=request.POST.get('sistema'), usuario=usuario)
-        servidor, created = Servidor.objects.get_or_create(nome=request.POST.get('servidor'), usuario=usuario)
-        forma_pgto, created = Tipos_pgto.objects.get_or_create(nome=request.POST.get('forma_pgto'), usuario=usuario)
-        dispositivo, created = Dispositivo.objects.get_or_create(nome=request.POST.get('dispositivo'), usuario=usuario)
-        data_pagamento = int(request.POST.get('data_pagamento')) if request.POST.get('data_pagamento') else None
-        valida_cliente_exists = Cliente.objects.filter(telefone=telefone).exists()
+        post = request.POST
 
-        if indicador is None or indicador == "" or indicador == " ":
-            indicador = None
-        else:
-            indicador = Cliente.objects.get(nome=indicador, usuario=usuario)
+        # Coleta e sanitiza dados do formulário
+        nome = post.get('nome', '').strip()
+        sobrenome = post.get('sobrenome', '').strip()
+        telefone = post.get('telefone', '').strip()
+        notas = post.get('notas', '').strip()
+        indicador_nome = post.get('indicador_list', '').strip()
+        sistema_nome = post.get('sistema', '').strip()
+        servidor_nome = post.get('servidor', '').strip()
+        forma_pgto_nome = post.get('forma_pgto', '').strip()
+        dispositivo_nome = post.get('dispositivo', '').strip()
+        plano_info = post.get('plano', '').replace(' ', '').split('-')
 
-        if telefone is None or telefone == "" or telefone == " ":
-            return render(
-                request,
-                "pages/cadastro-cliente.html",
-                {
-                    "error_message": "O campo telefone não pode estar em branco.",
-                },
-            )
-        
-        elif not valida_cliente_exists:
+        if not telefone:
+            return render(request, "pages/cadastro-cliente.html", {
+                "error_message": "O campo telefone não pode estar em branco.",
+            })
 
-            cliente = Cliente(
-                nome=(nome + " " + sobrenome),
-                telefone=(telefone),
-                dispositivo=dispositivo,
-                sistema=sistema,
-                indicado_por=indicador,
-                servidor=servidor,
-                forma_pgto=forma_pgto,
-                plano=plano,
-                telas=telas,
-                data_pagamento=data_pagamento,
-                notas=notas,
+        # Verifica se já existe cliente com o mesmo telefone
+        if Cliente.objects.filter(telefone=telefone, usuario=usuario).exists():
+            cliente_existente = Cliente.objects.get(telefone=telefone, usuario=usuario)
+            return render(request, "pages/cadastro-cliente.html", {
+                "error_message": f"Há um cliente cadastrado com o telefone informado! <br><br><strong>Nome:</strong> {cliente_existente.nome} <br> <strong>Telefone:</strong> {cliente_existente.telefone}",
+            })
+
+        # Trata indicador (pode ser nulo)
+        indicador = None
+        if indicador_nome:
+            indicador = Cliente.objects.filter(nome=indicador_nome, usuario=usuario).first()
+
+        # Trata plano
+        try:
+            plano_nome = plano_info[0]
+            plano_valor = float(plano_info[1].replace(',', '.'))
+        except (IndexError, ValueError):
+            return render(request, "pages/cadastro-cliente.html", {
+                "error_message": "Plano inválido.",
+            })
+        plano, _ = Plano.objects.get_or_create(nome=plano_nome, valor=plano_valor, usuario=usuario)
+
+        # Trata relacionados
+        sistema, _ = Aplicativo.objects.get_or_create(nome=sistema_nome, usuario=usuario)
+        servidor, _ = Servidor.objects.get_or_create(nome=servidor_nome, usuario=usuario)
+        forma_pgto, _ = Tipos_pgto.objects.get_or_create(nome=forma_pgto_nome, usuario=usuario)
+        dispositivo, _ = Dispositivo.objects.get_or_create(nome=dispositivo_nome, usuario=usuario)
+
+        # Trata data de vencimento
+        data_vencimento = None
+        data_vencimento_str = post.get('data_vencimento', '').strip()
+        if data_vencimento_str:
+            try:
+                data_vencimento = datetime.strptime(data_vencimento_str, "%Y-%m-%d").date()
+            except ValueError:
+                return render(request, "pages/cadastro-cliente.html", {
+                    "error_message": "Data de vencimento inválida.",
+                })
+
+        # Cria cliente
+        cliente = Cliente(
+            nome=f"{nome} {sobrenome}",
+            telefone=telefone,
+            dispositivo=dispositivo,
+            sistema=sistema,
+            indicado_por=indicador,
+            servidor=servidor,
+            forma_pgto=forma_pgto,
+            plano=plano,
+            data_vencimento=data_vencimento,
+            notas=notas,
+            usuario=usuario,
+        )
+
+        try:
+            cliente.save()
+        except ValidationError as e:
+            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
+                         timezone.localtime(), usuario, request.META['REMOTE_ADDR'], e, exc_info=True)
+            return render(request, "pages/cadastro-cliente.html", {
+                "error_message": "Não foi possível cadastrar cliente!"
+            })
+        except Exception as e:
+            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
+                         timezone.localtime(), usuario, request.META['REMOTE_ADDR'], e, exc_info=True)
+            return render(request, "pages/cadastro-cliente.html", {
+                "error_message": "Não foi possível cadastrar cliente!",
+            })
+
+        # Se o sistema exige ID de dispositivo, cria ContaDoAplicativo
+        if sistema.device_has_mac:
+            ContaDoAplicativo.objects.create(
+                device_id=post.get('id'),
+                email=post.get('email'),
+                device_key=post.get('senha'),
+                app=sistema,
+                cliente=cliente,
                 usuario=usuario,
             )
-            try:
-                cliente.save()
 
-            except ValidationError as erro1:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
-                return render(
-                    request,
-                    "pages/cadastro-cliente.html",
-                    {
-                        "error_message": "Não foi possível cadastrar cliente!"
-                    },
-                )
-            
-            except Exception as erro2:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
-                return render(
-                    request,
-                    "pages/cadastro-cliente.html",
-                    {
-                        "error_message": "Não foi possível cadastrar cliente!",
-                    },
-                )
-            
-            check_sistema = request.POST.get('sistema').lower().replace(" ", "")
-            if check_sistema == "clouddy" or check_sistema == "duplexplay" or check_sistema == "duplecast" or check_sistema == "metaplayer":
-                dados_do_app = ContaDoAplicativo(
-                    device_id=request.POST.get('id'),
-                    email=request.POST.get('email'),
-                    device_key=request.POST.get('senha'),
-                    app=Aplicativo.objects.get(nome=sistema, usuario=usuario),
-                    cliente=cliente,
-                    usuario=usuario,
-                )
-                dados_do_app.save()
+        return render(request, "pages/cadastro-cliente.html", {
+            "success_message": "Novo cliente cadastrado com sucesso!",
+        })
 
-            return render(
-                request,
-                "pages/cadastro-cliente.html",
-                {
-                    "success_message": "Novo cliente cadastrado com sucesso!" ,
-                },
-            )
-        
-        else:
-            valida_cliente_get = Cliente.objects.get(telefone=telefone)
-            return render(
-                request,
-                "pages/cadastro-cliente.html",
-                {
-                    "error_message": "Há um cliente cadastrado com o telefone informado! <br><br><strong>Nome:</strong> {} <br> <strong>Telefone:</strong> {}".format(valida_cliente_get.nome, valida_cliente_get.telefone),
-                },
-            )
-        
-    return render(
-        request,
-        "pages/cadastro-cliente.html",
-        {
-            'servidores': servidor_queryset,
-            'dispositivos': dispositivo_queryset,
-            'sistemas': sistema_queryset,
-            'indicadores': indicador_por_queryset,
-            'formas_pgtos': forma_pgto_queryset,
-            'planos': plano_queryset,
-            'telas': telas_queryset,
-            'page_group': page_group,
-            'page': page,
-        },
-    )
+    # Requisição GET (carrega formulário)
+    return render(request, "pages/cadastro-cliente.html", {
+        'servidores': servidor_queryset,
+        'dispositivos': dispositivo_queryset,
+        'sistemas': sistema_queryset,
+        'indicadores': indicador_por_queryset,
+        'formas_pgtos': forma_pgto_queryset,
+        'planos': plano_queryset,
+        'page_group': page_group,
+        'page': page,
+    })
+
 
 
 # AÇÃO PARA CRIAR NOVO OBJETO PLANO MENSAL
 @login_required
-def CadastroPlanoAdesao(request):
-    planos_mensalidades = Plano.objects.filter(usuario=request.user).order_by('nome')
+def create_payment_plan(request):
+    planos_mensalidades = Plano.objects.filter(usuario=request.user).order_by('nome', 'telas', 'valor')
     usuario = request.user
     page_group = "cadastros"
     page = "plano_adesao"
@@ -1758,7 +1792,7 @@ def CadastroPlanoAdesao(request):
                         'pages/cadastro-plano-adesao.html',
                         {
                             'planos_mensalidades': planos_mensalidades,
-                            "success_message": "Novo Plano cadastrada com sucesso!",
+                            "success_message": "Novo Plano cadastrado com sucesso!",
                         },
                     )
                 
@@ -1790,7 +1824,7 @@ def CadastroPlanoAdesao(request):
 
 # AÇÃO PARA CRIAR NOVO OBJETO SERVIDOR
 @login_required
-def CadastroServidor(request):
+def create_server(request):
     servidores = Servidor.objects.filter(usuario=request.user).order_by('nome')
     usuario = request.user
     page_group = "cadastros"
@@ -1844,7 +1878,7 @@ def CadastroServidor(request):
 
 # AÇÃO PARA CRIAR NOVO OBJETO FORMA DE PAGAMENTO (TIPOS_PGTO)
 @login_required
-def CadastroFormaPagamento(request):
+def create_payment_method(request):
     formas_pgto = Tipos_pgto.objects.filter(usuario=request.user).order_by('nome')
     usuario = request.user
     page_group = "cadastros"
@@ -1898,7 +1932,7 @@ def CadastroFormaPagamento(request):
 
 # AÇÃO PARA CRIAR NOVO OBJETO DISPOSITIVO
 @login_required
-def CadastroDispositivo(request):
+def create_device(request):
     dispositivos = Dispositivo.objects.filter(usuario=request.user).order_by('nome')
     usuario = request.user
     page_group = "cadastros"
@@ -1952,20 +1986,26 @@ def CadastroDispositivo(request):
 
 # AÇÃO PARA CRIAR NOVO OBJETO APLICATIVO
 @login_required
-def CadastroAplicativo(request):
+def create_app(request):
     aplicativos = Aplicativo.objects.filter(usuario=request.user).order_by('nome')
     usuario = request.user
     page_group = "cadastros"
     page = "aplicativo"
 
     if request.method == "POST":
-        nome = request.POST.get("nome")
+        nome = request.POST.get("name")
+        have_mac = request.POST.get("mac")
 
-        if nome:
+        if nome and have_mac:
+            # Verifica se o campo "mac" foi preenchido e atribui o valor correspondente
+            if have_mac == "true":
+                have_mac = True
+            else:
+                have_mac = False
 
             try:
                 # Consultando o objeto requisitado. Caso não exista, será criado.
-                aplicativo, created = Aplicativo.objects.get_or_create(nome=nome, usuario=usuario)
+                aplicativo, created = Aplicativo.objects.get_or_create(nome=nome, device_has_mac=have_mac , usuario=usuario)
 
                 if created:
                     return render(
@@ -2007,7 +2047,7 @@ def CadastroAplicativo(request):
 ############################################ DELETE VIEW ############################################
 
 @login_required
-def DeleteContaAplicativo(request, pk):
+def delete_app_account(request, pk):
     if request.method == "DELETE":
         try:
             conta_app = ContaDoAplicativo.objects.get(pk=pk, usuario=request.user)
@@ -2031,7 +2071,7 @@ def DeleteContaAplicativo(request, pk):
     
 
 @login_required
-def DeleteAplicativo(request, pk):
+def delete_app(request, pk):
     try:
         aplicativo = Aplicativo.objects.get(pk=pk, usuario=request.user)
         aplicativo.delete()
@@ -2051,7 +2091,7 @@ def DeleteAplicativo(request, pk):
     
 
 @login_required
-def DeleteDispositivo(request, pk):
+def delete_device(request, pk):
     try:
         dispositivo = Dispositivo.objects.get(pk=pk, usuario=request.user)
         dispositivo.delete()
@@ -2071,7 +2111,7 @@ def DeleteDispositivo(request, pk):
     
 
 @login_required
-def DeleteFormaPagamento(request, pk):
+def delete_payment_method(request, pk):
     try:
         formapgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
         formapgto.delete()
@@ -2091,7 +2131,7 @@ def DeleteFormaPagamento(request, pk):
     
 
 @login_required
-def DeleteServidor(request, pk):
+def delete_server(request, pk):
     try:
         servidor = Servidor.objects.get(pk=pk, usuario=request.user)
         servidor.delete()
@@ -2111,7 +2151,7 @@ def DeleteServidor(request, pk):
     
 
 @login_required
-def DeletePlanoAdesao(request, pk):
+def delete_payment_plan(request, pk):
     try:
         plano_mensal = Plano.objects.get(pk=pk, usuario=request.user)
         plano_mensal.delete()
@@ -2128,5 +2168,28 @@ def DeletePlanoAdesao(request, pk):
         )
 
     return redirect('cadastro-plano-adesao')
+
+
+######################################
+############## OUTROS ################
+######################################
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+def get_location_from_ip(ip):
+    try:
+        response = requests.get(f'https://ipapi.co/{ip}/json/')
+        data = response.json()
+        cidade = data.get('city', 'Desconhecida')
+        pais = data.get('country_name', 'Desconhecido')
+        return f"{cidade}, {pais}"
+    except Exception:
+        return "Localização desconhecida"
 
 
