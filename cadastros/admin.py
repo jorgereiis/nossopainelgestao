@@ -20,6 +20,43 @@ from .models import (
 
 # --- ADMINISTRADORES ---
 
+class ServidorAdmin(admin.ModelAdmin):
+    list_display = ("id", "nome", "usuario")
+    list_filter = ("usuario",)
+    search_fields = ("nome", "usuario")
+    ordering = ("-id", "nome",)
+
+
+class Tipos_pgtoAdmin(admin.ModelAdmin):
+    list_display = ("id", "nome", "usuario")
+    list_filter = ("usuario",)
+    search_fields = ("nome", "usuario")
+    ordering = ("-id", "nome",)
+
+
+class DispositivoAdmin(admin.ModelAdmin):
+    list_display = ("id", "nome", "usuario")
+    list_filter = ("usuario",)
+    search_fields = ("nome", "usuario",)
+    ordering = ("-id", "nome",)
+
+
+class AplicativoAdmin(admin.ModelAdmin):
+    list_display = ("id", "nome", "device_has_mac", "usuario")
+    list_filter = ("usuario",)
+    search_fields = ("nome", "usuario")
+    list_editable = ("device_has_mac",)
+    ordering = ("-id", "nome",)
+
+
+class PlanoAdmin(admin.ModelAdmin):
+    list_display = ("nome", "telas", "valor", "usuario")
+    list_filter = ("usuario",)
+    search_fields = ("nome", "usuario")
+    list_editable = ("telas",)
+    ordering = ("nome", "valor")
+
+
 class ClienteAdmin(admin.ModelAdmin):
     list_display = (
         "id", "nome", "telefone", "uf", "servidor", "dispositivo", "sistema",
@@ -44,15 +81,19 @@ class MensalidadeAdmin(admin.ModelAdmin):
     autocomplete_fields = ("cliente",)
 
 
-class PlanoAdmin(admin.ModelAdmin):
-    list_display = ("nome", "valor")
+class PlanoIndicacaoAdmin(admin.ModelAdmin):
+    list_display = ("id", "nome", "tipo_plano", "valor", "valor_minimo_mensalidade", "usuario", "ativo")
+    list_filter = ("usuario", "ativo")
+    search_fields = ("nome", "tipo_plano")
+    ordering = ("-id", "nome",)
 
 
 class ContaDoAplicativoAdmin(admin.ModelAdmin):
-    list_display = ("cliente", "app", "device_id", "device_key", "email", "verificado")
+    list_display = ("cliente", "app", "device_id", "device_key", "email", "usuario", "verificado")
     list_filter = ("usuario", "app")
     search_fields = ("email", "cliente__nome")
     autocomplete_fields = ("cliente", "app")
+    ordering = ("-id", "cliente",)
 
 
 class SessaoWppAdmin(admin.ModelAdmin):
@@ -60,6 +101,20 @@ class SessaoWppAdmin(admin.ModelAdmin):
     list_filter = ("usuario", "dt_inicio")
     search_fields = ("usuario", "token")
     ordering = ("-dt_inicio",)
+
+
+class SecretTokenAPIAdmin(admin.ModelAdmin):
+    list_display = ("id", "token", "usuario", "dt_criacao")
+    list_filter = ("usuario", "dt_criacao")
+    search_fields = ("token", "usuario")
+    ordering = ("-dt_criacao",)
+
+
+class DadosBancariosAdmin(admin.ModelAdmin):
+    list_display = ("id", "beneficiario", "instituicao", "tipo_chave", "chave", "usuario", "wpp")
+    list_filter = ("usuario", "instituicao")
+    search_fields = ("beneficiario", "instituicao")
+    ordering = ("-id",)
 
 
 class MensagemEnviadaWppAdmin(admin.ModelAdmin):
@@ -76,60 +131,12 @@ class ConteudoM3U8Admin(admin.ModelAdmin):
     ordering = ("-criado_em",)
 
 
-class PlanoIndicacaoAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "tipo_plano", "valor", "valor_minimo_mensalidade", "usuario", "ativo")
-    list_filter = ("usuario", "ativo")
-    search_fields = ("nome", "tipo_plano")
-    ordering = ("-id",)
-
-
-class DadosBancariosAdmin(admin.ModelAdmin):
-    list_display = ("id", "beneficiario", "instituicao", "tipo_chave", "chave", "usuario", "wpp")
-    list_filter = ("usuario", "instituicao")
-    search_fields = ("beneficiario", "instituicao")
-    ordering = ("-id",)
-
-
-class SecretTokenAPIAdmin(admin.ModelAdmin):
-    list_display = ("id", "token", "usuario", "dt_criacao")
-    list_filter = ("usuario", "dt_criacao")
-    search_fields = ("token", "usuario")
-    ordering = ("-dt_criacao",)
-
-
 class HorarioEnviosAdmin(admin.ModelAdmin):
     list_display = ("id", "usuario", "horario", "ativo")
     list_filter = ("usuario", "horario", "ativo")
     search_fields = ("usuario", "horario")
     ordering = ("-id",)
 
-
-class DispositivoAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "usuario")
-    list_filter = ("usuario",)
-    search_fields = ("nome", "usuario")
-    ordering = ("-id",)
-
-
-class AplicativoAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "device_has_mac", "usuario")
-    list_filter = ("usuario",)
-    search_fields = ("nome", "usuario")
-    ordering = ("-id",)
-
-
-class Tipos_pgtoAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "usuario")
-    list_filter = ("usuario",)
-    search_fields = ("nome", "usuario")
-    ordering = ("-id",)
-
-
-class ServidorAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "usuario")
-    list_filter = ("usuario",)
-    search_fields = ("nome", "usuario")
-    ordering = ("-id",)
 
 # --- REGISTRO NO ADMIN ---
 
