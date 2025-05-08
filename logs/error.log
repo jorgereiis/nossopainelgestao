@@ -3038,3 +3038,12 @@ Traceback (most recent call last):
 django.db.utils.OperationalError: no such column: cadastros_planoindicacao.valor_minimo_mensalidade
 [2025-05-07 21:09:17] [ERROR] basehttp - "GET /painel-configs/cadastros/planoindicacao/ HTTP/1.1" 500 183246
 [2025-05-07 21:09:17] [ERROR] basehttp - "GET /painel-configs/cadastros/planoindicacao/ HTTP/1.1" 500 183246
+[2025-05-07 21:53:23] [INFO] category - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+[2025-05-07 21:53:23] [INFO] category - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+[2025-05-07 21:53:23] [INFO] category - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+[2025-05-07 21:54:25] [INFO] category - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+[2025-05-07 21:54:25] [INFO] category - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+[2025-05-07 21:54:25] [INFO] category - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+[2025-05-07 22:03:28] [INFO] category - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+[2025-05-07 22:03:28] [INFO] category - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+[2025-05-07 22:03:28] [INFO] category - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
