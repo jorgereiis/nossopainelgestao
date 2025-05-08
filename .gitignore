@@ -11,6 +11,9 @@ access.log
 teste.sh
 *.sh
 m3u8/
+error_log
+logs/*.log
+*.log
 
 ### Django ###
 *.pot
