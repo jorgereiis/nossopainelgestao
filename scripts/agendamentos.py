@@ -45,7 +45,7 @@ schedule.every().day.at("13:00").do(
 schedule.every().day.at("13:30").do(
     run_threaded, obter_mensalidades_vencidas
 )
-schedule.every().day.at("01:45").do(
+schedule.every().day.at("17:00").do(
     run_threaded, mensalidades_canceladas
 )
 schedule.every().day.at("00:15").do(
