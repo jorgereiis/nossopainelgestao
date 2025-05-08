@@ -40,7 +40,7 @@ class MensalidadeAdmin(admin.ModelAdmin):
     list_editable = ("pgto", "cancelado", "dt_cancelamento", "dt_pagamento", "dt_vencimento")
     list_filter = ("dt_vencimento", "dt_pagamento", "pgto", "cancelado", "usuario")
     search_fields = ("cliente__nome",)
-    ordering = ("-dt_vencimento",)
+    ordering = ("-id",)
     autocomplete_fields = ("cliente",)
 
 

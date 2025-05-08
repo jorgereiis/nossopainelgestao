@@ -1,0 +1,32 @@
+{% extends 'modelo.html' %}
+{% load static %}
+
+{% block centro %}
+<header style="padding: 150px;">
+    <form action="{% url 'cadastros/clientes' %}" method="">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="nome">Nome</label>
+            <input type="text" class="form-control" id="nome" name="nome" placeholder="Nome">
+        </div>
+        <div class="form-group">
+            <label for="telefone">Telefone</label>
+            <input type="telefone" class="form-control" id="telefone" name="telefone" placeholder="telefone">
+        </div>
+        <div class="form-group">
+            <label for="">Painel</label>
+            <input type="text" class="form-control" id="painel" name="painel" placeholder="Painel">
+        </div>
+        <div class="form-group">
+            <label for="">Dispositivo</label>
+            <input type="text" class="form-control" id="dispositivo" name="dispositivo" placeholder="Dispositivo">
+        </div>
+        <div class="form-group">
+            <label for="">Indicação</label>
+            <input type="text" class="form-control" id="indicacao" name="indicacao" placeholder="Indicação">
+        </div>
+        <br>
+        <button type="submit" class="w3-button w3-black w3-padding-large w3-large w3-margin-top">Salvar</button>
+    </form>
+</header>
+{% endblock %}

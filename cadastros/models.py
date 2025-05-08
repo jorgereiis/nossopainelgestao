@@ -255,7 +255,7 @@ class SecretTokenAPI(models.Model):
 class DadosBancarios(models.Model):
     """Modela os dados bancários do usuário para recebimentos."""
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
-    wpp = models.CharField(max_length=20)
+    wpp = models.CharField(max_length=20, null=True, blank=True)
     beneficiario = models.CharField(max_length=255)
     instituicao = models.CharField(max_length=255)
     tipo_chave = models.CharField(max_length=255)
