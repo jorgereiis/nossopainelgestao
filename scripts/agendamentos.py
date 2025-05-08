@@ -45,16 +45,16 @@ schedule.every().day.at("13:00").do(
 schedule.every().day.at("13:30").do(
     run_threaded, obter_mensalidades_vencidas
 )
-schedule.every().day.at("01:10").do(
+schedule.every().day.at("01:45").do(
     run_threaded, mensalidades_canceladas
 )
-schedule.every().day.at("01:15").do(
+schedule.every().day.at("00:15").do(
     run_threaded, executar_comparar_lista_m3u8_com_lock
 )
-schedule.every().day.at("01:25").do(
+schedule.every().day.at("00:25").do(
     run_threaded, executar_processar_novos_titulos_com_lock
 )
-schedule.every().day.at("01:35").do(
+schedule.every().day.at("00:35").do(
     run_threaded, executar_upload_status_com_lock
 )
 schedule.every(60).minutes.do(
