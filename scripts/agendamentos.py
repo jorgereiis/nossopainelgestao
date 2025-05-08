@@ -30,7 +30,7 @@ from upload_status_wpp import executar_upload_status_com_lock
 ################################################
 
 # Threading para executar os jobs em paralelo
-def run_threaded(job):
+"""def run_threaded(job):
     job_thread = threading.Thread(target=job)
     job_thread.daemon = True  # encerra com o processo principal
     job_thread.start()
@@ -68,3 +68,4 @@ schedule.every(60).minutes.do(
 while True:
     schedule.run_pending()
     time.sleep(5)
+"""
