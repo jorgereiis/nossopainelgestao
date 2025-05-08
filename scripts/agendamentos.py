@@ -36,25 +36,25 @@ def run_threaded(job):
     job_thread.start()
 
 # Agendar a execução das tarefas
-schedule.every().day.at("12:00").do(
+schedule.every().day.at("01:40").do(
     run_threaded, run_scheduled_tasks
 )
-schedule.every().day.at("13:00").do(
+schedule.every().day.at("01:46").do(
     run_threaded, obter_mensalidades_a_vencer
 )
-schedule.every().day.at("13:30").do(
+schedule.every().day.at("01:45").do(
     run_threaded, obter_mensalidades_vencidas
 )
-schedule.every().day.at("17:00").do(
+schedule.every().day.at("01:47").do(
     run_threaded, mensalidades_canceladas
 )
-schedule.every().day.at("00:10").do(
+schedule.every().day.at("23:30").do(
     run_threaded, executar_comparar_lista_m3u8_com_lock
 )
-schedule.every().day.at("00:20").do(
+schedule.every().day.at("23:32").do(
     run_threaded, executar_processar_novos_titulos_com_lock
 )
-schedule.every().day.at("00:30").do(
+schedule.every().day.at("23:34").do(
     run_threaded, executar_upload_status_com_lock
 )
 schedule.every(60).minutes.do(

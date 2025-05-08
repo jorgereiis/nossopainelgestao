@@ -23,11 +23,11 @@ from .models import (
 class ClienteAdmin(admin.ModelAdmin):
     list_display = (
         "id", "nome", "telefone", "servidor", "dispositivo", "sistema",
-        "data_vencimento", "forma_pgto", "plano", "data_adesao",
+        "data_vencimento2", "forma_pgto", "plano", "data_adesao",
         "data_cancelamento", "ultimo_pagamento", "indicado_por", "notas",
         "cancelado", "nao_enviar_msgs", "usuario",
     )
-    list_filter = ("servidor", "usuario", "forma_pgto", "data_vencimento", "cancelado", "sistema")
+    list_filter = ("servidor", "usuario", "forma_pgto", "data_vencimento2", "cancelado", "sistema")
     search_fields = ("nome", "telefone")
     ordering = ("-data_adesao",)
 

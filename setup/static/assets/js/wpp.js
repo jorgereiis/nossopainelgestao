@@ -246,7 +246,7 @@ function getCookie(name) {
 
 // Requisições para API Django (obter dados da sessão salva)
 function getTokenBackend() {
-    const url = '/obter_session_wpp/'
+    const url = '/obter-session-wpp/'
     fetch(url, {
         method: 'GET',
         headers: {
@@ -265,7 +265,7 @@ function getTokenBackend() {
 
 // Requisições para API Django (salvar token da sessão WhatsApp)
 function salvarSessionToken(token) {
-    const url = '/session_wpp/';
+    const url = '/session-wpp/';
     const data = {
         token: token
     };
@@ -290,7 +290,7 @@ function salvarSessionToken(token) {
 // Requisições para API Django (deletar token da sessão WhatsApp)
 function deletarSessionToken() {
     const user = document.getElementById('user-session').value;
-    const url = '/session_wpp/';
+    const url = '/session-wpp/';
     const cookieName = `token-wpp-${user}`;
     const token = getCookie(cookieName);
     const data = {
@@ -317,7 +317,7 @@ function deletarSessionToken() {
 
 // Requisições para API Django (obter stkn)
 async function get_stkn() {
-    const url = '/obter_stkn/';
+    const url = '/obter-stkn/';
 
     try {
         const response = await fetch(url, {

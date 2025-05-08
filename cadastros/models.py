@@ -103,7 +103,7 @@ class Cliente(models.Model):
     telefone = models.CharField(max_length=20)
     uf = models.CharField(max_length=2, blank=True, null=True)
     indicado_por = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
-    data_vencimento = models.DateField("Data de vencimento inicial", blank=True, null=True)
+    data_vencimento2 = models.DateField("Data de vencimento inicial", blank=True, null=True)
     forma_pgto = models.ForeignKey(Tipos_pgto, on_delete=models.CASCADE, default=1, verbose_name="Forma de pagamento")
     plano = models.ForeignKey(Plano, on_delete=models.CASCADE, default=1)
     data_adesao = models.DateField("Data de adesão", default=timezone.now)
@@ -214,9 +214,7 @@ class ContaDoAplicativo(models.Model):
     class Meta:
         verbose_name = "Conta do Aplicativo"
         verbose_name_plural = "Contas dos Aplicativos"
-        constraints = [
-            models.UniqueConstraint(fields=['cliente', 'app', 'device_id'], name='unique_device_per_cliente_app')
-        ]
+
         indexes = [
             models.Index(fields=['cliente', 'app']),
             models.Index(fields=['device_id']),
