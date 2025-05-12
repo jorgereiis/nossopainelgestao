@@ -89,36 +89,33 @@ def registrar_log(mensagem: str, usuario: str, log_directory: str) -> None:
 
 def validar_numero_whatsapp(telefone: str, token: str) -> Union[str, None]:
     """
-    Tenta validar e corrigir o número informado para verificar se existe no WhatsApp.
-    
-    Etapas:
-    1. Testa o número original sem caracteres especiais.
-    2. Tenta novamente com prefixo '55'.
-    3. Remove o primeiro '9' após o DDD e tenta novamente com '55'.
+    Tenta verificar se existe no WhatsApp.
+
     
     Retorna:
         - Número formatado válido para envio via WhatsApp
         - None, se nenhuma variação for válida
     """
-    numero = re.sub(r'\D', '', telefone)  # Remove tudo que não for número
 
-    # Etapa 1: verificar número como está
+    # Remove tudo que não for número
+    numero = re.sub(r'\D', '', telefone)
+
+    # Verifica o número como está
     if check_number_status(numero, token):
         return numero
 
-    # Etapa 2: adicionar DDI '55'
-    com_ddi = '55' + numero
-    if check_number_status(com_ddi, token):
-        return com_ddi
+    """ # Etapa 2: adicionar DDI '55'
+        com_ddi = '55' + numero
+        if check_number_status(com_ddi, token):
+            return com_ddi
 
-    # Etapa 3: remover '9' após o DDD e adicionar '55'
-    if len(numero) >= 11 and numero[2] == '9':
-        sem_nove = numero[:2] + numero[3:]
-        com_ddi_sem_nove = '55' + sem_nove
-        if check_number_status(com_ddi_sem_nove, token):
-            return com_ddi_sem_nove
+        # Etapa 3: remover '9' após o DDD e adicionar '55'
+        if len(numero) >= 11 and numero[2] == '9':
+            sem_nove = numero[:2] + numero[3:]
+            com_ddi_sem_nove = '55' + sem_nove
+            if check_number_status(com_ddi_sem_nove, token):
+                return com_ddi_sem_nove"""
 
-    # Nenhuma variação funcionou
     return None
 ##### FIM #####
 

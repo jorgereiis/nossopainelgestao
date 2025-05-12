@@ -8,6 +8,7 @@
   <title>Novo cliente | Nosso Painel - Gestão IPTV</title>
 </head>
 
+<!-- body -->
 <body class="bg-light">
   <div id="db-wrapper">
     <!-- navbar vertical -->
@@ -43,137 +44,144 @@
                     <h4 class="mb-1">Formulário de cadastro</h4>
                   </div>
 
-                  <form method="POST">
-                    <!-- row -->
-                    {% csrf_token %}
-                    <div class="mb-3 row">
-                      <label for="fullName" class="col-sm-4 col-form-label
-                          form-label">Nome completo <span class="text-danger">*</span></label>
-                      <div class="col-sm-4 mb-3 mb-lg-0">
-                        <input type="text" class="form-control" placeholder="Nome" id="nome" name="nome"
-                          autocomplete="off" required>
-                      </div>
-                      <div class="col-sm-4">
-                        <input type="text" class="form-control" placeholder="Sobrenome" id="sobrenome" name="sobrenome"
-                          autocomplete="off" required>
-                      </div>
-                    </div>
-                    <div class="mb-3 row">
-                      <label for="telefone" class="col-sm-4 col-form-label
-                          form-label">Telefone <span class="text-danger">*</span></label>
-                      <div class="col-md-8 col-12">
-                        <input type="text" class="form-control" placeholder="DDD + Número" id="telefone" name="telefone"
-                          autocomplete="off" minlength="12" maxlength="15" required>
-                      </div>
-                    </div>
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="indicado_por" class="col-sm-4 col-form-label
-                              form-label">Indicado por</label>
-                      <div class="col-md-8 col-12">
-                        <input type="text" class="form-control" placeholder="Selecione um cliente indicador" id="indicado_por"
-                          list="indicador-options" name="indicador_list" autocomplete="off">
-                      </div>
-                      <!-- Definindo o datalist -->
-                      <datalist id="indicador-options">
-                        {% for indicador in indicadores %}
-                        <option value="{{ indicador.nome }}">
-                          {% endfor %}
-                      </datalist>
-                    </div>
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="servidor" class="col-sm-4 col-form-label
-                          form-label">Servidor <span class="text-danger">*</span></label>
-                      <div class="col-md-8 col-12">
-                        <select class="form-select" id="servidor" name="servidor" required>
-                          <option value="">Selecione um servidor</option>
-                          {% for servidor in servidores %}
-                          <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
-                          {% endfor %}
-                        </select>
-                      </div>
-                    </div>
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="forma_pgto" class="col-sm-4 col-form-label
-                          form-label">Forma de pagamento <span class="text-danger">*</span></label>
-                      <div class="col-md-8 col-12">
-                        <select class="form-select" id="forma_pgto" name="forma_pgto" required>
-                          <option value="">Selecione uma forma de pagamento</option>
-                          {% for forma_pgto in formas_pgtos %}
-                          <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
-                          {% endfor %}
-                        </select>
-                      </div>
-                    </div>
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="plano" class="col-sm-4 col-form-label
-                          form-label">Planos <span class="text-danger">*</span></label>
-                      <div class="col-md-8 col-12">
-                        <select class="form-select" id="plano" name="plano" required>
-                          <option value="">Selecione um plano de adesão</option>
-                          {% for plano in planos %}
-                          <option value="{{ plano.nome }}-{{plano.valor}}">{{ plano.nome }} - {{ plano.valor }}</option>
-                          {% endfor %}
-                        </select>
-                      </div>
-                    </div>
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="data_pagamento" class="col-sm-4 col-form-label form-label">
-                        Data vencimento inicial</label>
-                      <div class="col-md-8 col-12">
-                        <input type="date" class="form-control" id="data_pagamento" min="1" max="31"
-                          name="data_pagamento">
-                      </div>
-                    </div>
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="dispositivo" class="col-sm-4 col-form-label
-                          form-label">Dispositivo <span class="text-danger">*</span></label>
+              <form method="POST">
+                {% csrf_token %}
 
-                      <div class="col-md-8 col-12">
-                        <select class="form-select" id="dispositivo" name="dispositivo" required>
-                          <option value="">Selecione um dispositivo</option>
-                          {% for dispositivo in dispositivos %}
-                          <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
-                          {% endfor %}
-                        </select>
-                      </div>
-                    </div>
-                    <!-- row -->
-                    <div class="mb-3 row" id="teste">
-                      <label for="aplicativo" class="col-sm-4 col-form-label
-                          form-label">Aplicativo <span class="text-danger">*</span></label>
-                      <div class="col-md-8 col-12">
-                        <select class="form-select" id="sistema" name="sistema" required>
-                          <option value="">Selecione um aplicativo</option>
-                          {% for sistema in sistemas %}
-                          <option value="{{ sistema.nome }}">{{ sistema.nome }}</option>
-                          {% endfor %}
-                        </select>
-                      </div>
-                    </div>
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="notas" class="col-sm-4 col-form-label form-label">Anotações</label>
-                      <div class="col-md-8 col-12">
-                        <textarea type="text" class="form-control" placeholder="Detalhes adicionais sobre o cliente..." id="notas"
-                          name="notas"></textarea>
-                      </div>
-                    </div>
+                <!-- Nome -->
+                <div class="mb-3 row">
+                  <label for="nome" class="col-sm-4 col-form-label form-label">
+                    Nome <span class="text-danger">*</span>
+                  </label>
+                  <div class="col-sm-5 mb-3 mb-lg-0">
+                    <input type="text" class="form-control" placeholder="Nome" id="nome" name="nome"
+                      autocomplete="off" required>
+                  </div>
                 </div>
+
+                <!-- Sobrenome -->
+                <div class="mb-3 row">
+                  <label for="nome" class="col-sm-4 col-form-label form-label">
+                    Sobrenome <span class="text-danger">*</span>
+                  </label>
+                  <div class="col-sm-5 mb-3 mb-lg-0">
+                    <input type="text" class="form-control" placeholder="Sobrenome" id="sobrenome" name="sobrenome"
+                      autocomplete="off" required>
+                  </div>
+                </div>
+
+                <!-- Telefone -->
+                <div class="mb-3 row">
+                  <label for="telefone" class="col-sm-4 col-form-label form-label">
+                    Telefone <span class="text-danger">*</span>
+                  </label>
+                  <div class="col-sm-5 mb-3 mb-lg-0">
+                    <input type="tel" id="telefone" name="telefone" class="form-control" autocomplete="off" required>
+                  </div>
+                </div>
+
+                <!-- Indicado por -->
+                <div class="mb-3 row">
+                  <label for="indicado_por" class="col-sm-4 col-form-label form-label">Indicado por</label>
+                  <div class="col-sm-5 mb-3 mb-lg-0">
+                    <input type="text" class="form-control" placeholder="Selecione um cliente indicador" id="indicado_por"
+                      list="indicador-options" name="indicador_list" autocomplete="off">
+                  </div>
+                  <datalist id="indicador-options">
+                    {% for indicador in indicadores %}
+                    <option value="{{ indicador.nome }}">
+                    {% endfor %}
+                  </datalist>
+                </div>
+
+                <!-- Servidor -->
+                <div class="mb-3 row">
+                  <label for="servidor" class="col-sm-4 col-form-label form-label">Servidor <span class="text-danger">*</span></label>
+                  <div class="col-sm-5 mb-3 mb-lg-0">
+                    <select class="form-select" id="servidor" name="servidor" required>
+                      <option value="">Selecione um servidor</option>
+                      {% for servidor in servidores %}
+                      <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Forma de pagamento -->
+                <div class="mb-3 row">
+                  <label for="forma_pgto" class="col-sm-4 col-form-label form-label">Forma de pagamento <span class="text-danger">*</span></label>
+                  <div class="col-sm-5 mb-3 mb-lg-0">
+                    <select class="form-select" id="forma_pgto" name="forma_pgto" required>
+                      <option value="">Selecione uma forma de pagamento</option>
+                      {% for forma_pgto in formas_pgtos %}
+                      <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Planos -->
+                <div class="mb-3 row">
+                  <label for="plano" class="col-sm-4 col-form-label form-label">Planos <span class="text-danger">*</span></label>
+                  <div class="col-sm-5 mb-3 mb-lg-0">
+                    <select class="form-select" id="plano" name="plano" required>
+                      <option value="">Selecione um plano de adesão</option>
+                      {% for plano in planos %}
+                      <option value="{{ plano.nome }}-{{ plano.valor }}">{{ plano.nome }} - {{ plano.valor }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Data vencimento -->
+                <div class="mb-3 row">
+                  <label for="data_pagamento" class="col-sm-4 col-form-label form-label">Data vencimento inicial</label>
+                  <div class="col-sm-5 mb-3 mb-lg-0">
+                    <input type="date" class="form-control" id="data_pagamento" name="data_pagamento">
+                  </div>
+                </div>
+
+                <!-- Dispositivo -->
+                <div class="mb-3 row">
+                  <label for="dispositivo" class="col-sm-4 col-form-label form-label">Dispositivo <span class="text-danger">*</span></label>
+                  <div class="col-sm-5 mb-3 mb-lg-0">
+                    <select class="form-select" id="dispositivo" name="dispositivo" required>
+                      <option value="">Selecione um dispositivo</option>
+                      {% for dispositivo in dispositivos %}
+                      <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Aplicativo -->
+                <div class="mb-3 row" id="teste">
+                  <label for="aplicativo" class="col-sm-4 col-form-label form-label">Aplicativo <span class="text-danger">*</span></label>
+                  <div class="col-sm-5 mb-3 mb-lg-0">
+                    <select class="form-select" id="sistema" name="sistema" required>
+                      <option value="">Selecione um aplicativo</option>
+                      {% for sistema in sistemas %}
+                      <option value="{{ sistema.nome }}" data-mac="{{ sistema.device_has_mac|yesno:'1,0' }}">{{ sistema.nome }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Anotações -->
+                <div class="mb-3 row">
+                  <label for="notas" class="col-sm-4 col-form-label form-label">Anotações</label>
+                  <div class="col-sm-5 mb-3 mb-lg-0">
+                    <textarea class="form-control" placeholder="Detalhes adicionais sobre o cliente..." id="notas" name="notas"></textarea>
+                  </div>
+                </div>
+
+                <!-- Botão -->
                 <div class="offset-md-4 mb-4">
-                  <button type="submit" class="btn btn-primary" name="cadastrar" id="cadastrar"> Cadastrar</button>
+                  <button type="submit" class="btn btn-primary" name="cadastrar" id="cadastrar">Cadastrar</button>
                 </div>
-              </div>
               </form>
             </div>
           </div>
         </div>
-
       </div>
     </div>
 
@@ -277,59 +285,51 @@
 <script>
   //INSERÇÃO DE NOVOS CAMPOS NA TABELA DE ACORDO COM O APLICATIVO ESCOLHIDO
   $(document).ready(function () {
-    // Ao mudar o valor do select com id "sistema"
     $('#sistema').change(function () {
-      // Se o valor selecionado for igual a "duplex, duplecast ou metaplayer"
-      if ($(this).val().toLowerCase().replace(/\s/g, "") === 'duplexplay' ||
-        $(this).val().toLowerCase().replace(/\s/g, "") === 'duplecast' ||
-        $(this).val().toLowerCase().replace(/\s/g, "") === 'metaplayer') {
-        // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
-        $('#divEmail').remove();
-        $('#divSenha2').remove();
-        $('#divID').remove();
-        $('#divSenha').remove();
-        $('#teste').after('<div class="mb-3 row" id="divSenha"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha" minlength="6" required></div>');
-        $('#teste').after('<div class="mb-3 row" id="divID"><label for="ID" class="col-sm-4 col-form-label form-label">ID do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Device ID" id="ID" name="id" minlength="12" maxlength="18" required></div>');
-      } else if ($(this).val().toLowerCase().replace(/\s/g, "") === 'clouddy') {
-        // Se o valor selecionado não for igual a "clouddy",
-        // Insere novas divs com os input após a div com id "teste" e remove para não haver repetição
-        $('#divID').remove();
-        $('#divSenha').remove();
-        $('#divEmail').remove();
-        $('#divSenha2').remove();
-        $('#teste').after('<div class="mb-3 row" id="divSenha2"><label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label><div class="col-md-8 col-12"><input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" minlength="6" required></div>');
-        $('#teste').after('<div class="mb-3 row" id="divEmail"><label for="Email" class="col-sm-4 col-form-label form-label">E-mail do Aplicativo</label><div class="col-md-8 col-12"><input type="email" class="form-control" placeholder="E-mail" id="Email" name="email" required></div>');
-      } else {
-        $('#divID').remove();
-        $('#divSenha').remove();
-        $('#divEmail').remove();
-        $('#divSenha2').remove();
-      }
-    });
-  });
-</script>
+      const selectedOption = $(this).find('option:selected');
+      const hasMac = selectedOption.data('mac') === 1;
 
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    var telefoneInput = document.getElementById('telefone');
+      // Limpa os campos antes de inserir
+      $('#divID').remove();
+      $('#divSenha').remove();
+      $('#divEmail').remove();
+      $('#divSenha2').remove();
 
-    telefoneInput.addEventListener('input', function() {
-      var telefone = this.value.replace(/\D/g, ''); // Remove todos os caracteres não numéricos
-      telefone = telefone.substring(0, 11); // Limita o número de telefone a 11 dígitos
+      if (hasMac) {
+        const appName = selectedOption.val().toLowerCase().replace(/\s/g, "");
 
-      var formattedTelefone = '';
-      if (telefone.length > 0) {
-        formattedTelefone = '(' + telefone.substring(0, 2) + ')';
-
-        if (telefone.length > 2) {
-          formattedTelefone += ' ' + telefone.substring(2, 7);
-
-          if (telefone.length > 7) {
-            formattedTelefone += telefone.substring(7, 11);
-          }
+        if (appName === 'clouddy') {
+          $('#teste').after(`
+            <div class="mb-3 row" id="divEmail">
+              <label for="Email" class="col-sm-4 col-form-label form-label">E-mail do Aplicativo</label>
+              <div class="col-md-8 col-12">
+                <input type="email" class="form-control" placeholder="E-mail" id="Email" name="email" required>
+              </div>
+            </div>
+            <div class="mb-3 row" id="divSenha2">
+              <label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label>
+              <div class="col-md-8 col-12">
+                <input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" minlength="6" required>
+              </div>
+            </div>
+          `);
+        } else {
+          $('#teste').after(`
+            <div class="mb-3 row" id="divID">
+              <label for="ID" class="col-sm-4 col-form-label form-label">ID do Aplicativo</label>
+              <div class="col-md-8 col-12">
+                <input type="text" class="form-control" placeholder="Device ID" id="ID" name="id" minlength="12" maxlength="18" required>
+              </div>
+            </div>
+            <div class="mb-3 row" id="divSenha">
+              <label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label>
+              <div class="col-md-8 col-12">
+                <input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha" minlength="6" required>
+              </div>
+            </div>
+          `);
         }
       }
-      this.value = formattedTelefone;
     });
   });
 </script>
@@ -369,3 +369,96 @@
   const dataFormatada = `${ano}-${mes}-${dia}`;
   document.getElementById('data_pagamento').value = dataFormatada;
 </script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const telefoneInput = document.getElementById('telefone');
+
+    const iti = window.intlTelInput(telefoneInput, {
+      preferredCountries: ["br", "us", "pt"],
+      initialCountry: "br",
+      formatOnDisplay: false,
+      nationalMode: true,
+      utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/utils.js"
+    });
+
+    telefoneInput.addEventListener('input', function () {
+      const countryCode = iti.getSelectedCountryData().iso2;
+      const allowedCountries = ["br", "us", "pt"];
+
+      if (!allowedCountries.includes(countryCode)) return;
+
+      let numero = this.value.replace(/\D/g, '');
+
+      // --- Brasil ---
+      if (countryCode === "br") {
+        numero = numero.substring(0, 11); // 2 DDD + até 9 dígitos locais
+        let formatted = '';
+
+        if (numero.length >= 2) {
+          formatted += '(' + numero.substring(0, 2) + ') ';
+
+          const local = numero.substring(2); // Parte após o DDD
+          if (local.length === 9) {
+            // Celular: 5+4
+            formatted += local.substring(0, 5) + '-' + local.substring(5);
+          } else if (local.length >= 5) {
+            // Fixo: 4+4 ou incompleto
+            formatted += local.substring(0, 4) + '-' + local.substring(4);
+          } else {
+            formatted += local;
+          }
+        } else {
+          formatted += numero;
+        }
+
+        this.value = formatted;
+      }
+
+      // --- Estados Unidos ---
+      else if (countryCode === "us") {
+        numero = numero.substring(0, 10);
+        let formatted = '';
+        if (numero.length >= 3) {
+          formatted += '(' + numero.substring(0, 3) + ') ';
+          if (numero.length >= 6) {
+            formatted += numero.substring(3, 6) + '-' + numero.substring(6);
+          } else if (numero.length > 3) {
+            formatted += numero.substring(3);
+          }
+        } else {
+          formatted += numero;
+        }
+        this.value = formatted;
+      }
+
+      // --- Portugal ---
+      else if (countryCode === "pt") {
+        numero = numero.substring(0, 9);
+        let formatted = '';
+        if (numero.length >= 3) {
+          formatted += numero.substring(0, 3) + ' ';
+          if (numero.length >= 6) {
+            formatted += numero.substring(3, 6) + ' ' + numero.substring(6);
+          } else if (numero.length > 3) {
+            formatted += numero.substring(3);
+          }
+        } else {
+          formatted += numero;
+        }
+        this.value = formatted;
+      }
+    });
+  });
+</script>
+
+<style>
+  /* Estilo para o campo de telefone */
+  .iti {
+    width: 100%;
+  }
+
+  .iti__country-list {
+    z-index: 10000;
+  }
+</style>

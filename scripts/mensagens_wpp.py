@@ -65,7 +65,7 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
         'Authorization': f'Bearer {token}'
     }
 
-    for tentativa in range(1, 4):
+    for tentativa in range(1, 3):
         body = {
             'phone': telefone_validado,
             'message': mensagem,
@@ -126,12 +126,11 @@ def obter_mensalidades_a_vencer():
         usuario = mensalidade.usuario
         cliente = mensalidade.cliente
 
-        telefone_bruto = str(cliente.telefone).strip()
-        if not telefone_bruto:
+        telefone = str(cliente.telefone).strip()
+        if not telefone:
             print(f"[AVISO] Cliente '{cliente}' sem telefone cadastrado. Pulando...")
             continue
 
-        telefone_formatado = '55' + re.sub(r'\D', '', telefone_bruto)
         primeiro_nome = cliente.nome.split()[0].upper()
         dt_formatada = mensalidade.dt_vencimento.strftime("%d/%m")
 
@@ -164,12 +163,12 @@ def obter_mensalidades_a_vencer():
 
         # Envio da mensagem
         enviar_mensagem(
-            telefone=telefone_formatado,
+            telefone=telefone,
             mensagem=mensagem,
             usuario=usuario,
             token=sessao.token,
             cliente=cliente.nome,
-            tipo_envio="Agendado"
+            tipo_envio="A vencer"
         )
 
         # Intervalo aleatório entre envios
@@ -203,12 +202,11 @@ def obter_mensalidades_vencidas():
         usuario = mensalidade.usuario
         cliente = mensalidade.cliente
 
-        telefone_bruto = str(cliente.telefone).strip()
-        if not telefone_bruto:
+        telefone = str(cliente.telefone).strip()
+        if not telefone:
             print(f"[AVISO] Cliente '{cliente}' sem telefone cadastrado. Pulando...")
             continue
 
-        telefone_formatado = '55' + re.sub(r'\D', '', telefone_bruto)
         primeiro_nome = cliente.nome.split()[0]
         saudacao = get_saudacao_por_hora(hora_atual)
 
@@ -225,12 +223,12 @@ def obter_mensalidades_vencidas():
         )
 
         enviar_mensagem(
-            telefone=telefone_formatado,
+            telefone=telefone,
             mensagem=mensagem,
             usuario=usuario,
             token=sessao.token,
             cliente=cliente.nome,
-            tipo_envio="Atrasado"
+            tipo_envio="Vencidas"
         )
 
         time.sleep(random.uniform(30, 60))
@@ -303,7 +301,7 @@ def mensalidades_canceladas():
                 usuario=usuario,
                 token=sessao.token,
                 cliente=cliente.nome,
-                tipo_envio="Agendado"
+                tipo_envio="Canceladas"
             )
 
             time.sleep(random.uniform(30, 60))
@@ -372,14 +370,14 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
     print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [ENVIO][{tipo_envio.upper()}] [QTD.][{len(numeros)}]")
 
     for telefone in numeros:
-        numero_limpo = re.sub(r'\s+|\W', '', telefone)
+        numero_limpo = validar_numero_whatsapp(telefone, token)
 
         # Evita envio duplicado no mesmo dia
         if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=numero_limpo, data_envio=timezone.now().date()).exists():
             registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {numero_limpo} - ⚠️ Já foi feito envio hoje!", usuario, DIR_LOGS_AGENDADOS)
             continue
 
-        telefone_validado = validar_numero_whatsapp(numero_limpo, token)
+        telefone_validado = numero_limpo
         if not telefone_validado:
             log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), tipo_envio.upper(), usuario, numero_limpo)
             registrar_log(log, usuario, DIR_LOGS_AGENDADOS)

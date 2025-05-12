@@ -128,22 +128,17 @@ class Cliente(models.Model):
         super().save(*args, **kwargs)
 
     def formatar_telefone(self):
-        """Formata o telefone do cliente conforme padrão nacional ou internacional."""
-        self.telefone = re.sub(r'\D+', '', self.telefone)
-        if self.telefone.startswith('55'):
-            self.telefone = self.telefone[2:]
+        """Normaliza o telefone para o padrão internacional E.164: +55DDDNÚMERO."""
+        numero = re.sub(r'\D+', '', self.telefone)
 
-        if len(self.telefone) == 10 or len(self.telefone) == 11:
-            ddd = self.telefone[:2]
-            numero = self.telefone[2:]
-            if len(numero) == 9 and numero.startswith('9'):
-                numero = numero[1:]
-            if numero.startswith(('6', '7', '8', '9')):
-                self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}' if int(ddd) > 30 else f'({ddd}) 9{numero[:4]}-{numero[4:]}'
-            else:
-                self.telefone = f'({ddd}) {numero[:4]}-{numero[4:]}' if int(ddd) > 30 else f'({ddd}) 9{numero[:4]}-{numero[4:]}'
-        else:
-            self.telefone = '+' + self.telefone
+        # Adiciona DDI Brasil se for nacional
+        if len(numero) in (10, 11) and not numero.startswith('55'):
+            numero = '55' + numero
+
+        if len(numero) < 10:
+            raise ValueError("Telefone inválido")
+
+        self.telefone = '+' + numero  # Ex: +5500000000000
 
     def definir_uf(self):
         """Define a unidade federativa (UF) com base no DDD do telefone."""
@@ -262,22 +257,17 @@ class DadosBancarios(models.Model):
     chave = models.CharField(max_length=255)
 
     def formatar_telefone(self):
-        """Formata o telefone do cliente conforme padrão nacional ou internacional."""
-        self.wpp = re.sub(r'\D+', '', self.wpp)
-        if self.wpp.startswith('55'):
-            self.wpp = self.wpp[2:]
+        """Normaliza o telefone para o padrão internacional E.164: +55DDDNÚMERO."""
+        numero = re.sub(r'\D+', '', self.wpp)
 
-        if len(self.wpp) == 10 or len(self.wpp) == 11:
-            ddd = self.wpp[:2]
-            numero = self.wpp[2:]
-            if len(numero) == 9 and numero.startswith('9'):
-                numero = numero[1:]
-            if numero.startswith(('6', '7', '8', '9')):
-                self.wpp = f'({ddd}) {numero[:4]}-{numero[4:]}' if int(ddd) > 30 else f'({ddd}) 9{numero[:4]}-{numero[4:]}'
-            else:
-                self.wpp = f'({ddd}) {numero[:4]}-{numero[4:]}' if int(ddd) > 30 else f'({ddd}) 9{numero[:4]}-{numero[4:]}'
-        else:
-            self.wpp = '+' + self.wpp
+        # Adiciona DDI Brasil se for nacional
+        if len(numero) in (10, 11) and not numero.startswith('55'):
+            numero = '55' + numero
+
+        if len(numero) < 10:
+            raise ValueError("Telefone inválido")
+
+        self.wpp = '+' + numero  # Ex: +5500000000000
 
     def save(self, *args, **kwargs):
         """Salva o cliente ajustando a data de pagamento e formatando telefone/UF."""

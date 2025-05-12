@@ -1,4 +1,5 @@
 {% load static %}
+{% load format_filters %}
 
 <div class="table-responsive">
     <table class="table text-nowrap mb-0 table-hover" id="myTable">
@@ -85,7 +86,7 @@
                                         data-plano="{{cliente.plano}}"
                                         data-telas="{{cliente.plano.telas}}"
                                         data-notas="{{cliente.notas}}"
-                                        data-telefone="{{cliente.telefone}}"
+                                        data-telefone="{{cliente.telefone|formatar_telefone}}"
                                         data-servidor="{{cliente.servidor}}"
                                         data-aplicativo="{{cliente.sistema}}"
                                         data-forma_pgto="{{cliente.forma_pgto}}"
@@ -93,7 +94,7 @@
                                         data-data_adesao="{{cliente.data_adesao}}"
                                         data-indicado_por="{{cliente.indicado_por}}"
                                         data-data_vencimento="{{cliente.data_vencimento|date:'d/m/Y'}}"
-                                        data-ultimo_pagamento="{{cliente.ultimo_pagamento}}"
+                                        data-ultimo_pagamento="{{cliente.ultimo_pagamento|date:'d/m/Y'}}"
                                         data-conta_aplicativo="{{cliente.conta_aplicativo.all}}"
                                         onclick="exibirModalDetalhes(this)">Ver Infos.
                                     </button>
@@ -102,7 +103,7 @@
                                 <button class="dropdown-item"
                                 data-id="{{cliente.id}}"
                                 data-nome="{{cliente.nome}}"
-                                data-telefone="{{cliente.telefone}}"
+                                data-telefone="{{cliente.telefone|formatar_telefone}}"
                                 data-indicado_por="{{cliente.indicado_por}}"
                                 data-servidor="{{cliente.servidor}}"
                                 data-forma_pgto="{{cliente.forma_pgto}}"

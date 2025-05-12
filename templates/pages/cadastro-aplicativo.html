@@ -48,7 +48,7 @@
                     <!-- row -->
                     {% csrf_token %}
                     <div class="mb-3 row">
-                      <label for="fullName" class="col-sm-3 col-form-label
+                      <label for="fullName" class="col-sm-4 col-form-label
                           form-label">Descrição</label>
                       <div class="col-sm-8 mb-3 mb-lg-0">
                         <input type="text" class="form-control" placeholder="Nome do aplicativo..." id="name"
@@ -56,9 +56,9 @@
                       </div>
                     </div>
                     <div class="mb-3 row">
-                      <label for="device-has-mac" class="col-sm-3 col-form-label
-                          form-label">Usa MAC?</label>
-                      <div class="col-sm-8 mb-3 mb-lg-0">
+                      <label for="device-has-mac" class="col-sm-4 col-form-label
+                          form-label">Usa MAC/E-mail?</label>
+                      <div class="col-sm-4 mb-3 mb-lg-0">
                         <select type="text" class="form-control" id="mac"
                           name="mac" required>
                           <option label="Selecione"></option>
@@ -67,7 +67,7 @@
                         </select>
                       </div>
                     </div>
-                    <div class="offset-md-3 col-md-8 mt-4">
+                    <div class="offset-md-4">
                       <button type="submit" class="btn btn-primary" name="cadastrar"> Cadastrar</button>
                     </div>
                 </div>

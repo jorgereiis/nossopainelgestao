@@ -1,4 +1,5 @@
 {% load static %}
+{% load format_filters %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -91,7 +92,7 @@
                   <div class="row">
                     <div class="col-6 mb-5">
                       <h6 class="text-uppercase fs-5 ls-2">WhatsApp </h6>
-                      <p class="mb-0">{{ wpp }}</p>
+                      <p class="mb-0">{{ wpp|formatar_telefone }}</p>
                     </div>
                     <div class="col-6">
                       <h6 class="text-uppercase fs-5 ls-2">Email </h6>
@@ -203,7 +204,7 @@
             <div class="mb-3 row">
               <label for="wpp" class="col-sm-4 col-form-label form-label">WhatsApp</label>
               <div class="col-md-8 col-12">
-                <input type="text" class="form-control" placeholder="Contato" id="wpp" name="wpp" required>
+                <input type="tel" class="form-control" id="wpp" name="wpp" autocomplete="off" required>
               </div>
             </div>
             <div class="mb-6 mt-6">
@@ -254,6 +255,7 @@
 </html>
 
 <script>
+  // Função para exibir o modal de edição
   function exibirModalEdicaoDp(botao) {
     let wpp = botao.dataset.wpp;
     let nome = botao.dataset.nome;
@@ -282,7 +284,7 @@
     form.querySelector("#email").value = email;
     form.querySelector("#chave").value = chave;
     form.querySelector("#nome").value = nome;
-    form.querySelector("#wpp").value = wpp;
+    form.querySelector("#wpp").value = formatarTelefoneBrasil(wpp);
 
     const tipoChaveSelect = form.querySelector("#tipo_chave");
     if (tipo_chave === '--') {
@@ -301,26 +303,94 @@
 </script>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    var telefoneInput = document.getElementById('wpp');
+  document.addEventListener('DOMContentLoaded', function () {
+    const telefoneInput = document.getElementById('wpp');
 
-    telefoneInput.addEventListener('input', function() {
-      var telefone = this.value.replace(/\D/g, ''); // Remove todos os caracteres não numéricos
-      telefone = telefone.substring(0, 11); // Limita o número de telefone a 11 dígitos
+    const iti = window.intlTelInput(telefoneInput, {
+      preferredCountries: ["br", "us", "pt"],
+      initialCountry: "br",
+      formatOnDisplay: false,
+      nationalMode: true,
+      utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/utils.js"
+    });
 
-      var formattedTelefone = '';
-      if (telefone.length > 0) {
-        formattedTelefone = '(' + telefone.substring(0, 2) + ')';
+    telefoneInput.addEventListener('input', function () {
+      const countryCode = iti.getSelectedCountryData().iso2;
+      const allowedCountries = ["br", "us", "pt"];
 
-        if (telefone.length > 2) {
-          formattedTelefone += ' ' + telefone.substring(2, 7);
+      if (!allowedCountries.includes(countryCode)) return;
 
-          if (telefone.length > 7) {
-            formattedTelefone += telefone.substring(7, 11);
+      let numero = this.value.replace(/\D/g, '');
+
+      // --- Brasil ---
+      if (countryCode === "br") {
+        numero = numero.substring(0, 11); // 2 DDD + até 9 dígitos locais
+        let formatted = '';
+
+        if (numero.length >= 2) {
+          formatted += '(' + numero.substring(0, 2) + ') ';
+
+          const local = numero.substring(2); // Parte após o DDD
+          if (local.length === 9) {
+            // Celular: 5+4
+            formatted += local.substring(0, 5) + '-' + local.substring(5);
+          } else if (local.length >= 5) {
+            // Fixo: 4+4 ou incompleto
+            formatted += local.substring(0, 4) + '-' + local.substring(4);
+          } else {
+            formatted += local;
           }
+        } else {
+          formatted += numero;
         }
+
+        this.value = formatted;
       }
-      this.value = formattedTelefone;
+
+      // --- Estados Unidos ---
+      else if (countryCode === "us") {
+        numero = numero.substring(0, 10);
+        let formatted = '';
+        if (numero.length >= 3) {
+          formatted += '(' + numero.substring(0, 3) + ') ';
+          if (numero.length >= 6) {
+            formatted += numero.substring(3, 6) + '-' + numero.substring(6);
+          } else if (numero.length > 3) {
+            formatted += numero.substring(3);
+          }
+        } else {
+          formatted += numero;
+        }
+        this.value = formatted;
+      }
+
+      // --- Portugal ---
+      else if (countryCode === "pt") {
+        numero = numero.substring(0, 9);
+        let formatted = '';
+        if (numero.length >= 3) {
+          formatted += numero.substring(0, 3) + ' ';
+          if (numero.length >= 6) {
+            formatted += numero.substring(3, 6) + ' ' + numero.substring(6);
+          } else if (numero.length > 3) {
+            formatted += numero.substring(3);
+          }
+        } else {
+          formatted += numero;
+        }
+        this.value = formatted;
+      }
     });
   });
 </script>
+
+<style>
+  /* Estilo para o campo de telefone */
+  .iti {
+    width: 100%;
+  }
+
+  .iti__country-list {
+    z-index: 10000;
+  }
+</style>

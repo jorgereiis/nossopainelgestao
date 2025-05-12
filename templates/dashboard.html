@@ -722,7 +722,7 @@
                         <div class="form-group">
                             <label for="edit-cliente-telefone">Telefone</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" id="edit-cliente-telefone" name="telefone" minlength="12" maxlength="15" autocomplete="off" required>
+                                <input type="tel" class="form-control" id="edit-cliente-telefone" name="telefone" minlength="12" maxlength="15" autocomplete="off" required>
                             </div>
                         </div>
 
@@ -867,6 +867,7 @@
 
                 <!-- Scripts -->
                 {% include 'partials/scripts.html' %}
+                {% include 'partials/footer.html' %}
 
       <!-- Alert success edit -->
       {% if success_message_edit %}
@@ -938,7 +939,6 @@
     .objeto:hover {
         transform: translateY(-5px);
     }
-
 
     span.title {
         font-weight: bold;
@@ -2024,19 +2024,93 @@ $(document).ready(function() {
 </script>
 
 <script>
-    // FUNÇÃO PARA LIMITAR CALENDÁRIO DO FORMULÁRIO DE EDITAR CLIENTE
-    document.addEventListener("DOMContentLoaded", function () {
-      const inputData = document.getElementById("edit-cliente-dt_pgto");
-    
-      // Calcula a data de 7 dias atrás
-      const hoje = new Date();
-      hoje.setDate(hoje.getDate() - 7);
-    
-      const ano = hoje.getFullYear();
-      const mes = String(hoje.getMonth() + 1).padStart(2, "0");
-      const dia = String(hoje.getDate()).padStart(2, "0");
-    
-      const dataMinima = `${ano}-${mes}-${dia}`;
-      inputData.setAttribute("min", dataMinima);
+  document.addEventListener('DOMContentLoaded', function () {
+    const telefoneInput = document.getElementById('edit-cliente-telefone');
+
+    const iti = window.intlTelInput(telefoneInput, {
+      preferredCountries: ["br", "us", "pt"],
+      initialCountry: "br",
+      formatOnDisplay: false,
+      nationalMode: true,
+      utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/utils.js"
     });
+
+    telefoneInput.addEventListener('input', function () {
+      const countryCode = iti.getSelectedCountryData().iso2;
+      const allowedCountries = ["br", "us", "pt"];
+
+      if (!allowedCountries.includes(countryCode)) return;
+
+      let numero = this.value.replace(/\D/g, '');
+
+      // --- Brasil ---
+      if (countryCode === "br") {
+        numero = numero.substring(0, 11); // 2 DDD + até 9 dígitos locais
+        let formatted = '';
+
+        if (numero.length >= 2) {
+          formatted += '(' + numero.substring(0, 2) + ') ';
+
+          const local = numero.substring(2); // Parte após o DDD
+          if (local.length === 9) {
+            // Celular: 5+4
+            formatted += local.substring(0, 5) + '-' + local.substring(5);
+          } else if (local.length >= 5) {
+            // Fixo: 4+4 ou incompleto
+            formatted += local.substring(0, 4) + '-' + local.substring(4);
+          } else {
+            formatted += local;
+          }
+        } else {
+          formatted += numero;
+        }
+
+        this.value = formatted;
+      }
+
+      // --- Estados Unidos ---
+      else if (countryCode === "us") {
+        numero = numero.substring(0, 10);
+        let formatted = '';
+        if (numero.length >= 3) {
+          formatted += '(' + numero.substring(0, 3) + ') ';
+          if (numero.length >= 6) {
+            formatted += numero.substring(3, 6) + '-' + numero.substring(6);
+          } else if (numero.length > 3) {
+            formatted += numero.substring(3);
+          }
+        } else {
+          formatted += numero;
+        }
+        this.value = formatted;
+      }
+
+      // --- Portugal ---
+      else if (countryCode === "pt") {
+        numero = numero.substring(0, 9);
+        let formatted = '';
+        if (numero.length >= 3) {
+          formatted += numero.substring(0, 3) + ' ';
+          if (numero.length >= 6) {
+            formatted += numero.substring(3, 6) + ' ' + numero.substring(6);
+          } else if (numero.length > 3) {
+            formatted += numero.substring(3);
+          }
+        } else {
+          formatted += numero;
+        }
+        this.value = formatted;
+      }
+    });
+  });
 </script>
+<style>
+  /* Estilo para o campo de telefone */
+  .iti {
+    width: 100%;
+  }
+
+  .iti__country-list {
+    z-index: 10000;
+  }
+</style>

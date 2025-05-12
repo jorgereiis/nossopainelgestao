@@ -21,9 +21,16 @@ from .utils import (
     get_all_labels,
     criar_label_se_nao_existir,
     get_saudacao_por_hora,
+    validar_numero_whatsapp,
+    registrar_log,
 )
 # URL base da API do WhatsApp
 URL_API_WPP = os.getenv("URL_API_WPP")
+DIR_LOGS_AGENDADOS = os.getenv("DIR_LOGS_AGENDADOS")
+DIR_LOGS_INDICACOES = os.getenv("DIR_LOGS_INDICACOES")
+TEMPLATE_LOG_MSG_SUCESSO = os.getenv("TEMPLATE_LOG_MSG_SUCESSO")
+TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
+TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -192,12 +199,11 @@ def envio_apos_novo_cadastro(sender, instance, created, **kwargs):
     primeiro_nome = nome_cliente.split(' ')[0]
 
     telefone_raw = str(instance.telefone or "").strip()
-    telefone_digits = re.sub(r'\D', '', telefone_raw)
 
-    if len(telefone_digits) < 10:
-        return  # Número inválido
-
-    telefone_formatado = '55' + telefone_digits
+    telefone_formatado = validar_numero_whatsapp(telefone_raw)
+    if not telefone_formatado:
+        return
+    
     tipo_envio = "Cadastro"
 
     token_user = SessaoWpp.objects.filter(usuario=usuario).first()
@@ -237,9 +243,12 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     """
     nome_cliente = str(cliente_indicador)
     primeiro_nome = nome_cliente.split(' ')[0]
-    telefone_formatado = '55' + re.sub(r'\D', '', str(cliente_indicador.telefone))
     tipo_envio = "Indicação"
     now = datetime.now()
+
+    telefone_formatado = validar_numero_whatsapp(str(cliente_indicador.telefone))
+    if not telefone_formatado:
+        return
 
     # Planos ativos
     plano_desconto = PlanoIndicacao.objects.filter(tipo_plano="desconto", usuario=usuario, ativo=True).first()
@@ -358,71 +367,61 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
         enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
 
 
+def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, cliente: str, tipo_envio: str) -> None:
+    """
+    Envia uma mensagem via API WPP para um número validado.
+    Registra logs de sucesso, falha e número inválido.
+    """
+    telefone_validado = validar_numero_whatsapp(telefone, token)
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-# Função para enviar mensagens e registrar em arquivo de log
-def enviar_mensagem(telefone, mensagem, usuario, token, cliente, tipo):
-    url = URL_API_WPP + '/{}/send-message'.format(usuario)
+    if not telefone_validado:
+        log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(
+            timestamp, tipo_envio.upper(), usuario, cliente
+        )
+        registrar_log(log, usuario, DIR_LOGS_INDICACOES)
+        print(log.strip())
+        return
+
+    url = f"{URL_API_WPP}/{usuario}/send-message"
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Authorization': 'Bearer ' + token
-    }
-    body = {
-        'phone': telefone,
-        'message': mensagem,
-        'isGroup': False
+        'Authorization': f'Bearer {token}'
     }
 
-    max_tentativas = 3  # Definir o número máximo de tentativas
-    tentativa = 1
+    for tentativa in range(1, 3):
+        body = {
+            'phone': telefone_validado,
+            'message': mensagem,
+            'isGroup': False
+        }
 
-    # Nome do arquivo de log baseado no nome do usuário
-    log_directory = './logs/Envios indicacoes realizadas/'
-    log_filename = os.path.join(log_directory, '{}.log'.format(usuario))
-    data_hora_atual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        try:
+            response = requests.post(url, headers=headers, json=body)
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    while tentativa <= max_tentativas:
-        if tentativa == 2:
-            tel = telefone
-            if tel.startswith('55'):
-                tel = tel[2:]
+            if response.status_code in (200, 201):
+                log = TEMPLATE_LOG_MSG_SUCESSO.format(
+                    timestamp, tipo_envio.upper(), usuario, telefone_validado
+                )
+                registrar_log(log, usuario, DIR_LOGS_INDICACOES)
+                break
 
-                body = {
-                    'phone': tel,
-                    'message': mensagem,
-                    'isGroup': False
-                }
-        response = requests.post(url, headers=headers, json=body)
+            # Tentativa com erro
+            response_data = response.json()
+            error_message = response_data.get('message', 'Erro desconhecido')
 
-        # Verificar se o diretório de logs existe e criar se necessário
-        if not os.path.exists(log_directory):
-            os.makedirs(log_directory)
-        # Verificar se o arquivo de log existe e criar se necessário
-        if not os.path.isfile(log_filename):
-            open(log_filename, 'w').close()
-        # Verificar o status da resposta e tomar ações apropriadas, se necessário
-        if response.status_code == 200 or response.status_code == 201:
-            with open(log_filename, 'a') as log_file:
-                log_file.write('[{}] [TIPO][{}] [USUÁRIO][{}] [CLIENTE][{}] Mensagem enviada!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), tipo, usuario, cliente))
-            break  # Sai do loop se a resposta for de sucesso
-        elif response.status_code == 400:
-            response_data = json.loads(response.text)
-            error_message = response_data.get('message')
-            with open(log_filename, 'a') as log_file:
-                log_file.write('[{}] [TIPO][{}] [USUÁRIO][{}] [CLIENTE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), tipo, usuario, cliente, response.status_code, tentativa, error_message))
-        else:
-            print(f"[ERRO ENVIO DE MSGS] [{response.status_code}] \n [{response.text}]")
-            response_data = json.loads(response.text)
-            error_message = response_data.get('message')
-            with open(log_filename, 'a') as log_file:
-                log_file.write('[{}] [TIPO][{}] [USUÁRIO][{}] [CLIENTE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), tipo, usuario, cliente, response.status_code, tentativa, error_message))
+        except (requests.RequestException, json.JSONDecodeError) as e:
+            error_message = str(e)
 
-        # Incrementa o número de tentativas
-        tentativa += 1
-
-        # Tempo de espera aleatório entre cada tentativa com limite máximo de 50 segundos
-        tempo_espera = random.uniform(20, 50)
-        time.sleep(tempo_espera)
+        log = TEMPLATE_LOG_MSG_FALHOU.format(
+            timestamp, tipo_envio.upper(), usuario, cliente,
+            response.status_code if 'response' in locals() else 'N/A',
+            tentativa, error_message
+        )
+        registrar_log(log, usuario, DIR_LOGS_INDICACOES)
+        time.sleep(random.uniform(5, 10))  # Espera entre 5 a 10 segundos antes de tentar novamente
 
 
 # ALTERAR LABEL DO CONTATO NO WHATSAPP APÓS NOVO CADASTRO OU ALTERAÇÃO DE CLIENTE
@@ -472,8 +471,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
 
     # Se for novo, ou mudou servidor, ou cancelado, ou reativado
     if created or servidor_foi_modificado or cliente_foi_cancelado or cliente_foi_reativado:
-        telefone = re.sub(r'\D+', '', instance.telefone)
-        telefone_com_55 = f'55{telefone}'
+        telefone = str(instance.telefone)
 
         # Obtém token da sessão
         try:
@@ -484,7 +482,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
 
         # Verifica se número existe no WhatsApp
         try:
-            numero_existe = check_number_status(telefone_com_55, token)
+            numero_existe = check_number_status(telefone, token)
             if not numero_existe:
                 print(f"⚠️ Número {telefone} não é válido no WhatsApp.")
                 return
@@ -494,7 +492,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
 
         # Obtém labels atuais
         try:
-            labels_atuais = get_label_contact(telefone_com_55, token)
+            labels_atuais = get_label_contact(telefone, token)
         except Exception as e:
             print(f"❌ Erro ao obter labels atuais do contato: {e}")
             labels_atuais = []
@@ -520,7 +518,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
                 label_id_1=nova_label_id,
                 label_id_2=labels_atuais,
                 label_name=label_desejada,
-                telefone=telefone_com_55,
+                telefone=telefone,
                 token=token
             )
 

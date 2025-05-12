@@ -14,10 +14,12 @@ from django.db.models.functions import ExtractMonth
 from django.contrib.auth.views import LoginView
 from django.views.generic.list import ListView
 from datetime import timedelta, datetime, date
+from django.utils.dateparse import parse_date
 from django.forms.models import model_to_dict
 from django.db.models.functions import Upper
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q, Count
+from .utils import validar_numero_whatsapp
 from babel.numbers import format_currency
 from django.contrib import messages
 from django.utils import timezone
@@ -31,7 +33,7 @@ import plotly.express as px
 import geopandas as gpd
 import pandas as pd
 import calendar
-from django.utils.dateparse import parse_date
+
 
 from .utils import DDD_UF_MAP
 
@@ -411,163 +413,93 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 
 @login_required
 def send_message_wpp(request):
-    if request.method == 'POST':
-        BASE_URL = url_api + '/{}/send-{}'
-        sessao = get_object_or_404(SessaoWpp, usuario=request.user)
-        tipo_envio = request.POST.get('options')
-        mensagem = request.POST.get('mensagem')
-        imagem = request.FILES.get('imagem')
-        usuario = request.user
-        token = sessao.token
-        clientes = None
-        log_directory = './logs/Envios manuais/'
-        log_filename = os.path.join(log_directory, '{}.log'.format(usuario))
-        log_send_result_filename = os.path.join(log_directory, '{}_send_result.log'.format(usuario))
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método inválido'}, status=400)
+
+    BASE_URL = url_api + '/{}/send-{}'
+    usuario = request.user
+    sessao = get_object_or_404(SessaoWpp, usuario=usuario)
+    token = sessao.token
+    tipo_envio = request.POST.get('options')
+    mensagem = request.POST.get('mensagem')
+    imagem = request.FILES.get('imagem')
+
+    log_directory = './logs/Envios manuais/'
+    log_filename = os.path.join(log_directory, f'{usuario}.log')
+    log_result_filename = os.path.join(log_directory, f'{usuario}_send_result.log')
+    os.makedirs(log_directory, exist_ok=True)
+
+    imagem_base64 = None
+    if imagem:
+        imagem_base64 = base64.b64encode(imagem.read()).decode('utf-8')
+
+    def log_result(file_path, content):
+        with codecs.open(file_path, 'a', encoding='utf-8') as f:
+            f.write(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {content}\n")
+
+    def enviar_mensagem(url, telefone):
+        telefone_validado = validar_numero_whatsapp(telefone)
+        if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone_validado, data_envio=timezone.now().date()).exists():
+            log_result(log_result_filename, f"{telefone_validado} - ⚠️ Já foi feito envio hoje!")
+            return
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': f'Bearer {token}'
+        }
+        body = {
+            'phone': telefone_validado,
+            'isGroup': False,
+            'message': mensagem
+        }
         if imagem:
-            imagem_base64 = base64.b64encode(imagem.read()).decode('utf-8')
+            body.update({
+                'filename': str(imagem),
+                'caption': mensagem,
+                'base64': f'data:image/png;base64,{imagem_base64}'
+            })
 
-        def enviar_mensagem(url, telefone):
-            # Verificar se já enviou uma mensagem para este telefone hoje
-            if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone, data_envio=timezone.now().date()).exists():
-                # Verificar se o diretório de logs existe e criar se necessário
-                if not os.path.exists(log_directory):
-                    os.makedirs(log_directory)
-                # Verificar se o arquivo de log existe e criar se necessário
-                if not os.path.isfile(log_send_result_filename):
-                    open(log_send_result_filename, 'w').close()
-                # Escrever no arquivo de log
-                with codecs.open(log_send_result_filename, 'a', encoding='utf-8') as log_file:
-                    log_file.write('[{}] {} - ⚠️ Já foi feito envio hoje!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
+        response = requests.post(url, headers=headers, json=body)
 
-            else:
-                # Prossegue com o envio da mensagem
-                if not telefone.startswith('55'):
-                    telefone = '55' + telefone
+        if response.status_code in [200, 201]:
+            log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{telefone_validado}] Mensagem enviada!")
+            log_result(log_result_filename, f"{telefone_validado} - ✅ Mensagem enviada")
+            MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone_validado)
+            time.sleep(random.uniform(5, 12))
+        else:
+            try:
+                response_data = response.json()
+                error_message = response_data.get('message', response.text)
+            except json.decoder.JSONDecodeError:
+                error_message = response.text
+            log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{telefone_validado}] [CODE][{response.status_code}] - {error_message}")
+            log_result(log_result_filename, f"{telefone_validado} - ❌ Não enviada (consultar log)")
 
-                headers = {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                }
-                body = {
-                    'phone': telefone,
-                    'isGroup': False,
-                    'message': mensagem
-                }
+    # Coleta de contatos
+    telefones = []
+    clientes = []
+    if tipo_envio == 'ativos':
+        clientes = Cliente.objects.filter(usuario=usuario, cancelado=False, nao_enviar_msgs=False)
+        telefones = [re.sub(r'\s+|\W', '', c.telefone) for c in clientes]
+    elif tipo_envio == 'cancelados':
+        clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=40), nao_enviar_msgs=False)
+        telefones = [re.sub(r'\s+|\W', '', c.telefone) for c in clientes]
+    elif tipo_envio == 'avulso':
+        telefones_file = request.FILES.get('telefones')
+        if telefones_file:
+            lines = telefones_file.read().decode('utf-8').splitlines()
+            telefones = [re.sub(r'\s+|\W', '', tel) for tel in lines if tel.strip()]
 
-                if imagem:
-                    body['filename'] = str(imagem)
-                    body['caption'] = mensagem
-                    body['base64'] = 'data:image/png;base64,' + imagem_base64
+    if not telefones:
+        return JsonResponse({'error': 'Nenhum telefone válido encontrado'}, status=400)
 
-                max_attempts = 3
-                attempts = 1
-                while attempts <= max_attempts:
-                    if attempts == 2:
-                        # Tratando o telefone como padrão Brasileiro para remover o dígito '9' e tentar fazer novo envio
-                        tel = telefone
-                        if tel.startswith('55'):
-                            ddi = tel[:2]
-                            ddd = tel[2:4]
-                            tel = tel[4:]
-                            # Remove o dígito '9' se o telefone tiver 9 dígitos
-                            if len(tel) == 9 and tel.startswith('9'):
-                                tel = tel[1:]
-                                body['phone'] = ddi + ddd + tel
-                    
-                    if attempts == 3:
-                        # Tratando o telefone como padrão Internacional, revomendo apenas os dígitos '55'
-                        tel = telefone
-                        if tel.startswith('55'):
-                            tel = tel[2:]
-                            body['phone'] = tel
+    url_envio = BASE_URL.format(usuario, 'image' if imagem else 'message')
+    for telefone in telefones:
+        enviar_mensagem(url_envio, telefone)
 
-                    response = requests.post(url, headers=headers, json=body)
+    return JsonResponse({'success': 'Envio concluído'}, status=200)
 
-                    if response.status_code == 200 or response.status_code == 201:
-                        # Verificar se o diretório de logs existe e criar se necessário
-                        if not os.path.exists(log_directory):
-                            os.makedirs(log_directory)
-                        if not os.path.exists(log_directory):
-                            os.makedirs(log_directory)
-                        # Verificar se o arquivo de log existe e criar se necessário
-                        if not os.path.isfile(log_filename):
-                            open(log_filename, 'w').close()
-                        if not os.path.isfile(log_send_result_filename):
-                            open(log_send_result_filename, 'w').close()
-                        # Escrever no arquivo de log
-                        with open(log_filename, 'a') as log_file:
-                            log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] Mensagem enviada!\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone))
-                        with codecs.open(log_send_result_filename, 'a', encoding='utf-8') as log_file:
-                            log_file.write('[{}] {} - ✅ Mensagem enviada\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
-                        # Registrar o envio da mensagem para o dia atual
-                        if telefone.startswith('55'):
-                            telefone=telefone[2:]
-                        MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone)
-                        time.sleep(random.uniform(5, 12))
-                        break
-                    else:
-                        if attempts <= max_attempts:
-                            time.sleep(random.uniform(10, 20))
-                        # Verificar se o diretório de logs existe e criar se necessário
-                        if not os.path.exists(log_directory):
-                            os.makedirs(log_directory)
-                        # Verificar se o arquivo de log existe e criar se necessário
-                        if not os.path.isfile(log_filename):
-                            open(log_filename, 'w').close()
-                        # Escrever no arquivo de log
-                        with open(log_filename, 'a') as log_file:
-                            response_data={}
-                            try:
-                                response_data = json.loads(response.text)
-                            except json.decoder.JSONDecodeError as e:
-                                error_message = response_data.get('message') if response_data.get('message') else str(e)
-                                log_file.write('[{}] [TIPO][Manual] [USUÁRIO][{}] [TELEFONE][{}] [CODE][{}] [TENTATIVA {}] - {}\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), usuario, telefone, response.status_code, attempts, error_message))
-
-                        attempts += 1
-
-                    if attempts == max_attempts:
-                        # Verificar se o diretório de logs existe e criar se necessário
-                        if not os.path.exists(log_directory):
-                            os.makedirs(log_directory)
-                        # Verificar se o arquivo de log existe e criar se necessário
-                        if not os.path.isfile(log_send_result_filename):
-                            open(log_send_result_filename, 'w').close()
-                        # Escrever no arquivo de log
-                        with codecs.open(log_send_result_filename, 'a', encoding='utf-8') as log_file:
-                            log_file.write('[{}] {} - ❌ Não enviada (consultar log)\n'.format(datetime.now().strftime("%d-%m-%Y %H:%M:%S"), telefone))
-
-        if tipo_envio == 'ativos':
-            clientes = Cliente.objects.filter(usuario=usuario, cancelado=False, nao_enviar_msgs=False)
-            telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
-
-        elif tipo_envio == 'cancelados':
-            clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=40),nao_enviar_msgs=False)
-            telefones = ','.join([re.sub(r'\s+|\W', '', cliente.telefone) for cliente in clientes])
-
-        elif tipo_envio == 'avulso':
-            telefones_file = request.FILES.get('telefones')
-            if telefones_file:
-                telefones_data = telefones_file.read().decode('utf-8').split('\n')
-                telefones = ','.join([re.sub(r'\s+|\W', '', telefone) for telefone in telefones_data if telefone.strip()])
-
-        if clientes is not None:
-            url = BASE_URL.format(usuario, 'image' if imagem else 'message')
-            for cliente in clientes:
-                telefone_limpo = re.sub(r'\s+|\W', '', cliente.telefone)
-
-                enviar_mensagem(url, telefone_limpo)
-
-        elif telefones:
-            url = BASE_URL.format(usuario, 'image' if imagem else 'message')
-            for telefone in telefones.split(','):
-                telefone_limpo = re.sub(r'\s+|\W', '', telefone)
-                
-                enviar_mensagem(url, telefone_limpo)
-
-        return JsonResponse({'success': 'Envio concluído'}, status=200)
-
-    return JsonResponse({'error': 'Método inválido'}, status=400)
 
 
 @login_required
