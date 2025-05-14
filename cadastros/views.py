@@ -4,13 +4,13 @@ import requests, operator, logging, codecs, random, base64, json, time, re, os, 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
+from django.db.models.functions import ExtractMonth, ExtractYear
 from plotly.colors import sample_colorscale, make_colorscale
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models.deletion import ProtectedError
 from django.views.decorators.cache import cache_page
-from django.db.models.functions import ExtractMonth
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.views import LoginView
 from django.views.generic.list import ListView
 from datetime import timedelta, datetime, date
@@ -380,7 +380,14 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             usuario=self.request.user,
         ).count()
 
-        aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
+        anos_adesao = (
+            Cliente.objects.filter(usuario=self.request.user)
+            .annotate(ano=ExtractYear('data_adesao'))
+            .values_list('ano', flat=True)
+            .distinct()
+            .order_by('-ano')
+        )
+
         range_num = range(1,32)
 
         context.update(
@@ -402,10 +409,12 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 ## context para modal de edição
                 "planos": planos,
                 "servidores": servidores,
-                "aplicativos": aplicativos,
                 "indicadores": indicadores,
                 "dispositivos": dispositivos,
                 "formas_pgtos": formas_pgtos,
+                ## context para o gráfico de adesões e cancelamentos
+                "anos_adesao": anos_adesao,
+                "anuo_atual": ano_atual,
             }
         )
         return context
