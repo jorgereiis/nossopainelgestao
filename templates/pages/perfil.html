@@ -62,7 +62,7 @@
                   <a href="#" class="btn btn-outline-primary d-none d-md-block">Alterar Senha</a>
                   <div class="ms-2"></div>
                   <a href="#" class="btn btn-outline-primary d-none d-md-block" data-instituicao="{{instituicao}}"
-                  data-beneficiario="{{beneficiario}}" data-tipo_chave="{{tipo_chave}}" data-chave="{{chave}}" data-nome="{{nome_user}}" data-sobrenome="{{sobrenome_user}}" data-email="{{email}}" data-wpp="{{wpp}}" onclick="exibirModalEdicaoDp(this)">Editar Dados</a>
+                  data-beneficiario="{{beneficiario}}" data-tipo_chave="{{tipo_chave}}" data-chave="{{chave}}" data-nome="{{nome_user}}" data-sobrenome="{{sobrenome_user}}" data-email="{{email}}" data-wpp="{{wpp|formatar_telefone}}" onclick="exibirModalEdicaoDp(this)">Editar Dados</a>
                 </div>
               </div>
               <!-- nav -->
@@ -204,7 +204,7 @@
             <div class="mb-3 row">
               <label for="wpp" class="col-sm-4 col-form-label form-label">WhatsApp</label>
               <div class="col-md-8 col-12">
-                <input type="tel" class="form-control" id="wpp" name="wpp" autocomplete="off" required>
+                <input type="text" class="form-control" placeholder="Contato" id="wpp" name="wpp" required>
               </div>
             </div>
             <div class="mb-6 mt-6">
@@ -255,7 +255,6 @@
 </html>
 
 <script>
-  // Função para exibir o modal de edição
   function exibirModalEdicaoDp(botao) {
     let wpp = botao.dataset.wpp;
     let nome = botao.dataset.nome;
@@ -284,7 +283,7 @@
     form.querySelector("#email").value = email;
     form.querySelector("#chave").value = chave;
     form.querySelector("#nome").value = nome;
-    form.querySelector("#wpp").value = formatarTelefoneBrasil(wpp);
+    form.querySelector("#wpp").value = wpp;
 
     const tipoChaveSelect = form.querySelector("#tipo_chave");
     if (tipo_chave === '--') {

@@ -13,7 +13,11 @@ teste.sh
 m3u8/
 error_log
 logs/*.log
+logs/**/*.log
 *.log
+backup.log
+logs
+
 
 ### Django ###
 *.pot

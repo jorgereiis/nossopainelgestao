@@ -6,8 +6,9 @@ Inclui entidades como Cliente, Plano, Mensalidade, Aplicativo, Sessão WhatsApp,
 import re
 from django.db import models
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, date
 from django.contrib.auth.models import User
+from django.utils.timezone import localtime, now
 from django.core.validators import MinValueValidator
 from .utils import DDD_UF_MAP
 
@@ -106,7 +107,7 @@ class Cliente(models.Model):
     data_vencimento = models.DateField("Data de vencimento inicial", blank=True, null=True)
     forma_pgto = models.ForeignKey(Tipos_pgto, on_delete=models.CASCADE, default=1, verbose_name="Forma de pagamento")
     plano = models.ForeignKey(Plano, on_delete=models.CASCADE, default=1)
-    data_adesao = models.DateField("Data de adesão", default=timezone.now)
+    data_adesao = models.DateField("Data de adesão", default=date.today)
     data_cancelamento = models.DateField("Data de cancelamento", blank=True, null=True)
     ultimo_pagamento = models.DateField("Último pagamento realizado", blank=True, null=True)
     cancelado = models.BooleanField("Cancelado", default=False)
@@ -224,6 +225,7 @@ class SessaoWpp(models.Model):
     usuario = models.CharField(max_length=255)
     token = models.CharField(max_length=255)
     dt_inicio = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Sessão do WhatsApp"

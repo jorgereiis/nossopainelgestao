@@ -36839,8 +36839,8 @@ textarea.form-control-lg {
   width: 100%;
   max-width: 250px;
   padding: 0rem;
-  background-color: #FFFFFF;
-  border-right: 1px solid #FFFFFF;
+  background-color: #212b36;
+  border-right: 2px solid #000000;
   transition: margin 0.25s ease-out;
 }
 .navbar-vertical .slimScrollDiv {
@@ -36888,14 +36888,14 @@ textarea.form-control-lg {
   transition: all 0.5s;
 }
 .navbar-vertical .navbar-nav .nav-item .nav-link:hover {
-  color: var(--dashui-primary);
+  color: var(--dashui-gray-100);
 }
 .navbar-vertical .navbar-nav .nav-item .nav-link:hover .nav-icon {
   color: var(--dashui-primary);
   opacity: 1;
 }
 .navbar-vertical .navbar-nav .nav-item .nav-link.active {
-  color: var(--dashui-primary);
+  color: var(--dashui-gray-100);
 }
 .navbar-vertical .navbar-nav .nav-item .nav-link.active .nav-icon {
   color: var(--dashui-primary);
@@ -36934,30 +36934,30 @@ textarea.form-control-lg {
   padding: 0.25rem 3rem;
 }
 .navbar-vertical .navbar-nav .nav .nav-item .nav-link:hover {
-  color: var(--dashui-primary);
+  color: var(--dashui-gray-100);
 }
 .navbar-vertical .navbar-nav .nav .nav-item .nav-link.active {
-  color: var(--dashui-primary);
+  color: var(--dashui-gray-100);
 }
 .navbar-vertical .navbar-nav .nav .nav-item .nav .nav-item .nav-link {
   color: var(--dashui-gray-600);
   padding: 0.25rem 3.5rem;
 }
 .navbar-vertical .navbar-nav .nav .nav-item .nav .nav-item .nav-link:hover {
-  color: var(--dashui-primary);
+  color: var(--dashui-gray-100);
 }
 .navbar-vertical .navbar-nav .nav .nav-item .nav .nav-item .nav-link.active {
-  color: var(--dashui-primary);
+  color: var(--dashui-gray-100);
 }
 .navbar-vertical .navbar-nav .nav .nav-item .nav .nav-item .nav .nav-item .nav-link {
   color: var(--dashui-gray-600);
   padding: 0.25rem 4.2rem;
 }
 .navbar-vertical .navbar-nav .nav .nav-item .nav .nav-item .nav .nav-item .nav-link:hover {
-  color: var(--dashui-primary);
+  color: var(--dashui-gray-100);
 }
 .navbar-vertical .navbar-nav .nav .nav-item .nav .nav-item .nav .nav-item .nav-link.active {
-  color: var(--dashui-primary);
+  color: var(--dashui-gray-100);
 }
 
 .collapse.in {

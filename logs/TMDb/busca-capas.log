@@ -163,3 +163,5 @@
 [2025-05-05 23:38:30.268870] [NAO ENCONTRADO] 'Em Busca do Cálice Sagrado [L]' -> 'Em Busca do Cálice Sagrado'
 [2025-05-05 23:38:31.021500] [CONFLITO] 'A Agência S01E141' -> 'Timmy Fiasco' (ano: None, retornado: 2020)
 [2025-05-05 23:38:31.023196] [NAO ENCONTRADO] 'A Agência S01E141' -> 'A Agência 1' | S01E14
+[2025-05-13 00:25:05.897529] [CONFLITO] 'A Agência S01E111' -> 'Timmy Fiasco' (ano: None, retornado: 2020)
+[2025-05-13 00:25:05.899097] [NAO ENCONTRADO] 'A Agência S01E111' -> 'A Agência 1' | S01E11

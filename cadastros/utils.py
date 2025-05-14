@@ -1,3 +1,4 @@
+from django.utils.timezone import localtime, now
 from django.utils import timezone
 from typing import Union
 from datetime import datetime
@@ -56,7 +57,7 @@ def get_saudacao_por_hora(hora_referencia=None):
     Retorna uma saudação apropriada com base no horário.
     """
     if not hora_referencia:
-        hora_referencia = timezone.now().time()
+        hora_referencia = localtime(now()).time()
 
     if hora_referencia < datetime.strptime("12:00:00", "%H:%M:%S").time():
         return "Bom dia"

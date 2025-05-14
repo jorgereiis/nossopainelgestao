@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
+# Função para validar o número de telefone
 def definir_dia_pagamento(dia_adesao):
     """
     Define o dia padrão de pagamento com base no dia de adesão.
@@ -55,6 +56,7 @@ def definir_dia_pagamento(dia_adesao):
     return 30
 
 
+# Atualiza o último pagamento do cliente sempre que uma mensalidade for paga
 @receiver(post_save, sender=Mensalidade)
 def atualiza_ultimo_pagamento(sender, instance, **kwargs):
     """
@@ -68,6 +70,7 @@ def atualiza_ultimo_pagamento(sender, instance, **kwargs):
             cliente.save()
 
 
+# CRIA NOVA MENSALIDADE APÓS CADASTRO DE NOVO CLIENTE
 @receiver(post_save, sender=Cliente)
 def criar_mensalidade(sender, instance, created, **kwargs):
     """
@@ -183,8 +186,8 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         instance.cliente.save()
 
 
-
-# REALIZA ENVIO PARA CLIENTE INDICADOR QUANDO HOUVER CADASTRO DE NOVO CLIENTE COM INDICAÇÃO
+# ENVIO DE MENSAGEM APÓS CADASTRO DE NOVO CLIENTE
+# Envia mensagem de boas-vindas e verifica se o cliente foi indicado por outro cliente.
 @receiver(post_save, sender=Cliente)
 def envio_apos_novo_cadastro(sender, instance, created, **kwargs):
     """
@@ -227,7 +230,8 @@ def envio_apos_novo_cadastro(sender, instance, created, **kwargs):
         envio_apos_nova_indicacao(usuario, instance, instance.indicado_por)
 
 
-# Função para realizar envio de mensagem após cadastro de um novo cliente. Além disso, verifica se o novo cliente veio por indicação e realiza envio ao cliente indicador.
+# ENVIO DE MENSAGEM APÓS NOVA INDICAÇÃO
+# Envia mensagem de bonificação ao cliente que indicou um novo cliente.
 def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     """
     Avalia a quantidade de indicações feitas por um cliente e envia mensagem de bonificação com descontos ou prêmios.
@@ -367,6 +371,8 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
         enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
 
 
+# ENVIO DE MENSAGEM VIA API WPP
+# Envia mensagem para o número validado via API WPP.
 def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, cliente: str, tipo_envio: str) -> None:
     """
     Envia uma mensagem via API WPP para um número validado.

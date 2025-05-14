@@ -48,7 +48,7 @@ schedule.every().day.at("13:30").do(
 schedule.every().day.at("17:00").do(
     run_threaded, mensalidades_canceladas
 )
-schedule.every().day.at("00:15").do(
+"""schedule.every().day.at("00:15").do(
     run_threaded, executar_comparar_lista_m3u8_com_lock
 )
 schedule.every().day.at("00:25").do(
@@ -59,7 +59,7 @@ schedule.every().day.at("00:35").do(
 )
 schedule.every(60).minutes.do(
     run_threaded, backup_db_sh
-)
+)"""
 
 # Executa imediatamente ao iniciar o servidor
 #run_threaded(executar_comparar_lista_m3u8_com_lock)

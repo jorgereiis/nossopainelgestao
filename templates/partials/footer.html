@@ -1,10 +1,11 @@
 {% load static %}
+{% now "Y" as now %}
 
-<footer class="page-footer footer footer-static footer-light navbar-border navbar-shadow">
+<footer class="page-footer footer footer-static footer-light navbar-border navbar-shadow py-3">
     <div class="container">
         <div class="row">
             <div class="col-md-12 text-center">
-                <p>Developed by JRG &copy; {{ current_year }}</p>
+                <small class="text-muted">Developed by JRG &copy; {{ now }}</small>
             </div>
         </div>
     </div>

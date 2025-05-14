@@ -1,15 +1,3 @@
-/*
-=========================================================
-* Dash UI - Bootstrap 5 Admin & Dashboard Theme
-=========================================================
-* Product Page: https://codescandy.com/dashui/index.html
-* Copyright 2020 Codescandy (https://codescandy.com/)
-* Designed and coded by https://codescandy.com
-========================================================= */
-
-
-
-
 //
 // Main js
 //
