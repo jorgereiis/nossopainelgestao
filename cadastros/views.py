@@ -33,9 +33,10 @@ import plotly.express as px
 import geopandas as gpd
 import pandas as pd
 import calendar
+from .utils import envio_apos_novo_cadastro, criar_mensalidade
 
 
-from .utils import DDD_UF_MAP
+from .models import DDD_UF_MAP
 
 # Constantes
 PLANOS_MESES = {
@@ -447,7 +448,8 @@ def send_message_wpp(request):
             f.write(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {content}\n")
 
     def enviar_mensagem(url, telefone):
-        telefone_validado = validar_numero_whatsapp(telefone)
+        #telefone_validado = validar_numero_whatsapp(telefone)
+        telefone_validado = telefone
         if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone_validado, data_envio=timezone.now().date()).exists():
             log_result(log_result_filename, f"{telefone_validado} - ⚠️ Já foi feito envio hoje!")
             return
@@ -1651,50 +1653,74 @@ def create_customer(request):
                     "error_message": "Data de vencimento inválida.",
                 })
 
-        # Cria cliente
-        cliente = Cliente(
-            nome=f"{nome} {sobrenome}",
-            telefone=telefone,
-            dispositivo=dispositivo,
-            sistema=sistema,
-            indicado_por=indicador,
-            servidor=servidor,
-            forma_pgto=forma_pgto,
-            plano=plano,
-            data_vencimento=data_vencimento,
-            notas=notas,
-            usuario=usuario,
-        )
-
         try:
-            cliente.save()
-        except ValidationError as e:
-            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
-                         timezone.localtime(), usuario, request.META['REMOTE_ADDR'], e, exc_info=True)
+            with transaction.atomic():
+                # SALVAR CLIENTE
+                try:
+                    cliente = Cliente(
+                        nome=f"{nome} {sobrenome}",
+                        telefone=telefone,
+                        dispositivo=dispositivo,
+                        sistema=sistema,
+                        indicado_por=indicador,
+                        servidor=servidor,
+                        forma_pgto=forma_pgto,
+                        plano=plano,
+                        data_vencimento=data_vencimento,
+                        notas=notas,
+                        usuario=usuario,
+                    )
+                    cliente.save()
+                except Exception as e:
+                    logger.error("Erro ao salvar o cliente: %s", e, exc_info=True)
+                    raise Exception("Falha ao salvar os dados do cliente.")
+
+                # CRIAR CONTA DO APLICATIVO
+                if sistema.device_has_mac:
+                    try:
+                        device_id = post.get('id')
+                        email = post.get('email')
+                        senha = post.get('senha')
+
+                        if not all([device_id, email, senha]):
+                            raise ValueError("Dados da conta do Aplicativo estão incompletos.")
+
+                        ContaDoAplicativo.objects.create(
+                            device_id=device_id,
+                            email=email,
+                            device_key=senha,
+                            app=sistema,
+                            cliente=cliente,
+                            usuario=usuario,
+                        )
+                    except Exception as e:
+                        logger.error("Erro ao criar ContaDoAplicativo: %s", e, exc_info=True)
+                        raise Exception("Falha ao criar a conta do aplicativo.")
+
+                # ENVIO DE MENSAGEM
+                try:
+                    envio_apos_novo_cadastro(cliente)
+                except Exception as e:
+                    logger.error("Erro ao enviar mensagem para o cliente: %s", e, exc_info=True)
+                    raise Exception("Erro ao realizar cadastro!<p>Talvez você ainda não tenha conectado a sessão do WhatsApp.</p>")
+
+                # CRIAÇÃO DE MENSALIDADE
+                try:
+                    criar_mensalidade(cliente)
+                except Exception as e:
+                    logger.error("Erro ao criar a mensalidade: %s", e, exc_info=True)
+                    raise Exception("Falha ao criar a mensalidade do cliente.")
+
             return render(request, "pages/cadastro-cliente.html", {
-                "error_message": "Não foi possível cadastrar cliente!"
+                "success_message": "Novo cliente cadastrado com sucesso!",
             })
+
         except Exception as e:
             logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
-                         timezone.localtime(), usuario, request.META['REMOTE_ADDR'], e, exc_info=True)
+                        timezone.localtime(), usuario, request.META.get('REMOTE_ADDR', 'IP não identificado'), e, exc_info=True)
             return render(request, "pages/cadastro-cliente.html", {
-                "error_message": "Não foi possível cadastrar cliente!",
+                "error_message": str(e),
             })
-
-        # Se o sistema exige ID de dispositivo, cria ContaDoAplicativo
-        if sistema.device_has_mac:
-            ContaDoAplicativo.objects.create(
-                device_id=post.get('id'),
-                email=post.get('email'),
-                device_key=post.get('senha'),
-                app=sistema,
-                cliente=cliente,
-                usuario=usuario,
-            )
-
-        return render(request, "pages/cadastro-cliente.html", {
-            "success_message": "Novo cliente cadastrado com sucesso!",
-        })
 
     # Requisição GET (carrega formulário)
     return render(request, "pages/cadastro-cliente.html", {
@@ -1707,7 +1733,6 @@ def create_customer(request):
         'page_group': page_group,
         'page': page,
     })
-
 
 
 # AÇÃO PARA CRIAR NOVO OBJETO PLANO MENSAL

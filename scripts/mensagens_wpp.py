@@ -47,7 +47,8 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
     Envia uma mensagem via API WPP para um número validado.
     Registra logs de sucesso, falha e número inválido.
     """
-    telefone_validado = validar_numero_whatsapp(telefone, token)
+    #telefone_validado = validar_numero_whatsapp(telefone, token)
+    telefone_validado = telefone
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     if not telefone_validado:
@@ -370,7 +371,8 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
     print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [ENVIO][{tipo_envio.upper()}] [QTD.][{len(numeros)}]")
 
     for telefone in numeros:
-        numero_limpo = validar_numero_whatsapp(telefone, token)
+        #numero_limpo = validar_numero_whatsapp(telefone, token)
+        numero_limpo = telefone
 
         # Evita envio duplicado no mesmo dia
         if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=numero_limpo, data_envio=timezone.now().date()).exists():

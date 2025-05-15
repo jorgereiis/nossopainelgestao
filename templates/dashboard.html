@@ -15,8 +15,12 @@
         {% include 'partials/navbar-vertical.html' %}
         <!-- Page content -->
         <div id="page-content">
+
             {% include 'partials/header.html' %}
 
+            <!-- modal whatsapp connection -->
+            {% include 'partials/modals.html' %}
+        
             <!-- offcanvas settings -->
             <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasConfigs" aria-labelledby="offcanvasConfigsLabel">
                 <div class="offcanvas-header text-center">
@@ -155,32 +159,6 @@
                                 <div class="mb-2 mb-lg-0">
                                     <input id="data_criacao_user" value="{{data_criacao_user}}" hidden>
                                     <h2 class="mb-0  text-white">Boas-vindas, {{ nome_user }} <i class="bi bi-eye" id="eye"></i></h2>
-                                </div>
-
-                                <!-- Dropdown Opções -->
-                                <div class="btn-group">
-                                    <div class="dropdown">
-                                        <button class="btn btn-light mb-2 dropdown-toggle" data-bs-toggle="dropdown">
-                                            <img src="{% static 'assets/images/svg/list.svg' %}"> Menu
-                                        </button>
-                                        <div class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="{% url 'cadastro-aplicativo' %}"><img 
-                                                src="{% static 'assets/images/svg/app-indicator.svg' %}">
-                                                Aplicativos</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'cadastro-servidor' %}"><img
-                                                src="{% static 'assets/images/svg/hdd-stack.svg' %}">
-                                            Servidores</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'cadastro-dispositivo' %}"><img
-                                                        src="{% static 'assets/images/svg/display.svg' %}">
-                                                    Dispositivos</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'cadastro-plano-adesao' %}"><img
-                                                        src="{% static 'assets/images/svg/piggy-bank.svg' %}"> Planos de 
-                                                        Adesão</a></li>
-                                            <li><a class="dropdown-item" href="{% url 'cadastro-forma-pagamento' %}"><img
-                                                src="{% static 'assets/images/svg/credit-card.svg' %}"> Formas
-                                            de Pagamento</a></li>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -607,34 +585,6 @@
                     </div>
                     </div>
                 </div>
-                </div>
-                <!-- end modal -->
-
-                <!-- Modal de exibição do QRCode do WhatsApp -->
-                <div class="modal fade" id="qrcode-modal" tabindex="-1" role="dialog"
-                    aria-labelledby="qrcode-label">
-                    <div class="modal-dialog modal-dialog-centered" role="document">
-                    <div class="modal-content d-flex flex-column">
-                        <div class="modal-header">
-                        <h4 class="modal-title" id="qrcode-label">Sessão do WhatsApp</h4>
-                        <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
-                        </button>
-                        </div>
-                        <div class="modal-body">
-                            <div id="show-qrcode" class="flex-column text-center">
-                                <div class="text-muted mb-0">Aperte em Conectar para exibir o QRCode da sua sessão</div>
-                            </div>
-                            <input type="hidden" id="user-session" value="{{ request.user }}">
-                        </div>
-                        <div class="modal-footer d-flex justify-content-center">
-                        <div class="mensagem-erro" id="mensagem-erro"></div>
-                        <input type="hidden" name="servidor_id" id="servidor-id">
-                        <button type="submit" class="btn btn-success" id="conectar" onclick="connect()">Conectar</button>
-                        <button type="submit" class="btn btn-danger" id="desconectar" onclick="logout()" disabled>Desconectar</button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        </div>
-                    </div>
-                    </div>
                 </div>
                 <!-- end modal -->
 
