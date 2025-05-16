@@ -1,5 +1,6 @@
 {% load static %}
 
+
 <!-- Modal de exibição do QRCode do WhatsApp -->
 <div class="modal fade" id="qrcode-modal" tabindex="-1" role="dialog"
     aria-labelledby="qrcode-label">
@@ -20,10 +21,253 @@
         <div class="mensagem-erro" id="mensagem-erro"></div>
         <input type="hidden" name="servidor_id" id="servidor-id">
         <button type="submit" class="btn btn-success" id="conectar">Conectar</button>
-        <button type="submit" class="btn btn-danger" id="desconectar" disabled>Desconectar</button>
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-danger" id="desconectar" style="display: none;" disabled>Desconectar</button>
+        <button type="button" class="btn btn-secondary" id="cancelar" data-dismiss="modal">Cancelar</button>
         </div>
     </div>
     </div>
 </div>
 <!-- end modal -->
+
+<!-- script -->
+<script>
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    let statusSessao = "UNKNOWN";
+    let statusInterval = null;
+
+    function exibirMensagemErro(msg) {
+        const erro = document.getElementById("mensagem-erro");
+        erro.innerText = msg;
+        erro.classList.add("text-danger");
+        console.error("Erro exibido:", msg);
+    }
+
+    function setBotoes(conectarAtivo, desconectarAtivo) {
+        const btnConectar = document.getElementById("conectar");
+        const btnDesconectar = document.getElementById("desconectar");
+
+        // Regras de visibilidade
+        if (statusSessao === "CONNECTED") {
+            btnConectar.style.display = "none";
+            btnDesconectar.style.display = "inline-block";
+        } else {
+            btnConectar.style.display = "inline-block";
+            btnDesconectar.style.display = "none";
+        }
+
+        // Regras de habilitação
+        btnConectar.disabled = !conectarAtivo;
+        btnDesconectar.disabled = !desconectarAtivo;
+
+        console.log(`Botões atualizados:
+        - Conectar: ${conectarAtivo ? '✅ habilitado' : '❌ desabilitado'} | ${btnConectar.style.display}
+        - Desconectar: ${desconectarAtivo ? '✅ habilitado' : '❌ desabilitado'} | ${btnDesconectar.style.display}`);
+    }
+
+    function conectar() {
+        const qrContainer = document.getElementById("show-qrcode");
+        qrContainer.innerHTML = "⏳ Gerando QRCode...";
+        console.log("Chamando /conectar-wpp");
+
+        fetch("/conectar-wpp/", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrftoken,
+                "Accept": "application/json"
+            }
+        })
+        .then(res => {
+            console.log("Resposta recebida de /conectar-wpp/", res.status);
+            return res.json();
+        })
+        .then(data => {
+            console.log("Dados recebidos:", data.status);
+
+            if (data.status === "CONNECTED") {
+                qrContainer.innerHTML = "<span class='text-success'>✅ Sessão já está conectada!</span>";
+                statusSessao = "CONNECTED";
+                setBotoes(false, true);
+                atualizarVisibilidadeBotoes();
+                iniciarVerificacaoStatus();
+                return;
+            }
+
+            if (data.qrcode) {
+                qrContainer.innerHTML = `<img src="${data.qrcode}" style="max-width: 100%;" />`;
+                statusSessao = "QRCODE";
+                setBotoes(false, true);
+                atualizarVisibilidadeBotoes();
+                iniciarVerificacaoStatus();
+            } else {
+                qrContainer.innerHTML = "❌ Erro ao gerar QRCode.";
+                exibirMensagemErro(data.erro || "Erro desconhecido.");
+                statusSessao = "ERRO";
+                setBotoes(true, true); // libera botão desconectar
+            }
+        })
+        .catch(err => {
+            exibirMensagemErro("Erro ao conectar.");
+            console.error("Erro no fetch conectar:", err.status);
+            setBotoes(true, true);
+        });
+    }
+
+
+    function iniciarVerificacaoStatus() {
+        if (statusInterval) {
+            clearInterval(statusInterval);
+        }
+
+        statusInterval = setInterval(() => {
+            console.log("🔄 Verificando status em /status-wpp/");
+            fetch("/status-wpp/")
+            .then(res => res.json())
+            .then(data => {
+                console.log("📡 Status da sessão:", data.status);
+                const qrContainer = document.getElementById("show-qrcode");
+                statusSessao = data.status;
+
+                if (data.status === "CONNECTED") {
+                    qrContainer.innerHTML = "<span class='text-success'>✅ Você está conectado!</span>";
+                    setBotoes(false, true);
+                    atualizarVisibilidadeBotoes();
+
+                } else if (data.status === "QRCODE") {
+                    if (data.qrcode) {
+                        qrContainer.innerHTML = `<img src="${data.qrcode}" style="max-width: 100%;" />`;
+                    } else {
+                        qrContainer.innerHTML = "<span class='text-warning'>⚠️ QRCode indisponível.</span>";
+                    }
+                    setBotoes(false, true);
+                    atualizarVisibilidadeBotoes();
+
+                } else if (data.status === "CLOSED") {
+                    console.warn("⛔ Sessão encerrada. Tentando gerar novo QRCode...");
+                    conectar(); // reinicia o ciclo
+                }
+            })
+            .catch(err => {
+                exibirMensagemErro("Erro ao verificar status.");
+                console.error("Erro no fetch status:", err.status);
+                setBotoes(true, true);
+            });
+        }, 15000); // a cada 5 segundos
+    }
+
+    function desconectar() {
+        const qrContainer = document.getElementById("show-qrcode");
+        qrContainer.innerHTML = "⏳ Desconectando...";
+
+        const isConnected = statusSessao === "CONNECTED";
+        const endpoint = isConnected ? "/desconectar-wpp/" : "/cancelar-sessao-wpp/";
+        console.log(`🟡 Iniciando desconexão com: ${endpoint} | statusSessao atual: ${statusSessao}`);
+
+        const maxTentativas = 5;
+        let tentativas = 0;
+
+        function tentarDesconectar() {
+            tentativas++;
+            console.log(`🔁 Tentativa ${tentativas} para desconectar (${endpoint})`);
+
+            fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrftoken,
+                    "Accept": "application/json"
+                }
+            })
+            .then(async res => {
+                const contentType = res.headers.get("content-type");
+                const rawText = await res.text();
+
+                console.log("🟢 Resposta recebida:", res.status);
+
+                if (!res.ok) {
+                    throw new Error(`Erro HTTP ${res.status}`);
+                }
+
+                let json;
+                try {
+                    json = JSON.parse(rawText);
+                } catch (err) {
+                    throw new Error("Resposta não é um JSON válido.");
+                }
+
+                const sucesso =
+                    json.status === true &&
+                    json.message === "Session successfully closed";
+
+                if (sucesso) {
+                    console.log("🎉 Sessão finalizada com sucesso.");
+                    qrContainer.innerHTML = "🔌 Sessão desconectada.";
+                    setBotoes(true, false);
+                    atualizarVisibilidadeBotoes();
+                    statusSessao = "DISCONNECTED";
+                } else if (!isConnected && tentativas < maxTentativas) {
+                    console.warn("⚠️ Sessão não foi encerrada corretamente. Retentando...");
+                    setTimeout(tentarDesconectar, 2000); // espera 2s antes de repetir
+                } else {
+                    console.error("❌ Falha ao encerrar sessão após múltiplas tentativas.");
+                    exibirMensagemErro("Não foi possível desconectar a sessão.");
+                }
+            })
+            .catch(err => {
+                console.error("🚨 Erro na tentativa de desconexão:", err.status);
+                exibirMensagemErro("Erro ao desconectar.");
+            });
+        }
+
+        tentarDesconectar(); // inicia o processo
+    }
+
+    // Atualiza a visibilidade dos botões com base no status da sessão
+    function atualizarVisibilidadeBotoes() {
+        const btnConectar = document.getElementById("conectar");
+        const btnDesconectar = document.getElementById("desconectar");
+
+        if (statusSessao === "CONNECTED") {
+            btnConectar.style.display = "none";
+            btnDesconectar.style.display = "inline-block";
+        } else {
+            btnConectar.style.display = "inline-block";
+            btnDesconectar.style.display = "none";
+        }
+    }
+
+    // Eventos dos botões
+    document.getElementById("conectar").addEventListener("click", () => {
+        console.log("🟢 Botão CONECTAR clicado");
+        setBotoes(false, false); // bloqueia ambos até resposta
+        conectar();
+    });
+
+    document.getElementById("desconectar").addEventListener("click", () => {
+        console.log("🔴 Botão DESCONECTAR clicado");
+        desconectar();
+    });
+
+    // Ao abrir o modal
+    const modal = document.getElementById('qrcode-modal');
+    modal.addEventListener('shown.bs.modal', () => {
+        console.log("📌 Modal de QRCode ABERTO");
+
+        statusSessao = "UNKNOWN";
+        document.getElementById("mensagem-erro").innerText = "";
+        document.getElementById("show-qrcode").innerHTML =
+            "<div class='text-muted mb-0'>Aperte em Conectar para exibir o QRCode da sua sessão</div>";
+
+        setBotoes(true, false);
+        clearInterval(statusInterval);
+        statusInterval = null;
+    });
+
+    // Ao fechar o modal
+    modal.addEventListener('hidden.bs.modal', () => {
+        console.log("❌ Modal de QRCode FECHADO — encerrando verificações");
+        clearInterval(statusInterval);
+        statusInterval = null;
+    });
+</script>
+<!-- end script -->
+
+{% include 'partials/scripts.html' %}

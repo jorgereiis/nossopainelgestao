@@ -158,7 +158,9 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="mb-2 mb-lg-0">
                                     <input id="data_criacao_user" value="{{data_criacao_user}}" hidden>
-                                    <h2 class="mb-0  text-white">Boas-vindas, {{ nome_user }} <i class="bi bi-eye" id="eye"></i></h2>
+                                    <h2 class="mb-0  text-white">Boas-vindas, {{ nome_user }} 
+                                        <i class="bi bi-eye" id="eye"></i>
+                                    </h2>
                                 </div>
                             </div>
                         </div>
@@ -182,14 +184,17 @@
                                 <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold values1_h1">{{total_clientes}}</h1>
-                                    {% if clientes_em_atraso > 0%}
-                                    <span class="me-2 ms-auto"><span
-                                            class="text-dark me-2 values1_span">{{clientes_em_atraso}}</span><span
-                                            class="bi bi-arrow-down-short text-danger">Em atraso</span></span>
+                                    {% if clientes_em_atraso > 0 %}
+                                    <span class="me-2 ms-auto">
+                                        <i class="bi bi-hand-thumbs-down text-danger me-2"></i>
+                                        <span class="text-dark me-2 values1_span">{{clientes_em_atraso}}</span>
+                                        em atraso
+                                    </span>
                                     {% else %}
-                                    <span class="me-2 ms-auto"><span
-                                            class="text-dark me-2 values1_span">{{clientes_em_atraso}}</span>Em
-                                        atraso</span>
+                                    <span class="me-2 ms-auto">
+                                        <span class="text-dark me-2 values1_span">{{clientes_em_atraso}}</span>
+                                        sem atrasos
+                                    </span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -214,10 +219,18 @@
                                 <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold values2_h1">{{valor_total_pago}}</h1>
-                                    <p class="mb-0"><span
-                                            class="text-dark me-2 values2_span">{{valor_total_pago_qtd}}</span>Pago(s)
-                                        neste mês
+                                    {% if valor_total_pago_qtd > 0 %}
+                                    <p class="mb-0">
+                                        <i class="bi bi-hand-thumbs-up text-success me-2"></i>
+                                        <span class="text-dark me-2 values2_span">{{valor_total_pago_qtd}}</span>
+                                        pago(s) neste mês
                                     </p>
+                                    {% else %}
+                                    <p class="mb-0">
+                                        <span class="text-dark me-2 values2_span">{{valor_total_pago_qtd}}</span>
+                                        sem pagamentos
+                                    </p>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -242,14 +255,16 @@
                                 <div>
                                     <h1 class="fw-bold values3_h1">{{valor_total_receber}}</h1>
                                     {% if valor_total_receber_qtd > 0 %}
-                                    <p class="mb-0 "><i class="bi bi-exclamation-triangle text-warning me-2"></i><span
-                                            class="text-dark values3_span">{{valor_total_receber_qtd}}</span> vencem em
-                                        até 7 dias
+                                    <p class="mb-0 ">
+                                        <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                                        <span class="text-dark values3_span">{{valor_total_receber_qtd}}</span> 
+                                        vencem em até 7 dias
                                     </p>
                                     {% else %}
-                                    <p class="mb-0 "><span
-                                            class="text-dark me-2 values3_span">{{valor_total_receber_qtd}}</span> sem
-                                        vencimentos</p>
+                                    <p class="mb-0 ">
+                                        <span class="text-dark me-2 values3_span">{{valor_total_receber_qtd}}</span> 
+                                        sem vencimentos
+                                    </p>
                                     {% endif %}
                                 </div>
                             </div>
@@ -809,6 +824,9 @@
                             <div id="tabela-container">
                                 {% include 'partials/table-clients.html' %}
                             </div>
+
+                            <!-- Container para exibir os toasts -->
+                            <div id="toast-container" class="position-fixed bottom-0 start-0 p-3" style="z-index: 9999;"></div>
                         </div>
                     </div>
                 </div>
@@ -823,7 +841,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/dashboard';
+          var newPath = '/dashboard/';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'success',
@@ -842,7 +860,7 @@
         console.log(window.location.origin)
         $(document).ready(function () {
           var currentUrl = window.location.origin;
-          var newPath = '/dashboard';
+          var newPath = '/dashboard/';
           var newUrl = currentUrl + newPath;
           swal.fire({
             icon: 'error',
@@ -1590,7 +1608,6 @@
 
 <script>
     // FUNÇÃO PARA EXIBIR O MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DA CONTA DO APP DO CLIENTE
-
     function exibirModalConfirmacaoExclusao(botao) {
       var app_id = document.getElementById('AppId').value;
       $('#confirm-delete-app-conta-modal #app-conta-id').val(app_id);
@@ -1633,7 +1650,6 @@
 
 <script>
 // FUNÇÃO PARA EXIBIR/OCULTAR OS CAMPOS DO FORMULÁRIO DE ENVIO DE MENSAGENS DO WHATSAPP
-
 $(document).ready(function () {
     // Ocultar os campos do formulário
     $('#form-envio').hide();
@@ -1712,7 +1728,6 @@ $(document).ready(function () {
 
 <script>
 // FUNÇÃO PARA ENVIAR MENSAGENS DO WHATSAPP
-
 document.addEventListener('DOMContentLoaded', function() {
   const form = document.querySelector('form');
   const telefonesInput = document.getElementById('telefones');
@@ -1826,7 +1841,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 // FUNÇÃO PARA TRATAR CAMPOS DO FORMULÁRIO DE ENVIO DE MENSAGENS DO WHATSAPP
-
 $(document).ready(function() {
   // Função para exibir os elementos e limpar o conteúdo dos campos
   function exibirElementos() {
@@ -1952,25 +1966,110 @@ $(document).ready(function() {
 </script>
 
 <script>
-    // FUNÇÃO PARA FILTRAR OS CLIENTES NA TABELA
+// FUNÇÃO PARA BUSCAR CLIENTES NA DASHBOARD
+document.addEventListener("DOMContentLoaded", function () {
+const searchInput = document.getElementById("searchInput");
+const tabelaContainer = document.getElementById("tabela-container");
+let timeout = null;  // ✅ Declaração que estava faltando
 
-    document.addEventListener("DOMContentLoaded", function () {
-        const searchInput = document.getElementById("searchInput");
+searchInput.addEventListener("input", function () {
+    const searchTerm = searchInput.value.trim();
 
-        searchInput.addEventListener("input", function () {
-            const searchTerm = searchInput.value.trim();
+    if (timeout) clearTimeout(timeout);
 
-            fetch(`/dashboard/busca/?q=${encodeURIComponent(searchTerm)}`)
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById("tabela-container").innerHTML = html;
-                })
-                .catch(error => {
-                    console.error("Erro ao buscar clientes:", error);
-                });
-        });
+    timeout = setTimeout(() => {
+    showToast({
+        message: "Buscando clientes...",
+        icon: `<i class="bi bi-info-circle" style="color: #0078D7;"></i>`,
+        raw: true
     });
+
+    fetch(`/dashboard/busca/?q=${encodeURIComponent(searchTerm)}`)
+        .then(response => {
+        if (!response.ok) throw new Error("Erro na resposta");
+        return response.text();
+        })
+        .then(html => {
+        tabelaContainer.innerHTML = html;
+        showToast({
+            message: "Tabela atualizada!",
+            icon: `<i class="bi bi-check-circle-fill" style="color: #624bff;"></i>`,
+            raw: true });
+        })
+        .catch(error => {
+        console.error("Erro ao buscar clientes:", error);
+        showToast({ message: "Erro ao buscar clientes!", icon: "❌" });
+        });
+    }, 400);
+});
+});
+
+// Função para exibir um toast
+// Exemplo de uso:
+// showToast({ message: "Hello, World!", icon: "✅", duration: 5000 });
+// Exibe um toast com uma mensagem, ícone e duração especificados
+// O ícone padrão é "ℹ️" e a duração padrão é 3000ms (3 segundos)
+function showToast({ message, icon = "ℹ️", duration = 3000, iconColor = "#624bff", raw = false}) {
+    const container = document.getElementById("toast-container");
+
+    // Apaga todos os toasts anteriores
+    container.innerHTML = "";
+
+    const toast = document.createElement("div");
+    toast.classList.add("toast-message");
+
+    toast.innerHTML = raw
+    ? `
+        <span class="toast-icon">${icon}</span>
+        <span>${message}</span>
+        `
+    : `
+        <span class="toast-icon" style="color: ${iconColor};">${icon}</span>
+        <span>${message}</span>
+        `;
+
+    container.appendChild(toast);
+
+    // Fade-in
+    setTimeout(() => toast.classList.add("show"), 50);
+
+    // Fade-out e remoção
+    setTimeout(() => {
+        toast.classList.remove("show");
+        setTimeout(() => {
+            if (toast.parentNode) toast.remove();
+        }, 400);
+    }, duration);
+}
 </script>
+
+<style>
+/* Estilo para o toast */
+.toast-message {
+  display: flex;
+  align-items: center;
+  background-color: #fff;
+  color: #333333;
+  border-radius: 8px;
+  padding: 10px 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  margin-bottom: 10px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  min-width: 220px;
+}
+
+.toast-message.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-icon {
+  font-size: 20px;
+  margin-right: 10px;
+}
+</style>
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {

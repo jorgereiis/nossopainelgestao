@@ -34,7 +34,8 @@ import geopandas as gpd
 import pandas as pd
 import calendar
 from .utils import envio_apos_novo_cadastro, criar_mensalidade
-
+from wpp.api_connection import gerar_token, start_session, logout_session, status_session, check_connection, close_session
+from typing import Optional
 
 from .models import DDD_UF_MAP
 
@@ -55,6 +56,200 @@ url_api = os.getenv("URL_API")
 
 def whatsapp(request):
     return render(request, 'pages/whatsapp.html')
+
+
+@login_required
+def conectar_wpp(request):
+    if request.method != "POST":
+        return JsonResponse({"erro": "Método não permitido."}, status=405)
+
+    usuario = request.user
+    session = usuario.username
+
+    try:
+        user_admin = User.objects.get(is_superuser=True)
+        secret = SecretTokenAPI.objects.get(usuario=user_admin).token
+    except (User.DoesNotExist, SecretTokenAPI.DoesNotExist):
+        return JsonResponse({"erro": "Token secreto de integração não encontrado."}, status=500)
+
+    # 1. Obtém ou gera token
+    sessao_existente = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
+    if sessao_existente:
+        token = sessao_existente.token
+        print(f"[INFO] Token reutilizado para sessão '{session}'")
+    else:
+        token_data, token_status = gerar_token(session, secret)
+        if token_status != 201:
+            return JsonResponse({"erro": "Falha ao gerar token de autenticação."}, status=400)
+        token = token_data["token"]
+        print(f"[INFO] Novo token gerado para sessão '{session}'")
+
+    # 2. Inicia a sessão
+    init_data, init_status = start_session(session, token)
+    print(f"[DEBUG] Resposta inicial de start-session: {init_data}")
+
+    # 3. Verifica imediatamente se já está conectado
+    status_data, status_code = status_session(session, token)
+    status = status_data.get("status")
+    if status == "CONNECTED":
+        print(f"[INFO] Sessão '{session}' já está conectada.")
+        SessaoWpp.objects.update_or_create(
+            usuario=session,
+            defaults={
+                "token": token,
+                "dt_inicio": timezone.now(),
+                "is_active": True
+            }
+        )
+        return JsonResponse({
+            "status": "CONNECTED",
+            "mensagem": "Sessão já está conectada.",
+            "session": session
+        })
+
+    # 4. Tenta obter o QRCode
+    max_tentativas = 5
+    intervalo_segundos = 2
+    for tentativa in range(max_tentativas):
+        status_data, status_code = status_session(session, token)
+        status = status_data.get("status")
+        print(f"[DEBUG] Tentativa {tentativa+1}: status = {status}")
+        if status == "QRCODE":
+            break
+        time.sleep(intervalo_segundos)
+    else:
+        print(f"[ERRO] QRCode não gerado após {max_tentativas} tentativas.")
+        return JsonResponse({
+            "erro": "Não foi possível gerar QRCode. Tente novamente em instantes.",
+            "detalhes": status_data
+        }, status=400)
+
+    # 5. Salva ou atualiza sessão
+    SessaoWpp.objects.update_or_create(
+        usuario=session,
+        defaults={
+            "token": token,
+            "dt_inicio": timezone.now(),
+            "is_active": True
+        }
+    )
+    print(f"[INFO] Sessão '{session}' salva com sucesso.")
+
+    # 6. Retorna QRCode
+    return JsonResponse({
+        "qrcode": status_data.get("qrcode"),
+        "status": status_data.get("status"),
+        "session": session,
+        "token": token
+    })
+
+
+
+@login_required
+def get_token_ativo(usuario) -> Optional[str]:
+    sessao = SessaoWpp.objects.filter(usuario=usuario.username, is_active=True).first()
+    return sessao.token if sessao else None
+
+
+@login_required
+def status_wpp(request):
+    usuario = request.user
+    session = usuario.username
+
+    sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
+    if not sessao:
+        return JsonResponse({"status": "DISCONNECTED", "message": "Sessão não encontrada"}, status=404)
+
+    token = sessao.token
+    dados_status, status_code = status_session(session, token)
+
+    if status_code != 200:
+        return JsonResponse({"status": "ERRO", "message": "Falha ao obter status"}, status=500)
+
+    return JsonResponse({
+        "status": dados_status.get("status"),
+        "qrcode": dados_status.get("qrcode"),
+        "session": session,
+        "version": dados_status.get("version"),
+    })
+
+
+@login_required
+def check_connection_wpp(request):
+    usuario = request.user
+    session = usuario.username
+
+    sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
+    if not sessao:
+        return JsonResponse({"status": False, "message": "Sessão não encontrada"}, status=404)
+
+    token = sessao.token
+    dados, status_code = check_connection(session, token)
+
+    return JsonResponse(dados, status=status_code)
+
+
+@login_required
+def desconectar_wpp(request):
+    if request.method == "POST":
+        usuario = request.user
+        session = usuario.username
+
+        sessao = SessaoWpp.objects.filter(usuario=session).first()
+        if not sessao:
+            return JsonResponse({"erro": "Sessão não encontrada"}, status=404)
+
+        token = sessao.token
+        resp_data, resp_status = logout_session(session, token)
+
+        if resp_data.get("status") is True:
+            sessao.is_active = False
+            sessao.save()
+
+        return JsonResponse(resp_data, status=resp_status)
+    
+
+@login_required
+def cancelar_sessao_wpp(request):
+    if request.method != "POST":
+        return JsonResponse({"erro": "Método não permitido."}, status=405)
+
+    usuario = request.user
+    session = usuario.username
+
+    try:
+        sessao = SessaoWpp.objects.get(usuario=session)
+    except SessaoWpp.DoesNotExist:
+        return JsonResponse({"erro": "Sessão não encontrada"}, status=404)
+
+    token = sessao.token
+    try:
+        resp_data, resp_status = close_session(session, token)
+
+        # Mesmo que a API retorne 500, se for JSON e tiver estrutura esperada, tratamos com sucesso
+        if isinstance(resp_data, dict) and "status" in resp_data:
+            print(f"[INFO] Resposta ao fechar sessão: {resp_data}")
+
+            # Considera a sessão encerrada se a API retornou status 500 com JSON válido
+            sessao.is_active = False
+            sessao.save()
+
+            return JsonResponse({
+                "status": resp_data.get("status", False),
+                "message": resp_data.get("message", "Sessão encerrada com falha não crítica."),
+                "handled": True
+            }, status=200)
+
+        else:
+            raise ValueError("Resposta da API não é um JSON válido")
+
+    except Exception as e:
+        print(f"[ERRO] Exceção ao cancelar sessão: {e}")
+        return JsonResponse({
+            "erro": "Erro interno ao cancelar sessão",
+            "detalhes": str(e)
+        }, status=500)
+
 
 ############################################ AUTH VIEW ############################################
 
@@ -243,6 +438,8 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
         )
         if query:
             queryset = queryset.filter(nome__icontains=query)
+        
+        time.sleep(0.5)
         return queryset
     
     def get_context_data(self, **kwargs):
@@ -258,24 +455,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
     login_url = "login"
     model = Cliente
     template_name = "dashboard.html"
-    paginate_by = 10
-
-    def get_queryset(self):
-
-        query = self.request.GET.get("q")
-        queryset = (
-            Cliente.objects.filter(cancelado=False).filter(
-                mensalidade__cancelado=False,
-                mensalidade__dt_cancelamento=None,
-                mensalidade__dt_pagamento=None,
-                mensalidade__pgto=False,
-                usuario=self.request.user,
-            ).order_by("mensalidade__dt_vencimento").distinct()
-        )
-        if query:
-            queryset = queryset.filter(nome__icontains=query)
-        return queryset
-    
+    paginate_by = 10    
 
     def get_context_data(self, **kwargs):
         """
@@ -885,7 +1065,6 @@ def session_wpp(request):
 
     else:
         return JsonResponse({"error_message": "Método da requisição não permitido."}, status=405)
-
 
 
 @login_required

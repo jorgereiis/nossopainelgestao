@@ -41,6 +41,11 @@ from .views import (
     CarregarContasDoAplicativo,
     generate_graphic_map_customers,
     CarregarQuantidadesMensalidades,
+    conectar_wpp,
+    desconectar_wpp,
+    status_wpp,
+    check_connection_wpp,
+    cancelar_sessao_wpp,
 )
 
 urlpatterns = [
@@ -94,13 +99,20 @@ urlpatterns = [
     path("reativar-cliente/<int:cliente_id>/", reactivate_customer, name="reativar-cliente"),
     path("pagar-mensalidade/<int:mensalidade_id>/", pay_monthly_fee, name="pagar-mensalidade"),
 
-    ############ WhatsApp API ###########
+    ############ WhatsApp API (old) ###########
     path("whatsapp/", whatsapp, name="whatsapp"),
     path("session-wpp/", session_wpp, name="session-wpp"),
     path("obter-stkn/", secret_token_api, name="obter-stkn"),
     path("obter-logs-wpp/", get_logs_wpp, name="obter-logs-wpp"),
     path("enviar-mensagem/", send_message_wpp, name="enviar-mensagem"),
     path("obter-session-wpp/", get_session_wpp, name="obter-session-wpp"),
+
+    ############## Whatsapp API (new) ###########
+    path("status-wpp/", status_wpp, name="status_wpp"),
+    path("conectar-wpp/", conectar_wpp, name="conectar_wpp"),
+    path("desconectar-wpp/", desconectar_wpp, name="desconectar_wpp"),
+    path("cancelar-sessao-wpp/", cancelar_sessao_wpp, name="cancelar_sessao_wpp"),
+    path("check-connection-wpp/", check_connection_wpp, name="check_connection_wpp"),
     
     ########### Tests ###########
     path("teste/", test, name="teste"),

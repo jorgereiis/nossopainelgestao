@@ -38110,3 +38110,4 @@ div.code-toolbar > .toolbar > .toolbar-item > span:hover, div.code-toolbar > .to
 /* O Firefox não suporta pseudo-elementos (::) para a barra de rolagem */
 scrollbar-width: thin;
 scrollbar-color: #f1f1f1 #888;
+
