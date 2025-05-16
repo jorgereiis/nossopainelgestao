@@ -457,6 +457,22 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
     template_name = "dashboard.html"
     paginate_by = 10    
 
+    def get_queryset(self):
+
+        query = self.request.GET.get("q")
+        queryset = (
+            Cliente.objects.filter(cancelado=False).filter(
+                mensalidade__cancelado=False,
+                mensalidade__dt_cancelamento=None,
+                mensalidade__dt_pagamento=None,
+                mensalidade__pgto=False,
+                usuario=self.request.user,
+            ).order_by("mensalidade__dt_vencimento").distinct()
+        )
+        if query:
+            queryset = queryset.filter(nome__icontains=query)
+        return queryset
+    
     def get_context_data(self, **kwargs):
         """
         Retorna o contexto de dados para serem exibidos no dashboard.
