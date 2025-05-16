@@ -17927,6 +17927,21 @@ textarea.form-control-lg {
   opacity: var(--bs-btn-disabled-opacity);
 }
 
+.btn-ghost {
+  --dashui-btn-font-weight: 600;
+  --dashui-btn-color: var(--dashui-gray-400);
+  --dashui-btn-bg: transparent;
+  --dashui-btn-border-color: transparent;
+  --dashui-btn-border-radius: 0.5rem;
+  --dashui-btn-hover-color: var(--dashui-gray-600);
+  --dashui-btn-hover-bg: var(--dashui-gray-300);
+  --dashui-btn-hover-border-color: var(--dashui-gray-300);
+  --dashui-btn-focus-shadow-rgb: var(--bd-gray-300-rgb);
+  --dashui-btn-active-color: var(--dashui-btn-hover-color);
+  --dashui-btn-active-bg: var(--dashui-gray-300);
+  --dashui-btn-active-border-color: var(--dashui-gray-300);
+}
+
 .btn-primary {
   --bs-btn-color: #fff;
   --bs-btn-bg: #624bff;
@@ -37568,6 +37583,21 @@ body {
   border: 2px solid #fff;
 }
 
+.notification-list-scroll {
+    max-height: 250px;
+    overflow-y: auto;
+    scrollbar-width: thin;           /* Firefox */
+}
+
+.notification-list-scroll::-webkit-scrollbar {
+    width: 6px;                      /* Chrome/Safari */
+}
+
+.notification-list-scroll::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 4px;
+}
+
 .btn-outline-white {
   border-color: #dfe3e8;
   color: #637381;
@@ -37582,7 +37612,11 @@ body {
   border-color: #c4cdd5;
   color: #637381;
 }
-
+.btn-icon:hover {
+    background-color: rgba(98, 75, 255, 0.1);  /* tom leve de roxo */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);  /* sombra sutil */
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
 .btn-icon {
   position: relative;
   display: inline-flex;

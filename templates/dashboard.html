@@ -2152,6 +2152,21 @@ function showToast({ message, icon = "ℹ️", duration = 3000, iconColor = "#62
     });
   });
 </script>
+
+<script>
+// FUNÇÃO PARA EXIBIR/ESCONDER O MENU LATERAL
+document.addEventListener("DOMContentLoaded", function () {
+    const navToggle = document.getElementById("nav-toggle");
+    const dbWrapper = document.getElementById("db-wrapper");
+
+    if (navToggle) {
+        navToggle.addEventListener("click", function (e) {
+            e.preventDefault();
+            dbWrapper.classList.toggle("toggled");
+        });
+    }
+});
+</script>
 <style>
   /* Estilo para o campo de telefone */
   .iti {
