@@ -6,18 +6,19 @@ backup
 notes.txt
 notes.py
 bkp/*
-errors.log
 access.log
 teste.sh
 *.sh
 m3u8/
 error_log
-logs/*.log
+logs/Envios agendados/*.log
+logs/Envios indicacoes realizadas
+logs/Envios manuais
+logs/M3U8
+logs/TMDb
+logs/UploadStatusWpp
 logs/**/*.log
-*.log
 backup.log
-logs
-
 
 ### Django ###
 *.pot
