@@ -315,6 +315,37 @@ def criar_label_se_nao_existir(nome_label, token, hex_color=None):
         return None
     
 
+# Função para obter todos os grupos disponíveis na sessão do WhatsApp
+def get_all_groups(token):
+    # Monta a URL da requisição para obter todos os grupos
+    url = f'{URL_API_WPP}/{USER_SESSION_WPP}/all-groups'
+
+    # Headers com autenticação
+    headers = {
+        'Accept': 'application/json',
+        'Authorization': f'Bearer {token}'
+    }
+
+    try:
+        # Envia requisição GET (sem body)
+        response = requests.get(url, headers=headers)
+
+        if response.status_code in [200, 201]:
+            # Converte resposta para JSON
+            response_data = response.json()
+            # Retorna a lista de grupos encontrada na chave 'response'
+            groups = response_data.get('response', [])
+            return groups
+        else:
+            # Exibe mensagem de erro se a resposta falhar
+            print(f"Erro ao obter grupos: {response.status_code} - {response.text}")
+            return []
+    except Exception as e:
+        # Captura e mostra falhas na requisição
+        print(f"Exceção ao tentar obter grupos: {e}")
+        return []
+    
+
 # ENVIO DE MENSAGEM APÓS CADASTRO DE NOVO CLIENTE
 # Envia mensagem de boas-vindas e verifica se o cliente foi indicado por outro cliente.
 def envio_apos_novo_cadastro(cliente):

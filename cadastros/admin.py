@@ -15,8 +15,8 @@ from .models import (
     PlanoIndicacao,
     ContaDoAplicativo,
     MensagemEnviadaWpp,
+    DominiosDNS,
 )
-
 
 # --- ADMINISTRADORES ---
 
@@ -138,6 +138,14 @@ class HorarioEnviosAdmin(admin.ModelAdmin):
     ordering = ("-id",)
 
 
+class DominiosDNSAdmin(admin.ModelAdmin):
+    list_display = ("id", "servidor", "dominio", "data_online", "data_offline", "acesso_canais", "data_ultima_verificacao", "usuario", "ativo")
+    list_filter = ("usuario", "ativo")
+    list_editable = ("ativo", "data_online", "data_offline", "acesso_canais",)
+    search_fields = ("dominio",)
+    ordering = ("-id",)
+
+
 # --- REGISTRO NO ADMIN ---
 
 admin.site.register(Plano, PlanoAdmin)
@@ -155,3 +163,4 @@ admin.site.register(DadosBancarios, DadosBancariosAdmin)
 admin.site.register(PlanoIndicacao, PlanoIndicacaoAdmin)
 admin.site.register(ContaDoAplicativo, ContaDoAplicativoAdmin)
 admin.site.register(MensagemEnviadaWpp, MensagemEnviadaWppAdmin)
+admin.site.register(DominiosDNS, DominiosDNSAdmin)

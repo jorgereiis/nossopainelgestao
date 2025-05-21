@@ -356,3 +356,24 @@ class ConteudoM3U8(models.Model):
 
     def __str__(self):
         return self.nome
+
+
+class DominiosDNS(models.Model):
+    """Modela os domínios DNS utilizados para verificar a disponibilidade de canais."""
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    servidor = models.ForeignKey(Servidor, on_delete=models.CASCADE)
+    data_online = models.DateTimeField(blank=True, null=True)
+    data_offline = models.DateTimeField(blank=True, null=True)
+    acesso_canais = models.CharField(max_length=255, blank=True, null=True)
+    data_ultima_verificacao = models.DateTimeField(blank=True, null=True)
+    data_envio_alerta = models.DateTimeField(blank=True, null=True)
+    dominio = models.CharField(max_length=255)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Domínio DNS"
+        verbose_name_plural = "Domínios DNS"
+
+    def __str__(self):
+        return self.dominio
+
