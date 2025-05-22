@@ -79,21 +79,21 @@ def validar_numero_whatsapp(telefone: str, token: str) -> Union[str, None]:
     # Remove tudo que não for número
     numero = re.sub(r'\D', '', telefone)
 
-    # Verifica o número como está
+    # Etapa 1: Verifica o número como está
     if check_number_status(numero, token):
         return numero
 
-    """ # Etapa 2: adicionar DDI '55'
-        com_ddi = '55' + numero
-        if check_number_status(com_ddi, token):
-            return com_ddi
+    # Etapa 2: adicionar DDI '55'
+    com_ddi = '55' + numero
+    if check_number_status(com_ddi, token):
+        return com_ddi
 
-        # Etapa 3: remover '9' após o DDD e adicionar '55'
-        if len(numero) >= 11 and numero[2] == '9':
-            sem_nove = numero[:2] + numero[3:]
-            com_ddi_sem_nove = '55' + sem_nove
-            if check_number_status(com_ddi_sem_nove, token):
-                return com_ddi_sem_nove"""
+    # Etapa 3: remover '9' após o DDD e adicionar '55'
+    if len(numero) >= 11 and numero[2] == '9':
+        sem_nove = numero[:2] + numero[3:]
+        com_ddi_sem_nove = '55' + sem_nove
+        if check_number_status(com_ddi_sem_nove, token):
+            return com_ddi_sem_nove
 
     return None
 ##### FIM #####
@@ -363,8 +363,7 @@ def envio_apos_novo_cadastro(cliente):
         return
 
     telefone_raw = str(cliente.telefone or "").strip()
-    #telefone_formatado = validar_numero_whatsapp(telefone_raw, token_user.token)
-    telefone_formatado = telefone_raw
+    telefone_formatado = validar_numero_whatsapp(telefone_raw, token_user.token)
 
     if not telefone_formatado:
         return
@@ -412,8 +411,7 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     tipo_envio = "Indicação"
     now = datetime.now()
 
-    #telefone_formatado = validar_numero_whatsapp(str(cliente_indicador.telefone))
-    telefone_formatado = str(cliente_indicador.telefone)
+    telefone_formatado = validar_numero_whatsapp(str(cliente_indicador.telefone))
     if not telefone_formatado:
         return
 
@@ -541,8 +539,7 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
     Envia uma mensagem via API WPP para um número validado.
     Registra logs de sucesso, falha e número inválido.
     """
-    #telefone_validado = validar_numero_whatsapp(telefone, token)
-    telefone_validado = telefone
+    telefone_validado = validar_numero_whatsapp(telefone, token)
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     if not telefone_validado:

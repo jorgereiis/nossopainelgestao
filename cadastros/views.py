@@ -644,8 +644,7 @@ def send_message_wpp(request):
             f.write(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {content}\n")
 
     def enviar_mensagem(url, telefone):
-        #telefone_validado = validar_numero_whatsapp(telefone)
-        telefone_validado = telefone
+        telefone_validado = validar_numero_whatsapp(telefone)
         if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone_validado, data_envio=timezone.now().date()).exists():
             log_result(log_result_filename, f"{telefone_validado} - ⚠️ Já foi feito envio hoje!")
             return
