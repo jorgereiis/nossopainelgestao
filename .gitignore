@@ -17,6 +17,7 @@ logs/Envios manuais
 logs/M3U8
 logs/TMDb
 logs/UploadStatusWpp
+logs/**/*.log
 backup.log
 
 ### Django ###
