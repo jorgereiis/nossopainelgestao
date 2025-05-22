@@ -171,6 +171,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
         # Verifica se número existe no WhatsApp
         try:
             numero_existe = check_number_status(telefone, token)
+            print("TELEFONE: ", telefone)
             if not numero_existe:
                 print(f"⚠️ Número {telefone} não é válido no WhatsApp.")
                 return
