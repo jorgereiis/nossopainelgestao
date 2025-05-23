@@ -59,7 +59,7 @@ def registrar_log(mensagem: str, usuario: str, log_directory: str) -> None:
     log_filename = os.path.join(log_directory, f'{usuario}.log')
 
     with open(log_filename, "a", encoding="utf-8") as log:
-        log.write(mensagem)
+        log.write(mensagem + "\n")
 #### FIM #####
 
 
@@ -540,7 +540,7 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
     Registra logs de sucesso, falha e número inválido.
     """
     telefone_validado = validar_numero_whatsapp(telefone, token)
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
 
     if not telefone_validado:
         log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(
@@ -566,7 +566,7 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
 
         try:
             response = requests.post(url, headers=headers, json=body)
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
 
             if response.status_code in (200, 201):
                 log = TEMPLATE_LOG_MSG_SUCESSO.format(

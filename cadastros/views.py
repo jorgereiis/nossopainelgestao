@@ -1,10 +1,9 @@
-from .models import (Cliente, Servidor, Dispositivo, Aplicativo, Tipos_pgto, Plano, Mensalidade, ContaDoAplicativo, SessaoWpp, SecretTokenAPI, DadosBancarios, MensagemEnviadaWpp)
-from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse, JsonResponse
 import requests, operator, logging, codecs, random, base64, json, time, re, os, io
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models.functions import ExtractMonth, ExtractYear
+from .utils import envio_apos_novo_cadastro, criar_mensalidade
 from plotly.colors import sample_colorscale, make_colorscale
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -27,17 +26,33 @@ from django.db import transaction
 import matplotlib.pyplot as plt
 from plotly.offline import plot
 from django.views import View
+from .models import DDD_UF_MAP
 from .forms import LoginForm
 from decimal import Decimal
+from typing import Optional
 import plotly.express as px
 import geopandas as gpd
 import pandas as pd
 import calendar
-from .utils import envio_apos_novo_cadastro, criar_mensalidade
-from wpp.api_connection import gerar_token, start_session, logout_session, status_session, check_connection, close_session
-from typing import Optional
-
-from .models import DDD_UF_MAP
+import warnings
+from django.http import (
+    HttpResponseBadRequest,
+    HttpResponseNotFound,
+    HttpResponse, JsonResponse
+)
+from wpp.api_connection import (
+    gerar_token, start_session,
+    logout_session, status_session,
+    check_connection, close_session
+)
+from .models import (
+    Cliente, Servidor, Dispositivo,
+    Aplicativo, Tipos_pgto, Plano,
+    Mensalidade, ContaDoAplicativo,
+    SessaoWpp, SecretTokenAPI,
+    DadosBancarios, MensagemEnviadaWpp,
+    DominiosDNS
+)
 
 # Constantes
 PLANOS_MESES = {
@@ -49,6 +64,9 @@ PLANOS_MESES = {
 
 MESES_31_DIAS = [1, 3, 5, 7, 8, 10, 12]
 
+warnings.filterwarnings(
+    "ignore", message="errors='ignore' is deprecated", category=FutureWarning
+)
 logger = logging.getLogger(__name__)
 url_api = os.getenv("URL_API")
 
@@ -446,6 +464,23 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["hoje"] = timezone.localtime().date()
         return context
+    
+
+class ModalDNSJsonView(LoginRequiredMixin, View):
+    def get(self, request):
+        dns = DominiosDNS.objects.all().order_by("-ativo", "-data_online", "-servidor", "dominio")
+        data = []
+        for d in dns:
+            data.append({
+                "ativo": d.ativo,
+                "dominio": d.dominio,
+                "servidor": str(d.servidor.nome),
+                "acesso_canais": d.acesso_canais if d.acesso_canais else "",
+                "data_online": d.data_online.strftime('%d/%m/%Y %H:%M') if d.data_online else "",
+                "data_offline": d.data_offline.strftime('%d/%m/%Y %H:%M') if d.data_offline else "",
+                "data_ultima_verificacao": d.data_ultima_verificacao.strftime('%d/%m/%Y %H:%M') if d.data_ultima_verificacao else "",
+            })
+        return JsonResponse({"dns": data})
 
 
 class TabelaDashboard(LoginRequiredMixin, ListView):

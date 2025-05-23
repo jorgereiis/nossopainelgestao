@@ -10,6 +10,7 @@ import requests
 import functools
 import subprocess
 from datetime import datetime, timedelta
+from django.utils.timezone import localtime
 
 import django
 from django.utils import timezone
@@ -48,7 +49,7 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
     Registra logs de sucesso, falha e número inválido.
     """
     telefone_validado = validar_numero_whatsapp(telefone, token)
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
 
     if not telefone_validado:
         log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(
@@ -74,7 +75,7 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
 
         try:
             response = requests.post(url, headers=headers, json=body)
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
 
             if response.status_code in (200, 201):
                 log = TEMPLATE_LOG_MSG_SUCESSO.format(
@@ -125,6 +126,8 @@ def obter_mensalidades_a_vencer():
     for mensalidade in mensalidades:
         usuario = mensalidade.usuario
         cliente = mensalidade.cliente
+        plano_nome = cliente.plano.nome.upper()
+        
 
         telefone = str(cliente.telefone).strip()
         if not telefone:
@@ -150,14 +153,19 @@ def obter_mensalidades_a_vencer():
         # Mensagem a ser enviada
         mensagem = (
             f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
-            f"*SEU PLANO VENCERÁ EM:*\n\n"
-            f"💰 [{dt_formatada}] R$ {mensalidade.valor}\n\n"
-            f"_Antecipe o seu pagamento e evite perder o acesso!_\n\n"
-            f"▫ *PAGAMENTO COM PIX*\n\n"
-            f"{dados.tipo_chave}\n"
-            f"{dados.chave}\n"
-            f"{dados.instituicao}\n"
-            f"{dados.beneficiario}\n\n"
+            f"▫️ *DETALHES DO SEU PLANO:*\n"
+            f"_________________________________\n"
+            f"🔖 *Plano*: {plano_nome}\n"
+            f"📆 *Vencimento*: {dt_formatada}\n"
+            f"💰 *Valor*: R$ {mensalidade.valor}\n"
+            f"_________________________________\n\n"
+            f"▫️ *PAGAMENTO COM PIX:*\n"
+            f"_________________________________\n"
+            f"🔑 *Tipo*: {dados.tipo_chave}\n"
+            f"🔢 *Chave*: {dados.chave}\n"
+            f"🏦 *Banco*: {dados.instituicao}\n"
+            f"👤 *Beneficiário*: {dados.beneficiario}\n"
+            f"_________________________________\n\n"
             f"‼️ _Caso já tenha pago, por favor, nos envie o comprovante para confirmação._"
         )
 
@@ -379,7 +387,7 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
 
         telefone_validado = numero_limpo
         if not telefone_validado:
-            log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), tipo_envio.upper(), usuario, numero_limpo)
+            log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(localtime().strftime('%Y-%m-%d %H:%M:%S'), tipo_envio.upper(), usuario, numero_limpo)
             registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
             continue
 
@@ -401,7 +409,7 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
                 'Authorization': f'Bearer {token}'
             }, json=payload)
 
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
 
             if response.status_code in (200, 201):
                 registrar_log(TEMPLATE_LOG_MSG_SUCESSO.format(timestamp, tipo_envio.upper(), usuario, telefone_validado), usuario, DIR_LOGS_AGENDADOS)
@@ -580,9 +588,8 @@ def backup_db_sh():
     """
     Executa o script 'backup_db.sh' para realizar backup do banco SQLite.
     """
-    
     # Obter a data e hora atual formatada
-    data_hora_atual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    data_hora_atual = localtime().strftime('%Y-%m-%d %H:%M:%S')
 
     # Caminho para o script de backup
     caminho_arquivo_sh = 'backup_db.sh'
@@ -596,4 +603,6 @@ def backup_db_sh():
     else:
         print('[{}] [BACKUP DIÁRIO] Falha durante backup do DB.'.format(data_hora_atual))
         print('Erro: ', resultado.stderr)
+        
+    time.sleep(random.randint(10, 20))
 ##### FIM #####

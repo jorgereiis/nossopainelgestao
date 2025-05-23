@@ -11,12 +11,7 @@ teste.sh
 *.sh
 m3u8/
 error_log
-logs/Envios agendados/*.log
-logs/Envios indicacoes realizadas
-logs/Envios manuais
-logs/M3U8
-logs/TMDb
-logs/UploadStatusWpp
+logs/*
 logs/**/*.log
 backup.log
 

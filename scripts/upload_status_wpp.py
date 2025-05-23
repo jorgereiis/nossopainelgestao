@@ -7,6 +7,7 @@ from datetime import datetime
 from django.contrib.auth.models import User
 import threading
 from cadastros.models import ConteudoM3U8, SessaoWpp
+from django.utils.timezone import localtime
 
 # Configura o ambiente Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "setup.settings")
@@ -25,7 +26,7 @@ os.makedirs(os.path.dirname(THREAD_LOG), exist_ok=True)
 
 # --- Função para registrar log no arquivo e imprimir no terminal ---
 def registrar_log(mensagem, log_file):
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
     print(f"[{timestamp}] [{NOME_SCRIPT}] {mensagem}")
     
     with open(log_file, "a", encoding="utf-8") as log:

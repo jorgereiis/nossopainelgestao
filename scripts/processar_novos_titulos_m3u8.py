@@ -5,6 +5,7 @@ import requests
 import re
 import difflib
 from datetime import datetime
+from django.utils.timezone import localtime
 
 # Configuração do ambiente Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
@@ -32,7 +33,7 @@ os.makedirs(os.path.dirname(LISTA_NOVOS), exist_ok=True)
 
 # Função para registrar mensagens no arquivo de log principal
 def registrar_log(mensagem, log_file):
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
     print(f"[{timestamp}] [{NOME_SCRIPT}] {mensagem}")
     
     with open(log_file, "a", encoding="utf-8") as log:

@@ -24,7 +24,7 @@ from mensagens_wpp import (
 from processar_novos_titulos_m3u8 import executar_processar_novos_titulos_com_lock
 from comparar_m3u8 import executar_comparar_lista_m3u8_com_lock
 from upload_status_wpp import executar_upload_status_com_lock
-from check_canais_dns import executar_check_canais_dns_com_lock_1, executar_check_canais_dns_com_lock_2
+from check_canais_dns import executar_check_canais_dns_com_lock
 
 ################################################
 ##### CONFIGURAÇÃO DO AGENDADOR DE TAREFAS #####
@@ -63,15 +63,12 @@ schedule.every().day.at("00:35").do(
 schedule.every(60).minutes.do(
     run_threaded, backup_db_sh
 )
-schedule.every(60).minutes.do(
-    run_threaded, executar_check_canais_dns_com_lock_1
-)
-schedule.every(10).minutes.do(
-    run_threaded, executar_check_canais_dns_com_lock_2
+schedule.every(1).minutes.do(
+    run_threaded, executar_check_canais_dns_com_lock
 )
 
 # Executa imediatamente ao iniciar o servidor
-#run_threaded(executar_check_canais_dns_com_lock_2)
+#run_threaded(executar_check_canais_dns_com_lock)
 
 # Executar indefinidamente
 while True:

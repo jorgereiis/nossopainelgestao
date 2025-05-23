@@ -139,7 +139,7 @@ class HorarioEnviosAdmin(admin.ModelAdmin):
 
 
 class DominiosDNSAdmin(admin.ModelAdmin):
-    list_display = ("id", "servidor", "dominio", "data_online", "data_offline", "acesso_canais", "data_ultima_verificacao", "usuario", "ativo")
+    list_display = ("id", "servidor", "dominio", "data_online", "data_offline", "acesso_canais", "data_ultima_verificacao", "data_envio_alerta","usuario", "ativo")
     list_filter = ("usuario", "ativo")
     list_editable = ("ativo", "data_online", "data_offline", "acesso_canais",)
     search_fields = ("dominio",)

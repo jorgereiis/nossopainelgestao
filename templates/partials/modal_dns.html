@@ -1,0 +1,31 @@
+{% load static %}
+
+<!-- Modal de exibição dos Status DNS -->
+<div class="modal fade" id="dns-modal" tabindex="-1" role="dialog" aria-labelledby="dns-label">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content d-flex flex-column">
+            <div class="modal-header">
+                <h4 class="modal-title" id="dns-label">Status dos DNS'es</h4>
+                <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                </button>
+            </div>
+                <div class="modal-body">
+                    <div id="show-dns" class="row g-2 flex-wrap justify-content-center"></div>
+                </div>
+            <div class="modal-footer d-flex justify-content-center">
+
+            </div>
+        </div>
+    </div>
+</div>
+<!-- end modal -->
+ 
+<style>
+#dns-modal .modal-dialog {
+    max-width: 800px; /* Ou o valor que couber legal */
+}
+.dns-info-small {
+    font-size: 0.6rem !important;
+    font-weight: 400;
+}
+</style>
