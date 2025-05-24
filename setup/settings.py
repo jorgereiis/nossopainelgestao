@@ -204,12 +204,12 @@ LOGGING = {
         },
         'django.request': {
             'handlers': ['file'],
-            'level': 'WARNING',
+            'level': 'INFO',
             'propagate': False,
         },
     },
     'root': {
         'handlers': ['file'],
-        'level': 'INFO',
+        'level': 'WARNING',
     },
 }

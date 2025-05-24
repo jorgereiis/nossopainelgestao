@@ -25,7 +25,7 @@ django.setup()
 
 from cadastros.models import DominiosDNS, SessaoWpp, User
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 # --- Constantes globais ---
 TIMEOUT = 15
@@ -267,7 +267,7 @@ def obter_lista_canais(dominio_url, nome_servidor, conteudo_m3u=None):
         url = f"{dominio_url}/get.php?username={username}&password={password}&{PARAMS_URL}"
         registrar_log(f"🌐 Requisitando lista M3U: {url}")
         try:
-            r = requests.get(url, headers=HEADERS, timeout=TIMEOUT, stream=True)
+            r = requests.get(url, headers=HEADERS, timeout=TIMEOUT, stream=True, allow_redirects=True)
             registrar_log(f"🔎 Status HTTP: {r.status_code}")
             if r.status_code != 200:
                 registrar_log(f"❌ [DOWN] Falha HTTP ao obter lista ({url}): {r.status_code}")
@@ -362,11 +362,11 @@ def obter_lista_canais(dominio_url, nome_servidor, conteudo_m3u=None):
     registrar_log(f"⏱️ Tempo total de processamento da M3U: {tempo_total:.2f}s")
     registrar_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
-    return canais_principais + canais_extra
+    return {"lista_m3u": canais_principais + canais_extra,}
 
 
 # --- Valida domínio e atualiza status no banco ---
-def validar_dominio(dominio):
+def validar_dominio_servidor(dominio):
     """
     Valida se o domínio está publicado/acessível via HTTP (qualquer status code!).
     """
@@ -376,7 +376,7 @@ def validar_dominio(dominio):
 
     tempo_inicio = time.time()
     try:
-        r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        r = requests.get(url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
         tempo_resposta = time.time() - tempo_inicio
         online = True
         registrar_log(
@@ -391,6 +391,53 @@ def validar_dominio(dominio):
         )
 
     return online
+
+
+# --- Validação de domínio através da URL M3U ---
+def validar_url_m3u(dominio, nome_servidor):
+    """
+    Valida se o domínio está publicado/acessível para obter lista M3U.
+    Retorna um dicionário informando o sucesso ou erro da validação.
+    """
+    nome_servidor_padrao = nome_servidor.strip().upper()
+    username = USERNAME.get(nome_servidor_padrao)
+    password = PASSWORD.get(nome_servidor_padrao)
+    url = f"{dominio.strip().rstrip('/')}/get.php?username={username}&password={password}&{PARAMS_URL}"
+
+    registrar_log("", titulo_destacado=f"🌍 Verificando domínio: {dominio} (servidor: {nome_servidor_padrao})")
+
+    tempo_inicio = time.time()
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
+        tempo_resposta = time.time() - tempo_inicio
+
+        registrar_log(
+            f"✅ Domínio respondeu HTTP {r.status_code} ({r.reason}) — publicado e acessível (tempo: {tempo_resposta:.2f}s)"
+        )
+
+        # Opcional: Validar se conteúdo é realmente M3U (ex: r.text.lstrip().startswith("#EXTM3U"))
+        return {
+            "success": True,
+            "status_code": r.status_code,
+            "reason": r.reason,
+            "tempo_resposta": tempo_resposta,
+            "url": url,
+            "servidor": nome_servidor_padrao
+        }
+
+    except Exception as e:
+        tempo_resposta = time.time() - tempo_inicio
+        tb = traceback.format_exc()
+        registrar_log(
+            f"❌ [DOWN] Erro ao acessar domínio {dominio} ({type(e).__name__}): {e} (tempo: {tempo_resposta:.2f}s)\n{tb}"
+        )
+        return {
+            "success": False,
+            "error": str(e),
+            "traceback": tb,
+            "url": url,
+            "servidor": nome_servidor_padrao
+        }
 
 
 # --- Valida acesso aos canais TS para cada domínio ---
@@ -421,7 +468,8 @@ def validar_canais_ts(dominio, lista_canais):
         registrar_log(f"🔗 URL: {url_stream}")
 
         try:
-            r = requests.get(url_stream, headers=HEADERS, timeout=TIMEOUT)
+            r = requests.get(url_stream, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
+            m3u8_final_url = r.url
             registrar_log(f"📥 Status da playlist do canal: {r.status_code}")
             if r.status_code != 200:
                 acessos[nome] = False
@@ -432,7 +480,8 @@ def validar_canais_ts(dominio, lista_canais):
             for linha_ts in r.text.splitlines():
                 linha_ts = linha_ts.decode(errors="ignore") if isinstance(linha_ts, bytes) else linha_ts
                 if ".ts" in linha_ts:
-                    ts_url = linha_ts if linha_ts.startswith("http") else urljoin(base_url + "/", linha_ts)
+                    ts_url = linha_ts if linha_ts.startswith("http") else urljoin(m3u8_final_url, linha_ts)
+                    #ts_url = linha_ts if linha_ts.startswith("http") else urljoin(base_url + "/", linha_ts)
                     if ts_url not in ts_urls:
                         ts_urls.append(ts_url)
                 if len(ts_urls) >= MAX_TS_CANAIS_QTD:
@@ -507,128 +556,118 @@ def check_dns_canais():
     print(f"[{localtime().strftime('%Y-%m-%d %H:%M:%S')}] [INIT] Checagem de status de domínios DNS.")
     inicio_global = time.time()
 
-    # Obtém todos os grupos e extrai IDs dos grupos para envio
+    # Obtém todos os grupos e extrai IDs dos grupos desejados para envio
     grupos = get_all_groups(WPP_TOKEN)
     grupos_envio = get_ids_grupos_envio(grupos, ADM_ENVIA_ALERTAS)
 
-    # Pega todos os domínios do sistema (online e offline)
+    # Pega todos os domínios do sistema (online e offline) ordenados por Servidor
     dominios = DominiosDNS.objects.all().order_by("servidor")
     for dominio in dominios:
-        online = False
         hora_now = localtime()
         status_anterior = dominio.ativo
         dominio.data_ultima_verificacao = hora_now
         
-        # 1. Tenta validar o domínio
-        online = validar_dominio(dominio.dominio)
+        # 1. Validação de status do domínio
+        # - Verifica status de acesso à lista e aos canais através do domínio válido;
+        lista_dict = obter_lista_canais(dominio.dominio, dominio.servidor.nome)
+        servidor = lista_dict.get("servidor", "N/A")
+        username = lista_dict.get("username", "N/A")
+        password = lista_dict.get("password", "N/A")
+        dominio_url = lista_dict.get("dominio", "N/A")
+        dominio_online = lista_dict.get("success", True)
+        status_code = lista_dict.get("status_code", "N/A")
+        error_msg = lista_dict.get("error", "Erro não informado")
+        lista_m3u = lista_dict.get("lista_m3u", None)
 
-        # FLUXO: domínio responde (ficou online)
-        if online:
-            # 2. Verifica status de acesso à lista e aos canais através do domínio válido;
-            lista_canais_m3u = obter_lista_canais(dominio.dominio, dominio.servidor.nome)
-            if isinstance(lista_canais_m3u, dict) and not lista_canais_m3u.get("success", True):
-                error_msg = lista_canais_m3u.get("error", "Erro não informado")
-                servidor = lista_canais_m3u.get("servidor", "N/A")
-                username = lista_canais_m3u.get("username", "N/A")
-                password = lista_canais_m3u.get("password", "N/A")
-                status_code = lista_canais_m3u.get("status_code", "N/A")
-                dominio_url = lista_canais_m3u.get("dominio", "N/A")
-
-                log_msg = (
-                    f"[{localtime().strftime('%Y-%m-%d %H:%M:%S')}]\n"
-                    f"[ERROR] {error_msg}\n"
-                    f"[SERVIDOR] {servidor}\n"
-                    f"[DOMINIO] {dominio_url}\n"
-                    f"[USERNAME] {username}\n"
-                    f"[PASSWORD] {password}\n"
-                    f"[HTTP_CODE] {status_code}\n"
-                    f"[RAW] {repr(lista_canais_m3u)}"
-                )
-                registrar_log(log_msg)
-
-                # Retornou erro para baixar a lista, apesar do domínio estar disponível;
-                # Mantém o status do domínio como online, mas atualiza status de acesso canais;
-                if status_code != "N/A":
-                    dominio.acesso_canais = "INDISPONIVEL"
-                    dominio.save(update_fields=["acesso_canais", "data_ultima_verificacao"])
-                    continue
-            else:
-                validar_canais_ts(dominio, lista_canais_m3u)
-
-            # 3. Se está online agora, mas estava inativo/offline antes:
-            # - Atualiza os status;
-            # - Valida acesso aos canais;
-            # - Envia notificação de retorno da acessibilidade;
+        if dominio_online:
+            # 2. Verifica see mudou de status OFFLINE para ONLINE agora:
             if (not status_anterior) and (
                 (dominio.data_offline and dominio.data_online and dominio.data_offline > dominio.data_online) or
                 (dominio.data_offline and not dominio.data_online)
             ):
                 mensagem = (
                     f"✅ *DNS ONLINE*\n"
-                    f"🌐 *Domínio:* `{dominio.dominio}`\n"
+                    f"🌐 *Domínio:*\n`{dominio.dominio}`\n"
                     f"🕓 *Horário:* {hora_now.strftime('%Y/%m %Hh%M')}\n"
                     f"📺 *Servidor:* {dominio.servidor}\n\n"
                     f"🔔 _O domínio voltou a responder normalmente!_"
                 )
                 if grupos_envio:
-                    # Envia mensagem para grupos, se houver ID válido obtido
+                    # Envia notificação para grupos no WPP, se houver ID válido obtido;
                     for group_id, group_name in grupos_envio:
                         enviar_mensagem(group_id, mensagem, WPP_USER, WPP_TOKEN, is_group=True)
                         registrar_log(f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS ONLINE {dominio.dominio}", LOG_FILE)
 
                 if WPP_TELEFONE:
-                    # Envia mensagem para contato privado, se houver número definido
+                    # Envia mensagem para contato privado no WPP, se houver número definido;
                     enviar_mensagem(WPP_TELEFONE, mensagem, WPP_USER, WPP_TOKEN, is_group=False)
                     registrar_log(f"🚨 [PRIVADO] ALERTA enviado: DNS ONLINE {dominio.dominio}", LOG_FILE)
 
-                # Atualiza status para online
+                # Atualiza status para online;
                 dominio.ativo = True
                 dominio.data_online = hora_now
-                dominio.save(update_fields=["ativo", "data_online", "data_ultima_verificacao"])
+                dominio.data_envio_alerta = hora_now
+                dominio.save(update_fields=["ativo", "data_online", "data_ultima_verificacao", "data_envio_alerta"])
             else:
-                # Se estava offline, mas mudou status agora, registra status atualizado
-                dominio.save(update_fields=["ativo", "data_online", "data_ultima_verificacao"])
-            # Registra log         
+                # Se o status anterior não mudou, então continua online;
+                # Apenas registra a data da verificação;
+                dominio.save(update_fields=["data_ultima_verificacao"])
+
+            # Apesar de estar online, valida se possui acesso aos canais;
+            # - Tipos dos status: TOTAL, PARCIAL ou INDISPONÍVEL;
+            validar_canais_ts(dominio, lista_m3u)
+
+            # Registra log;
             registrar_log(f"✅ DNS online: {dominio.dominio}", LOG_FILE)
 
-        # FLUXO: domínio NÃO responde (está offline)
         else:
-            # 4. Se está offline agora, mas estava ativo/online antes:
-            # - Atualiza os status;
-            # - Envia notificação de indisponibilidade;
-            if status_anterior and (
+            # 3. Se mudou de status ONLINE para OFFLINE agora:
+            if (status_anterior and (
                 (dominio.data_online and dominio.data_offline and dominio.data_online > dominio.data_offline) or
-                (dominio.data_online and not dominio.data_offline)
+                (dominio.data_online and not dominio.data_offline))
             ):
                 mensagem = (
                     f"❌ *DNS OFFLINE*\n"
-                    f"🌐 *Domínio:* `{dominio.dominio}`\n"
+                    f"🌐 *Domínio:*\n`{dominio.dominio}`\n"
                     f"🕓 *Horário:* {localtime().strftime('%Y/%m %Hh%M')}\n"
                     f"📺 *Servidor:* {dominio.servidor}\n\n"
                     f"⚠️ _O domínio parou de responder._\n⚠️ _Caso esteja em uso, alguns clientes poderão ficar sem acesso temporariamente!_"
                 )
                 
                 if grupos_envio:
-                    # Envia mensagem para grupos, se houver ID válido obtido
                     for group_id, group_name in grupos_envio:
                         enviar_mensagem(group_id, mensagem, WPP_USER, WPP_TOKEN, is_group=True)
                         registrar_log(f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS OFFLINE {dominio.dominio}", LOG_FILE)
 
                 if WPP_TELEFONE:
-                    # Envia mensagem para contato privado, se houver número definido
                     enviar_mensagem(WPP_TELEFONE, mensagem, WPP_USER, WPP_TOKEN, is_group=False)
                     registrar_log(f"🚨 [PRIVADO] ALERTA enviado: DNS OFFLINE {dominio.dominio}", LOG_FILE)
 
                 # Atualiza status para offline
                 dominio.ativo = False
                 dominio.data_offline = hora_now
+                dominio.data_envio_alerta = hora_now
                 dominio.acesso_canais = "INDISPONIVEL"
                 dominio.save(update_fields=["ativo", "data_offline", "data_ultima_verificacao", "acesso_canais"])
-            else:
+            elif not status_anterior:
                 # Se já estava offline, só registra a verificação
                 dominio.save(update_fields=["data_ultima_verificacao"])
-            # Registra log
-            registrar_log(f"❌ DNS offline: {dominio.dominio}", LOG_FILE)
+                registrar_log(f"❌ DNS offline: {dominio.dominio}", LOG_FILE)
+            if status_code != "N/A":
+                # Se o erro retornado por 'obter_lista_canais()' não teve relação com o status da requição,
+                # Então o erro obtido não tem relação com a requisição;
+                # Apenas registra em log;
+                log_msg = (
+                    f"[{localtime().strftime('%Y-%m-%d %H:%M:%S')}]\n"
+                    f"[ERROR] {error_msg}\n"
+                    f"[SERVIDOR] {servidor}\n"
+                    f"[DOMINIO] {dominio_url}\n"
+                    f"[USERNAME] {username}\n"
+                    f"[PASSWORD] {str(password)[:3] + '***' if password != 'N/A' else password}\n"
+                    f"[HTTP_CODE] {status_code}\n"
+                    f"[RAW] {repr(lista_m3u)}"
+                )
+                registrar_log(log_msg)
 
     fim_global = time.time()
     registrar_log("", titulo_inicio_fim=f"[END] Checagem de status de domínios DNS concluída em: {fim_global-inicio_global:.2f}s\n")
