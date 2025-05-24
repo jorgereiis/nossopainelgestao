@@ -407,11 +407,17 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     - Caso a mensalidade com desconto ainda esteja em aberto ao receber a segunda indicação, ela será ajustada de volta ao valor original, e o bônus será pago integralmente.
     """
     nome_cliente = str(cliente_indicador)
+    telefone_cliente = str(cliente_indicador.telefone)
     primeiro_nome = nome_cliente.split(' ')[0]
     tipo_envio = "Indicação"
     now = datetime.now()
 
-    telefone_formatado = validar_numero_whatsapp(str(cliente_indicador.telefone))
+    try:
+        token_user = SessaoWpp.objects.get(usuario=usuario)
+    except SessaoWpp.DoesNotExist:
+        return
+
+    telefone_formatado = validar_numero_whatsapp(telefone_cliente, token_user.token)
     if not telefone_formatado:
         return
 
@@ -442,11 +448,6 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
         indicado_por=cliente_indicador,
         data_adesao__gte=now.replace(day=1)
     ).count()
-
-    try:
-        token_user = SessaoWpp.objects.get(usuario=usuario)
-    except SessaoWpp.DoesNotExist:
-        return
 
     saudacao = get_saudacao_por_hora()
 
