@@ -133,6 +133,29 @@
                 </div>
             </li>
 
+            {% if request.user.is_superuser %}
+            <!-- Nav item -->
+            <li class="nav-item">
+                <div class="navbar-heading">ADMIN</div>
+            </li>
+
+            <!-- Nav item -->
+            <li class="nav-item">
+                <a class="nav-link has-arrow {% if page_group != 'admin' %} collapsed {% endif %}" href="#!"
+                    data-bs-toggle="collapse" data-bs-target="#navAdmin" aria-expanded="false" aria-controls="navAdmin">
+                    <i data-feather="layers" class="nav-icon icon-xs me-2"></i> LOGs
+                </a>
+
+                <div id="navAdmin" class="collapse {% if page_group == 'admin' %} show {% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'admin' %}active{% endif %}" style="cursor: pointer;" onclick="modal_logs()">Consultar Logs</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            {% endif %}
         </ul>
     </div>
 </nav>

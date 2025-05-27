@@ -23,6 +23,7 @@ from babel.numbers import format_currency
 from django.contrib import messages
 from django.utils import timezone
 from django.db import transaction
+from django.conf import settings
 import matplotlib.pyplot as plt
 from plotly.offline import plot
 from django.views import View
@@ -38,7 +39,8 @@ import warnings
 from django.http import (
     HttpResponseBadRequest,
     HttpResponseNotFound,
-    HttpResponse, JsonResponse
+    HttpResponse, JsonResponse,
+    Http404
 )
 from wpp.api_connection import (
     gerar_token, start_session,
@@ -62,6 +64,7 @@ PLANOS_MESES = {
     'anual': 12
 }
 
+LOG_DIR = os.path.join(settings.BASE_DIR, 'logs')
 MESES_31_DIAS = [1, 3, 5, 7, 8, 10, 12]
 
 warnings.filterwarnings(
@@ -468,12 +471,13 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
 
 class ModalDNSJsonView(LoginRequiredMixin, View):
     def get(self, request):
-        dns = DominiosDNS.objects.all().order_by("-ativo", "-data_online", "-servidor", "dominio")
+        dns = DominiosDNS.objects.all().order_by("-status", "-data_online", "-servidor", "dominio")
         data = []
         for d in dns:
             data.append({
-                "ativo": d.ativo,
+                "status": True if d.status == "online" else False,
                 "dominio": d.dominio,
+                "monitorado": d.monitorado,
                 "servidor": str(d.servidor.nome),
                 "acesso_canais": d.acesso_canais if d.acesso_canais else "",
                 "data_online": d.data_online.strftime('%d/%m/%Y %H:%M') if d.data_online else "",
@@ -481,6 +485,39 @@ class ModalDNSJsonView(LoginRequiredMixin, View):
                 "data_ultima_verificacao": d.data_ultima_verificacao.strftime('%d/%m/%Y %H:%M') if d.data_ultima_verificacao else "",
             })
         return JsonResponse({"dns": data})
+
+
+class LogFilesListView(View):
+    def get(self, request):
+        log_files = []
+        for dirpath, dirnames, filenames in os.walk(LOG_DIR):
+            for filename in filenames:
+                if filename.endswith('.log'):
+                    # Caminho relativo para exibir no frontend
+                    rel_dir = os.path.relpath(dirpath, LOG_DIR)
+                    if rel_dir == '.':
+                        rel_path = filename
+                    else:
+                        rel_path = os.path.join(rel_dir, filename)
+                    log_files.append(rel_path)
+        return JsonResponse({"files": log_files})
+
+
+class LogFileContentView(View):
+    def get(self, request):
+        filename = request.GET.get("file")
+        if not filename or '..' in filename or filename.startswith('/'):
+            raise Http404("Arquivo não permitido.")
+        # Caminho absoluto seguro
+        full_path = os.path.normpath(os.path.join(LOG_DIR, filename))
+        # Segurança: verifica se o caminho começa com LOG_DIR
+        if not full_path.startswith(os.path.abspath(LOG_DIR)):
+            raise Http404("Arquivo não permitido.")
+        if not os.path.exists(full_path):
+            raise Http404("Arquivo não encontrado.")
+        with open(full_path, encoding='utf-8', errors='replace') as f:
+            lines = f.readlines()[-100:]
+        return JsonResponse({"content": ''.join(lines)})
 
 
 class TabelaDashboard(LoginRequiredMixin, ListView):

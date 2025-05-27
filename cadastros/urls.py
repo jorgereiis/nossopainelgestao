@@ -47,6 +47,8 @@ from .views import (
     CarregarContasDoAplicativo,
     generate_graphic_map_customers,
     CarregarQuantidadesMensalidades,
+    LogFilesListView,
+    LogFileContentView,
 )
 
 urlpatterns = [
@@ -59,7 +61,9 @@ urlpatterns = [
 
     ############ List and Dashboard ###########
     path("dashboard/", TabelaDashboard.as_view(), name="dashboard"),
+    path("logs/list/", LogFilesListView.as_view(), name="logs-list"),
     path("indicacoes/", CarregarInidicacoes.as_view(), name="indicacoes"),
+    path("logs/content/", LogFileContentView.as_view(), name="logs-content"),
     path("modal-dns-json/", ModalDNSJsonView.as_view(), name="modal-dns-json"),
     path("contas-apps/", CarregarContasDoAplicativo.as_view(), name="contas-apps"),
     path("dashboard/busca/", TabelaDashboardAjax.as_view(), name="dashboard-busca"),

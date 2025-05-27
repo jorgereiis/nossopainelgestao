@@ -92,11 +92,11 @@ def registrar_log(mensagem, arquivo=LOG_FILE, titulo_destacado=None, titulo_m3u_
             if titulo_destacado:
                 log.write(f"[{timestamp}] {titulo_destacado}\n")
             if titulo_m3u_parcial:
-                log.write(f"[{timestamp}] 📄 {titulo_m3u_parcial} (até {MAX_LINHAS_QTD} linhas):\n")
+                log.write(f"[{timestamp}]   📄 {titulo_m3u_parcial} (até {MAX_LINHAS_QTD} linhas):\n")
             for i, linha in enumerate(linhas):
                 log.write(f"[{timestamp}]   {linha}\n")
             if limitar_linhas and len(mensagem.splitlines()) > MAX_LINHAS_QTD:
-                log.write(f"[{timestamp}] ... (demais linhas omitidas)\n")
+                log.write(f"[{timestamp}]   ... (demais linhas omitidas)\n")
             if titulo_inicio_fim:
                 log.write(f"[{timestamp}]{titulo_inicio_fim}\n")
 
@@ -245,7 +245,7 @@ def obter_lista_canais(dominio_url, nome_servidor, conteudo_m3u=None):
 
     inicio = time.time()
     registrar_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    registrar_log(f"🟢 INICIANDO processamento da lista M3U do domínio: {dominio_url} (servidor: {nome_servidor})")
+    registrar_log("", titulo_destacado=f"🌍 INICIANDO: {dominio_url} (servidor: {nome_servidor})")
 
     # Obtém credenciais de acordo com o servidor informado
     nome_servidor_padrao = nome_servidor.strip().upper()
@@ -315,11 +315,6 @@ def obter_lista_canais(dominio_url, nome_servidor, conteudo_m3u=None):
     registrar_log(log_preview, titulo_m3u_parcial="Conteúdo parcial da M3U", limitar_linhas=True)
     registrar_log(f"🔍 Iniciando parsing das linhas para extrair canais...")
 
-    canais_vistos = set()
-    urls_vistas = set()
-    duplicados_nome = []
-    duplicados_url = []
-
     for idx, linha in enumerate(buffer_linhas):
         if linha.startswith("#EXTINF:"):
             partes = linha.split(",", 1)
@@ -328,18 +323,6 @@ def obter_lista_canais(dominio_url, nome_servidor, conteudo_m3u=None):
         elif linha.startswith("http"):
             url_correta = substituir_dominio(linha, dominio_url)
             entrada = (nome_canal or "Sem nome", url_correta)
-
-            # Checa duplicidade de nome de canal
-            if nome_canal in canais_vistos:
-                duplicados_nome.append(nome_canal)
-            else:
-                canais_vistos.add(nome_canal)
-
-            # Checa duplicidade de URL
-            if url_correta in urls_vistas:
-                duplicados_url.append(url_correta)
-            else:
-                urls_vistas.add(url_correta)
 
             # Armazena como canal principal (até MAX_CANAIS)
             if len(canais_principais) < MAX_CANAIS_QTD:
@@ -354,9 +337,8 @@ def obter_lista_canais(dominio_url, nome_servidor, conteudo_m3u=None):
     if not canais_principais and not canais_extra:
         registrar_log("⚠️ Lista M3U não contém canais válidos.")
 
-    registrar_log(f"🔢 Total canais principais: {len(canais_principais)} | Extras: {len(canais_extra)}")
-    registrar_log(f"🗂️ Total canais únicos por nome: {len(canais_vistos)}")
-    registrar_log(f"🔗 Total URLs únicas: {len(urls_vistas)}")
+    registrar_log(f"🔢 Total canais principais: {len(canais_principais)}")
+    registrar_log(f"🔢 Total canais Extras: {len(canais_extra)}")
 
     tempo_total = time.time() - inicio
     registrar_log(f"⏱️ Tempo total de processamento da M3U: {tempo_total:.2f}s")
@@ -462,7 +444,7 @@ def validar_canais_ts(dominio, lista_canais):
         ts_urls = []
         canal_valido = False
         canal_erros = []
-        registrar_log(f"─────────────────────────────────────────────")
+        registrar_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
         registrar_log("", titulo_destacado=f"📺 Canal {idx}: {nome}")
         registrar_log(f"🔍 Verificando canal: {nome}")
         registrar_log(f"🔗 URL: {url_stream}")
@@ -536,14 +518,14 @@ def validar_canais_ts(dominio, lista_canais):
 
     tempo_total = time.time() - inicio
 
-    registrar_log(f"─────────────────────────────────────────────")
+    registrar_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
     registrar_log("", titulo_destacado=f"📶 Validação finalizada para domínio {dominio.dominio}: {dominio.acesso_canais} | Tempo: {tempo_total:.2f}s")
     registrar_log("", titulo_destacado=f"🟢 Canais OK ({len(canais_ok)}): {', '.join(canais_ok) if canais_ok else 'Nenhum'}")
     if canais_erro:
         registrar_log("", titulo_destacado=f"🔴 Canais com erro ({len(canais_erro)}):")
         for nome, motivo in canais_erro:
             registrar_log(f"    - {nome}: {motivo}")
-    registrar_log(f"─────────────────────────────────────────────")
+    registrar_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
 
 ##################################################
@@ -561,10 +543,10 @@ def check_dns_canais():
     grupos_envio = get_ids_grupos_envio(grupos, ADM_ENVIA_ALERTAS)
 
     # Pega todos os domínios do sistema (online e offline) ordenados por Servidor
-    dominios = DominiosDNS.objects.all().order_by("servidor")
+    dominios = DominiosDNS.objects.filter(monitorado=True).order_by("servidor")
     for dominio in dominios:
         hora_now = localtime()
-        status_anterior = dominio.ativo
+        status_anterior = dominio.status
         dominio.data_ultima_verificacao = hora_now
         
         # 1. Validação de status do domínio
@@ -604,10 +586,10 @@ def check_dns_canais():
                     registrar_log(f"🚨 [PRIVADO] ALERTA enviado: DNS ONLINE {dominio.dominio}", LOG_FILE)
 
                 # Atualiza status para online;
-                dominio.ativo = True
+                dominio.status = "online"
                 dominio.data_online = hora_now
                 dominio.data_envio_alerta = hora_now
-                dominio.save(update_fields=["ativo", "data_online", "data_ultima_verificacao", "data_envio_alerta"])
+                dominio.save(update_fields=["status", "data_online", "data_ultima_verificacao", "data_envio_alerta"])
             else:
                 # Se o status anterior não mudou, então continua online;
                 # Apenas registra a data da verificação;
@@ -616,9 +598,6 @@ def check_dns_canais():
             # Apesar de estar online, valida se possui acesso aos canais;
             # - Tipos dos status: TOTAL, PARCIAL ou INDISPONÍVEL;
             validar_canais_ts(dominio, lista_m3u)
-
-            # Registra log;
-            registrar_log(f"✅ DNS online: {dominio.dominio}", LOG_FILE)
 
         else:
             # 3. Se mudou de status ONLINE para OFFLINE agora:
@@ -644,11 +623,11 @@ def check_dns_canais():
                     registrar_log(f"🚨 [PRIVADO] ALERTA enviado: DNS OFFLINE {dominio.dominio}", LOG_FILE)
 
                 # Atualiza status para offline
-                dominio.ativo = False
+                dominio.status = "offline"
                 dominio.data_offline = hora_now
                 dominio.data_envio_alerta = hora_now
                 dominio.acesso_canais = "INDISPONIVEL"
-                dominio.save(update_fields=["ativo", "data_offline", "data_ultima_verificacao", "acesso_canais"])
+                dominio.save(update_fields=["status", "data_offline", "data_ultima_verificacao", "acesso_canais"])
             elif not status_anterior:
                 # Se já estava offline, só registra a verificação
                 dominio.save(update_fields=["data_ultima_verificacao"])
