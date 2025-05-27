@@ -516,7 +516,7 @@ class LogFileContentView(View):
         if not os.path.exists(full_path):
             raise Http404("Arquivo não encontrado.")
         with open(full_path, encoding='utf-8', errors='replace') as f:
-            lines = f.readlines()[-500:]
+            lines = f.readlines()[-2000:]
         return JsonResponse({"content": ''.join(lines)})
 
 
