@@ -508,16 +508,38 @@ class LogFileContentView(View):
         filename = request.GET.get("file")
         if not filename or '..' in filename or filename.startswith('/'):
             raise Http404("Arquivo não permitido.")
-        # Caminho absoluto seguro
         full_path = os.path.normpath(os.path.join(LOG_DIR, filename))
-        # Segurança: verifica se o caminho começa com LOG_DIR
         if not full_path.startswith(os.path.abspath(LOG_DIR)):
             raise Http404("Arquivo não permitido.")
         if not os.path.exists(full_path):
             raise Http404("Arquivo não encontrado.")
+
+        agora = datetime.now()
+        corte = agora - timedelta(hours=24)
+        log24h = []
+
+        # Regex para a data no início da linha
+        date_regex = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
+
         with open(full_path, encoding='utf-8', errors='replace') as f:
-            lines = f.readlines()[-100:]
-        return JsonResponse({"content": ''.join(lines)})
+            for line in f:
+                match = date_regex.match(line)
+                if match:
+                    try:
+                        dt = datetime.strptime(match.group(1), "%Y-%m-%d %H:%M:%S")
+                        if dt >= corte:
+                            log24h.append(line)
+                    except Exception:
+                        pass
+                else:
+                    # Se necessário incluir linhas sem data (ex: detalhes de uma entrada):
+                    # if log24h: log24h.append(line)
+                    pass
+
+        if not log24h:
+            log24h = ["Nenhuma linha nas últimas 24h.\n"]
+
+        return JsonResponse({"content": ''.join(log24h)})
 
 
 class TabelaDashboard(LoginRequiredMixin, ListView):
