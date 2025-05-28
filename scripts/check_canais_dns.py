@@ -221,7 +221,7 @@ def validar_dominio(dominio, nome_servidor):
     status_codes = []
     timeout = (8, 15) # 8 segundos para conectar, 15 segundos para obter resposta
     respostas_ok = 0
-    respostas_ok_min = 4 # qtd min de resposta com sucesso
+    respostas_ok_min = 5 # qtd min de resposta com sucesso
     resposta_tempo_max = 15 # tempo de resposta max
     nome_servidor_padrao = nome_servidor.strip().upper()
     username = USERNAME.get(nome_servidor_padrao)
