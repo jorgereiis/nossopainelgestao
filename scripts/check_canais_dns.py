@@ -345,12 +345,12 @@ def check_dns_canais():
                     # Envia notificação para grupos no WPP, se houver ID válido obtido;
                     for group_id, group_name in grupos_envio:
                         enviar_mensagem(group_id, mensagem, WPP_USER, WPP_TOKEN, is_group=True)
-                        registrar_log("", titulo_destacado=f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS ONLINE {dominio.dominio}", LOG_FILE)
+                        registrar_log("", titulo_destacado=f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS ONLINE {dominio.dominio}")
 
                 if WPP_TELEFONE:
                     # Envia mensagem para contato privado no WPP, se houver número definido;
                     enviar_mensagem(WPP_TELEFONE, mensagem, WPP_USER, WPP_TOKEN, is_group=False)
-                    registrar_log("", titulo_destacado=f"🚨 [PRIVADO] ALERTA enviado: DNS ONLINE {dominio.dominio}", LOG_FILE)
+                    registrar_log("", titulo_destacado=f"🚨 [PRIVADO] ALERTA enviado: DNS ONLINE {dominio.dominio}")
 
                 # Atualiza status para online;
                 dominio.status = "online"
@@ -377,11 +377,11 @@ def check_dns_canais():
                 if grupos_envio:
                     for group_id, group_name in grupos_envio:
                         enviar_mensagem(group_id, mensagem, WPP_USER, WPP_TOKEN, is_group=True)
-                        registrar_log("", titulo_destacado=f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS OFFLINE {dominio.dominio}", LOG_FILE)
+                        registrar_log("", titulo_destacado=f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS OFFLINE {dominio.dominio}")
 
                 if WPP_TELEFONE:
                     enviar_mensagem(WPP_TELEFONE, mensagem, WPP_USER, WPP_TOKEN, is_group=False)
-                    registrar_log(f"🚨 [PRIVADO] ALERTA enviado: DNS OFFLINE {dominio.dominio}", LOG_FILE)
+                    registrar_log(f"🚨 [PRIVADO] ALERTA enviado: DNS OFFLINE {dominio.dominio}")
 
                 # Atualiza status para offline
                 dominio.status = "offline"
@@ -392,7 +392,7 @@ def check_dns_canais():
             elif status_anterior == "offline":
                 # Se já estava offline, só registra a verificação
                 dominio.save(update_fields=["data_ultima_verificacao"])
-                registrar_log("", titulo_destacado=f"❌ DNS offline: {dominio.dominio}", LOG_FILE)
+                registrar_log("", titulo_destacado=f"❌ DNS offline: {dominio.dominio}")
 
             # Registra em log resultados detalhados em log;
             log_msg = (
