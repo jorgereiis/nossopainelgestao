@@ -223,7 +223,6 @@ def validar_dominio(dominio, nome_servidor):
     respostas_ok = 0
     respostas_ok_min = 4 # qtd min de resposta com sucesso
     resposta_tempo_max = 15 # tempo de resposta max
-
     nome_servidor_padrao = nome_servidor.strip().upper()
     username = USERNAME.get(nome_servidor_padrao)
     password = PASSWORD.get(nome_servidor_padrao)
@@ -234,6 +233,7 @@ def validar_dominio(dominio, nome_servidor):
 
     tempo_inicio = time.time()
     for i in range(tentativas):
+        time.sleep(random.randint(5, 10))
         inicio = time.time()
         encontrou_extinf = False
         linhas_lidas = 0
