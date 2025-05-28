@@ -33,12 +33,11 @@ WPP_TELEFONE = os.getenv("MEU_NUM_TIM")
 ADM_ENVIA_ALERTAS = os.getenv("NUM_MONITOR")
 
 ERROR_LOG = "logs/error.log"
-LOG_FILE = "logs/M3U8/check_canais_dns.log"
-LOG_ALERTAS = "logs/M3U8/check_canais_dns.log"
-THREAD_LOG = "logs/M3U8/check_canais_dns_thread.log"
-LOG_FILE_ENVIOS = "logs/M3U8/check_canais_dns_envios.log"
-STATUS_SNAPSHOT_FILE = "logs/M3U8/snapshot_dns_status.pkl"
-LOG_FILE_GRUPOS_WHATSAPP = "logs/M3U8/check_canais_dns_grupos_wpp.log"
+LOG_FILE = "logs/DNS/consultas_dns.log"
+THREAD_LOG = "logs/DNS/run_dns_thread.log"
+STATUS_SNAPSHOT_FILE = "logs/DNS/snapshots_dns.pkl"
+LOG_FILE_ENVIOS = "logs/DNS/envio_pv_notificacoes.log"
+LOG_FILE_GRUPOS_WHATSAPP = "logs/DNS/envio_gp_notificacoes.log"
 
 USER_ADMIN = User.objects.get(is_superuser=True)
 sessao_wpp = SessaoWpp.objects.get(usuario=USER_ADMIN)
@@ -49,7 +48,6 @@ WPP_TOKEN = sessao_wpp.token
 os.makedirs(os.path.dirname(ERROR_LOG), exist_ok=True)
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 os.makedirs(os.path.dirname(THREAD_LOG), exist_ok=True)
-os.makedirs(os.path.dirname(LOG_ALERTAS), exist_ok=True)
 os.makedirs(os.path.dirname(LOG_FILE_ENVIOS), exist_ok=True)
 os.makedirs(os.path.dirname(STATUS_SNAPSHOT_FILE), exist_ok=True)
 
@@ -217,7 +215,6 @@ def validar_dominio(dominio, nome_servidor):
         }
     """
 
-    delay = 5
     erro = None
     tempos = []
     tentativas = 5
@@ -274,7 +271,6 @@ def validar_dominio(dominio, nome_servidor):
             status_codes.append(str(e))
             registrar_log(f"❌ Tentativa {i+1}: Erro inesperado: {repr(e)}")
             erro = str(e)
-        time.sleep(delay)
 
     tempo_total = time.time() - tempo_inicio
     online = respostas_ok >= respostas_ok_min
@@ -285,6 +281,7 @@ def validar_dominio(dominio, nome_servidor):
     else:
         registrar_log("", titulo_destacado=f"🔻 OFFLINE!!")
     registrar_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+    time.sleep(random.randint(10, 20))
 
     return {
         "success": online,
@@ -334,8 +331,6 @@ def check_dns_canais():
         username = lista_dict.get("username", "N/A")
         password = lista_dict.get("password", "N/A")
 
-        print("ONLINE? ", dominio_online)
-        print("STATUS ANTERIOR: ", status_anterior)
         if dominio_online:
             # 2. Verifica see mudou de status OFFLINE para ONLINE agora:
             if status_anterior == "offline":
@@ -350,19 +345,19 @@ def check_dns_canais():
                     # Envia notificação para grupos no WPP, se houver ID válido obtido;
                     for group_id, group_name in grupos_envio:
                         enviar_mensagem(group_id, mensagem, WPP_USER, WPP_TOKEN, is_group=True)
-                        registrar_log(f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS ONLINE {dominio.dominio}", LOG_FILE)
+                        registrar_log("", titulo_destacado=f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS ONLINE {dominio.dominio}", LOG_FILE)
 
                 if WPP_TELEFONE:
                     # Envia mensagem para contato privado no WPP, se houver número definido;
                     enviar_mensagem(WPP_TELEFONE, mensagem, WPP_USER, WPP_TOKEN, is_group=False)
-                    registrar_log(f"🚨 [PRIVADO] ALERTA enviado: DNS ONLINE {dominio.dominio}", LOG_FILE)
+                    registrar_log("", titulo_destacado=f"🚨 [PRIVADO] ALERTA enviado: DNS ONLINE {dominio.dominio}", LOG_FILE)
 
                 # Atualiza status para online;
                 dominio.status = "online"
                 dominio.data_online = hora_now
-                dominio.data_envio_alerta = hora_now
                 dominio.acesso_canais = "TOTAL"
-                dominio.save(update_fields=["status", "data_online", "data_ultima_verificacao", "data_envio_alerta"])
+                dominio.data_envio_alerta = hora_now
+                dominio.save(update_fields=["status", "data_online", "acesso_canais", "data_envio_alerta", "data_ultima_verificacao"])
             else:
                 # Se o status anterior não mudou, então continua online;
                 # Apenas registra a data da verificação;
@@ -382,7 +377,7 @@ def check_dns_canais():
                 if grupos_envio:
                     for group_id, group_name in grupos_envio:
                         enviar_mensagem(group_id, mensagem, WPP_USER, WPP_TOKEN, is_group=True)
-                        registrar_log(f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS OFFLINE {dominio.dominio}", LOG_FILE)
+                        registrar_log("", titulo_destacado=f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS OFFLINE {dominio.dominio}", LOG_FILE)
 
                 if WPP_TELEFONE:
                     enviar_mensagem(WPP_TELEFONE, mensagem, WPP_USER, WPP_TOKEN, is_group=False)
@@ -393,11 +388,11 @@ def check_dns_canais():
                 dominio.data_offline = hora_now
                 dominio.data_envio_alerta = hora_now
                 dominio.acesso_canais = "INDISPONIVEL"
-                dominio.save(update_fields=["status", "data_offline", "data_ultima_verificacao", "acesso_canais"])
+                dominio.save(update_fields=["status", "data_offline", "data_envio_alerta", "acesso_canais", "data_ultima_verificacao"])
             elif status_anterior == "offline":
                 # Se já estava offline, só registra a verificação
                 dominio.save(update_fields=["data_ultima_verificacao"])
-                registrar_log(f"❌ DNS offline: {dominio.dominio}", LOG_FILE)
+                registrar_log("", titulo_destacado=f"❌ DNS offline: {dominio.dominio}", LOG_FILE)
 
             # Registra em log resultados detalhados em log;
             log_msg = (
