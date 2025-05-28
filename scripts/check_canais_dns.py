@@ -338,14 +338,11 @@ def check_dns_canais():
         print("STATUS ANTERIOR: ", status_anterior)
         if dominio_online:
             # 2. Verifica see mudou de status OFFLINE para ONLINE agora:
-            if (status_anterior == "offline") and (
-                (dominio.data_offline and dominio.data_online and dominio.data_offline > dominio.data_online) or
-                (dominio.data_offline and not dominio.data_online)
-            ):
+            if status_anterior == "offline":
                 mensagem = (
                     f"✅ *DNS ONLINE*\n"
                     f"🌐 *Domínio:*\n`{dominio.dominio}`\n"
-                    f"🕓 *Horário:* {hora_now.strftime('%Y/%m %Hh%M')}\n"
+                    f"🕓 *Horário:* {hora_now.strftime('%d/%m %Hh%M')}\n"
                     f"📺 *Servidor:* {dominio.servidor}\n\n"
                     f"🔔 _O domínio voltou a responder normalmente!_"
                 )
@@ -373,14 +370,11 @@ def check_dns_canais():
 
         else:
             # 3. Se mudou de status ONLINE para OFFLINE agora:
-            if (status_anterior == "online" and (
-                (dominio.data_online and dominio.data_offline and dominio.data_online > dominio.data_offline) or
-                (dominio.data_online and not dominio.data_offline))
-            ):
+            if status_anterior == "online":
                 mensagem = (
                     f"❌ *DNS OFFLINE*\n"
                     f"🌐 *Domínio:*\n`{dominio.dominio}`\n"
-                    f"🕓 *Horário:* {localtime().strftime('%Y/%m %Hh%M')}\n"
+                    f"🕓 *Horário:* {localtime().strftime('%d/%m %Hh%M')}\n"
                     f"📺 *Servidor:* {dominio.servidor}\n\n"
                     f"⚠️ _O domínio parou de responder._\n⚠️ _Caso esteja em uso, alguns clientes poderão ficar sem acesso temporariamente!_"
                 )
@@ -400,7 +394,7 @@ def check_dns_canais():
                 dominio.data_envio_alerta = hora_now
                 dominio.acesso_canais = "INDISPONIVEL"
                 dominio.save(update_fields=["status", "data_offline", "data_ultima_verificacao", "acesso_canais"])
-            elif not status_anterior:
+            elif status_anterior == "offline":
                 # Se já estava offline, só registra a verificação
                 dominio.save(update_fields=["data_ultima_verificacao"])
                 registrar_log(f"❌ DNS offline: {dominio.dominio}", LOG_FILE)

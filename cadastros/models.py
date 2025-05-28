@@ -376,9 +376,8 @@ class DominiosDNS(models.Model):
         verbose_name_plural = "Domínios DNS"
 
     def save(self, *args, **kwargs):
-        """Salva o domínio DNS, garantindo que o domínio seja único e formatado corretamente."""
+        """Salva o domínio DNS, garantindo que o domínio seja formatado corretamente."""
         self.dominio = self.dominio.strip().lower()
-        self.data_online = localtime(now()) if self.status == 'online' else None
         super().save(*args, **kwargs)
 
     def __str__(self):
