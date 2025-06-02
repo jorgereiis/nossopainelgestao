@@ -18,7 +18,7 @@ from mensagens_wpp import (
     run_scheduled_tasks,
     obter_mensalidades_a_vencer,
     obter_mensalidades_vencidas,
-    mensalidades_canceladas,
+    obter_mensalidades_canceladas,
     backup_db_sh,
 )
 from processar_novos_titulos_m3u8 import executar_processar_novos_titulos_com_lock
@@ -47,7 +47,7 @@ schedule.every().day.at("13:30").do(
     run_threaded, obter_mensalidades_vencidas
 )
 schedule.every().day.at("17:00").do(
-    run_threaded, mensalidades_canceladas
+    run_threaded, obter_mensalidades_canceladas
 )
 """schedule.every().day.at("00:15").do(
     run_threaded, executar_comparar_lista_m3u8_com_lock

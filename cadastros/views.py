@@ -3,13 +3,14 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models.functions import ExtractMonth, ExtractYear
-from .utils import envio_apos_novo_cadastro, criar_mensalidade
 from plotly.colors import sample_colorscale, make_colorscale
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.decorators.http import require_POST
 from django.db.models.deletion import ProtectedError
 from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_exempt
+from django.core.validators import validate_email
 from django.contrib.auth.views import LoginView
 from django.views.generic.list import ListView
 from datetime import timedelta, datetime, date
@@ -18,8 +19,8 @@ from django.forms.models import model_to_dict
 from django.db.models.functions import Upper
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q, Count
-from .utils import validar_numero_whatsapp
 from babel.numbers import format_currency
+from matplotlib.patches import Patch
 from django.contrib import messages
 from django.utils import timezone
 from django.db import transaction
@@ -55,6 +56,12 @@ from .models import (
     DadosBancarios, MensagemEnviadaWpp,
     DominiosDNS
 )
+from .utils import (
+    envio_apos_novo_cadastro,
+    validar_tel_whatsapp,
+    criar_mensalidade,
+    check_number_status,
+)
 
 # Constantes
 PLANOS_MESES = {
@@ -65,6 +72,7 @@ PLANOS_MESES = {
 }
 
 LOG_DIR = os.path.join(settings.BASE_DIR, 'logs')
+os.getenv("")
 MESES_31_DIAS = [1, 3, 5, 7, 8, 10, 12]
 
 warnings.filterwarnings(
@@ -168,7 +176,7 @@ def conectar_wpp(request):
 
 @login_required
 def get_token_ativo(usuario) -> Optional[str]:
-    sessao = SessaoWpp.objects.filter(usuario=usuario.username, is_active=True).first()
+    sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
     return sessao.token if sessao else None
 
 
@@ -216,7 +224,7 @@ def desconectar_wpp(request):
         usuario = request.user
         session = usuario.username
 
-        sessao = SessaoWpp.objects.filter(usuario=session).first()
+        sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
         if not sessao:
             return JsonResponse({"erro": "Sessão não encontrada"}, status=404)
 
@@ -239,7 +247,7 @@ def cancelar_sessao_wpp(request):
     session = usuario.username
 
     try:
-        sessao = SessaoWpp.objects.get(usuario=session)
+        sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
     except SessaoWpp.DoesNotExist:
         return JsonResponse({"erro": "Sessão não encontrada"}, status=404)
 
@@ -716,9 +724,8 @@ def send_message_wpp(request):
             f.write(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {content}\n")
 
     def enviar_mensagem(url, telefone):
-        telefone_validado = validar_numero_whatsapp(telefone)
-        if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone_validado, data_envio=timezone.now().date()).exists():
-            log_result(log_result_filename, f"{telefone_validado} - ⚠️ Já foi feito envio hoje!")
+        if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone, data_envio=timezone.now().date()).exists():
+            log_result(log_result_filename, f"{telefone} - ⚠️ Já foi feito envio hoje!")
             return
 
         headers = {
@@ -727,7 +734,7 @@ def send_message_wpp(request):
             'Authorization': f'Bearer {token}'
         }
         body = {
-            'phone': telefone_validado,
+            'phone': telefone,
             'isGroup': False,
             'message': mensagem
         }
@@ -741,9 +748,9 @@ def send_message_wpp(request):
         response = requests.post(url, headers=headers, json=body)
 
         if response.status_code in [200, 201]:
-            log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{telefone_validado}] Mensagem enviada!")
-            log_result(log_result_filename, f"{telefone_validado} - ✅ Mensagem enviada")
-            MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone_validado)
+            log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{telefone}] Mensagem enviada!")
+            log_result(log_result_filename, f"{telefone} - ✅ Mensagem enviada")
+            MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone)
             time.sleep(random.uniform(5, 12))
         else:
             try:
@@ -751,8 +758,8 @@ def send_message_wpp(request):
                 error_message = response_data.get('message', response.text)
             except json.decoder.JSONDecodeError:
                 error_message = response.text
-            log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{telefone_validado}] [CODE][{response.status_code}] - {error_message}")
-            log_result(log_result_filename, f"{telefone_validado} - ❌ Não enviada (consultar log)")
+            log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{telefone}] [CODE][{response.status_code}] - {error_message}")
+            log_result(log_result_filename, f"{telefone} - ❌ Não enviada (consultar log)")
 
     # Coleta de contatos
     telefones = []
@@ -928,7 +935,6 @@ def generate_graphic_columns(request):
     texto_saldo = f"Saldo {ano}: {'+' if saldo_final > 0 else ''}{saldo_final}"
 
     # Criando um proxy para adicionar o saldo na legenda
-    from matplotlib.patches import Patch
     saldo_patch = Patch(color=cor_saldo, label=texto_saldo)
 
     # Adicionando a legenda com "Saldo" personalizado
@@ -1085,8 +1091,6 @@ def generate_graphic_map_customers(request):
     return HttpResponse(html, content_type="text/html")
 
 ############################################ UPDATE VIEW ############################################
-
-from django.views.decorators.http import require_POST
 
 @require_POST
 @login_required
@@ -1310,6 +1314,7 @@ def edit_customer(request, cliente_id):
     try:
         post = request.POST
         user = request.user
+        token = SessaoWpp.objects.filter(usuario=user, is_active=True).first()
         cliente = get_object_or_404(Cliente, pk=cliente_id, usuario=user)
         mensalidade = get_object_or_404(Mensalidade, cliente=cliente, pgto=False, cancelado=False, usuario=user)
 
@@ -1319,15 +1324,46 @@ def edit_customer(request, cliente_id):
             cliente.nome = nome
 
         # Telefone + UF
-        telefone = post.get("telefone", "").strip()
-        if cliente.telefone != telefone:
-            if not Cliente.objects.filter(telefone=telefone, usuario=user).exclude(pk=cliente.pk).exists():
-                cliente.telefone = telefone
-                cliente.uf = extrair_uf_do_telefone(telefone)
-            else:
+        telefone_novo = post.get("telefone", "").strip()
+        resultado_wpp = validar_tel_whatsapp(telefone_novo, token.token, user)
+        cliente_existe_telefone = resultado_wpp.get("cliente_existe_telefone")
+        telefone_novo = resultado_wpp.get("telefone_validado_wpp")
+
+        if cliente.telefone != telefone_novo:
+            # Verifica se o novo número possui WhatsApp
+            if not resultado_wpp.get("wpp"):
+                logger.warning(
+                    f"[WARN][EDITAR CLIENTE] O número {telefone_novo} não possui um WhatsApp."
+                )
                 return render(request, "dashboard.html", {
-                    "error_message_edit": "Já existe um cliente com este telefone informado."
-                }, status=400)
+                    "error_message_edit": (
+                        f"O número {telefone_novo} não possui um WhatsApp.<br>"
+                        "O cadastro do cliente precisa ter um número ativo no WhatsApp."
+                    ),
+                })
+
+            # Se o novo número existe para outro cliente cadastrado
+            if cliente_existe_telefone:
+                # Garante que não é o próprio cliente que está editando
+                cliente_existente = Cliente.objects.filter(
+                    telefone=cliente_existe_telefone,
+                    usuario=user
+                ).exclude(pk=cliente_id).first()
+                if cliente_existente:
+                    logger.warning(
+                        f"[WARN][EDITAR CLIENTE] Já existe cliente para telefone {cliente_existente.telefone} (ID: {cliente_existente.id})"
+                    )
+                    return render(request, "dashboard.html", {
+                        "error_message_edit": (
+                            "Há um cliente cadastrado com o telefone informado! <br><br>"
+                            f"<strong>Nome:</strong> {cliente_existente.nome} <br>"
+                            f"<strong>Telefone:</strong> {cliente_existente.telefone}"
+                        ),
+                    })
+                # Se chegou aqui, está tudo certo (ou é ele mesmo)
+            # Atualiza telefone e UF
+            cliente.telefone = telefone_novo
+            cliente.uf = extrair_uf_do_telefone(telefone_novo)
 
         # Indicação
         indicado_nome = post.get("indicado_por")
@@ -1347,12 +1383,15 @@ def edit_customer(request, cliente_id):
             cliente.forma_pgto = forma_pgto
 
         # Plano
-        plano_nome, plano_valor = post.get("plano", "").replace(' ', '').split('-')
-        plano_valor = Decimal(plano_valor.replace(',', '.'))
-        plano = Plano.objects.filter(nome=plano_nome, valor=plano_valor, usuario=user).first()
-        if plano and cliente.plano != plano:
-            cliente.plano = plano
-            mensalidade.valor = plano.valor
+        plano_str = post.get("plano", "")
+        if '-' in plano_str:
+            plano_nome, plano_valor = plano_str.rsplit('-', 1)
+            plano_nome = plano_nome.strip()
+            plano_valor = Decimal(plano_valor.replace(',', '.'))
+            plano = Plano.objects.filter(nome=plano_nome, valor=plano_valor, usuario=user).first()
+            if plano and cliente.plano != plano:
+                cliente.plano = plano
+                mensalidade.valor = plano.valor
 
         # Data de vencimento
         data_vencimento_str = post.get("dt_pgto", "").strip()
@@ -1370,13 +1409,13 @@ def edit_customer(request, cliente_id):
                 "error_message_edit": "Data de vencimento inválida. Use o formato DD/MM/AAAA ou AAAA-MM-DD."
             }, status=400)
 
-        #nova_data_vencimento = calcular_nova_data_vencimento(plano.nome, data_base)
         nova_data_vencimento = data_base
 
         if cliente.data_vencimento != nova_data_vencimento:
             cliente.data_vencimento = nova_data_vencimento
             mensalidade.dt_vencimento = nova_data_vencimento
-            mensalidade.valor = plano.valor
+            if plano:
+                mensalidade.valor = plano.valor
 
         # Dispositivo
         dispositivo = get_object_or_404(Dispositivo, nome=post.get("dispositivo"), usuario=user)
@@ -1397,16 +1436,17 @@ def edit_customer(request, cliente_id):
         mensalidade.save()
 
         return render(request, "dashboard.html", {
-            "success_message_edit": f"{cliente.nome} foi atualizado com sucesso."
+            "success_message_edit": f"<strong>{cliente.nome}</strong> foi atualizado com sucesso."
         }, status=200)
 
     except Exception as e:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
+        logger.error('[%s] [ERROR][EDITAR CLIENTE] [USER][%s] [IP][%s] [%s]',
                      timezone.localtime(), request.user,
                      request.META.get('REMOTE_ADDR'), e, exc_info=True)
         return render(request, "dashboard.html", {
             "error_message_edit": "Ocorreu um erro ao tentar atualizar esse cliente."
         }, status=500)
+
 
 
 # AÇÃO PARA EDITAR O OBJETO PLANO MENSAL
@@ -1715,139 +1755,233 @@ def create_app_account(request):
 
 @login_required
 def import_customers(request):
-
-    num_linhas_importadas = 0  # Inicializa o contador de linhas importadas
-    num_linhas_nao_importadas = 0  # Inicializa o contador de linhas não importadas
-    nomes_clientes_existentes = []  # Inicializa a lista de nomes de clientes existentes não importados
-    nomes_clientes_erro_importacao = [] # Inicializa a lista de nomes de clientes que tiveram erro na importação
-    usuario_request = request.user # Usuário que fez a requisição
+    usuario = request.user
+    token = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
     page_group = 'clientes'
     page = 'importar-clientes'
+    success, fail, clientes_existentes, clientes_invalidos_whatsapp, erros_importacao, clientes_criados = 0, 0, [], [], [], {}
+    error_message = None
+
+    def clean_cell(row, key):
+        valor = row.get(key, None)
+        return "" if pd.isnull(valor) or valor is None else str(valor).strip()
 
     if request.method == "POST" and 'importar' in request.POST:
-        if not str(request.FILES['arquivo']).endswith('.xls') and not str(request.FILES['arquivo']).endswith('.xlsx'):
-            # se o arquivo não possui a extensão esperada (.xls/.xlsx), retorna erro ao usuário.
-            return render(request, "pages/importar-cliente.html",
-                {"error_message": "O arquivo não é uma planilha válida (.xls, .xlsx)."},)
-
-        try:
-            # realiza a leitura dos dados da planilha.
-            dados = pd.read_excel(request.FILES['arquivo'], engine='openpyxl')
-        
-        except Exception as erro1:
-            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
-            return render(request, "pages/importar-cliente.html",
-                {"error_message": "Erro ao tentar ler planilha. Verifique o arquivo e tente novamente."},)
-        
-        # transforma cada linha dos dados lidos da planilha em um dicionário para que seja iterado no loop FOR.
-        lista_de_objetos = dados.to_dict('records')
-
-        with transaction.atomic(): # Adicionando a transação atomica
-            i=0
-            for dado in lista_de_objetos:
-                i+=1
-
-                servidor_import = str(dado['servidor']).replace(" ", "") if not pd.isna(dado['servidor']) else None
-                dispositivo_import = str(dado['dispositivo']) if not pd.isna(dado['dispositivo']) else None
-                sistema_import = str(dado['sistema']) if not pd.isna(dado['sistema']) else None
-                device_id_import = str(dado['device_id']).replace(" ", "") if not pd.isna(dado['device_id']) else None
-                email_import = str(dado['email']).replace(" ", "") if not pd.isna(dado['email']) else None
-                device_key_import = str(dado['device_key']).replace(" ", "") if not pd.isna(dado['device_key']) else None
-                nome_import = str(dado['nome']).title() if not pd.isna(dado['nome']) else None
-                telefone_import = str(dado['telefone']).replace(" ", "") if not pd.isna(dado['telefone']) else None
-                indicado_por_import = str(dado['indicado_por']) if not pd.isna(dado['indicado_por']) else None
-                data_vencimento_import = str(dado['data_vencimento']) if not pd.isna(dado['data_vencimento']) else None
-                forma_pgto_import = str(dado['forma_pgto']) if not pd.isna(dado['forma_pgto']) else 'PIX'
-                tipo_plano_import = str(dado['tipo_plano']).replace(" ", "").title() if not pd.isna(dado['tipo_plano']) else None
-                plano_valor_import = int(dado['plano_valor']) if not pd.isna(dado['plano_valor']) else None
-                data_adesao_import = dado['data_adesao'] if not pd.isna(dado['data_adesao']) else None
-
-                if (servidor_import is None) or (dispositivo_import is None) or (sistema_import is None) or (nome_import is None) or (telefone_import is None) or (data_adesao_import is None) or (forma_pgto_import is None) or (plano_valor_import is None) or (tipo_plano_import is None):
-                    num_linhas_nao_importadas += 1
-                    nomes_clientes_erro_importacao.append('Linha {} da planilha - (há campos obrigatórios em branco)'.format(i))
-                    continue
-                
+        arquivo = request.FILES.get('arquivo')
+        if not arquivo:
+            error_message = "Nenhum arquivo enviado."
+        else:
+            ext = os.path.splitext(arquivo.name)[1].lower()
+            if ext != '.xlsx':
+                error_message = "Apenas arquivos .xlsx são suportados."
+            else:
                 try:
-                    with transaction.atomic(): # Nova transação atomica para cada cliente importado
-                        
-                        # Verifica se já existe um cliente com esse nome ou telefone
-                        cliente_existente = Cliente.objects.filter(Q(nome__iexact=nome_import) | Q(telefone=telefone_import), usuario=usuario_request).exists()
-                        if cliente_existente:
-                            num_linhas_nao_importadas += 1 # incrementa mais 1 a contagem
-                            nomes_clientes_existentes.append('Linha {} da planilha - {}'.format(i, nome_import.title()))  # Adiciona o nome do cliente já existente
-                            continue # pula a inserção desse cliente
-                        
-                        servidor, created = Servidor.objects.get_or_create(nome=servidor_import, usuario=usuario_request)
-                        dispositivo, created = Dispositivo.objects.get_or_create(nome=dispositivo_import, usuario=usuario_request)
-                        sistema, created = Aplicativo.objects.get_or_create(nome=sistema_import, usuario=usuario_request)
-                        indicado_por = None
-                        if indicado_por_import:
-                            indicado_por = Cliente.objects.filter(nome__iexact=nome_import, usuario=usuario_request).first()
-                        data_vencimento = data_vencimento_import
-                        forma_pgto, created = Tipos_pgto.objects.get_or_create(nome=forma_pgto_import, usuario=usuario_request)
-                        plano, created = Plano.objects.get_or_create(nome=tipo_plano_import, valor=plano_valor_import, usuario=usuario_request)
-                        data_adesao = data_adesao_import
+                    dados = pd.read_excel(
+                        arquivo,
+                        engine='openpyxl',
+                        header=2,
+                        dtype={
+                            "servidor": str,
+                            "dispositivo": str,
+                            "sistema": str,
+                            "device_id": str,
+                            "email": str,
+                            "device_key": str,
+                            "nome": str,
+                            "telefone": str,
+                            "indicado_por": str,
+                            "data_vencimento": str,
+                            "forma_pgto": str,
+                            "tipo_plano": str,
+                            "plano_valor": float,
+                            "telas": int,
+                            "data_adesao": str
+                        }
+                    )
+                    if "data_adesao" in dados.columns:
+                        dados["data_adesao"] = pd.to_datetime(dados["data_adesao"], errors="coerce")
+                        dados = dados.sort_values("data_adesao", ascending=True)
+                except Exception as e:
+                    logger.error("Erro lendo planilha: %s", e, exc_info=True)
+                    error_message = "Erro ao ler a planilha. Verifique o arquivo."
 
-                        novo_cliente = Cliente(
-                            servidor=servidor,
-                            dispositivo=dispositivo,
-                            sistema=sistema,
-                            nome=nome_import,
-                            telefone=telefone_import,
-                            indicado_por=indicado_por,
-                            data_vencimento=data_vencimento,
-                            forma_pgto=forma_pgto,
-                            plano=plano,
-                            data_adesao=data_adesao,
-                            usuario=usuario_request,
-                        )
-                        novo_cliente.save()
-                        
-                        check_sistema = sistema_import.lower().replace(" ", "")
-                        if check_sistema == "clouddy" or check_sistema == "duplexplay" or check_sistema == "duplecast" or check_sistema == "metaplayer":
-                            device_id = device_id_import
-                            email = email_import
-                            device_key = device_key_import.split('.')[0]
-                            dados_do_app = ContaDoAplicativo(
+        if error_message:
+            return render(request, "pages/importar-cliente.html", {
+                "error_message": error_message,
+                "page_group": page_group, "page": page
+            })
+
+        registros = dados.to_dict('records')
+        with transaction.atomic():
+            # 1º loop: salva todos os clientes sem indicado_por
+            for idx, row in enumerate(registros, 1):
+                try:
+                    servidor_nome = clean_cell(row, 'servidor')
+                    dispositivo_nome = clean_cell(row, 'dispositivo')
+                    sistema_nome = clean_cell(row, 'sistema')
+                    device_id = clean_cell(row, 'device_id')
+                    email = clean_cell(row, 'email')
+                    senha = clean_cell(row, 'device_key')
+                    nome = clean_cell(row, 'nome')
+                    telefone = clean_cell(row, 'telefone')
+                    data_vencimento_str = clean_cell(row, 'data_vencimento')
+                    forma_pgto_nome = clean_cell(row, 'forma_pgto')
+                    plano_nome = clean_cell(row, 'tipo_plano')
+                    plano_valor = clean_cell(row, 'plano_valor')
+                    plano_telas = clean_cell(row, 'telas')
+                    data_adesao_str = clean_cell(row, 'data_adesao')
+
+                    # Valida obrigatórios
+                    if not all([servidor_nome, dispositivo_nome, sistema_nome, nome, telefone, data_vencimento_str, forma_pgto_nome, plano_nome, plano_valor, plano_telas, data_adesao_str]):
+                        fail += 1
+                        erros_importacao.append(f"Linha {idx}: campos obrigatórios em branco")
+                        continue
+
+                    # 1. Validação de telefone
+                    resultado_telefone = validar_tel_whatsapp(telefone, token.token, request.user)
+                    if not resultado_telefone.get("wpp"):
+                        fail += 1
+                        clientes_invalidos_whatsapp.append(f"Linha {idx}: {telefone} (número não existe no WhatsApp)")
+                        continue
+                    if not resultado_telefone.get("telefone_validado_wpp"):
+                        fail += 1
+                        clientes_invalidos_whatsapp.append(f"Linha {idx}: {telefone} (não foi possível validar o telefone para WhatsApp)")
+                        continue
+                    if resultado_telefone.get("cliente_existe_telefone"):
+                        clientes_existentes.append(f"Linha {idx}: {telefone} (já existe cliente com esse telefone)")
+                        continue
+
+                    # Parse plano_valor
+                    try:
+                        plano_valor = float(str(plano_valor).replace(",", "."))
+                    except Exception:
+                        fail += 1
+                        erros_importacao.append(f"Linha {idx}: valor do plano inválido.")
+                        continue
+
+                    # Parse de plano_telas
+                    try:
+                        plano_telas = int(plano_telas)
+                    except Exception:
+                        fail += 1
+                        erros_importacao.append(f"Linha {idx}: quantidade de telas inválida.")
+                        continue
+
+                    # Parse datas
+                    data_vencimento = None
+                    if data_vencimento_str:
+                        try:
+                            if len(data_vencimento_str) > 10:
+                                data_vencimento = datetime.strptime(data_vencimento_str, "%Y-%m-%d %H:%M:%S").date()
+                            else:
+                                data_vencimento = datetime.strptime(data_vencimento_str, "%Y-%m-%d").date()
+                        except Exception:
+                            fail += 1
+                            erros_importacao.append(f"Linha {idx}: data de vencimento inválida.")
+                            continue
+                    try:
+                        if len(data_adesao_str) > 10:
+                            data_adesao = datetime.strptime(data_adesao_str, "%Y-%m-%d %H:%M:%S").date()
+                        else:
+                            data_adesao = datetime.strptime(data_adesao_str, "%Y-%m-%d").date()
+                    except Exception:
+                        fail += 1
+                        erros_importacao.append(f"Linha {idx}: data de adesão inválida.")
+                        continue
+
+                    # Validar e-mail
+                    try:
+                        if email:
+                            validate_email(email)
+                    except ValidationError:
+                        erros_importacao.append(f"Linha {idx}: E-mail inválido.")
+                        continue
+
+                    # Objetos relacionados
+                    plano, _ = Plano.objects.get_or_create(nome=plano_nome, telas=plano_telas, valor=plano_valor, usuario=usuario)
+                    sistema, _ = Aplicativo.objects.get_or_create(nome=sistema_nome, usuario=usuario)
+                    servidor, _ = Servidor.objects.get_or_create(nome=servidor_nome, usuario=usuario)
+                    forma_pgto, _ = Tipos_pgto.objects.get_or_create(nome=forma_pgto_nome, usuario=usuario)
+                    dispositivo, _ = Dispositivo.objects.get_or_create(nome=dispositivo_nome, usuario=usuario)
+
+                    # Salva cliente sem indicado_por
+                    cliente = Cliente(
+                        nome=nome,
+                        telefone=telefone,
+                        dispositivo=dispositivo,
+                        sistema=sistema,
+                        servidor=servidor,
+                        forma_pgto=forma_pgto,
+                        plano=plano,
+                        data_vencimento=data_vencimento,
+                        data_adesao=data_adesao,
+                        usuario=usuario,
+                    )
+                    cliente.save()
+                    clientes_criados[telefone] = cliente
+
+                    # Conta do App se aplicável
+                    if device_id or email:
+                        device_id = re.sub(r'[^A-Fa-f0-9]', '', device_id or '')
+                        if all(device_id):
+                            ContaDoAplicativo.objects.create(
                                 device_id=device_id,
                                 email=email,
-                                device_key=device_key,
-                                app=Aplicativo.objects.filter(nome__iexact=check_sistema, usuario=usuario_request).first(),
-                                cliente=novo_cliente,
-                                usuario=usuario_request,
+                                device_key=senha,
+                                app=sistema,
+                                cliente=cliente,
+                                usuario=usuario,
                             )
-                            dados_do_app.save()
 
-                        num_linhas_importadas += 1  # Incrementa o contador de linhas importadas com sucesso
-                except Exception as erro2:
-                    logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
-                    # Se ocorrer um erro, apenas incrementa 1 a contagem e adiciona o nome do cliente a lista dos não importados, e continua para o próximo cliente.
-                    num_linhas_nao_importadas += 1
-                    nomes_clientes_erro_importacao.append('Linha {} da planilha - {}'.format(i, nome_import.title()))
+                    try:
+                        Mensalidade.objects.create(
+                            cliente=cliente,
+                            valor=plano_valor,
+                            dt_vencimento = data_vencimento,
+                            usuario=usuario
+                        )
+                    except Exception as e:
+                        logger.error(f"Erro ao criar mensalidade: {e}", exc_info=True)
+
+                    success += 1
+                except Exception as e:
+                    fail += 1
+                    logger.error(f"Falha ao importar linha {idx}: {e}", exc_info=True)
+                    erros_importacao.append(f"Linha {idx}: {e}")
+
+            # 2º loop: associa indicador
+            for idx, row in enumerate(registros, 1):
+                telefone = clean_cell(row, 'telefone')
+                indicador_raw = clean_cell(row, 'indicado_por')
+                try:
+                    if indicador_raw:
+                        indicador = clientes_criados.get(indicador_raw) or Cliente.objects.filter(telefone='+' + indicador_raw, usuario=usuario).first()
+                        if indicador:
+                            Cliente.objects.filter(telefone='+' + telefone, usuario=usuario).update(indicado_por=indicador)
+                except Exception as e:
+                    fail += 1
+                    erros_importacao.append(f"Linha {idx}: Não foi possível fazer associado do Indicador ({telefone}) com o Cliente ({indicador_raw}).")
                     continue
+                
+        return render(request, "pages/importar-cliente.html", {
+            "success_message": "Importação concluída!",
+            "num_linhas_importadas": success,
+            "num_linhas_nao_importadas": fail,
+            "nomes_clientes_existentes": clientes_existentes,
+            "nomes_clientes_erro_importacao": erros_importacao,
+            "clientes_invalidos_whatsapp": clientes_invalidos_whatsapp,
+            "page_group": page_group,
+            "page": page,
+        })
 
-            time.sleep(2)
-            return render(
-                    request,
-                    "pages/importar-cliente.html",
-                    {
-                        "success_message": "Importação concluída!",
-                        "num_linhas_importadas": num_linhas_importadas,
-                        "num_linhas_nao_importadas": num_linhas_nao_importadas,
-                        "nomes_clientes_existentes": nomes_clientes_existentes,
-                        "nomes_clientes_erro_importacao": nomes_clientes_erro_importacao,
-                        "page_group": page_group,
-                        "page": page,
-                        },
-            )
-    
-    return render(request, "pages/importar-cliente.html", {"page_group": page_group,"page": page,})
+    return render(request, "pages/importar-cliente.html", {"page_group": page_group, "page": page})
 
 
 # AÇÃO PARA CRIAR NOVO CLIENTE ATRAVÉS DO FORMULÁRIO
 @login_required
 def create_customer(request):
     usuario = request.user
+    token = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
     page_group = "clientes"
     page = "cadastro-cliente"
 
@@ -1880,12 +2014,54 @@ def create_customer(request):
                 "error_message": "O campo telefone não pode estar em branco.",
             })
 
-        # Verifica se já existe cliente com o mesmo telefone
-        if Cliente.objects.filter(telefone=telefone, usuario=usuario).exists():
-            cliente_existente = Cliente.objects.get(telefone=telefone, usuario=usuario)
+        resultado_wpp = validar_tel_whatsapp(telefone, token.token, user=usuario)
+        # Verifica se o número possui WhatsApp (antes de qualquer validação de duplicidade)
+        if not resultado_wpp.get("wpp"):
             return render(request, "pages/cadastro-cliente.html", {
-                "error_message": f"Há um cliente cadastrado com o telefone informado! <br><br><strong>Nome:</strong> {cliente_existente.nome} <br> <strong>Telefone:</strong> {cliente_existente.telefone}",
+                "error_message": (
+                    "O telefone informado não possui um WhatsApp.<br>"
+                    "Cada novo cliente precisa estar cadastrado no WhatsApp."
+                ),
             })
+
+        # Se cliente existe com o telefone recebido, retorna os erros conforme cada possibilidade
+        if resultado_wpp.get("cliente_existe_telefone"):
+            telefone = resultado_wpp.get("cliente_existe_telefone")
+            cliente_existente = None
+
+            try:
+                cliente_existente = Cliente.objects.filter(telefone=telefone, usuario=usuario).first()
+                if cliente_existente:
+                    logger.warning(
+                        f"[ERRO][CADASTRO CLIENTE] Já existe cliente para telefone {cliente_existente.telefone} (ID: {cliente_existente.id})"
+                    )
+                    return render(request, "pages/cadastro-cliente.html", {
+                        "error_message": (
+                            "Há um cliente cadastrado com o telefone informado! <br><br>"
+                            f"<strong>Nome:</strong> {cliente_existente.nome} <br>"
+                            f"<strong>Telefone:</strong> {cliente_existente.telefone}"
+                        ),
+                    })
+                else:
+                    logger.error(
+                        f"[ERRO][CADASTRO CLIENTE] resultado_wpp apontou cliente_existe=True, mas nenhum cliente foi localizado no banco para telefone {telefone}"
+                    )
+                    return render(request, "pages/cadastro-cliente.html", {
+                        "error_message": (
+                            "Erro inesperado ao validar telefone existente.<br>"
+                            "Por favor, tente novamente em poucos instantes ou contate o suporte."
+                        ),
+                    })
+            except Exception as e:
+                logger.exception(
+                    f"[ERRO][CADASTRO CLIENTE] Erro ao buscar cliente existente para telefone(s) {telefone}: {e}"
+                )
+                return render(request, "pages/cadastro-cliente.html", {
+                    "error_message": (
+                        "Ocorreu um erro inesperado ao tentar verificar o número de telefone.<br>"
+                        "Por favor, tente novamente ou contate o suporte."
+                    ),
+                })
 
         # Trata indicador (pode ser nulo)
         indicador = None
@@ -1945,10 +2121,10 @@ def create_customer(request):
                 if sistema.device_has_mac:
                     try:
                         device_id = post.get('id')
-                        email = post.get('email')
-                        senha = post.get('senha')
+                        email = post.get('email', '')
+                        senha = post.get('senha', '')
 
-                        if not all([device_id, email, senha]):
+                        if not all([device_id]):
                             raise ValueError("Dados da conta do Aplicativo estão incompletos.")
 
                         ContaDoAplicativo.objects.create(
@@ -1961,7 +2137,7 @@ def create_customer(request):
                         )
                     except Exception as e:
                         logger.error("Erro ao criar ContaDoAplicativo: %s", e, exc_info=True)
-                        raise Exception("Falha ao criar a conta do aplicativo.")
+                        raise Exception("Falha ao criar a conta do aplicativo.<p>Algum dos dados não pôde ser salvo.</p>")
 
                 # ENVIO DE MENSAGEM
                 try:

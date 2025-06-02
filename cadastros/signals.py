@@ -18,11 +18,7 @@ from .utils import (
     check_number_status,
     get_label_contact,
     add_or_remove_label_contact,
-    get_all_labels,
     criar_label_se_nao_existir,
-    get_saudacao_por_hora,
-    validar_numero_whatsapp,
-    registrar_log,
 )
 # URL base da API do WhatsApp
 URL_API_WPP = os.getenv("URL_API_WPP")
@@ -163,15 +159,14 @@ def cliente_post_save(sender, instance, created, **kwargs):
 
         # Obtém token da sessão
         try:
-            token = SessaoWpp.objects.get(usuario=instance.usuario).token
+            token = SessaoWpp.objects.filter(usuario=instance.usuario, is_active=True).first()
         except SessaoWpp.DoesNotExist:
             print(f"⚠️ Sessão do WhatsApp não encontrada para o usuário {instance.usuario}")
             return
 
         # Verifica se número existe no WhatsApp
         try:
-            numero_existe = check_number_status(telefone, token)
-            print("TELEFONE: ", telefone)
+            numero_existe = check_number_status(telefone, token.token)
             if not numero_existe:
                 print(f"⚠️ Número {telefone} não é válido no WhatsApp.")
                 return
@@ -181,7 +176,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
 
         # Obtém labels atuais
         try:
-            labels_atuais = get_label_contact(telefone, token)
+            labels_atuais = get_label_contact(telefone, token.token)
         except Exception as e:
             print(f"❌ Erro ao obter labels atuais do contato: {e}")
             labels_atuais = []
@@ -197,7 +192,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
             hex_color = LABELS_CORES_FIXAS.get(label_desejada.upper())
 
             # Cria label se necessário (agora passando a cor fixa)
-            nova_label_id = criar_label_se_nao_existir(label_desejada, token, hex_color=hex_color)
+            nova_label_id = criar_label_se_nao_existir(label_desejada, token.token, hex_color=hex_color)
             if not nova_label_id:
                 print(f"⚠️ Não foi possível obter ou criar a label '{label_desejada}'")
                 return
@@ -208,7 +203,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
                 label_id_2=labels_atuais,
                 label_name=label_desejada,
                 telefone=telefone,
-                token=token
+                token=token.token
             )
 
         except Exception as e:

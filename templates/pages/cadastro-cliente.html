@@ -138,9 +138,9 @@
 
                 <!-- Data vencimento -->
                 <div class="mb-3 row">
-                  <label for="data_pagamento" class="col-sm-4 col-form-label form-label">Data vencimento inicial</label>
+                  <label for="data_vencimento" class="col-sm-4 col-form-label form-label">Data vencimento inicial</label>
                   <div class="col-sm-5 mb-3 mb-lg-0">
-                    <input type="date" class="form-control" id="data_pagamento" name="data_pagamento">
+                    <input type="date" class="form-control" id="data_vencimento" name="data_vencimento">
                   </div>
                 </div>
 
@@ -308,13 +308,13 @@
           $('#teste').after(`
             <div class="mb-3 row" id="divEmail">
               <label for="Email" class="col-sm-4 col-form-label form-label">E-mail do Aplicativo</label>
-              <div class="col-md-8 col-12">
+              <div class="col-sm-5 mb-3 mb-lg-0">
                 <input type="email" class="form-control" placeholder="E-mail" id="Email" name="email" required>
               </div>
             </div>
             <div class="mb-3 row" id="divSenha2">
               <label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label>
-              <div class="col-md-8 col-12">
+              <div class="col-sm-5 mb-3 mb-lg-0">
                 <input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" minlength="6" required>
               </div>
             </div>
@@ -323,13 +323,13 @@
           $('#teste').after(`
             <div class="mb-3 row" id="divID">
               <label for="ID" class="col-sm-4 col-form-label form-label">ID do Aplicativo</label>
-              <div class="col-md-8 col-12">
+              <div class="col-sm-5 mb-3 mb-lg-0">
                 <input type="text" class="form-control" placeholder="Device ID" id="ID" name="id" minlength="12" maxlength="18" required>
               </div>
             </div>
             <div class="mb-3 row" id="divSenha">
               <label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label>
-              <div class="col-md-8 col-12">
+              <div class="col-sm-5 mb-3 mb-lg-0">
                 <input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha" minlength="6" required>
               </div>
             </div>
@@ -373,7 +373,7 @@
   const mes = String(hoje.getMonth() + 1).padStart(2, '0'); // mês é 0-based
   const ano = hoje.getFullYear();
   const dataFormatada = `${ano}-${mes}-${dia}`;
-  document.getElementById('data_pagamento').value = dataFormatada;
+  document.getElementById('data_vencimento').value = dataFormatada;
 </script>
 
 <script>

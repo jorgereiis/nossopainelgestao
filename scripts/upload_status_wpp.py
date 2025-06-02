@@ -112,7 +112,7 @@ def executar_upload_status():
 
     primeiro = conteudos.first()
     usuario = primeiro.usuario
-    token_obj = SessaoWpp.objects.filter(usuario=usuario).first()
+    token_obj = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
 
     if not token_obj:
         registrar_log(f"[ERRO] Token do usuário {usuario.username} não encontrado.", LOG_FILE)

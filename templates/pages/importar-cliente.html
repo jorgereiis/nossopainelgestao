@@ -49,13 +49,6 @@
                                     seus clientes.
                                 </p>
 
-                                <p class="mb-0">
-                                    Recomendamos que após preencher a planilha totalmente, antes de importar ordene as linhas por "data_adesao", clicando no Filtro da coluna e escolhendo a opção "Classifica do Mais Antigo para o Mais Novo".
-                                </p>
-                                <p>
-                                    Dessa forma a importação será realizada seguindo a sequencia dos clientes mais antigos para os mais novos e caso hajam nomes dos clientes indicados, eles serão associados corretamente.
-                                </p>
-
                                 <p class="mb-0 fs-5 text-muted">Baixe o modelo, preencha e envie.</p>
                                 <p>
                                     <a href="{% static 'download/upload.xlsx' %}">Download aqui!
@@ -75,13 +68,30 @@
                                     class="bi bi-exclamation-triangle text-warning me-2"></i><span
                                     class="text-dark">Preencha as informações de cada coluna existente na planilha
                                     conforme mostrado no layout.</span></p>
-                            <p class="mb-0 text-muted small">- O número do telefone deve seguir o padrão mostrado,
+                            <p class="mb-0 text-muted small">
+                                ☑︎ Para o campo "telefone", o número do telefone deve seguir o padrão informado,
                                 contendo prefixo do país + DDD + número, sem parêntese, traços ou qualquer outro
-                                caractere especial;</p>
-                            <p class="mb-0 text-muted small">- Se o valor de "data_pagamento" estiver em branco no arquivo, será
+                                caractere especial;
+                            </p>
+                            <p class="mb-0 text-muted small">
+                                ☑︎ Para o campo "indicado_por", caso o cliente tenha sido indicado por algum outro cliente, 
+                                deverá ser informado o telefone do cliente que o indicou, 
+                                seguindo o mesmo padrão informado para o campo "telefone";
+                            </p>
+                            <p class="mb-0 text-muted small">
+                                ☑︎ Se o valor de "data_vencimento" estiver em branco no arquivo, será
                                 definido o dia da "data_adesao" como dia de pagamento da próxima mensalidade;</p>
-                            <p class="mb-0 text-muted small">- Para o campo 'tipo_plano', as única opções aceitas serão: Mensal, Trimestral, Semestral ou Anual. Caso seja informado um diferente, o cliente não será salvo.</p>
-                            <p class="mb-0 text-muted small">- (<span class="text-danger">*</span>) Campos obrigatórios (caso seja escolhido algum aplicativo que possua uma conta de ativação, por exemplo, DuplexPlay, Clouddy ou algum outro, será obrigatório o preenchimento dos dados de "device_id" e "device_key"/"email").
+                            <p class="mb-0 text-muted small">
+                                ☑︎ Para o campo 'forma_pgto', as única opções aceitas serão: PIX, Boleto ou Cartão de Crédito. 
+                                Caso seja informado um diferente, o cliente não será salvo.
+                            </p>
+                            <p class="mb-0 text-muted small">
+                                ☑︎ Para o campo 'tipo_plano', as única opções aceitas serão: Mensal, Trimestral, Semestral ou Anual. 
+                                Caso seja informado um diferente, o cliente não será salvo.
+                            </p>
+                            <p class="mb-0 text-muted small">
+                                (<span class="text-danger">*</span>) Campos obrigatórios (caso seja escolhido algum aplicativo que possua uma conta de ativação, por exemplo, DuplexPlay, Clouddy ou algum outro, 
+                                será obrigatório o preenchimento dos dados de "device_id/email" e "device_key").
                             </p>
                         </div>
                         <br>
@@ -108,7 +118,7 @@
                                                 <th scope="col">nome <span class="text-danger">*</span></th>
                                                 <th scope="col">telefone <span class="text-danger">*</span></th>
                                                 <th scope="col">indicado_por</th>
-                                                <th scope="col">data_pagamento</th>
+                                                <th scope="col">data_vencimento</th>
                                                 <th scope="col">forma_pgto <span class="text-danger">*</span></th>
                                                 <th scope="col">tipo_plano <span class="text-danger">*</span></th>
                                                 <th scope="col">plano_valor <span class="text-danger">*</span></th>
@@ -123,14 +133,14 @@
                                                 <td class="small">11:11:11:11:11:11</td>
                                                 <td class="small"></td>
                                                 <td class="small">111111111111</td>
-                                                <td class="small">Cliente 1</td>
-                                                <td class="small">5583988881122</td>
-                                                <td class="small">Marcio Silva</td>
-                                                <td class="small">5</td>
+                                                <td class="small">Luís Inácio Lula</td>
+                                                <td class="small">5583988880102</td>
+                                                <td class="small"></td>
+                                                <td class="small">01/02/2025</td>
                                                 <td class="small">PIX</td>
                                                 <td class="small">Mensal</td>
                                                 <td class="small">35</td>
-                                                <td class="small">06/01/2023</td>
+                                                <td class="small">01/01/2025</td>
                                             </tr>
                                             <tr>
                                                 <td class="small">PLAY</td>
@@ -139,14 +149,14 @@
                                                 <td class="small"></td>
                                                 <td class="small">email@email.com</td>
                                                 <td class="small">123456</td>
-                                                <td class="small">Cliente 2</td>
-                                                <td class="small">5511999993344</td>
-                                                <td class="small">João Silva</td>
-                                                <td class="small">10</td>
+                                                <td class="small">Dilma Rousseff</td>
+                                                <td class="small">5511988880203</td>
+                                                <td class="small">5583988880102</td>
+                                                <td class="small">02/04/2025</td>
                                                 <td class="small">Boleto</td>
-                                                <td class="small">Semestral</td>
-                                                <td class="small">180</td>
-                                                <td class="small">11/01/2023</td>
+                                                <td class="small">Trimestral</td>
+                                                <td class="small">90</td>
+                                                <td class="small">02/01/2025</td>
                                             </tr>
                                             <tr>
                                                 <td class="small">FIVE</td>
@@ -155,14 +165,30 @@
                                                 <td class="small">1a2b3c4d5e6f</td>
                                                 <td class="small"></td>
                                                 <td class="small">12345678</td>
-                                                <td class="small">Cliente 3</td>
-                                                <td class="small">5511999993344</td>
-                                                <td class="small">João Silva</td>
-                                                <td class="small">15</td>
+                                                <td class="small">Michel Temer</td>
+                                                <td class="small">5511988880304</td>
+                                                <td class="small">5511988880203</td>
+                                                <td class="small">15/07/2025</td>
+                                                <td class="small">Cartão de Crédito</td>
+                                                <td class="small">Semestral</td>
+                                                <td class="small">180</td>
+                                                <td class="small">15/01/2025</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="small">ALPHA</td>
+                                                <td class="small">TV Samsung</td>
+                                                <td class="small">Smart STB</td>
+                                                <td class="small"></td>
+                                                <td class="small"></td>
+                                                <td class="small"></td>
+                                                <td class="small">Jair Bolsonaro</td>
+                                                <td class="small">5511988880405</td>
+                                                <td class="small">5511988880304</td>
+                                                <td class="small">15/12/2025</td>
                                                 <td class="small">Cartão de Crédito</td>
                                                 <td class="small">Anual</td>
-                                                <td class="small">300</td>
-                                                <td class="small">15/03/2023</td>
+                                                <td class="small">350</td>
+                                                <td class="small">15/01/2025</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -181,45 +207,49 @@
                 <!-- Alert success -->
                 {% if success_message %}
                 <script>
-                    console.log(window.location.origin)
                     $(document).ready(function () {
-                        var currentUrl = window.location.origin;
-                        var newPath = '/importar-clientes/';
-                        var newUrl = currentUrl + newPath;
-                        swal.fire({
+                        // Cria as listas HTML a partir das variáveis do contexto
+                        let lista_existentes = `{% if nomes_clientes_existentes %}<strong>Clientes já existentes:</strong><ul>{% for nome in nomes_clientes_existentes %}<li>{{ nome|escape }}</li>{% endfor %}</ul>{% else %}Nenhum cliente já existente.<br>{% endif %}`;
+                        let lista_erro_importacao = `{% if nomes_clientes_erro_importacao %}<strong>Clientes com erro ao importar:</strong><ul>{% for nome in nomes_clientes_erro_importacao %}<li>{{ nome|escape }}</li>{% endfor %}</ul>{% else %}Nenhum erro de importação.<br>{% endif %}`;
+                        let lista_invalidos_whatsapp = `{% if clientes_invalidos_whatsapp %}<strong>Números inválidos no WhatsApp:</strong><ul>{% for info in clientes_invalidos_whatsapp %}<li>{{ info|escape }}</li>{% endfor %}</ul>{% endif %}`;
+
+                        Swal.fire({
                             icon: 'info',
                             title: 'Importação concluída!',
-                            html: '<p>Resumo</p><hr><strong>Total importados: </strong>{{num_linhas_importadas}}<br><strong>Total não importados: </strong>{{num_linhas_nao_importadas}}<hr><strong>Clientes já existentes:</strong><br>{% for nome in nomes_clientes_existentes%}-> {{nome}}<br>{% endfor %}<hr><strong>Clientes com erro ao importar:</strong><br>{% for nome in nomes_clientes_erro_importacao %}-> {{nome}}<br>{% endfor %}<hr>',
+                            html: `
+                                <p><b>Resumo</b></p>
+                                <hr>
+                                <strong>Total importados:</strong> {{ num_linhas_importadas }}<br>
+                                <strong>Total não importados:</strong> {{ num_linhas_nao_importadas }}<hr>
+                                ${lista_existentes}
+                                <hr>
+                                ${lista_erro_importacao}
+                                <hr>
+                                ${lista_invalidos_whatsapp}
+                            `,
                             didClose: function () {
-                                window.location.href = newUrl;
+                                window.location.href = "{{ request.path|escapejs }}";
                             },
-                            width: '40%',
+                            width: window.innerWidth < 600 ? '90%' : '40%',
                         });
                     });
                 </script>
-
-                
-
                 <!-- Alert error -->
                 {% elif error_message %}
                 <script>
-                    console.log(window.location.origin)
                     $(document).ready(function () {
-                        var currentUrl = window.location.origin;
-                        var newPath = '/importar-clientes/';
-                        var newUrl = currentUrl + newPath;
-                        swal.fire({
+                        Swal.fire({
                             icon: 'error',
                             title: 'Oops...',
-                            text: '{{error_message}}',
+                            html: '{{ error_message|escapejs }}',
                             didClose: function () {
-                                window.location.href = newUrl;
-                            }
+                                window.location.href = "{{ request.path|escapejs }}";
+                            },
+                            width: window.innerWidth < 600 ? '90%' : '40%',
                         });
                     });
                 </script>
                 {% endif %}
-
 </body>
 
 </html>

@@ -4,13 +4,21 @@ import json
 import time
 import random
 import requests
+import pandas as pd
 from typing import Union
 from decimal import Decimal
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django.utils.timezone import localtime, now
 from dateutil.relativedelta import relativedelta
-from .models import Mensalidade, SessaoWpp, PlanoIndicacao, Cliente
+from django.db.models import Q
+from .models import (
+    Mensalidade, SessaoWpp,
+    PlanoIndicacao, Cliente,
+    Servidor, Dispositivo,
+    Aplicativo, Plano, Tipos_pgto,
+    ContaDoAplicativo,
+)
 
 # Initialize logger
 import logging
@@ -67,35 +75,126 @@ def registrar_log(mensagem: str, usuario: str, log_directory: str) -> None:
 ################ FUNÇÃO PARA VALIDAR NÚMEROS DE TELEFONE #########
 ##################################################################
 
-def validar_numero_whatsapp(telefone: str, token: str) -> Union[str, None]:
+def gerar_variacoes_telefone2(telefone: str) -> list:
     """
-    Tenta verificar se existe no WhatsApp.
+    Gera todas as variações possíveis de um telefone nacional para checagem no BD.
+    Ex: '81999998888' -> ['81999998888', '998888888', '99998888', '5581999998888', '558998888888']
+    """
+    variacoes = set()
+    tel = re.sub(r'\D+', '', telefone)
+    logger.info(f"[TEL_VARIACOES] Gerando variações para: {tel}")
 
+    if len(tel) < 8:
+        logger.info(f"[TEL_VARIACOES] Telefone muito curto, retornando: {tel}")
+        return [tel]
+    if len(tel) == 11 and tel[2] == '9':
+        variacoes.add(tel)
+        variacoes.add(tel[2:])
+        variacoes.add(tel[3:])
+        variacoes.add('55' + tel)
+        variacoes.add('55' + tel[:2] + tel[3:])
+        logger.info(f"[TEL_VARIACOES] Variações (celular atual): {variacoes}")
+    elif len(tel) == 10:
+        variacoes.add(tel)
+        variacoes.add(tel[2:])
+        variacoes.add('9' + tel[2:])
+        variacoes.add('55' + tel)
+        variacoes.add('55' + tel[:2] + '9' + tel[2:])
+        logger.info(f"[TEL_VARIACOES] Variações (fixo/cel sem 9): {variacoes}")
+    elif len(tel) == 9 and tel[0] == '9':
+        variacoes.add(tel)
+        variacoes.add(tel[1:])
+        logger.info(f"[TEL_VARIACOES] Variações (9 + NNNNNNNN): {variacoes}")
+    elif len(tel) == 8:
+        variacoes.add(tel)
+        logger.info(f"[TEL_VARIACOES] Variações (NNNNNNNN): {variacoes}")
+    elif len(tel) == 13 and tel.startswith('55'):
+        variacoes.add(tel)
+        variacoes.add(tel[:4] + tel[5:])
+        logger.info(f"[TEL_VARIACOES] Variações (55DD9NNNNNNNN): {variacoes}")
+    elif len(tel) == 12 and tel.startswith('55'):
+        variacoes.add(tel)
+        variacoes.add(tel[:4] + '9' + tel[4:])
+        logger.info(f"[TEL_VARIACOES] Variações (55DDNNNNNNNN): {variacoes}")
+    if len(tel) > 8:
+        variacoes.add(tel)
+    logger.info(f"[TEL_VARIACOES] Variações finais: {variacoes}")
+    return list(variacoes)
+
+def gerar_variacoes_telefone(telefone: str) -> set:
+    tel = re.sub(r'\D+', '', telefone)
+    variacoes = set()
+
+    # Base sempre com e sem +
+    if tel.startswith('55'):
+        variacoes.add(tel)
+        variacoes.add('+' + tel)
+    else:
+        variacoes.add(tel)
+        variacoes.add('55' + tel)
+        variacoes.add('+55' + tel)
+
+    if len(tel) == 13 and tel[4] == '9':
+        sem_nove = tel[:4] + tel[5:]
+        variacoes.add(sem_nove)
+        variacoes.add('+' + sem_nove)
+    elif len(tel) == 11 and tel[2] == '9':
+        sem_nove = tel[:2] + tel[3:]
+        variacoes.add(sem_nove)
+        variacoes.add('+' + sem_nove)
+
+    return variacoes
+
+def existe_cliente_variacoes(telefone_variacoes, user):
+    q = Q()
+    for var in telefone_variacoes:
+        telefone_formatado = var if str(var).startswith('+') else f'+{str(var)}'
+        q |= Q(telefone=telefone_formatado)
+    
+    cliente = Cliente.objects.filter(q, usuario=user).first()
+    if cliente:
+        cliente_telefone = cliente.telefone
+    else:
+        cliente_telefone = None
+
+    return cliente_telefone
+
+def validar_tel_whatsapp(telefone: str, token: str, user=None) -> Union[str, None]:
+    """
+    1. Valida se o número existe para algum Cliente previamente cadastrado;
+    2. Valida se o número existe no WhatsApp e pode receber mensagens;
     Retorna:
-        - Número formatado válido para envio via WhatsApp
-        - None, se nenhuma variação for válida
+        - Telefone informado inicialmente;
+        - Se o telefone está cadastrado para cliente cadastrado;
+        - Se o telefone existe no WhatsApp;
+        - Telefone formatado para WhatsApp;
     """
+    telefone_variacoes = gerar_variacoes_telefone(telefone)
+    resultado = {
+        "telefone_cadastro": telefone,
+        "telefone_validado_wpp": None,
+        "cliente_existe_telefone": None,
+        "wpp": False
+    }
 
-    # Remove tudo que não for número
-    numero = re.sub(r'\D', '', telefone)
+    for num in telefone_variacoes:
+        try:
+            wpp_valido = check_number_status(num, token)
+        except Exception as e:
+            logger.error(f"[VALIDAR][ERRO] Erro ao checar {num} no WhatsApp: {e}")
+            wpp_valido = False
 
-    # Etapa 1: Verifica o número como está
-    if check_number_status(numero, token):
-        return numero
+        if wpp_valido:
+            if not str(num).startswith('+'):
+                num_formatado = f'+{num}'
+            else:
+                num_formatado = str(num)
+            resultado["telefone_validado_wpp"] = num_formatado
+            resultado["wpp"] = True
+            resultado["cliente_existe_telefone"] = existe_cliente_variacoes(telefone_variacoes, user)
+            return resultado
 
-    # Etapa 2: adicionar DDI '55'
-    com_ddi = '55' + numero
-    if check_number_status(com_ddi, token):
-        return com_ddi
-
-    # Etapa 3: remover '9' após o DDD e adicionar '55'
-    if len(numero) >= 11 and numero[2] == '9':
-        sem_nove = numero[:2] + numero[3:]
-        com_ddi_sem_nove = '55' + sem_nove
-        if check_number_status(com_ddi_sem_nove, token):
-            return com_ddi_sem_nove
-
-    return None
+    return resultado
 ##### FIM #####
 
 
@@ -127,7 +226,7 @@ def get_label_contact(telefone, token):
             # Converte a resposta JSON em dicionário
             response_data = response.json()
             # Extrai a lista de labels, se houver
-            labels = response_data.get('response', {}).get('labels', [])
+            labels = (response_data.get('response') or {}).get('labels', [])
             return labels
         else:
             # Exibe erro caso a resposta não tenha sido bem-sucedida
@@ -358,14 +457,13 @@ def envio_apos_novo_cadastro(cliente):
     primeiro_nome = nome_cliente.split(' ')[0]
 
     tipo_envio = "Cadastro"
-    token_user = SessaoWpp.objects.filter(usuario=usuario).first()
+    token_user = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
     if not token_user:
         return
 
-    telefone_raw = str(cliente.telefone or "").strip()
-    telefone_formatado = validar_numero_whatsapp(telefone_raw, token_user.token)
+    telefone = str(cliente.telefone or "").strip()
 
-    if not telefone_formatado:
+    if not telefone:
         return
 
     mensagem = (
@@ -376,7 +474,7 @@ def envio_apos_novo_cadastro(cliente):
 
     try:
         enviar_mensagem(
-            telefone_formatado,
+            telefone,
             mensagem,
             usuario,
             token_user.token,
@@ -384,7 +482,7 @@ def envio_apos_novo_cadastro(cliente):
             tipo_envio
         )
     except Exception as e:
-        logger.error(f"[WPP] Falha ao enviar mensagem para {telefone_formatado}: {e}", exc_info=True)
+        logger.error(f"[WPP] Falha ao enviar mensagem para {telefone}: {e}", exc_info=True)
 
     plano_indicacao_ativo = PlanoIndicacao.objects.filter(usuario=usuario, ativo=True).first()
     if cliente.indicado_por and plano_indicacao_ativo:
@@ -413,12 +511,11 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     now = datetime.now()
 
     try:
-        token_user = SessaoWpp.objects.get(usuario=usuario)
+        token_user = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
     except SessaoWpp.DoesNotExist:
         return
 
-    telefone_formatado = validar_numero_whatsapp(telefone_cliente, token_user.token)
-    if not telefone_formatado:
+    if not telefone_cliente:
         return
 
     # Planos ativos
@@ -478,7 +575,7 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
 
             mensalidade_alvo.valor = novo_valor
             mensalidade_alvo.save()
-            enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
+            enviar_mensagem(telefone_cliente, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
 
     # 2 INDICAÇÕES - BONIFICAÇÃO
     elif qtd_indicacoes == 2 and plano_dinheiro:
@@ -530,7 +627,7 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
             "Nos avise aqui qual opção prefere, e nós registraremos a sua bonificação."
         )
 
-        enviar_mensagem(telefone_formatado, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
+        enviar_mensagem(telefone_cliente, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
 
 
 # ENVIO DE MENSAGEM VIA API WPP
@@ -540,10 +637,9 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
     Envia uma mensagem via API WPP para um número validado.
     Registra logs de sucesso, falha e número inválido.
     """
-    telefone_validado = validar_numero_whatsapp(telefone, token)
     timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
 
-    if not telefone_validado:
+    if not telefone:
         log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(
             timestamp, tipo_envio.upper(), usuario, cliente
         )
@@ -560,7 +656,7 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
 
     for tentativa in range(1, 3):
         body = {
-            'phone': telefone_validado,
+            'phone': telefone,
             'message': mensagem,
             'isGroup': False
         }
@@ -571,7 +667,7 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
 
             if response.status_code in (200, 201):
                 log = TEMPLATE_LOG_MSG_SUCESSO.format(
-                    timestamp, tipo_envio.upper(), usuario, telefone_validado
+                    timestamp, tipo_envio.upper(), usuario, telefone
                 )
                 registrar_log(log, usuario, DIR_LOGS_INDICACOES)
                 break
@@ -591,7 +687,6 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
         registrar_log(log, usuario, DIR_LOGS_INDICACOES)
         time.sleep(random.uniform(5, 10))  # Espera entre 5 a 10 segundos antes de tentar novamente
 ##### FIM #####
-
 
 #############################################################################
 ############## FUNÇÕES AUXILIARES PARA CRIAÇÃO DE NOVO CLIENTE ##############
@@ -659,4 +754,3 @@ def criar_mensalidade(cliente):
         dt_vencimento=vencimento.date(),
         usuario=cliente.usuario,
     )
-

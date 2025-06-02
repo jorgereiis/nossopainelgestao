@@ -164,10 +164,10 @@ class Cliente(models.Model):
         if len(numero) in (10, 11) and not numero.startswith('55'):
             numero = '55' + numero
 
-        if len(numero) < 10:
-            raise ValueError("Telefone inválido")
-
-        self.telefone = '+' + numero  # Ex: +5500000000000
+        if not numero.startswith('+'):
+            numero = '+' + numero
+        
+        self.telefone = numero  # Ex: +5500000000000
 
     def definir_uf(self):
         """Define a unidade federativa (UF) com base no DDD do telefone."""
@@ -229,9 +229,9 @@ class ContaDoAplicativo(models.Model):
     verificado = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
-        """Formata o device_id em formato de MAC address se aplicável."""
-        if self.device_id:
-            raw = re.sub(r'[^A-Fa-f0-9]', '', self.device_id)
+        # Formata device_id como MAC address: XX:XX:XX:XX:XX:XX
+        if self.device_id and not len(self.device_id) <= 10:
+            raw = re.sub(r'[^A-Fa-f0-9]', '', self.device_id).upper()
             self.device_id = ':'.join(raw[i:i+2] for i in range(0, len(raw), 2))
         super().save(*args, **kwargs)
 

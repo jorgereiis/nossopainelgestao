@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from cadastros.utils import (
-    validar_numero_whatsapp,
+    validar_tel_whatsapp,
     get_saudacao_por_hora,
     registrar_log,
 )
@@ -43,15 +43,14 @@ TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
 ################ FUNÇÃO PARA ENVIAR MENSAGENS ####################
 ##################################################################
 
-def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, cliente: str, tipo_envio: str) -> None:
+def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: str, cliente: str, tipo_envio: str) -> None:
     """
     Envia uma mensagem via API WPP para um número validado.
     Registra logs de sucesso, falha e número inválido.
     """
-    telefone_validado = validar_numero_whatsapp(telefone, token)
     timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
 
-    if not telefone_validado:
+    if not telefone:
         log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(
             timestamp, tipo_envio.upper(), usuario, cliente
         )
@@ -68,7 +67,7 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
 
     for tentativa in range(1, 3):
         body = {
-            'phone': telefone_validado,
+            'phone': telefone,
             'message': mensagem,
             'isGroup': False
         }
@@ -79,7 +78,7 @@ def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, clie
 
             if response.status_code in (200, 201):
                 log = TEMPLATE_LOG_MSG_SUCESSO.format(
-                    timestamp, tipo_envio.upper(), usuario, telefone_validado
+                    timestamp, tipo_envio.upper(), usuario, telefone
                 )
                 registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
                 break
@@ -139,7 +138,7 @@ def obter_mensalidades_a_vencer():
 
         # Tenta buscar sessão ativa e dados bancários do usuário
         try:
-            sessao = SessaoWpp.objects.get(usuario=usuario)
+            sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
         except SessaoWpp.DoesNotExist:
             print(f"[ERRO] Sessão WPP não encontrada para '{usuario}'. Pulando...")
             continue
@@ -170,7 +169,7 @@ def obter_mensalidades_a_vencer():
         )
 
         # Envio da mensagem
-        enviar_mensagem(
+        enviar_mensagem_agendada(
             telefone=telefone,
             mensagem=mensagem,
             usuario=usuario,
@@ -219,7 +218,7 @@ def obter_mensalidades_vencidas():
         saudacao = get_saudacao_por_hora(hora_atual)
 
         try:
-            sessao = SessaoWpp.objects.get(usuario=usuario)
+            sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
         except SessaoWpp.DoesNotExist:
             print(f"[ERRO] Sessão WPP não encontrada para '{usuario}'. Pulando...")
             continue
@@ -230,7 +229,7 @@ def obter_mensalidades_vencidas():
             f"Caso já tenha feito, envie aqui novamente o seu comprovante, por favor!"
         )
 
-        enviar_mensagem(
+        enviar_mensagem_agendada(
             telefone=telefone,
             mensagem=mensagem,
             usuario=usuario,
@@ -247,7 +246,7 @@ def obter_mensalidades_vencidas():
 ##### BLOCO DE ENVIO DE MENSAGENS PERSONALIZADAS PARA CLIENTES CANCELADOS POR QTD. DE DIAS #####
 ################################################################################################
 
-def mensalidades_canceladas():
+def obter_mensalidades_canceladas():
     """
     Envia mensagens personalizadas para clientes cancelados há X dias,
     utilizando a lógica de saudação e validando número antes do envio.
@@ -298,12 +297,12 @@ def mensalidades_canceladas():
             mensagem = mensagem_template.format(saudacao, primeiro_nome)
 
             try:
-                sessao = SessaoWpp.objects.get(usuario=usuario)
+                sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
             except SessaoWpp.DoesNotExist:
                 print(f"[ERRO] Sessão WPP não encontrada para '{usuario}'. Pulando...")
                 continue
 
-            enviar_mensagem(
+            enviar_mensagem_agendada(
                 telefone=cliente.telefone,
                 mensagem=mensagem,
                 usuario=usuario,
@@ -378,21 +377,18 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
     print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [ENVIO][{tipo_envio.upper()}] [QTD.][{len(numeros)}]")
 
     for telefone in numeros:
-        numero_limpo = validar_numero_whatsapp(telefone, token)
-
         # Evita envio duplicado no mesmo dia
-        if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=numero_limpo, data_envio=timezone.now().date()).exists():
-            registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {numero_limpo} - ⚠️ Já foi feito envio hoje!", usuario, DIR_LOGS_AGENDADOS)
+        if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone, data_envio=timezone.now().date()).exists():
+            registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já foi feito envio hoje!", usuario, DIR_LOGS_AGENDADOS)
             continue
 
-        telefone_validado = numero_limpo
-        if not telefone_validado:
-            log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(localtime().strftime('%Y-%m-%d %H:%M:%S'), tipo_envio.upper(), usuario, numero_limpo)
+        if not telefone:
+            log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(localtime().strftime('%Y-%m-%d %H:%M:%S'), tipo_envio.upper(), usuario, telefone)
             registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
             continue
 
         payload = {
-            'phone': telefone_validado,
+            'phone': telefone,
             'isGroup': False,
             'message': message
         }
@@ -412,9 +408,9 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
             timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
 
             if response.status_code in (200, 201):
-                registrar_log(TEMPLATE_LOG_MSG_SUCESSO.format(timestamp, tipo_envio.upper(), usuario, telefone_validado), usuario, DIR_LOGS_AGENDADOS)
-                registrar_log(f"[{timestamp}] {telefone_validado} - ✅ Mensagem enviada", usuario, DIR_LOGS_AGENDADOS)
-                MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone_validado[2:] if telefone_validado.startswith('55') else telefone_validado)
+                registrar_log(TEMPLATE_LOG_MSG_SUCESSO.format(timestamp, tipo_envio.upper(), usuario, telefone), usuario, DIR_LOGS_AGENDADOS)
+                registrar_log(f"[{timestamp}] {telefone} - ✅ Mensagem enviada", usuario, DIR_LOGS_AGENDADOS)
+                MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone[2:] if telefone.startswith('55') else telefone)
                 break
 
             try:
@@ -424,7 +420,7 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
                 error_message = response.text
 
             registrar_log(
-                TEMPLATE_LOG_MSG_FALHOU.format(timestamp, tipo_envio.upper(), usuario, telefone_validado, response.status_code, tentativa, error_message),
+                TEMPLATE_LOG_MSG_FALHOU.format(timestamp, tipo_envio.upper(), usuario, telefone, response.status_code, tentativa, error_message),
                 usuario, DIR_LOGS_AGENDADOS
             )
             time.sleep(random.uniform(10, 20))
