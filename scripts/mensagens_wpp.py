@@ -267,6 +267,7 @@ def obter_mensalidades_canceladas():
     ]
 
     for atraso in atrasos:
+        admin = User.objects.get(is_superuser=True)
         qtd_dias = atraso["dias"]
         mensagem_template = atraso["mensagem"]
 
@@ -279,7 +280,8 @@ def obter_mensalidades_canceladas():
             dt_cancelamento=data_alvo,
             pgto=False,
             cancelado=True,
-            notificacao_wpp1=False
+            notificacao_wpp1=False,
+            usuario = admin
         )
 
         qtd = mensalidades.count()
