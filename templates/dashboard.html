@@ -18,7 +18,7 @@
 
             {% include 'partials/header.html' %}
 
-            <!-- modal whatsapp connection -->
+            <!-- include modals -->
             {% include 'partials/modal_whatsapp.html' %}
             {% include 'partials/modal_dns.html' %}
             {% include 'partials/modal_logs.html' %}
@@ -60,7 +60,7 @@
                                             <input type="text" class="form-control" id="valor" name="valor" placeholder="Desconto"
                                                 required style="max-width: 150px;">
                                         </div>
-                                        <button class="btn btn-primary" type="button">Ativar</button>
+                                        <button class="btn btn-primary btn-confirmar-acao" type="button">Ativar</button>
                                     </div>
                                 </div>
                             </div>
@@ -78,7 +78,7 @@
                                             <input type="text" class="form-control" id="valor" name="valor" placeholder="Desconto"
                                                 required style="max-width: 150px;">
                                         </div>
-                                        <button class="btn btn-primary" type="button">Ativar</button>
+                                        <button class="btn btn-primary btn-confirmar-acao" type="button">Ativar</button>
                                     </div>
                                 </div>
                             </div>
@@ -96,8 +96,8 @@
                                             <input type="time" class="form-control" id="valor" name="valor" placeholder="Desconto"
                                                 required style="max-width: 150px;">
                                         </div>
-                                        <button class="btn btn-primary" type="button">Ativar</button>
-                                        <button class="btn btn-danger" type="button">Desativar</button>
+                                        <button class="btn btn-primary btn-confirmar-acao" type="button">Ativar</button>
+                                        <button class="btn btn-danger btn-confirmar-acao" type="button">Desativar</button>
                                     </div>
                                 </div>
                             </div>
@@ -130,7 +130,7 @@
                                             </div>
                                             <textarea class="form-control mb-3" id="mensagem" name="mensagem" rows="3"
                                                 placeholder="Mensagem" required></textarea>
-                                            <button class="btn btn-primary" type="button" id="botao-enviar">Enviar</button>
+                                            <button class="btn btn-primary btn-confirmar-acao" type="button" id="botao-enviar">Enviar</button>
                                         </div>
                                     </form>
                                     <div class="card" id="console">
@@ -373,7 +373,9 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="cliente_id" id="cliente-id">
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
-                                    <button type="submit" class="btn btn-danger">Cancelar cliente</button>
+                                    <button type="submit" class="btn btn-danger btn-confirmar-acao">
+                                            Cancelar cliente
+                                    </button>
                                 </form>
                             </div>
                         </div>
@@ -400,7 +402,9 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="mensalidade_id" id="mensalidade-id">
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
-                                    <button type="submit" class="btn btn-primary">Pagar</button>
+                                    <button type="submit" class="btn btn-primary btn-confirmar-acao">
+                                            Pagar
+                                    </button>
                                 </form>
                             </div>
                         </div>
@@ -601,7 +605,9 @@
                         {% csrf_token %}
                         <input type="hidden" name="app_conta_id" id="app-conta-id">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-danger">Excluir</button>
+                        <button type="submit" class="btn btn-danger btn-confirmar-acao">
+                                Excluir
+                        </button>
                         </form>
                     </div>
                     </div>
@@ -663,7 +669,9 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" form="create-app-info-form" class="btn btn-primary" id="btn-salvar-app" disabled>Salvar</button>
+                        <button type="submit" form="create-app-info-form" class="btn btn-primary btn-confirmar-acao" id="btn-salvar-app" disabled>
+                                Salvar
+                        </button>
                     </div>
                     </div>
                 </div>
@@ -759,7 +767,6 @@
                                 <input type="date" class="form-control" id="edit-cliente-dt_pgto" name="dt_pgto" required>
                             </div>
                         </div>
-                        <!-- end modal -->
                         
                         <!-- row -->
                         <div class="form-group">
@@ -798,7 +805,9 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" form="edit-cliente-form" class="btn btn-primary">Salvar</button>
+                        <button type="submit" form="edit-cliente-form" class="btn btn-primary btn-confirmar-acao">
+                                Salvar
+                        </button>
                     </div>
                     </div>
                 </div>
@@ -845,45 +854,6 @@
                 <!-- Scripts -->
                 {% include 'partials/scripts.html' %}
                 {% include 'partials/footer.html' %}
-
-      <!-- Alert success edit -->
-      {% if success_message_edit %}
-      <script>
-        console.log(window.location.origin)
-        $(document).ready(function () {
-          var currentUrl = window.location.origin;
-          var newPath = '/dashboard/';
-          var newUrl = currentUrl + newPath;
-          swal.fire({
-            icon: 'success',
-            title: 'Cliente atualizado',
-            text: '{{success_message_edit}}',
-            didClose: function () {
-              window.location.href = newUrl;
-            }
-          });
-        });
-      </script>
-
-      <!-- Alert error edit -->
-      {% elif error_message_edit %}
-      <script>
-        console.log(window.location.origin)
-        $(document).ready(function () {
-          var currentUrl = window.location.origin;
-          var newPath = '/dashboard/';
-          var newUrl = currentUrl + newPath;
-          swal.fire({
-            icon: 'error',
-            title: 'Oops...',
-            text: '{{error_message_edit}}',
-            didClose: function () {
-              window.location.href = newUrl;
-            }
-          });
-        });
-      </script>
-      {% endif %}
 </body>
 
 <!-- CSS -->
@@ -1210,6 +1180,8 @@
         // Ouve o envio do formulário
         $('#cancelamento-form').on('submit', function (event) {
             event.preventDefault(); // Impede o envio padrão do formulário
+            var $btn = $('.btn-confirmar-acao');
+            $btn.prop('disabled', true);
 
             // Obtém o ID do cliente a ser cancelado
             var cliente_id = $('#cliente-id').val();
@@ -1222,6 +1194,8 @@
                     xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
                 },
                 success: function (response) {
+                    $btn.prop('disabled', false);
+
                     // Verifica se a resposta contém a chave 'success_message_cancel'
                     if ('success_message_cancel' in response) {
                         // Fecha o modal e exibe mensagem de sucesso
@@ -1232,7 +1206,7 @@
                             title: 'Cancelado!',
                             html: '<span style="font-size: 20px">😮</span><br>' + response.success_message_cancel + '<br>Caso queira reativar, basta acessar seus clientes cancelados.',
                         }).then(function() {
-                            location.reload();
+                            atualizarTabelaClientes();
                         });
                     }
 
@@ -1248,6 +1222,8 @@
                     }
                 },
                 error: function (response) {
+                    $btn.prop('disabled', false);
+
                     // Fecha o modal e exibe mensagem de erro
                     $('#confirm-cancelamento-modal').modal('hide');
 
@@ -1278,8 +1254,10 @@
         $('#confirm-pagamento-modal').modal('show');
 
         // Ouve o envio do formulário
-        $('#pagamento-form').on('submit', function (event) {
+        $('#pagamento-form').off('submit').on('submit', function (event) {
             event.preventDefault(); // Impede o envio padrão do formulário
+            var $btn = $('.btn-confirmar-acao');
+            $btn.prop('disabled', true);
 
             // Obtém o ID do mensalidade a ser cancelado
             var mensalidade_id = $('#mensalidade-id').val();
@@ -1292,6 +1270,8 @@
                     xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
                 },
                 success: function (response) {
+                    $btn.prop('disabled', false);
+
                     // Verifica se a resposta contém a chave 'success_message_invoice'
                     if ('success_message_invoice' in response) {
                         // Fecha o modal e exibe mensagem de sucesso
@@ -1302,7 +1282,7 @@
                             title: 'Pago!',
                             html: '<span style="font-size: 20px">🤑</span><br>' + response.success_message_invoice + '<br>Consulte as mensalidades desse cliente para mais detalhes.',
                         }).then(function() {
-                            location.reload();
+                            atualizarTabelaClientes();
                         });
                     }
 
@@ -1318,6 +1298,8 @@
                     }
                 },
                 error: function (response) {
+                    $btn.prop('disabled', false);
+
                     // Fecha o modal e exibe mensagem de erro
                     $('#confirm-pagamento-modal').modal('hide');
 
@@ -1684,6 +1666,9 @@
             event.preventDefault();
             if (!form.checkValidity()) return;
 
+            var $btn = $('.btn-confirmar-acao');
+            $btn.prop('disabled', true);
+
             const url = form.action;
             const formData = new FormData(form);
 
@@ -1693,6 +1678,8 @@
             })
                 .then(response => {
                     if (response.status === 200) {
+                        $btn.prop('disabled', false);
+
                         abrirInfoClienteAposCriarApp = true;
                         clienteIdCriadoApp = document.getElementById('app-info-cliente-id').value;
                         $('#create-app-info-modal').modal('hide');
@@ -1704,6 +1691,8 @@
                     }
                 })
                 .catch(error => {
+                    $btn.prop('disabled', false);
+
                     document.getElementById('mensagem-erro').textContent = "Erro ao cadastrar conta do app.";
                     console.error(error);
                 });
@@ -1738,6 +1727,9 @@
     $(function() {
       $('#confirm-delete-app-conta-form').on('submit', function(event) {
         event.preventDefault();
+        var $btn = $('.btn-confirmar-acao');
+        $btn.prop('disabled', true);
+
         var app_id = $('#app-conta-id').val();
         $.ajax({
           url: '/deletar-app-conta/' + app_id + '/',
@@ -1746,12 +1738,16 @@
             xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
           },
           success: function(response) {
+            $btn.prop('disabled', false);
+
             abrirInfoClienteAposExcluir = true;
             ultimoAppIdExcluido = app_id;
             $('#confirm-delete-app-conta-modal').modal('hide');
             // Não recarrega a página!
           },
           error: function(response) {
+            $btn.prop('disabled', false);
+
             var mensagem_erro = response.responseJSON?.error_delete || "Erro ao excluir.";
             $('#mensagem-erro').text(mensagem_erro);
           }
@@ -2044,13 +2040,61 @@ $(document).ready(function() {
       form.querySelector("#edit-cliente-aplicativo").value = clienteAplicativo;
       form.querySelector("#edit-cliente-notas").value = clienteNotas;
   
-      const modal = new bootstrap.Modal(document.querySelector("#edit-cliente-modal"));
-      modal.show();
+        $('#edit-cliente-form').off('submit').on('submit', function(event) {
+            event.preventDefault();
+
+            var $btn = $('.btn-confirmar-acao');
+            $btn.prop('disabled', true);
+
+            var form = this;
+            var formData = new FormData(form);
+
+            $.ajax({
+                url: form.action,
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader(
+                        "X-CSRFToken",
+                        form.querySelector('[name=csrfmiddlewaretoken]').value
+                    );
+                },
+                success: function(response) {
+                    $btn.prop('disabled', false);
+
+                    if (response.success || response.success_message) {
+                        $('#edit-cliente-modal').modal('hide');
+                        swal.fire({
+                            icon: 'success',
+                            title: 'Cliente editado!',
+                            html: response.success_message || "Os dados do cliente foram atualizados."
+                        }).then(function() {
+                            atualizarTabelaClientes();
+                        });
+                    } else if (response.error || response.error_message || response.error_message_edit) {
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Erro!',
+                            html: response.error_message || response.error_message_edit || "Erro ao editar cliente."
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    $btn.prop('disabled', false);
+
+                    swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'Erro ao editar cliente!'
+                    });
+                }
+            });
+        });
+        const modal = new bootstrap.Modal(document.querySelector("#edit-cliente-modal"));
+        modal.show();
     }
-  
-    $('#edit-cliente-modal').on('click', '.btn-close, .btn-secondary', function () {
-      $('#edit-cliente-modal').modal('hide');
-    });
 </script>
 
 <script>
@@ -2110,7 +2154,7 @@ $(document).ready(function() {
 document.addEventListener("DOMContentLoaded", function () {
 const searchInput = document.getElementById("searchInput");
 const tabelaContainer = document.getElementById("tabela-container");
-let timeout = null;  // ✅ Declaração que estava faltando
+let timeout = null;
 
 searchInput.addEventListener("input", function () {
     const searchTerm = searchInput.value.trim();
@@ -2144,43 +2188,63 @@ searchInput.addEventListener("input", function () {
 });
 });
 
-// Função para exibir um toast
-// Exemplo de uso:
-// showToast({ message: "Hello, World!", icon: "✅", duration: 5000 });
-// Exibe um toast com uma mensagem, ícone e duração especificados
-// O ícone padrão é "ℹ️" e a duração padrão é 3000ms (3 segundos)
-function showToast({ message, icon = "ℹ️", duration = 3000, iconColor = "#624bff", raw = false}) {
-    const container = document.getElementById("toast-container");
+// Função para exibir o toast
+    function showToast({ message, icon = "ℹ️", duration = 3000, iconColor = "#624bff", raw = false}) {
+        const container = document.getElementById("toast-container");
 
-    // Apaga todos os toasts anteriores
-    container.innerHTML = "";
+        // Apaga todos os toasts anteriores
+        container.innerHTML = "";
 
-    const toast = document.createElement("div");
-    toast.classList.add("toast-message");
+        const toast = document.createElement("div");
+        toast.classList.add("toast-message");
 
-    toast.innerHTML = raw
-    ? `
-        <span class="toast-icon">${icon}</span>
-        <span>${message}</span>
-        `
-    : `
-        <span class="toast-icon" style="color: ${iconColor};">${icon}</span>
-        <span>${message}</span>
-        `;
+        toast.innerHTML = raw
+        ? `
+            <span class="toast-icon">${icon}</span>
+            <span>${message}</span>
+            `
+        : `
+            <span class="toast-icon" style="color: ${iconColor};">${icon}</span>
+            <span>${message}</span>
+            `;
 
-    container.appendChild(toast);
+        container.appendChild(toast);
 
-    // Fade-in
-    setTimeout(() => toast.classList.add("show"), 50);
+        // Fade-in
+        setTimeout(() => toast.classList.add("show"), 50);
 
-    // Fade-out e remoção
-    setTimeout(() => {
-        toast.classList.remove("show");
+        // Fade-out e remoção
         setTimeout(() => {
-            if (toast.parentNode) toast.remove();
-        }, 400);
-    }, duration);
-}
+            toast.classList.remove("show");
+            setTimeout(() => {
+                if (toast.parentNode) toast.remove();
+            }, 400);
+        }, duration);
+    }
+
+// FUNÇÃO PARA ATUALIZAR CLIENTES DA TABELA APÓS PAGAMENTO OU CANCELAMENTO
+    function atualizarTabelaClientes() {
+        const searchInput = document.getElementById("searchInput");
+        const searchTerm = searchInput ? searchInput.value.trim() : "";
+
+        fetch(`/dashboard/busca/?q=${encodeURIComponent(searchTerm)}`)
+            .then(response => {
+                if (!response.ok) throw new Error("Erro na resposta");
+                return response.text();
+            })
+            .then(html => {
+                document.getElementById("tabela-container").innerHTML = html;
+                showToast({
+                    message: "Tabela atualizada!",
+                    icon: `<i class="bi bi-check-circle-fill" style="color: #624bff;"></i>`,
+                    raw: true
+                });
+            })
+            .catch(error => {
+                console.error("Erro ao atualizar clientes:", error);
+                showToast({ message: "Erro ao atualizar clientes!", icon: "❌" });
+            });
+    }
 </script>
 
 <style>

@@ -1335,12 +1335,13 @@ def edit_customer(request, cliente_id):
                 logger.warning(
                     f"[WARN][EDITAR CLIENTE] O número {telefone_novo} não possui um WhatsApp."
                 )
-                return render(request, "dashboard.html", {
+                return JsonResponse({
+                    "error": True,
                     "error_message_edit": (
                         f"O número {telefone_novo} não possui um WhatsApp.<br>"
                         "O cadastro do cliente precisa ter um número ativo no WhatsApp."
                     ),
-                })
+                }, status=500)
 
             # Se o novo número existe para outro cliente cadastrado
             if cliente_existe_telefone:
@@ -1353,13 +1354,14 @@ def edit_customer(request, cliente_id):
                     logger.warning(
                         f"[WARN][EDITAR CLIENTE] Já existe cliente para telefone {cliente_existente.telefone} (ID: {cliente_existente.id})"
                     )
-                    return render(request, "dashboard.html", {
+                    return JsonResponse({
+                        "error": True,
                         "error_message_edit": (
                             "Há um cliente cadastrado com o telefone informado! <br><br>"
                             f"<strong>Nome:</strong> {cliente_existente.nome} <br>"
                             f"<strong>Telefone:</strong> {cliente_existente.telefone}"
                         ),
-                    })
+                    }, status=500)
                 # Se chegou aqui, está tudo certo (ou é ele mesmo)
             # Atualiza telefone e UF
             cliente.telefone = telefone_novo
@@ -1405,7 +1407,8 @@ def edit_customer(request, cliente_id):
                 continue
 
         if not data_base:
-            return render(request, "dashboard.html", {
+            return JsonResponse({
+                "error": True,
                 "error_message_edit": "Data de vencimento inválida. Use o formato DD/MM/AAAA ou AAAA-MM-DD."
             }, status=400)
 
@@ -1435,16 +1438,18 @@ def edit_customer(request, cliente_id):
         cliente.save()
         mensalidade.save()
 
-        return render(request, "dashboard.html", {
-            "success_message_edit": f"<strong>{cliente.nome}</strong> foi atualizado com sucesso."
+        return JsonResponse({
+            "success": True,
+            "success_message": f"<strong>{cliente.nome}</strong> foi atualizado com sucesso."
         }, status=200)
 
     except Exception as e:
         logger.error('[%s] [ERROR][EDITAR CLIENTE] [USER][%s] [IP][%s] [%s]',
                      timezone.localtime(), request.user,
                      request.META.get('REMOTE_ADDR'), e, exc_info=True)
-        return render(request, "dashboard.html", {
-            "error_message_edit": "Ocorreu um erro ao tentar atualizar esse cliente."
+        return JsonResponse({
+            "error": True,
+            "error_message": "Ocorreu um erro ao tentar atualizar esse cliente."
         }, status=500)
 
 
