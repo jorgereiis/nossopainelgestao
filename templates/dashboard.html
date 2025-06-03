@@ -112,7 +112,10 @@
                                     <p class="fs-6 parag-wpp">Essa é uma API não-oficial, então use com moderação. Apesar de não termos casos
                                         de bloqueios, saiba que há possibilidade da sua conta ser punida por abusos.</p>
                                     <form method="post" action="" id="form-wpp">
-                                        <select class="form-control form-control-sm mb-3" name="options" id="options" required>
+                                        <div class="text-danger text-center">
+                                            Desativado temporariamente.
+                                        </div>
+                                        <select class="form-control form-control-sm mb-3" name="options" id="options" style="display: none;" required>
                                             <option value="">Selecione um tipo de envio</option>
                                             <option value="ativos">Para todos os meus clientes ativos</option>
                                             <option value="cancelados">Apenas para clientes cancelados</option>
@@ -1293,7 +1296,7 @@
                         swal.fire({
                             icon: 'error',
                             title: 'Ação não permitida!',
-                            html: 'Não é permitido pagar uma mensalidade com mais de 8 dias de atraso.<br>Cancele este cliente e o ative novamente, ou ajuste a data de vencimento.',
+                            text: 'Não é permitido pagar uma mensalidade com mais de 8 dias de atraso.<br>Cancele este cliente e o ative novamente, ou ajuste a data de vencimento.',
                         });
                     }
                 },

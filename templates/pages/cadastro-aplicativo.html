@@ -224,7 +224,7 @@
           swal.fire({
             icon: 'success',
             title: 'Cadastro realizado',
-            text: '{{success_message}}',
+            html: '{{success_message|safe}}',
             didClose: function () {
               window.location.href = newUrl;
             }
@@ -261,7 +261,7 @@
           swal.fire({
             icon: 'error',
             title: 'Oops...',
-            text: '{{error_message}}',
+            html: '{{error_message|safe}}',
             didClose: function () {
               window.location.href = newUrl;
             }

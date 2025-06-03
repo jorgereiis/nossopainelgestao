@@ -186,7 +186,7 @@
           swal.fire({
             icon: 'success',
             title: 'Cliente atualizado',
-            text: '{{success_message}}',
+            html: '{{success_message|safe}}',
             didClose: function () {
               window.location.href = newUrl;
             }
@@ -205,7 +205,7 @@
           swal.fire({
             icon: 'error',
             title: 'Oops...',
-            text: '{{error_message}}',
+            html: '{{error_message|safe}}',
             didClose: function () {
               window.location.href = newUrl;
             }
@@ -295,7 +295,7 @@
               swal.fire({
                 icon: 'success',
                 title: 'Reativação realizada.',
-                text: response.success_message_activate,
+                html: response.success_message_activate,
                 didClose: function () {
                   window.location.href = '/clientes-cancelados/';
                 }
