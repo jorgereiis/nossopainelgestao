@@ -16,8 +16,7 @@ import time
 import schedule
 from mensagens_wpp import (
     run_scheduled_tasks,
-    obter_mensalidades_a_vencer,
-    obter_mensalidades_vencidas,
+    executar_envios_agendados,
     obter_mensalidades_canceladas,
     backup_db_sh,
 )
@@ -40,12 +39,6 @@ def run_threaded(job):
 """schedule.every().day.at("12:00").do(
     run_threaded, run_scheduled_tasks
 )"""
-schedule.every().day.at("13:00").do(
-    run_threaded, obter_mensalidades_a_vencer
-)
-schedule.every().day.at("13:30").do(
-    run_threaded, obter_mensalidades_vencidas
-)
 schedule.every().day.at("17:00").do(
     run_threaded, obter_mensalidades_canceladas
 )
@@ -59,12 +52,15 @@ schedule.every().day.at("00:35").do(
     run_threaded, executar_upload_status_com_lock
 )"""
 
-# Agendar a execução das tarefas em horários específicos
+# Agendar a execução das tarefas em minutos específicos
 schedule.every(60).minutes.do(
     run_threaded, backup_db_sh
 )
 schedule.every(10).minutes.do(
     run_threaded, executar_check_canais_dns_com_lock
+)
+schedule.every(1).minutes.do(
+    run_threaded, executar_envios_agendados
 )
 
 # Executa imediatamente ao iniciar o servidor

@@ -166,7 +166,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
 
         # Verifica se número existe no WhatsApp
         try:
-            numero_existe = check_number_status(telefone, token.token)
+            numero_existe = check_number_status(telefone, token.token, user=token)
             if not numero_existe:
                 print(f"⚠️ Número {telefone} não é válido no WhatsApp.")
                 return
@@ -176,7 +176,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
 
         # Obtém labels atuais
         try:
-            labels_atuais = get_label_contact(telefone, token.token)
+            labels_atuais = get_label_contact(telefone, token.token, user=token)
         except Exception as e:
             print(f"❌ Erro ao obter labels atuais do contato: {e}")
             labels_atuais = []
@@ -192,7 +192,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
             hex_color = LABELS_CORES_FIXAS.get(label_desejada.upper())
 
             # Cria label se necessário (agora passando a cor fixa)
-            nova_label_id = criar_label_se_nao_existir(label_desejada, token.token, hex_color=hex_color)
+            nova_label_id = criar_label_se_nao_existir(label_desejada, token.token, user=token, hex_color=hex_color)
             if not nova_label_id:
                 print(f"⚠️ Não foi possível obter ou criar a label '{label_desejada}'")
                 return
@@ -203,7 +203,8 @@ def cliente_post_save(sender, instance, created, **kwargs):
                 label_id_2=labels_atuais,
                 label_name=label_desejada,
                 telefone=telefone,
-                token=token.token
+                token=token.token,
+                user=token
             )
 
         except Exception as e:

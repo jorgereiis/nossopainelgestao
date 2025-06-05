@@ -82,7 +82,7 @@ class MensalidadeAdmin(admin.ModelAdmin):
 
 
 class PlanoIndicacaoAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "tipo_plano", "valor", "valor_minimo_mensalidade", "usuario", "ativo")
+    list_display = ("id", "nome", "tipo_plano", "descricao", "exemplo", "valor", "valor_minimo_mensalidade", "usuario", "status", "ativo")
     list_filter = ("usuario", "ativo")
     search_fields = ("nome", "tipo_plano")
     ordering = ("-id", "nome",)
@@ -97,7 +97,7 @@ class ContaDoAplicativoAdmin(admin.ModelAdmin):
 
 
 class SessaoWppAdmin(admin.ModelAdmin):
-    list_display = ("usuario", "token", "dt_inicio")
+    list_display = ("usuario", "token", "dt_inicio", "is_active")
     list_filter = ("usuario", "dt_inicio")
     search_fields = ("usuario", "token")
     ordering = ("-dt_inicio",)
@@ -132,7 +132,7 @@ class ConteudoM3U8Admin(admin.ModelAdmin):
 
 
 class HorarioEnviosAdmin(admin.ModelAdmin):
-    list_display = ("id", "usuario", "horario", "ativo")
+    list_display = ("id", "nome", "tipo_envio",  "descricao", "exemplo", "horario", "usuario", "ultimo_envio", "status", "ativo")
     list_filter = ("usuario", "horario", "ativo")
     search_fields = ("usuario", "horario")
     ordering = ("-id",)

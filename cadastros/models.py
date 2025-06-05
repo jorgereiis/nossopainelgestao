@@ -192,30 +192,93 @@ class Mensalidade(models.Model):
     cancelado = models.BooleanField(default=False)
     notificacao_wpp1 = models.BooleanField("Notificação PROMO", default=False)
     recebeu_pix_indicacao = models.BooleanField("PIX R$50", default=False)
+    isencao_anuidade = models.BooleanField("Isenção por bônus anuidade", default=False)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def __str__(self):
         return f"[{self.dt_vencimento.strftime('%d/%m/%Y')}] {self.valor} - {self.cliente}"
 
 
+class HorarioEnvios(models.Model):
+    """Define o horário preferencial de envio de mensagens automáticas."""
+    TITULO = [
+        ("mensalidades_a_vencer", "Notificação de vencimentos"),
+        ("obter_mensalidades_vencidas", "Notificação de atrasos"),
+    ]
+
+    DESCRICOES = {
+        "mensalidades_a_vencer": "Defina aqui o horário do dia em que deseja que as mensagens de Notificação de Vencimento sejam enviadas para os seus clientes.",
+        "obter_mensalidades_vencidas": "Defina aqui o horário do dia em que deseja que as mensagens de Notificação de Atraso sejam enviadas para os seus clientes.",
+    }
+
+    EXEMPLOS = {
+        "mensalidades_a_vencer": "Todos os clientes com mensalidades vencendo daqui há 2 dias receberão uma mensagem no WhatsApp informando sobre Data de Vencimento, Tipo do Plano, Valor e Dados de Pagamento.",
+        "obter_mensalidades_vencidas": "Todos os clientes com mensalidades vencidas há 2 dias receberão uma mensagem no WhatsApp informando sobre a mensalidade pendentes para realizarem seus pagamentos antes que seja feito o cancelamento.",
+    }
+
+    nome = models.CharField(max_length=255, choices=TITULO)
+    tipo_envio = models.CharField(max_length=255, choices=TITULO)
+    horario = models.TimeField(null=True)
+    ultimo_envio = models.DateField(null=True, blank=True)
+    status = models.BooleanField(default=False)
+    ativo = models.BooleanField(default=True)
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = "Horário de Envio"
+        verbose_name_plural = "Horarios de Envio"
+
+    def __str__(self):
+        return self.get_nome_display()
+
+    @property
+    def descricao(self):
+        return self.DESCRICOES.get(self.tipo_envio, "")
+
+    @property
+    def exemplo(self):
+        return self.EXEMPLOS.get(self.tipo_envio, "")
+
+    
 class PlanoIndicacao(models.Model):
     """Representa um plano de indicação que oferece desconto ou valor em dinheiro."""
-    TIPOS_PLANO = [
-        ("desconto", "Desconto na mensalidade"),
-        ("dinheiro", "Valor em dinheiro"),
+    TITULO = [
+        ("desconto", "Desconto por Indicação"),
+        ("dinheiro", "Bônus por Indicações"),
+        ("anuidade", "Bônus por Anuidade"),
     ]
-    nome = models.CharField(max_length=255)
-    tipo_plano = models.CharField(max_length=10, choices=TIPOS_PLANO)
-    valor = models.DecimalField('Valor para desconto ou bonificação', max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
-    valor_minimo_mensalidade = models.DecimalField('Valor mínimo a ser mantido na mensalidade', max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
+    DESCRICOES = {
+        "desconto": "Permite que o sistema aplique desconto à mensalidade do cliente que fez indicação de um novo cliente no mês.",
+        "dinheiro": "Permite que o sistema bonifique o cliente com um valor a receber após realizar indicações de pelo menos 2 novos clientes no mesmo mês.",
+        "anuidade": "Permite que o sistema aplique desconto à mensalidade dos clientes que completarem 12 meses consecutivos como clientes.",
+    }
+    EXEMPLOS = {
+        "desconto": "Indicou 1 novo cliente neste mês, terá R$ 20.00 de desconto no próximo pagamento.",
+        "dinheiro": "Indicou 2 novos clientes no mês de Janeiro, o sistema enviará uma mensagem por WhatsApp informando ao cliente que ele tem um valor a receber como bonificação e agradecimento pelas indicações feitas.",
+        "anuidade": "Aderiu em Jan/23 e terá desconto do valor definido na mensalidade de Jan/24, desde que não tenha passado ao menos 30 dias com uma das suas mensalidades CANCELADAS. Uma mensagem será enviada por WhatsApp para informar o cliente sobre a bonificação.",
+    }
+    nome = models.CharField(max_length=255, choices=TITULO)
+    tipo_plano = models.CharField(max_length=255, choices=TITULO)
+    valor = models.DecimalField('Valor para desconto ou bonificação', max_digits=6, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    valor_minimo_mensalidade = models.DecimalField('Valor mínimo a ser mantido na mensalidade', max_digits=6, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    status = models.BooleanField(default=False)
     ativo = models.BooleanField(default=True)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     class Meta:
         verbose_name_plural = "Planos de Indicação"
+        unique_together = ('usuario', 'tipo_plano')
 
     def __str__(self):
-        return self.nome
+        return self.get_nome_display()
+
+    @property
+    def descricao(self):
+        return self.DESCRICOES.get(self.tipo_plano, "")
+
+    @property
+    def exemplo(self):
+        return self.EXEMPLOS.get(self.tipo_plano, "")
 
 
 class ContaDoAplicativo(models.Model):
@@ -310,20 +373,6 @@ class DadosBancarios(models.Model):
 
     def __str__(self) -> str:
         return f'{self.usuario.first_name} {self.usuario.last_name}'
-
-
-class HorarioEnvios(models.Model):
-    """Define o horário preferencial de envio de mensagens automáticas."""
-    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
-    horario = models.TimeField(null=True)
-    ativo = models.BooleanField(default=True)
-
-    class Meta:
-        verbose_name = "Horário de Envio"
-        verbose_name_plural = "Horarios de Envio"
-
-    def __str__(self) -> str:
-        return self.usuario
 
 
 class MensagemEnviadaWpp(models.Model):

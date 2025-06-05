@@ -32,12 +32,8 @@
                 <div class="offcanvas-body">
                     <ul class="nav nav-tabs" id="myTab" role="tablist">
                         <li class="nav-item">
-                            <a class="nav-link" id="others-tab" data-bs-toggle="tab" href="#others" role="tab"
-                                aria-controls="others" aria-selected="false">Outras Configurações</a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link active" id="home-tab" data-bs-toggle="tab" href="#home" role="tab"
-                                aria-controls="home" aria-selected="true">Indicações e Bonificações</a>
+                                aria-controls="home" aria-selected="true">Configuração de Automações</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" id="whatsapp-tab" data-bs-toggle="tab" href="#whatsapp" role="tab"
@@ -46,61 +42,8 @@
                     </ul>
                     <div class="tab-content" id="myTabContent">
                         <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
-                            <div class="card mt-5">
-                                <div class="card-body">
-                                    <h3 class="card-title">Bônus por Indicação</h3>
-                                    <p class="card-text">Permite que o sistema aplique desconto à mensalidade dos clientes que
-                                        fizerem indicação de novos clientes a cada mês.
-                                        <a href="#">Saiba mais</a>
-                                    <p class="fs-6">Ex: Indicou 1, terá R$ 20.00 de desconto na próxima mensalidade.</p>
-                                    </p>
-                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                        <div class="input-group input-group-sm">
-                                            <span class="input-group-text">R$</span>
-                                            <input type="text" class="form-control" id="valor" name="valor" placeholder="Desconto"
-                                                required style="max-width: 150px;">
-                                        </div>
-                                        <button class="btn btn-primary btn-confirmar-acao" type="button">Ativar</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card mt-5">
-                                <div class="card-body">
-                                    <h3 class="card-title">Bônus por Anuidade</h3>
-                                    <p class="card-text">Permite que o sistema aplique desconto à mensalidade dos clientes que
-                                        completarem 12 meses consecutivos como clientes.
-                                        <a href="#">Saiba mais</a>
-                                    <p class="fs-6">Ex: Aderiu em Jan/23 e terá desconto de R$ 35.00 na mensalidade de Jan/24.</p>
-                                    </p>
-                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                        <div class="input-group input-group-sm">
-                                            <span class="input-group-text">R$</span>
-                                            <input type="text" class="form-control" id="valor" name="valor" placeholder="Desconto"
-                                                required style="max-width: 150px;">
-                                        </div>
-                                        <button class="btn btn-primary btn-confirmar-acao" type="button">Ativar</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="tab-pane fade" id="others" role="tabpanel" aria-labelledby="others-tab">
-                            <div class="card mt-5">
-                                <div class="card-body">
-                                    <h3 class="card-title">Horário de envios das notificações para o WhatsApp</h3>
-                                    <p class="card-text">Defina aqui o horário do dia em que deseja que as mensagens automáticas sejam enviadas para os seus clientes a vencer e em atraso.
-                                        <a href="#">Saiba mais</a>
-                                    </p>
-                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                        <div class="input-group input-group-sm">
-                                            <span class="input-group-text"><i class="bi bi-clock"></i></span>
-                                            <input type="time" class="form-control" id="valor" name="valor" placeholder="Desconto"
-                                                required style="max-width: 150px;">
-                                        </div>
-                                        <button class="btn btn-primary btn-confirmar-acao" type="button">Ativar</button>
-                                        <button class="btn btn-danger btn-confirmar-acao" type="button">Desativar</button>
-                                    </div>
-                                </div>
-                            </div>
+                            <!-- include new pages -->
+                            {% include 'partials/indicacoes_bonus.html' %}
                         </div>
                         <div class="tab-pane fade" id="whatsapp" role="tabpanel" aria-labelledby="whatsapp-tab">
                             <div class="card mt-5">
@@ -531,7 +474,7 @@
                                     </div>
                                     <h4 class="fw-bold mb-2 mt-6">Histórico de cobranças</h4>
                                     <div class="card p-5 border rounded me-4">
-                                        <div class="table-responsive mb-4">
+                                        <div class="table-responsive custom-table-scroll mb-4">
                                             <table class="table text-nowrap mb-0 table-hover table-center" id="table-invoice">
                                                 <thead class="text-muted fs-6">
                                                     <tr>
@@ -560,7 +503,7 @@
                                     </div>
                                     <h4 class="fw-bold mb-2 mt-2">Histórico de indicações</h4>
                                     <div class="card p-5 border rounded me-4 mb-4">
-                                        <div class="table-responsive mb-4">
+                                        <div class="table-responsive custom-table-scroll mb-4">
                                             <table class="table text-nowrap mb-0 table-hover" id="table-indicados">
                                                 <thead class="text-muted fs-6">
                                                     <tr>
@@ -1038,6 +981,19 @@
         grid-template-columns: 1fr; /* apenas 1 por linha */
     }
     }
+    /* limitar a altura das tabelas, permitir scroll e fixar o cabeçalho no modal info */
+    .custom-table-scroll {
+        max-height: 320px;
+        overflow-y: auto;
+        /* Para garantir que não tenha rolagem horizontal indesejada */
+        overflow-x: hidden;
+    }
+    #table-invoice thead th, #table-invoice thead td, #table-indicados thead th, #table-indicados thead td {
+        position: sticky;
+        top: 0;
+        background: #fff; /* ou a cor do seu header */
+        z-index: 2;
+    }
     </style>
 </html>
 
@@ -1181,7 +1137,7 @@
         $('#confirm-cancelamento-modal').modal('show');
 
         // Ouve o envio do formulário
-        $('#cancelamento-form').on('submit', function (event) {
+        $('#cancelamento-form').off('submit').on('submit', function (event) {
             event.preventDefault(); // Impede o envio padrão do formulário
             var $btn = $('.btn-confirmar-acao');
             $btn.prop('disabled', true);

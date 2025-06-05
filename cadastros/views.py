@@ -3,6 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models.functions import ExtractMonth, ExtractYear
+from django.views.decorators.http import require_http_methods
 from plotly.colors import sample_colorscale, make_colorscale
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -16,6 +17,7 @@ from django.views.generic.list import ListView
 from datetime import timedelta, datetime, date
 from django.utils.dateparse import parse_date
 from django.forms.models import model_to_dict
+from decimal import Decimal, InvalidOperation
 from django.db.models.functions import Upper
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q, Count
@@ -30,13 +32,13 @@ from plotly.offline import plot
 from django.views import View
 from .models import DDD_UF_MAP
 from .forms import LoginForm
-from decimal import Decimal
 from typing import Optional
 import plotly.express as px
 import geopandas as gpd
 import pandas as pd
 import calendar
 import warnings
+
 from django.http import (
     HttpResponseBadRequest,
     HttpResponseNotFound,
@@ -54,13 +56,13 @@ from .models import (
     Mensalidade, ContaDoAplicativo,
     SessaoWpp, SecretTokenAPI,
     DadosBancarios, MensagemEnviadaWpp,
-    DominiosDNS
+    DominiosDNS, PlanoIndicacao,
+    HorarioEnvios
 )
 from .utils import (
     envio_apos_novo_cadastro,
     validar_tel_whatsapp,
     criar_mensalidade,
-    check_number_status,
 )
 
 # Constantes
@@ -1710,6 +1712,210 @@ def edit_profile(request):
     return redirect('perfil')
 
 
+@login_required
+@require_http_methods(["GET", "POST"])
+def edit_horario_envios(request):
+    HORARIOS_OBRIGATORIOS = [
+        {
+            "nome": "mensalidades_a_vencer",
+            "tipo_envio": "mensalidades_a_vencer",
+            "horario": None,
+            "status": False,
+            "ativo": True,
+        },
+        {
+            "nome": "obter_mensalidades_vencidas",
+            "tipo_envio": "obter_mensalidades_vencidas",
+            "horario": None,
+            "status": False,
+            "ativo": True,
+        },
+    ]
+    usuario = request.user
+    sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
+    sessao_wpp = bool(sessao)
+
+    if request.method == "GET":
+        # Criação automática dos horários obrigatórios, se não existirem
+        with transaction.atomic():
+            for horario_data in HORARIOS_OBRIGATORIOS:
+                if not HorarioEnvios.objects.filter(usuario=usuario, tipo_envio=horario_data["tipo_envio"]).exists():
+                    HorarioEnvios.objects.create(
+                        usuario=usuario,
+                        nome=horario_data["nome"],
+                        tipo_envio=horario_data["tipo_envio"],
+                        horario=horario_data["horario"],
+                        status=horario_data["status"],
+                        ativo=horario_data["ativo"],
+                    )
+        horarios = HorarioEnvios.objects.filter(usuario=usuario)
+        horarios_json = []
+        for h in horarios:
+            horarios_json.append({
+                "id": h.id,
+                "nome": h.nome,
+                "nome_display": dict(HorarioEnvios.TITULO).get(h.nome, h.nome),
+                "tipo_envio": h.tipo_envio,
+                "descricao": dict(HorarioEnvios.DESCRICOES).get(h.tipo_envio, ""),
+                "exemplo": dict(HorarioEnvios.EXEMPLOS).get(h.tipo_envio, ""),
+                "horario": h.horario.strftime("%H:%M") if h.horario else "",
+                "status": h.status,
+                "ativo": h.ativo,
+            })
+        return JsonResponse({"horarios": horarios_json, "sessao_wpp": sessao_wpp}, status=200)
+
+    elif request.method == "POST":
+        try:
+            data = json.loads(request.body)
+        except Exception as e:
+            return JsonResponse({"error": f"JSON inválido. Detalhe: {e}"}, status=400)
+
+        horario_id = data.get("id")
+        if not horario_id:
+            return JsonResponse({"error": "ID do horário não informado."}, status=400)
+
+        try:
+            horario_envio = HorarioEnvios.objects.get(id=horario_id, usuario=usuario)
+        except HorarioEnvios.DoesNotExist:
+            return JsonResponse({"error": "Horário não encontrado."}, status=404)
+
+        # Atualiza campos permitidos
+        if "horario" in data:
+            horario_str = data["horario"]
+            from datetime import time
+            try:
+                if horario_str:
+                    h, m = [int(x) for x in horario_str.split(":")]
+                    horario_envio.horario = time(hour=h, minute=m)
+                else:
+                    horario_envio.horario = None
+            except Exception:
+                return JsonResponse({"error": "Horário inválido (use HH:MM)."}, status=400)
+        if "status" in data:
+            status = data["status"]
+            if isinstance(status, str):
+                horario_envio.status = status.lower() in ("1", "true", "on")
+            else:
+                horario_envio.status = bool(status)
+
+        try:
+            horario_envio.save()
+        except ValidationError as e:
+            return JsonResponse({"error": str(e)}, status=400)
+
+        return JsonResponse({
+            "success": True,
+            "message": "Horário atualizado com sucesso.",
+            "horario": {
+                "id": horario_envio.id,
+                "nome": horario_envio.nome,
+                "nome_display": dict(HorarioEnvios.TITULO).get(horario_envio.nome, horario_envio.nome),
+                "tipo_envio": horario_envio.tipo_envio,
+                "descricao": dict(HorarioEnvios.DESCRICOES).get(horario_envio.tipo_envio, ""),
+                "exemplo": dict(HorarioEnvios.EXEMPLOS).get(horario_envio.tipo_envio, ""),
+                "horario": horario_envio.horario.strftime("%H:%M") if horario_envio.horario else "",
+                "status": horario_envio.status,
+                "sessao_wpp": sessao_wpp,
+            }
+        }, status=200)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def edit_referral_plan(request):
+    PLANOS_OBRIGATORIOS = [
+        {"tipo_plano": "desconto", "valor": 0.00, "valor_minimo_mensalidade": 5.00},
+        {"tipo_plano": "dinheiro", "valor": 0.00, "valor_minimo_mensalidade": 5.00},
+        {"tipo_plano": "anuidade", "valor": 0.00, "valor_minimo_mensalidade": 5.00},
+    ]
+    usuario = request.user
+    sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
+    sessao_wpp = bool(sessao)
+
+    if request.method == "GET":
+        # Criação automática dos planos se não existirem
+        ativo = True
+        with transaction.atomic():
+            for plano_data in PLANOS_OBRIGATORIOS:
+                if plano_data["tipo_plano"] == "anuidade":
+                    ativo = False
+                if not PlanoIndicacao.objects.filter(usuario=usuario, tipo_plano=plano_data["tipo_plano"]).exists():
+                    PlanoIndicacao.objects.create(
+                        usuario=usuario,
+                        nome=plano_data["tipo_plano"],
+                        tipo_plano=plano_data["tipo_plano"],
+                        valor=Decimal(str(plano_data["valor"])),
+                        valor_minimo_mensalidade=Decimal(str(plano_data["valor_minimo_mensalidade"])),
+                        status=False,
+                        ativo=ativo,
+                    )
+
+        planos = PlanoIndicacao.objects.filter(usuario=request.user, ativo=True)
+        planos_json = []
+        for plano in planos:
+            planos_json.append({
+                "id": plano.id,
+                "nome": plano.nome,
+                "nome_display": plano.get_nome_display(),
+                "tipo_plano": plano.tipo_plano,
+                "descricao": plano.descricao,
+                "exemplo": plano.exemplo,
+                "valor": float(plano.valor),
+                "valor_minimo_mensalidade": float(plano.valor_minimo_mensalidade),
+                "status": plano.status,
+            })
+
+        return JsonResponse({"planos": planos_json, "sessao_wpp": sessao_wpp}, status=200)
+
+    elif request.method == "POST":
+        try:
+            data = json.loads(request.body)
+        except Exception as e:
+            return JsonResponse({"error": f"JSON inválido. Detalhe: {e}"}, status=400)
+
+        plano_id = data.get("id")
+        if not plano_id:
+            return JsonResponse({"error": "ID do plano não informado."}, status=400)
+
+        try:
+            plano = PlanoIndicacao.objects.get(id=plano_id, usuario=usuario)
+        except PlanoIndicacao.DoesNotExist:
+            return JsonResponse({"error": "Plano não encontrado."}, status=404)
+
+        # Atualiza os campos permitidos
+        if "valor" in data:
+            try:
+                plano.valor = Decimal(str(data["valor"]))
+            except (InvalidOperation, ValueError):
+                return JsonResponse({"error": "Valor inválido."}, status=400)
+        if "status" in data:
+            status = data["status"]
+            if isinstance(status, str):
+                plano.status = status.lower() in ("1", "true", "on")
+            else:
+                plano.status = bool(status)
+
+        plano.save()
+
+        return JsonResponse({
+            "success": True,
+            "message": "Plano atualizado com sucesso.",
+            "plano": {
+                "id": plano.id,
+                "nome": plano.nome,
+                "nome_display": plano.get_nome_display(),
+                "tipo_plano": plano.tipo_plano,
+                "descricao": plano.descricao,
+                "exemplo": plano.exemplo,
+                "valor": float(plano.valor),
+                "valor_minimo_mensalidade": float(plano.valor_minimo_mensalidade),
+                "status": plano.status,
+                "ativo": plano.ativo,
+                "sessao_wpp": sessao_wpp,
+            }
+        }, status=200)
+
+
 def test(request):
     clientes = Cliente.objects.all()
 
@@ -2077,11 +2283,12 @@ def create_customer(request):
         try:
             plano_nome = plano_info[0]
             plano_valor = float(plano_info[1].replace(',', '.'))
+            plano_telas = plano_info[2]
         except (IndexError, ValueError):
             return render(request, "pages/cadastro-cliente.html", {
                 "error_message": "Plano inválido.",
             })
-        plano, _ = Plano.objects.get_or_create(nome=plano_nome, valor=plano_valor, usuario=usuario)
+        plano, _ = Plano.objects.get_or_create(nome=plano_nome, valor=plano_valor, telas=plano_telas, usuario=usuario)
 
         # Trata relacionados
         sistema, _ = Aplicativo.objects.get_or_create(nome=sistema_nome, usuario=usuario)

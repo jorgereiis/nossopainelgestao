@@ -27,17 +27,21 @@ from .views import (
     cancel_customer,
     pay_monthly_fee,
     import_customers,
+    LogFilesListView,
     ModalDNSJsonView,
     send_message_wpp,
     secret_token_api,
     edit_payment_plan,
+    LogFileContentView,
     ClientesCancelados,
+    edit_referral_plan,
     delete_app_account,
     create_app_account,
     cancelar_sessao_wpp,
     reactivate_customer,
     CarregarInidicacoes,
     TabelaDashboardAjax,
+    edit_horario_envios,
     create_payment_plan,
     delete_payment_plan,
     check_connection_wpp,
@@ -47,8 +51,6 @@ from .views import (
     CarregarContasDoAplicativo,
     generate_graphic_map_customers,
     CarregarQuantidadesMensalidades,
-    LogFilesListView,
-    LogFileContentView,
 )
 
 urlpatterns = [
@@ -86,6 +88,8 @@ urlpatterns = [
 
     ############ Edit ############
     path("editar-perfil/", edit_profile, name="editar-perfil"),
+    path('edit-referral-plan/', edit_referral_plan, name='edit-referral-plan'),
+    path('edit-horario-envios/', edit_horario_envios, name='edit-horario-envios'),
     path("editar-cliente/<int:cliente_id>/", edit_customer, name="editar-cliente"),
     path("editar-servidor/<int:servidor_id>/", edit_server, name="editar-servidor"),
     path("editar-aplicativo/<int:aplicativo_id>/", editar_app, name="editar-aplicativo"),

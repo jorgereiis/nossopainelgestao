@@ -179,7 +179,7 @@ def validar_tel_whatsapp(telefone: str, token: str, user=None) -> Union[str, Non
 
     for num in telefone_variacoes:
         try:
-            wpp_valido = check_number_status(num, token)
+            wpp_valido = check_number_status(num, token, user)
         except Exception as e:
             logger.error(f"[VALIDAR][ERRO] Erro ao checar {num} no WhatsApp: {e}")
             wpp_valido = False
@@ -203,9 +203,9 @@ def validar_tel_whatsapp(telefone: str, token: str, user=None) -> Union[str, Non
 ###################################################
 
 # Função para obter labels de um contato
-def get_label_contact(telefone, token):
+def get_label_contact(telefone, token, user):
     # Monta a URL da requisição com o número de telefone
-    url = f'{URL_API_WPP}/{USER_SESSION_WPP}/contact/{telefone}'
+    url = f'{URL_API_WPP}/{user}/contact/{telefone}'
 
     # Define os headers com o token de autenticação
     headers = {
@@ -239,9 +239,9 @@ def get_label_contact(telefone, token):
 
 
 # Função para verificar se o número existe no WhatsApp
-def check_number_status(telefone, token):
+def check_number_status(telefone, token, user):
     # Monta a URL da requisição para checar status do número
-    url = f'{URL_API_WPP}/{USER_SESSION_WPP}/check-number-status/{telefone}'
+    url = f'{URL_API_WPP}/{user}/check-number-status/{telefone}'
 
     # Define os headers com token de autenticação
     headers = {
@@ -274,9 +274,9 @@ def check_number_status(telefone, token):
 
 
 # Função para obter todas as labels disponíveis para um contato
-def get_all_labels(token):
+def get_all_labels(token, user):
     # Monta a URL da requisição para obter todas as labels
-    url = f'{URL_API_WPP}/{USER_SESSION_WPP}/get-all-labels'
+    url = f'{URL_API_WPP}/{user}/get-all-labels'
 
     # Headers com autenticação
     headers = {
@@ -309,7 +309,7 @@ def get_all_labels(token):
 
 
 # Função para adicionar ou remover labels de um contato
-def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, token):
+def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, token, user):
     # Normaliza o telefone (remove + e @c.us, caso existam)
     telefone = telefone.replace('+', '').replace('@c.us', '').strip()
 
@@ -322,7 +322,7 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
         return 200, {"status": "skipped", "message": "Label já atribuída"}
 
     # Prepara headers e URL
-    url = f'{URL_API_WPP}/{USER_SESSION_WPP}/add-or-remove-label'
+    url = f'{URL_API_WPP}/{user}/add-or-remove-label'
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -361,12 +361,12 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
 
 
 # Função para criar uma nova label se não existir
-def criar_label_se_nao_existir(nome_label, token, hex_color=None):
+def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
     """
     Cria a label no WhatsApp se não existir. Se hex_color for fornecido, aplica a cor.
     Após criação, busca novamente todas as labels para obter o ID correto.
     """
-    labels = get_all_labels(token)
+    labels = get_all_labels(token, user)
 
     # Verifica se a label já existe
     label_existente = next((label for label in labels if label["name"].strip().lower() == nome_label.lower()), None)
@@ -374,7 +374,7 @@ def criar_label_se_nao_existir(nome_label, token, hex_color=None):
         return label_existente.get("id")
 
     # Monta requisição
-    url = f"{URL_API_WPP}/{USER_SESSION_WPP}/add-new-label"
+    url = f"{URL_API_WPP}/{user}/add-new-label"
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
@@ -398,7 +398,7 @@ def criar_label_se_nao_existir(nome_label, token, hex_color=None):
         # --- Correção ---
         # Após criar, buscar novamente todas as labels para encontrar o ID
         try:
-            labels = get_all_labels(token)
+            labels = get_all_labels(token, user)
             nova_label = next((label for label in labels if label["name"].strip().lower() == nome_label.lower()), None)
             if nova_label:
                 return nova_label.get("id")
@@ -415,9 +415,9 @@ def criar_label_se_nao_existir(nome_label, token, hex_color=None):
     
 
 # Função para obter todos os grupos disponíveis na sessão do WhatsApp
-def get_all_groups(token):
+def get_all_groups(token, user):
     # Monta a URL da requisição para obter todos os grupos
-    url = f'{URL_API_WPP}/{USER_SESSION_WPP}/all-groups'
+    url = f'{URL_API_WPP}/{user}/all-groups'
 
     # Headers com autenticação
     headers = {

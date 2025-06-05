@@ -308,7 +308,7 @@ def check_dns_canais():
     inicio_global = time.time()
 
     # Obtém todos os grupos e extrai IDs dos grupos desejados para envio
-    grupos = get_all_groups(WPP_TOKEN)
+    grupos = get_all_groups(WPP_TOKEN, sessao_wpp)
     grupos_envio = get_ids_grupos_envio(grupos, ADM_ENVIA_ALERTAS)
 
     # Pega todos os domínios do sistema (online e offline) ordenados por Servidor

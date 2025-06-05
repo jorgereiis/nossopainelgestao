@@ -17,14 +17,13 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from cadastros.utils import (
-    validar_tel_whatsapp,
     get_saudacao_por_hora,
     registrar_log,
 )
 
 from cadastros.models import (
     Mensalidade, SessaoWpp, MensagemEnviadaWpp,
-    Cliente, DadosBancarios
+    Cliente, DadosBancarios, HorarioEnvios
 )
 
 # Configuração do Django
@@ -104,7 +103,7 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
 ##### FUNÇÃO PARA FILTRAR AS MENSALIDADES DOS CLIENTES A VENCER #####
 #####################################################################
 
-def obter_mensalidades_a_vencer():
+def obter_mensalidades_a_vencer(usuario_query):
     """
     Verifica mensalidades com vencimento em 2 dias e envia mensagem de aviso via WhatsApp.
     Apenas clientes ativos e com número de telefone válido receberão mensagem.
@@ -113,6 +112,7 @@ def obter_mensalidades_a_vencer():
     horario_log = timezone.now().strftime("%d-%m-%Y %H:%M:%S")
 
     mensalidades = Mensalidade.objects.filter(
+        usuario=usuario_query,
         dt_vencimento=data_referencia,
         cliente__nao_enviar_msgs=False,
         pgto=False,
@@ -137,15 +137,13 @@ def obter_mensalidades_a_vencer():
         dt_formatada = mensalidade.dt_vencimento.strftime("%d/%m")
 
         # Tenta buscar sessão ativa e dados bancários do usuário
-        try:
-            sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
-        except SessaoWpp.DoesNotExist:
+        sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
+        if not sessao:
             print(f"[ERRO] Sessão WPP não encontrada para '{usuario}'. Pulando...")
             continue
 
-        try:
-            dados = DadosBancarios.objects.get(usuario=usuario)
-        except DadosBancarios.DoesNotExist:
+        dados = DadosBancarios.objects.filter(usuario=usuario).first()
+        if not dados:
             print(f"[ERRO] Dados bancários não encontrados para '{usuario}'. Pulando...")
             continue
 
@@ -187,7 +185,7 @@ def obter_mensalidades_a_vencer():
 ##### FUNÇÃO PARA FILTRAR AS MENSALIDADES DOS CLIENTES EM ATRASO #####
 ######################################################################
 
-def obter_mensalidades_vencidas():
+def obter_mensalidades_vencidas(usuario_query):
     """
     Verifica mensalidades vencidas há 2 dias e envia mensagens de lembrete via WhatsApp.
     """
@@ -196,6 +194,7 @@ def obter_mensalidades_vencidas():
     hora_atual = timezone.now().time()
 
     mensalidades = Mensalidade.objects.filter(
+        usuario=usuario_query,
         dt_vencimento=data_referencia,
         cliente__nao_enviar_msgs=False,
         pgto=False,
@@ -217,9 +216,8 @@ def obter_mensalidades_vencidas():
         primeiro_nome = cliente.nome.split()[0]
         saudacao = get_saudacao_por_hora(hora_atual)
 
-        try:
-            sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
-        except SessaoWpp.DoesNotExist:
+        sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
+        if not sessao:
             print(f"[ERRO] Sessão WPP não encontrada para '{usuario}'. Pulando...")
             continue
 
@@ -576,6 +574,45 @@ def run_scheduled_tasks():
     except Exception as e:
         print(f"[ERRO] run_scheduled_tasks(): {str(e)}")
 ##### FIM #####
+
+
+##################################################################
+##### FUNÇÃO PARA ENVIAR MENSAGEM DE BONIFICAÇÃO DE ANUIDADE #####
+##################################################################
+
+
+###########################################################
+##### FUNÇÃO PARA VALIDAR E EXECUTAR ENVIOS AGENDADOS #####
+###########################################################
+
+def executar_envios_agendados():
+    agora = timezone.localtime()
+    hora_atual = agora.strftime('%H:%M')
+    hoje = agora.date()
+
+    horarios = HorarioEnvios.objects.filter(
+        status=True,
+        ativo=True,
+        horario__isnull=False
+    )
+
+    for h in horarios:
+        if (
+            h.horario.strftime('%H:%M') == hora_atual and
+            (h.ultimo_envio is None or h.ultimo_envio < hoje)
+        ):
+            print(f'Executando envios para usuário: {h.usuario} (horário: {h.horario})')
+
+            # Verifica o tipo de envio e executa a função correspondente
+            if h.tipo_envio == 'mensalidades_a_vencer':
+                obter_mensalidades_a_vencer(h.usuario)
+            elif h.tipo_envio == 'obter_mensalidades_vencidas':
+                obter_mensalidades_vencidas(h.usuario)
+
+            # Atualiza o último envio
+            h.ultimo_envio = hoje
+            h.save(update_fields=['ultimo_envio'])
+
 
 
 ##############################################################################################

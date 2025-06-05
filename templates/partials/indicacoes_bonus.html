@@ -1,0 +1,428 @@
+{% load static %}
+
+<div class="d-flex flex-row flex-column gap-3">
+    <div id="accordionExample1">
+        <ul class="timeline list-unstyled d-flex flex-column mb-0" id="lista-planos-indicacao">
+            <!-- Items dos PLANOS serão inseridos aqui pelo JS -->
+        </ul>
+        
+        <ul class="timeline list-unstyled d-flex flex-column mt-0" id="lista-horarios-envios">
+            <!-- Items dos HORARIOS serão inseridos aqui pelo JS -->
+        </ul>
+    </div>
+</div>
+
+<script>
+    // PLANOS
+    // FUNÇÃO PARA OBTER DADOS DO BACKEND COM "GET"
+    document.addEventListener('DOMContentLoaded', function() {
+        buscarTodosOsPlanos();
+        buscarHorariosEnvios();
+    });
+
+    function buscarTodosOsPlanos() {
+        fetch("/edit-referral-plan/")
+            .then(response => {
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    Swal.fire("Erro", data.error, "error");
+                    return;
+                }
+                // Container da lista
+                const lista = document.getElementById('lista-planos-indicacao');
+                lista.innerHTML = '';
+
+                const sessao_wpp = data.sessao_wpp;
+
+                data.planos.forEach((plano, idx) => {
+                    const collapseId = `collapse${plano.id}`;
+                    // Monta o HTML
+                    const item = `
+                    <li class="timeline-event mt-2">
+                        <div class="card timeline-event-card">
+                            <div class="card-body">
+                                <div class="d-flex flex-lg-row flex-column align-items-lg-center gap-3 justify-content-between">
+                                    <div>
+                                        <a
+                                            href="#"
+                                            class="d-flex flex-row gap-2 collapsed text-inherit"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#${collapseId}"
+                                            aria-expanded="false"
+                                            aria-controls="${collapseId}"
+                                        >
+                                            <i data-feather="chevron-right" class="icon-xs chevron-down mt-1 text-primary"></i>
+                                            <div class="d-flex flex-md-row flex-column align-items-md-center gap-md-2">
+                                                <h4 class="card-title mb-0" style="cursor:pointer;">
+                                                    ${plano.nome_display}
+                                                </h4>
+                                            </div>
+                                        </a>
+                                    </div>
+                                    <div class="d-flex flex-row gap-2">
+                                        <span id="status-plano-${plano.id}">
+                                            ${plano.status
+                                            ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
+                                            : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div id="${collapseId}"
+                                    class="accordion-collapse collapse get-collapse-plans"
+                                    data-bs-parent="#accordionExample1"
+                                    data-plano-id="${plano.id}"
+                                >
+                                    <div class="d-flex flex-column mt-4">
+                                        <p class="card-text">
+                                            ${plano.descricao}
+                                            <a href="#">Saiba mais</a>
+                                        </p>
+                                        <p class="fs-6 mb-0">
+                                            <strong>Exemplo:</strong>
+                                            ${plano.exemplo}
+                                        </p>
+                                        <br>
+                                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">R$</span>
+                                                <input type="text" class="form-control"
+                                                    id="valor_indicacao_${plano.id}"
+                                                    name="valor_indicacao"
+                                                    value="${plano.valor}"
+                                                    placeholder="Valor desconto"
+                                                    required style="max-width: 150px;"
+                                                    ${plano.status ? "disabled" : ""}>
+                                            </div>
+                                            <button
+                                                class="btn btn-confirmar-acao ${plano.status ? "btn-danger" : "btn-primary"}"
+                                                type="button"
+                                                data-plano-id="${plano.id}"
+                                                data-nome="${plano.nome_display}"
+                                                data-status="${plano.status ? "on" : "off"}"
+                                                data-sessao-wpp="${sessao_wpp ? "true" : ""}"
+                                                onclick="togglePlanoAtivo(this)"
+                                                id="btn-ativar-indicacao-${plano.id}"
+                                            >
+                                                ${plano.status ? "Desativar" : "Ativar"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    `;
+                    lista.insertAdjacentHTML('beforeend', item);
+                });
+
+                // Atualiza os ícones feather (se usar feather icons)
+                if (window.feather) window.feather.replace();
+            })
+            .catch((err) => {
+                Swal.fire("Erro", "Erro ao buscar planos.", "error");
+                console.error("Erro no fetch:", err);
+            });
+    }
+
+    // PLANOS
+    // FUNÇÃO PARA PROCESSAR AÇÕES DE "POST"
+    function togglePlanoAtivo(botao) {
+        const planoId = botao.getAttribute('data-plano-id');
+        const nomeDisplay = botao.getAttribute('data-nome');
+        const statusAtual = botao.getAttribute('data-status'); // "on" ou "off"
+        const inputValor = document.getElementById('valor_indicacao_' + planoId);
+        let valor = inputValor ? inputValor.value : "0";
+        const valor_minimo = 5.00;
+        const sessao_wpp = botao.getAttribute('data-sessao-wpp'); //True ou False
+
+        const novoAtivo = (statusAtual === "off"); // Se estava OFF, ativa. Se estava ON, desativa.
+
+        // --- Validação: se for ativar, valor deve ser > 0 ---
+        if (novoAtivo && (isNaN(valor) || parseFloat(valor) <= 0)) {
+            Swal.fire("Atenção", "Informe um valor MAIOR que zero para ativar este Plano.", "warning");
+            botao.disabled = false;
+            botao.textContent = "Ativar";
+            return;
+        }
+
+        // --- Validação: se for ativar, deve ter uma sessão do Wpp ativa ---
+        if (novoAtivo && (!sessao_wpp || sessao_wpp === "false")) {
+            Swal.fire("Atenção", "Você ainda não salvou a sua sessão do WhatsApp. Vá até o Menu Principal e faça conexão.", "warning");
+            botao.disabled = false;
+            botao.textContent = "Ativar";
+            return;
+        }
+
+        // --- Se DESATIVAR, forçamos o valor para ZERO no envio ---
+        if (!novoAtivo) {
+            valor = "0";
+        }
+
+        let tipo_plano = "desconto";
+        if (nomeDisplay.toLowerCase().includes("dinheiro")) tipo_plano = "dinheiro";
+        else if (nomeDisplay.toLowerCase().includes("anuidade")) tipo_plano = "anuidade";
+
+        botao.disabled = true;
+        botao.textContent = "Salvando...";
+
+        const payload = {
+            id: planoId,
+            nome: tipo_plano,
+            tipo_plano: tipo_plano,
+            valor: valor,
+            valor_minimo_mensalidade: valor_minimo,
+            status: novoAtivo
+        };
+
+        fetch("/edit-referral-plan/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken"),
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                botao.setAttribute("data-status", novoAtivo ? "on" : "off");
+                botao.textContent = novoAtivo ? "Desativar" : "Ativar";
+                botao.classList.remove("btn-primary", "btn-danger");
+                if (novoAtivo) {
+                    botao.classList.add("btn-danger");
+                } else {
+                    botao.classList.add("btn-primary");
+                }
+                if (inputValor && data.plano && data.plano.valor !== undefined) {
+                    inputValor.value = data.plano.valor;
+                    inputValor.disabled = novoAtivo;
+                }
+                // Sempre zera visualmente ao desativar, mesmo que backend não retorne zero
+                if (!novoAtivo && inputValor) {
+                    inputValor.value = "0";
+                }
+                const statusSpan = document.getElementById('status-plano-' + planoId);
+                if (statusSpan) {
+                    statusSpan.innerHTML = novoAtivo
+                        ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
+                        : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
+                }
+                Swal.fire("Sucesso", "Plano atualizado!", "success");
+            } else {
+                Swal.fire("Erro", data.error || "Erro ao atualizar plano.", "error");
+            }
+        })
+        .catch(() => Swal.fire("Erro", "Erro de comunicação.", "error"))
+        .finally(() => {
+            botao.disabled = false;
+        });
+    }
+
+    // Função utilitária para CSRF (pode já estar no seu projeto)
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            let cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                let cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // HORARIOS
+    function buscarHorariosEnvios() {
+        fetch("/edit-horario-envios/")
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    Swal.fire("Erro", data.error, "error");
+                    return;
+                }
+
+                const sessao_wpp = data.sessao_wpp;
+
+                const lista = document.getElementById('lista-horarios-envios');
+                if (!lista) return;
+                lista.innerHTML = '';
+
+                data.horarios.forEach(horario => {
+                    const collapseId = `collapseHorario${horario.id}`;
+                    // Input só fica habilitado se status = false (desativado)
+                    const isInputDisabled = horario.status ? 'disabled' : '';
+                    const btnClass = horario.status ? 'btn-danger' : 'btn-primary';
+                    const btnText = horario.status ? 'Desativar' : 'Ativar';
+                    const statusHtml = horario.status
+                        ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
+                        : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
+
+                    const item = `
+                        <li class="timeline-event mt-2">
+                            <div class="card timeline-event-card">
+                                <div class="card-body">
+                                    <div class="d-flex flex-lg-row flex-column align-items-lg-center gap-3 justify-content-between">
+                                        <div>
+                                            <a
+                                                href="#"
+                                                class="d-flex flex-row gap-2 collapsed text-inherit"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#${collapseId}"
+                                                aria-expanded="false"
+                                                aria-controls="${collapseId}"
+                                            >
+                                                <i data-feather="chevron-right" class="icon-xs chevron-down mt-1 text-primary"></i>
+                                                <div class="d-flex flex-md-row flex-column align-items-md-center gap-md-2">
+                                                    <h4 class="card-title mb-0" style="cursor:pointer;">
+                                                        ${horario.nome_display}
+                                                    </h4>
+                                                </div>
+                                            </a>
+                                        </div>
+                                        <div class="d-flex flex-row gap-2">
+                                            <span id="status-horario-${horario.id}">
+                                                ${statusHtml}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div id="${collapseId}"
+                                        class="accordion-collapse collapse get-collapse-horario"
+                                        data-bs-parent="#accordionExample1"
+                                        data-horario-id="${horario.id}"
+                                    >
+                                        <div class="d-flex flex-column mt-4">
+                                            <p class="card-text">
+                                                ${horario.descricao}
+                                                <a href="#">Saiba mais</a>
+                                            </p>
+                                            <p class="fs-6 mb-0">
+                                                <strong>Exemplo:</strong>
+                                                ${horario.exemplo}
+                                            </p>
+                                            <br>
+                                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text"><i class="bi bi-clock"></i></span>
+                                                    <input type="time" class="form-control"
+                                                        id="horario_envio_${horario.id}"
+                                                        name="horario_envio"
+                                                        value="${horario.horario || ""}"
+                                                        placeholder="hh:mm"
+                                                        style="max-width: 120px;"
+                                                        ${isInputDisabled}>
+                                                </div>
+                                                <button
+                                                    class="btn btn-confirmar-acao ${btnClass}"
+                                                    type="button"
+                                                    data-horario-id="${horario.id}"
+                                                    data-status="${horario.status ? "on" : "off"}"
+                                                    data-sessao-wpp="${sessao_wpp ? "true" : ""}"
+                                                    onclick="toggleHorarioAtivo(this)"
+                                                    id="btn-ativar-horario-${horario.id}"
+                                                >
+                                                    ${btnText}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    `;
+                    lista.insertAdjacentHTML('beforeend', item);
+                });
+
+                if (window.feather) window.feather.replace();
+            })
+            .catch((err) => {
+                Swal.fire("Erro", "Erro ao buscar horários.", "error");
+                console.error("Erro no fetch:", err);
+            });
+    }
+
+    // Função para ativar/desativar um horário (faça POST como nos planos)
+    function toggleHorarioAtivo(botao) {
+        const horarioId = botao.getAttribute('data-horario-id');
+        const statusAtual = botao.getAttribute('data-status'); // "on" ou "off"
+        const inputHorario = document.getElementById('horario_envio_' + horarioId);
+        let horarioValue = inputHorario ? inputHorario.value : "";
+        const sessao_wpp = botao.getAttribute('data-sessao-wpp'); //True ou False
+
+        const novoStatus = (statusAtual === "off");
+        botao.disabled = true;
+        botao.textContent = "Salvando...";
+
+        // --- Validação: se for ativar, precisa ter sessão WPP ---
+        if (novoStatus && (!sessao_wpp || sessao_wpp === "false")) {
+            Swal.fire("Atenção", "Você ainda não salvou a sua sessão do WhatsApp. Vá até o Menu Principal e faça conexão.", "warning");
+            botao.disabled = false;
+            botao.textContent = "Ativar";
+            return;
+        }
+
+        // --- Validação: se for ativar, input não pode estar vazio ---
+        if (novoStatus && (!horarioValue || horarioValue.trim() === "")) {
+            Swal.fire("Atenção", "Informe um horário antes de ativar.", "warning");
+            botao.disabled = false;
+            botao.textContent = "Ativar";
+            return;
+        }
+
+        // Ao desativar, limpar valor antes de enviar
+        if (!novoStatus) {
+            horarioValue = "";
+        }
+
+        // Monta payload
+        const payload = {
+            id: horarioId,
+            status: novoStatus,
+            horario: horarioValue,
+        };
+
+        fetch("/edit-horario-envios/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken"),
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                botao.setAttribute("data-status", novoStatus ? "on" : "off");
+                botao.textContent = novoStatus ? "Desativar" : "Ativar";
+                botao.classList.remove("btn-primary", "btn-danger");
+                if (novoStatus) {
+                    botao.classList.add("btn-danger");
+                } else {
+                    botao.classList.add("btn-primary");
+                }
+                // Input só fica desbloqueado se o status for falso (desativado)
+                if (inputHorario) {
+                    inputHorario.disabled = novoStatus;
+                    if (!novoStatus) inputHorario.value = ""; // Limpa campo ao desativar
+                }
+                const statusSpan = document.getElementById('status-horario-' + horarioId);
+                if (statusSpan) {
+                    statusSpan.innerHTML = novoStatus
+                        ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
+                        : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
+                }
+                Swal.fire("Sucesso", "Horário atualizado!", "success");
+            } else {
+                Swal.fire("Erro", data.error || "Erro ao atualizar horário.", "error");
+            }
+        })
+        .catch(() => Swal.fire("Erro", "Erro de comunicação.", "error"))
+        .finally(() => {
+            botao.disabled = false;
+        });
+    }
+</script>
