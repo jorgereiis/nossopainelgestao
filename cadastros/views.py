@@ -2332,12 +2332,9 @@ def create_customer(request):
                 # CRIAR CONTA DO APLICATIVO
                 if sistema.device_has_mac:
                     try:
-                        device_id = post.get('id')
+                        device_id = post.get('id', '')
                         email = post.get('email', '')
                         senha = post.get('senha', '')
-
-                        if not all([device_id]):
-                            raise ValueError("Dados da conta do Aplicativo estão incompletos.")
 
                         ContaDoAplicativo.objects.create(
                             device_id=device_id,
