@@ -307,13 +307,17 @@
         if (appName === 'clouddy') {
           $('#teste').after(`
             <div class="mb-3 row" id="divEmail">
-              <label for="Email" class="col-sm-4 col-form-label form-label">E-mail do Aplicativo</label>
+              <label for="Email" class="col-sm-4 col-form-label form-label">
+                E-mail do Aplicativo <span class="text-danger">*</span>
+              </label>
               <div class="col-sm-5 mb-3 mb-lg-0">
                 <input type="email" class="form-control" placeholder="E-mail" id="Email" name="email" required>
               </div>
             </div>
             <div class="mb-3 row" id="divSenha2">
-              <label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label>
+              <label for="Senha" class="col-sm-4 col-form-label form-label">
+                Senha do Aplicativo <span class="text-danger">*</span>
+              </label>
               <div class="col-sm-5 mb-3 mb-lg-0">
                 <input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" minlength="6" required>
               </div>
@@ -322,7 +326,9 @@
         } else {
           $('#teste').after(`
             <div class="mb-3 row" id="divID">
-              <label for="ID" class="col-sm-4 col-form-label form-label">ID do Aplicativo</label>
+              <label for="ID" class="col-sm-4 col-form-label form-label">
+                ID do Aplicativo <span class="text-danger">*</span>
+              </label>
               <div class="col-sm-5 mb-3 mb-lg-0">
                 <input type="text" class="form-control" placeholder="Device ID" id="ID" name="id" minlength="12" maxlength="18" required>
               </div>
@@ -330,7 +336,7 @@
             <div class="mb-3 row" id="divSenha">
               <label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label>
               <div class="col-sm-5 mb-3 mb-lg-0">
-                <input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha" minlength="6" required>
+                <input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha" minlength="6">
               </div>
             </div>
           `);
