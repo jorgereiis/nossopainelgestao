@@ -20,6 +20,7 @@ from cadastros.utils import (
     get_saudacao_por_hora,
     registrar_log,
 )
+from openai.chatgpt import consultar_chatgpt
 
 from cadastros.models import (
     Mensalidade, SessaoWpp, MensagemEnviadaWpp,
@@ -255,11 +256,11 @@ def obter_mensalidades_canceladas():
             "mensagem": "*{}, {}.* 👍🏼\n\nVimos em nosso sistema que já fazem uns dias que o seu acesso foi encerrado e gostaríamos de saber se você deseja continuar utilizando?"
         },
         {
-            "dias": 15,
+            "dias": 20,
             "mensagem": "*{}, {}* 🫡\n\nTudo bem? Espero que sim.\n\nFaz um tempo que você deixou de ser nosso cliente ativo, e ficamos preocupados. Houve algo que não agradou em nosso sistema?\n\nPergunto, pois se algo não agradou, nos informe para fornecermos uma plataforma melhor para você, tá bom?\n\nEstamos à disposição! 🙏🏼"
         },
         {
-            "dias": 45,
+            "dias": 60,
             "mensagem": "*Opa.. {}!! Tudo bacana?*\n\nComo você já foi nosso cliente, trago uma notícia que talvez você goste muuuiito!!\n\nVocê pode renovar a sua mensalidade conosco pagando *APENAS R$ 24.90* nos próximos 3 meses. Olha só que bacana?!?!\n\nEsse tipo de desconto não oferecemos a qualquer um, viu? rsrs\n\nCaso tenha interesse, avise aqui, pois iremos garantir essa oferta apenas essa semana. 👏🏼👏🏼"
         }
     ]
@@ -490,6 +491,39 @@ def get_message_from_file(file_name: str, sub_directory: str) -> str:
         print(f"[ERRO] Ao abrir arquivo de mensagem: {e}")
         return None
 
+
+def get_personalized_message(file_name: str, sub_directory: str) -> str:
+    """
+    Lê o conteúdo de um arquivo de mensagem e gera uma versão personalizada com ChatGPT.
+
+    Args:
+        file_name (str): Nome do arquivo de mensagem.
+        sub_directory (str): Subpasta dentro de /archives onde está o arquivo.
+
+    Returns:
+        str: Mensagem personalizada.
+    """
+    file_path = os.path.join(os.path.dirname(__file__), f'../archives/{sub_directory}', file_name)
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            mensagem_original = f.read()
+
+        prompt = (
+            "Você é um redator especialista em marketing pelo WhatsApp. "
+            "Reescreva o texto abaixo mantendo a mesma intenção e estrutura, "
+            "mas com frases diferentes, trocando palavras por sinônimos, mudando levemente a ordem e "
+            "deixando o texto natural, envolvente e adequado para o WhatsApp.\n\n"
+            f"{mensagem_original}"
+        )
+
+        mensagem_personalizada = consultar_chatgpt(pergunta=prompt)
+        return mensagem_personalizada
+
+    except Exception as e:
+        print(f"[ERRO] Ao processar mensagem personalizada: {e}")
+        return None
+
 #### FIM #####
 
 
@@ -532,9 +566,9 @@ def run_scheduled_tasks():
             tipo = "ativos"
             imagem = "img1.png"
             if dia == second_saturday:
-                mensagem = get_message_from_file("msg1.txt", tipo)
+                mensagem = get_personalized_message("msg1.txt", tipo)
             elif dia == last_saturday:
-                mensagem = get_message_from_file("msg2.txt", tipo)
+                mensagem = get_personalized_message("msg2.txt", tipo)
 
         elif dia_semana in ["Wednesday", "Sunday"]:
             tipo = "avulso"
@@ -548,7 +582,7 @@ def run_scheduled_tasks():
                 nome_msg = None
 
             if nome_msg:
-                mensagem = get_message_from_file(nome_msg, tipo)
+                mensagem = get_personalized_message(nome_msg, tipo)
 
         elif dia_semana == "Monday":
             tipo = "cancelados"
@@ -562,7 +596,7 @@ def run_scheduled_tasks():
                 nome_msg = None
 
             if nome_msg:
-                mensagem = get_message_from_file(nome_msg, tipo)
+                mensagem = get_personalized_message(nome_msg, tipo)
 
         # Execução final do envio
         if tipo and imagem and mensagem:
