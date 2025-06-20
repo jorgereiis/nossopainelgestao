@@ -42,7 +42,8 @@ DIR_LOGS_INDICACOES = os.getenv("DIR_LOGS_INDICACOES")
 TEMPLATE_LOG_MSG_SUCESSO = os.getenv("TEMPLATE_LOG_MSG_SUCESSO")
 TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
 TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
-
+QTD_DIAS_EM_ATRASO = int(os.getenv("QTD_DIAS_EM_ATRASO", 1))  # Padrão de 2 dias para mensalidades a vencer
+QTD_DIAS_VENCIDAS = int(os.getenv("QTD_DIAS_VENCIDAS", 3))  # Padrão de 2 dias para mensalidades vencidas
 
 ##################################################################
 ################ FUNÇÃO PARA ENVIAR MENSAGENS ####################
@@ -114,7 +115,7 @@ def obter_mensalidades_a_vencer(usuario_query):
     Verifica mensalidades com vencimento em 2 dias e envia mensagem de aviso via WhatsApp.
     Apenas clientes ativos e com número de telefone válido receberão mensagem.
     """
-    data_referencia = timezone.now().date() + timedelta(days=2)
+    data_referencia = timezone.now().date() + timedelta(days=QTD_DIAS_VENCIDAS)
     horario_log = timezone.now().strftime("%d-%m-%Y %H:%M:%S")
 
     mensalidades = Mensalidade.objects.filter(
@@ -195,7 +196,7 @@ def obter_mensalidades_vencidas(usuario_query):
     """
     Verifica mensalidades vencidas há 2 dias e envia mensagens de lembrete via WhatsApp.
     """
-    data_referencia = timezone.now().date() - timedelta(days=2)
+    data_referencia = timezone.now().date() - timedelta(days=QTD_DIAS_EM_ATRASO)
     horario_log = timezone.now().strftime("%d-%m-%Y %H:%M:%S")
     hora_atual = timezone.now().time()
 
