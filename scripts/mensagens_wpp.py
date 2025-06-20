@@ -1,35 +1,40 @@
 import os
+import sys
 import json
 import re
 import time
-import codecs
+import django
 import base64
 import random
 import calendar
 import requests
-import functools
 import subprocess
 from datetime import datetime, timedelta
-from django.utils.timezone import localtime
 
-import django
+# Definir a variável de ambiente DJANGO_SETTINGS_MODULE
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
+
+# Adiciona a raiz do projeto ao sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Carregar as configurações do Django
+django.setup()
+
 from django.utils import timezone
+from django.utils.timezone import localtime
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from cadastros.utils import (
     get_saudacao_por_hora,
     registrar_log,
 )
-from openai.chatgpt import consultar_chatgpt
+from openai_py.chatgpt import consultar_chatgpt
 
 from cadastros.models import (
     Mensalidade, SessaoWpp, MensagemEnviadaWpp,
     Cliente, DadosBancarios, HorarioEnvios
 )
 
-# Configuração do Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
-django.setup()
 
 URL_API_WPP = os.getenv("URL_API_WPP")
 DIR_LOGS_AGENDADOS = os.getenv("DIR_LOGS_AGENDADOS")
@@ -257,7 +262,7 @@ def obter_mensalidades_canceladas():
         },
         {
             "dias": 20,
-            "mensagem": "*{}, {}* 🫡\n\nTudo bem? Espero que sim.\n\nFaz um tempo que você deixou de ser nosso cliente ativo, e ficamos preocupados. Houve algo que não agradou em nosso sistema?\n\nPergunto, pois se algo não agradou, nos informe para fornecermos uma plataforma melhor para você, tá bom?\n\nEstamos à disposição! 🙏🏼"
+            "mensagem": "*{}, {}* 🫡\n\nTudo bem? Espero que sim.\n\nFaz um tempo que você deixou de ser nosso cliente ativo e ficamos preocupados. Houve algo que não agradou em nosso sistema?\n\nPergunto, pois se algo não agradou, nos informe para fornecermos uma plataforma melhor para você, tá bom?\n\nEstamos à disposição! 🙏🏼"
         },
         {
             "dias": 60,
@@ -646,7 +651,6 @@ def executar_envios_agendados():
             # Atualiza o último envio
             h.ultimo_envio = hoje
             h.save(update_fields=['ultimo_envio'])
-
 
 
 ##############################################################################################
