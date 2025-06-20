@@ -273,10 +273,6 @@ def obter_mensalidades_canceladas():
     """
     atrasos = [
         {
-            "dias": 5,
-            "mensagem": "*{}, {}.* 👍🏼\n\nVimos em nosso sistema que já fazem uns dias que o seu acesso foi encerrado e gostaríamos de saber se você deseja continuar utilizando?"
-        },
-        {
             "dias": 20,
             "mensagem": "*{}, {}* 🫡\n\nTudo bem? Espero que sim.\n\nFaz um tempo que você deixou de ser nosso cliente ativo e ficamos preocupados. Houve algo que não agradou em nosso sistema?\n\nPergunto, pois se algo não agradou, nos informe para fornecermos uma plataforma melhor para você, tá bom?\n\nEstamos à disposição! 🙏🏼"
         },
@@ -305,7 +301,7 @@ def obter_mensalidades_canceladas():
         )
 
         qtd = mensalidades.count()
-        print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [CANCELADAS HÁ {qtd_dias} DIAS] QUANTIDADE DE ENVIOS A SEREM FEITOS: {qtd}")
+        print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [CANCELADAS HÁ {qtd_dias} DIAS] QUANTIDADE DE ENVIOS: {qtd}")
 
         if not qtd:
             print(f"Nenhum envio realizado para clientes cancelados há {qtd_dias} dias.")
