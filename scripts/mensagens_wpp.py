@@ -28,7 +28,7 @@ from cadastros.utils import (
     get_saudacao_por_hora,
     registrar_log,
 )
-from openai_py.chatgpt import consultar_chatgpt
+from integracoes.openai_chat import consultar_chatgpt
 
 from cadastros.models import (
     Mensalidade, SessaoWpp, MensagemEnviadaWpp,
@@ -42,7 +42,6 @@ TEMPLATE_LOG_MSG_SUCESSO = os.getenv("TEMPLATE_LOG_MSG_SUCESSO")
 TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
 TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
 QTD_DIAS_EM_ATRASO = int(os.getenv("QTD_DIAS_EM_ATRASO", 2))  # Padrão de 2 dias para mensalidades a vencer
-QTD_DIAS_A_VENCER = int(os.getenv("QTD_DIAS_A_VENCER", 2))  # Padrão de 2 dias para mensalidades vencidas
 
 ##################################################################
 ################ FUNÇÃO PARA ENVIAR MENSAGENS ####################
@@ -110,80 +109,90 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
 #####################################################################
 
 def obter_mensalidades_a_vencer(usuario_query):
-    """
-    Verifica mensalidades com vencimento em 2 dias e envia mensagem de aviso via WhatsApp.
-    Apenas clientes ativos e com número de telefone válido receberão mensagem.
-    """
-    data_referencia = timezone.now().date() + timedelta(days=QTD_DIAS_A_VENCER)
-    horario_log = timezone.now().strftime("%d-%m-%Y %H:%M:%S")
+    dias_envio = {
+        2: "à vencer 2 dias",
+        1: "lembrete 1 dia",
+        0: "vence_hoje"
+    }
 
-    mensalidades = Mensalidade.objects.filter(
-        usuario=usuario_query,
-        dt_vencimento=data_referencia,
-        cliente__nao_enviar_msgs=False,
-        pgto=False,
-        cancelado=False
-    )
+    horario_log = localtime().strftime('%Y-%m-%d %H:%M:%S')
 
-    quantidade = mensalidades.count()
-    print(f"[{horario_log}] [A VENCER] QUANTIDADE DE ENVIOS A SEREM FEITOS: {quantidade}")
+    for dias, tipo_mensagem in dias_envio.items():
+        data_referencia = localtime().date() + timedelta(days=dias)
 
-    for mensalidade in mensalidades:
-        usuario = mensalidade.usuario
-        cliente = mensalidade.cliente
-        plano_nome = cliente.plano.nome.upper()
-        
-
-        telefone = str(cliente.telefone).strip()
-        if not telefone:
-            print(f"[AVISO] Cliente '{cliente}' sem telefone cadastrado. Pulando...")
-            continue
-
-        primeiro_nome = cliente.nome.split()[0].upper()
-        dt_formatada = mensalidade.dt_vencimento.strftime("%d/%m")
-
-        # Tenta buscar sessão ativa e dados bancários do usuário
-        sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
-        if not sessao:
-            print(f"[ERRO] Sessão WPP não encontrada para '{usuario}'. Pulando...")
-            continue
-
-        dados = DadosBancarios.objects.filter(usuario=usuario).first()
-        if not dados:
-            print(f"[ERRO] Dados bancários não encontrados para '{usuario}'. Pulando...")
-            continue
-
-        # Mensagem a ser enviada
-        mensagem = (
-            f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
-            f"▫️ *DETALHES DO SEU PLANO:*\n"
-            f"_________________________________\n"
-            f"🔖 *Plano*: {plano_nome}\n"
-            f"📆 *Vencimento*: {dt_formatada}\n"
-            f"💰 *Valor*: R$ {mensalidade.valor}\n"
-            f"_________________________________\n\n"
-            f"▫️ *PAGAMENTO COM PIX:*\n"
-            f"_________________________________\n"
-            f"🔑 *Tipo*: {dados.tipo_chave}\n"
-            f"🔢 *Chave*: {dados.chave}\n"
-            f"🏦 *Banco*: {dados.instituicao}\n"
-            f"👤 *Beneficiário*: {dados.beneficiario}\n"
-            f"_________________________________\n\n"
-            f"‼️ _Caso já tenha pago, por favor, nos envie o comprovante para confirmação._"
+        mensalidades = Mensalidade.objects.filter(
+            usuario=usuario_query,
+            dt_vencimento=data_referencia,
+            cliente__nao_enviar_msgs=False,
+            pgto=False,
+            cancelado=False
         )
 
-        # Envio da mensagem
-        enviar_mensagem_agendada(
-            telefone=telefone,
-            mensagem=mensagem,
-            usuario=usuario,
-            token=sessao.token,
-            cliente=cliente.nome,
-            tipo_envio="A vencer"
-        )
+        print(f"[{horario_log}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
 
-        # Intervalo aleatório entre envios
-        time.sleep(random.uniform(30, 60))
+        for mensalidade in mensalidades:
+            cliente = mensalidade.cliente
+            usuario = mensalidade.usuario
+            telefone = str(cliente.telefone).strip()
+            if not telefone:
+                continue
+
+            sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
+            if not sessao:
+                continue
+
+            primeiro_nome = cliente.nome.split()[0].upper()
+            dt_formatada = mensalidade.dt_vencimento.strftime("%d/%m")
+            plano_nome = cliente.plano.nome.upper()
+
+            if tipo_mensagem == "à vencer 2 dias":
+                dados = DadosBancarios.objects.filter(usuario=usuario).first()
+                if not dados:
+                    continue
+
+                mensagem = (
+                    f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
+                    f"▫️ *DETALHES DO SEU PLANO:*\n"
+                    f"_________________________________\n"
+                    f"🔖 *Plano*: {plano_nome}\n"
+                    f"📆 *Vencimento*: {dt_formatada}\n"
+                    f"💰 *Valor*: R$ {mensalidade.valor}\n"
+                    f"_________________________________\n\n"
+                    f"▫️ *PAGAMENTO COM PIX:*\n"
+                    f"_________________________________\n"
+                    f"🔑 *Tipo*: {dados.tipo_chave}\n"
+                    f"🔢 *Chave*: {dados.chave}\n"
+                    f"🏦 *Banco*: {dados.instituicao}\n"
+                    f"👤 *Beneficiário*: {dados.beneficiario}\n"
+                    f"_________________________________\n\n"
+                    f"‼️ _Caso já tenha pago, por favor, nos envie o comprovante._"
+                )
+
+            elif tipo_mensagem == "lembrete 1 dia":
+                mensagem = (
+                    f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
+                    f"O seu plano *{plano_nome}* vencerá em *{dias} dia(s)*.\n\n"
+                    f"Fique atento(a)! 💡"
+                )
+
+            elif tipo_mensagem == "vence_hoje":
+                mensagem = (
+                    f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
+                    f"O seu plano *{plano_nome}* *vence hoje* ({dt_formatada}).\n\n"
+                    f"Evite interrupções e mantenha seu acesso em dia! ✅"
+                )
+
+            # Envio
+            enviar_mensagem_agendada(
+                telefone=telefone,
+                mensagem=mensagem,
+                usuario=usuario,
+                token=sessao.token,
+                cliente=cliente.nome,
+                tipo_envio=tipo_mensagem
+            )
+
+            time.sleep(random.uniform(30, 60))
 ##### FIM #####
 
 
@@ -192,57 +201,64 @@ def obter_mensalidades_a_vencer(usuario_query):
 ######################################################################
 
 def obter_mensalidades_vencidas(usuario_query):
-    """
-    Verifica mensalidades vencidas há 2 dias e envia mensagens de lembrete via WhatsApp.
-    """
-    data_referencia = timezone.now().date() - timedelta(days=QTD_DIAS_EM_ATRASO)
-    horario_log = timezone.now().strftime("%d-%m-%Y %H:%M:%S")
-    hora_atual = timezone.now().time()
+    horario_log = localtime().strftime('%Y-%m-%d %H:%M:%S')
+    hora_atual = localtime().time()
 
-    mensalidades = Mensalidade.objects.filter(
-        usuario=usuario_query,
-        dt_vencimento=data_referencia,
-        cliente__nao_enviar_msgs=False,
-        pgto=False,
-        cancelado=False
-    )
+    dias_atraso = {
+        2: "lembrete atraso",
+        3: "suspensao"
+    }
 
-    quantidade = mensalidades.count()
-    print(f"[{horario_log}] [EM ATRASO] QUANTIDADE DE ENVIOS A SEREM FEITOS: {quantidade}")
-
-    for mensalidade in mensalidades:
-        usuario = mensalidade.usuario
-        cliente = mensalidade.cliente
-
-        telefone = str(cliente.telefone).strip()
-        if not telefone:
-            print(f"[AVISO] Cliente '{cliente}' sem telefone cadastrado. Pulando...")
-            continue
-
-        primeiro_nome = cliente.nome.split()[0]
-        saudacao = get_saudacao_por_hora(hora_atual)
-
-        sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
-        if not sessao:
-            print(f"[ERRO] Sessão WPP não encontrada para '{usuario}'. Pulando...")
-            continue
-
-        mensagem = (
-            f"*{saudacao}, {primeiro_nome} 😊*\n\n"
-            f"*Ainda não identificamos o pagamento da sua mensalidade para renovação.*\n\n"
-            f"Caso já tenha feito, envie aqui novamente o seu comprovante, por favor!"
+    for dias, tipo_mensagem in dias_atraso.items():
+        data_referencia = localtime().date() - timedelta(days=dias)
+        mensalidades = Mensalidade.objects.filter(
+            usuario=usuario_query,
+            dt_vencimento=data_referencia,
+            cliente__nao_enviar_msgs=False,
+            pgto=False,
+            cancelado=False
         )
 
-        enviar_mensagem_agendada(
-            telefone=telefone,
-            mensagem=mensagem,
-            usuario=usuario,
-            token=sessao.token,
-            cliente=cliente.nome,
-            tipo_envio="Vencidas"
-        )
+        print(f"[{horario_log}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
 
-        time.sleep(random.uniform(30, 60))
+        for mensalidade in mensalidades:
+            cliente = mensalidade.cliente
+            usuario = mensalidade.usuario
+            telefone = str(cliente.telefone).strip()
+            if not telefone:
+                continue
+
+            sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
+            if not sessao:
+                continue
+
+            primeiro_nome = cliente.nome.split()[0]
+            saudacao = get_saudacao_por_hora(hora_atual)
+
+            if tipo_mensagem == "lembrete atraso":
+                mensagem = (
+                    f"*{saudacao}, {primeiro_nome} 😊*\n\n"
+                    f"*Ainda não identificamos o pagamento da sua mensalidade para renovação.*\n\n"
+                    f"Caso já tenha feito, envie aqui novamente o seu comprovante, por favor!"
+                )
+            elif tipo_mensagem == "suspensao":
+                mensagem = (
+                    f"*{saudacao}, {primeiro_nome}*\n\n"
+                    f"Informamos que, devido à falta de pagamento, o seu acesso ao sistema está sendo *suspenso*.\n\n"
+                    f"⚠️ Se o seu plano atual for promocional ou incluir algum desconto, esses benefícios poderão não estar mais disponíveis para futuras renovações.\n\n"
+                    f"Agradecemos pela confiança e esperamos poder contar com você novamente em breve."
+                )
+
+            enviar_mensagem_agendada(
+                telefone=telefone,
+                mensagem=mensagem,
+                usuario=usuario,
+                token=sessao.token,
+                cliente=cliente.nome,
+                tipo_envio=f"Atraso {dias}d"
+            )
+
+            time.sleep(random.uniform(30, 60))
 ##### FIM #####
 
 
@@ -275,7 +291,7 @@ def obter_mensalidades_canceladas():
         qtd_dias = atraso["dias"]
         mensagem_template = atraso["mensagem"]
 
-        data_alvo = timezone.now().date() - timedelta(days=qtd_dias)
+        data_alvo = localtime().date() - timedelta(days=qtd_dias)
 
         mensalidades = Mensalidade.objects.filter(
             cliente__cancelado=True,
@@ -324,7 +340,7 @@ def obter_mensalidades_canceladas():
 
             Mensalidade.objects.filter(id__in=ids).update(
                 notificacao_wpp1=True,
-                dt_notif_wpp1=timezone.now()
+                dt_notif_wpp1=localtime().now()
             )
 
             Cliente.objects.filter(mensalidade__id__in=ids).update(enviado_oferta_promo=True)
@@ -371,7 +387,7 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
             usuario=usuario,
             cancelado=True,
             nao_enviar_msgs=False,
-            data_cancelamento__lte=timezone.now() - timedelta(days=40)
+            data_cancelamento__lte=localtime().now() - timedelta(days=40)
         )
         numeros = [cliente.telefone for cliente in clientes]
     elif tipo_envio == 'avulso':
@@ -384,7 +400,7 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
 
     for telefone in numeros:
         # Evita envio duplicado no mesmo dia
-        if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone, data_envio=timezone.now().date()).exists():
+        if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone, data_envio=localtime().now().date()).exists():
             registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já foi feito envio hoje!", usuario, DIR_LOGS_AGENDADOS)
             continue
 
