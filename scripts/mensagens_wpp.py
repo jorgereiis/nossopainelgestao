@@ -41,8 +41,8 @@ DIR_LOGS_INDICACOES = os.getenv("DIR_LOGS_INDICACOES")
 TEMPLATE_LOG_MSG_SUCESSO = os.getenv("TEMPLATE_LOG_MSG_SUCESSO")
 TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
 TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
-QTD_DIAS_EM_ATRASO = int(os.getenv("QTD_DIAS_EM_ATRASO", 3))  # Padrão de 2 dias para mensalidades a vencer
-QTD_DIAS_A_VENCER = int(os.getenv("QTD_DIAS_A_VENCER", 1))  # Padrão de 2 dias para mensalidades vencidas
+QTD_DIAS_EM_ATRASO = int(os.getenv("QTD_DIAS_EM_ATRASO", 2))  # Padrão de 2 dias para mensalidades a vencer
+QTD_DIAS_A_VENCER = int(os.getenv("QTD_DIAS_A_VENCER", 2))  # Padrão de 2 dias para mensalidades vencidas
 
 ##################################################################
 ################ FUNÇÃO PARA ENVIAR MENSAGENS ####################
