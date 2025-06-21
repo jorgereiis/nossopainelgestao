@@ -27,12 +27,14 @@ from django.shortcuts import get_object_or_404
 from cadastros.utils import (
     get_saudacao_por_hora,
     registrar_log,
+    check_number_status,
 )
 from integracoes.openai_chat import consultar_chatgpt
 
 from cadastros.models import (
     Mensalidade, SessaoWpp, MensagemEnviadaWpp,
-    Cliente, DadosBancarios, HorarioEnvios
+    Cliente, DadosBancarios, HorarioEnvios,
+    MensagensLeads, TelefoneLeads
 )
 
 URL_API_WPP = os.getenv("URL_API_WPP")
@@ -41,7 +43,6 @@ DIR_LOGS_INDICACOES = os.getenv("DIR_LOGS_INDICACOES")
 TEMPLATE_LOG_MSG_SUCESSO = os.getenv("TEMPLATE_LOG_MSG_SUCESSO")
 TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
 TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
-QTD_DIAS_EM_ATRASO = int(os.getenv("QTD_DIAS_EM_ATRASO", 2))  # Padrão de 2 dias para mensalidades a vencer
 
 ##################################################################
 ################ FUNÇÃO PARA ENVIAR MENSAGENS ####################
@@ -349,7 +350,7 @@ def obter_mensalidades_canceladas():
 ##### BLOCO PARA ENVIO DE MENSAGENS AOS CLIENTES ATIVOS, CANCELADOS E FUTUROS CLIENTES (AVULSO) #####
 #####################################################################################################
 
-def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
+def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str) -> None:
     """
     Envia mensagens via WhatsApp para grupos de clientes com base no tipo de envio:
     - 'ativos': clientes em dia.
@@ -370,9 +371,11 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
     token = sessao.token
 
     url_envio = f"{URL_API_WPP}/{usuario}/send-{'image' if image_name else 'message'}"
-    image_base64 = get_img_base64(image_name, tipo_envio) if image_name else None
+    image_base64 = obter_img_base64(image_name, tipo_envio) if image_name else None
 
-    log_path_result = os.path.join(DIR_LOGS_AGENDADOS, f'{usuario}_send_result.log')
+    # Limite de 100 envios por execução
+    total_enviados = 0
+    LIMITE_ENVIO_DIARIO = 100
 
     # Obtenção dos números com base no tipo
     if tipo_envio == 'ativos':
@@ -387,7 +390,8 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
         )
         numeros = [cliente.telefone for cliente in clientes]
     elif tipo_envio == 'avulso':
-        numeros = process_telefones_from_file(tipo_envio).split(',') if process_telefones_from_file(tipo_envio) else []
+        telefones_str = processa_telefones(usuario)
+        numeros = telefones_str.split(',') if telefones_str else []
     else:
         print(f"[ERRO] Tipo de envio desconhecido: {tipo_envio}")
         return
@@ -395,16 +399,48 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
     print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [ENVIO][{tipo_envio.upper()}] [QTD.][{len(numeros)}]")
 
     for telefone in numeros:
-        # Evita envio duplicado no mesmo dia
+        if total_enviados >= LIMITE_ENVIO_DIARIO:
+            print(f"[LIMITE] Atingido o limite diário de {LIMITE_ENVIO_DIARIO} envios.")
+            break
+
+        # Ignora se já enviado hoje
         if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone, data_envio=localtime().now().date()).exists():
             registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já foi feito envio hoje!", usuario, DIR_LOGS_AGENDADOS)
             continue
+
+        # Para avulsos: ignora se já enviado neste mês
+        if tipo_envio == "avulso":
+            hoje = localtime()
+            if MensagemEnviadaWpp.objects.filter(
+                usuario=usuario,
+                telefone=telefone,
+                data_envio__year=hoje.year,
+                data_envio__month=hoje.month
+            ).exists():
+                registrar_log(f"[{hoje.strftime('%Y-%m-%d %H:%M:%S')}] {telefone} - ⚠️ Já recebeu envio este mês (avulso)", usuario, DIR_LOGS_AGENDADOS)
+                continue
 
         if not telefone:
             log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(localtime().strftime('%Y-%m-%d %H:%M:%S'), tipo_envio.upper(), usuario, telefone)
             registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
             continue
 
+        # Validação via WhatsApp
+        numero_existe = check_number_status(telefone, token, usuario)
+        if not numero_existe:
+            registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ❌ Número inválido no WhatsApp", usuario, DIR_LOGS_AGENDADOS)
+            if tipo_envio == 'avulso':
+                TelefoneLeads.objects.filter(telefone=telefone, usuario=usuario).delete()
+                registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - 🗑️ Deletado do banco (avulso)", usuario, DIR_LOGS_AGENDADOS)
+            continue
+
+        # Obter mensagem personalizada
+        message = obter_mensagem_personalizada(nome=nome_msg, tipo=tipo_envio, usuario=usuario)
+        if not message:
+            registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ❌ Falha ao gerar variação da mensagem", usuario, DIR_LOGS_AGENDADOS)
+            continue
+
+        # Monta payload
         payload = {
             'phone': telefone,
             'isGroup': False,
@@ -429,6 +465,7 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
                 registrar_log(TEMPLATE_LOG_MSG_SUCESSO.format(timestamp, tipo_envio.upper(), usuario, telefone), usuario, DIR_LOGS_AGENDADOS)
                 registrar_log(f"[{timestamp}] {telefone} - ✅ Mensagem enviada", usuario, DIR_LOGS_AGENDADOS)
                 MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone[2:] if telefone.startswith('55') else telefone)
+                total_enviados += 1
                 break
 
             try:
@@ -443,10 +480,10 @@ def wpp_msg_ativos(tipo_envio: str, image_name: str, message: str) -> None:
             )
             time.sleep(random.uniform(10, 20))
 
-        time.sleep(random.uniform(30, 60))
+        time.sleep(random.uniform(30, 90))
 
 
-def get_img_base64(image_name: str, sub_directory: str) -> str:
+def obter_img_base64(image_name: str, sub_directory: str) -> str:
     """
     Converte uma imagem localizada em /images/{sub_directory} para base64.
 
@@ -467,80 +504,70 @@ def get_img_base64(image_name: str, sub_directory: str) -> str:
         return None
 
 
-def process_telefones_from_file(sub_directory: str) -> str:
+def processa_telefones(usuario: User = None) -> str:
     """
-    Lê o arquivo 'telefones.txt' do diretório /archives/{sub_directory} e retorna os números limpos.
+    Obtém os telefones dos leads salvos no banco (modelo TelefoneLeads) e retorna uma string com os números limpos, separados por vírgula.
 
     Args:
-        sub_directory (str): Nome do subdiretório (e.g. 'avulso').
+        usuario (User, opcional): Usuário para filtrar os leads. Se None, retorna todos.
 
     Returns:
-        str: String de telefones separados por vírgula.
+        str: Telefones limpos separados por vírgula.
     """
-    telefones_path = os.path.join(os.path.dirname(__file__), f'../archives/{sub_directory}', 'telefones.txt')
-
     try:
-        with open(telefones_path, 'r', encoding='utf-8') as f:
-            telefones = f.read().split('\n')
-            return ','.join([re.sub(r'\s+|\W', '', t) for t in telefones if t.strip()])
+        queryset = TelefoneLeads.objects.all()
+        if usuario:
+            queryset = queryset.filter(usuario=usuario)
+
+        telefones = queryset.values_list('telefone', flat=True)
+        numeros_limpos = [
+            re.sub(r'\D', '', t) for t in telefones if t and re.sub(r'\D', '', t)
+        ]
+        return ','.join(numeros_limpos) if numeros_limpos else None
+
     except Exception as e:
-        print(f"[ERRO] Ao abrir arquivo de telefones: {e}")
+        print(f"[ERRO] processa_telefones(): {e}")
         return None
 
 
-def get_message_from_file(file_name: str, sub_directory: str) -> str:
+def obter_mensagem_personalizada(nome: str, tipo: str, usuario: User = None) -> str:
     """
-    Lê o conteúdo de um arquivo de mensagem localizado em /archives/{sub_directory}.
+    Obtém a mensagem do banco de dados (MensagensLeads) e gera uma versão personalizada via ChatGPT.
 
     Args:
-        file_name (str): Nome do arquivo de mensagem (e.g. 'msg1.txt').
-        sub_directory (str): Nome da pasta onde o arquivo está.
+        nome (str): Nome identificador da mensagem (ex: 'msg1', 'msg2-2', etc.).
+        tipo (str): Tipo de envio (ex: 'ativos', 'cancelados', 'avulso').
+        usuario (User, opcional): Usuário responsável (pode filtrar mensagens por usuário se necessário).
 
     Returns:
-        str: Conteúdo da mensagem ou None se erro.
+        str: Mensagem reescrita com variações, ou None em caso de erro.
     """
-    file_path = os.path.join(os.path.dirname(__file__), f'../archives/{sub_directory}', file_name)
-
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except Exception as e:
-        print(f"[ERRO] Ao abrir arquivo de mensagem: {e}")
-        return None
+        filtro = MensagensLeads.objects.filter(nome=nome, tipo=tipo)
+        if usuario:
+            filtro = filtro.filter(usuario=usuario)
 
+        mensagem_obj = filtro.first()
+        if not mensagem_obj:
+            print(f"[AVISO] Mensagem '{nome}' do tipo '{tipo}' não encontrada no banco.")
+            return None
 
-def get_personalized_message(file_name: str, sub_directory: str) -> str:
-    """
-    Lê o conteúdo de um arquivo de mensagem e gera uma versão personalizada com ChatGPT.
-
-    Args:
-        file_name (str): Nome do arquivo de mensagem.
-        sub_directory (str): Subpasta dentro de /archives onde está o arquivo.
-
-    Returns:
-        str: Mensagem personalizada.
-    """
-    file_path = os.path.join(os.path.dirname(__file__), f'../archives/{sub_directory}', file_name)
-
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            mensagem_original = f.read()
+        mensagem_original = mensagem_obj.mensagem
 
         prompt = (
             "Você é um redator especialista em marketing pelo WhatsApp. "
-            "Reescreva o texto abaixo mantendo a mesma intenção e estrutura, "
-            "mas com frases diferentes, trocando palavras por sinônimos, mudando levemente a ordem e "
-            "deixando o texto natural, envolvente e adequado para o WhatsApp.\n\n"
+            "Reescreva o texto abaixo mantendo a mesma intenção, "
+            "mas com frases diferentes, trocando palavras por sinônimos, mudando a ordem e emojis quando necessário, "
+            "deixando o texto natural, envolvente, mas atrativo e adequado para o WhatsApp.\n\n"
             f"{mensagem_original}"
         )
 
-        mensagem_personalizada = consultar_chatgpt(pergunta=prompt)
-        return mensagem_personalizada
+        mensagem_reescrita = consultar_chatgpt(pergunta=prompt)
+        return mensagem_reescrita
 
     except Exception as e:
-        print(f"[ERRO] Ao processar mensagem personalizada: {e}")
+        print(f"[ERRO] obter_mensagem_personalizada(): {e}")
         return None
-
 #### FIM #####
 
 
@@ -579,46 +606,42 @@ def run_scheduled_tasks():
         imagem = None
         mensagem = None
 
-        if dia_semana == "Saturday":
+        print(dia_semana)
+
+        if dia_semana in ["Monday", "Wednesday"]:
             tipo = "ativos"
             imagem = "img1.png"
             if dia == second_saturday:
-                mensagem = get_personalized_message("msg1.txt", tipo)
+                nome_msg = "msg1"
             elif dia == last_saturday:
-                mensagem = get_personalized_message("msg2.txt", tipo)
+                nome_msg = "msg2"
 
-        elif dia_semana in ["Wednesday", "Sunday"]:
+        elif dia_semana in ["Tuesday", "Thursday", "Saturday"]:
             tipo = "avulso"
             if 1 <= dia <= 10:
-                imagem, nome_msg = "img2-1.png", "msg2-1.txt"
+                imagem, nome_msg = "img2-1.png", "msg2-1"
             elif 11 <= dia <= 20:
-                imagem, nome_msg = "img2-2.png", "msg2-2.txt"
+                imagem, nome_msg = "img2-2.png", "msg2-2"
             elif dia >= 21:
-                imagem, nome_msg = "img2-3.png", "msg2-3.txt"
+                imagem, nome_msg = "img2-3.png", "msg2-3"
             else:
                 nome_msg = None
 
-            if nome_msg:
-                mensagem = get_personalized_message(nome_msg, tipo)
-
-        elif dia_semana == "Monday":
+        elif dia_semana in ["Friday", "Sunday"]:
             tipo = "cancelados"
             if 1 <= dia <= 10:
-                imagem, nome_msg = "img3-1.png", "msg3-1.txt"
+                imagem, nome_msg = "img3-1.png", "msg3-1"
             elif 11 <= dia <= 20:
-                imagem, nome_msg = "img3-2.png", "msg3-2.txt"
+                imagem, nome_msg = "img3-2.png", "msg3-2"
             elif dia >= 21:
-                imagem, nome_msg = "img3-3.png", "msg3-3.txt"
+                imagem, nome_msg = "img3-3.png", "msg3-3"
             else:
                 nome_msg = None
 
-            if nome_msg:
-                mensagem = get_personalized_message(nome_msg, tipo)
-
         # Execução final do envio
-        if tipo and imagem and mensagem:
+        if tipo and imagem and nome_msg:
             print(f"[{now.strftime('%d-%m-%Y %H:%M:%S')}] [TAREFA] Executando envio programado para {tipo.upper()}")
-            wpp_msg_ativos(tipo_envio=tipo, image_name=imagem, message=mensagem)
+            envia_mensagem_personalizada(tipo_envio=tipo, image_name=imagem, nome_msg=nome_msg)
         else:
             print(f"[{now.strftime('%d-%m-%Y %H:%M:%S')}] [TAREFA] Nenhum envio agendado para hoje.")
 

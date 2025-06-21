@@ -13,7 +13,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 
-def consultar_chatgpt(pergunta: str, contexto: str = "Você é um assistente especializado.") -> str:
+def consultar_chatgpt(pergunta: str) -> str:
     """
     Envia uma pergunta para o ChatGPT (modelo gpt-4o) e retorna a resposta.
 
@@ -28,7 +28,7 @@ def consultar_chatgpt(pergunta: str, contexto: str = "Você é um assistente esp
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": contexto},
+                {"role": "system", "content": "Você é um redator profissional. Sempre responda com o texto pronto para envio, sem explicações ou introduções."},
                 {"role": "user", "content": pergunta},
             ]
         )

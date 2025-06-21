@@ -64,7 +64,7 @@ schedule.every(1).minutes.do(
 )
 
 # Executa imediatamente ao iniciar o servidor
-#run_threaded(executar_check_canais_dns_com_lock)
+#run_threaded(run_scheduled_tasks)
 
 # Executar indefinidamente
 while True:

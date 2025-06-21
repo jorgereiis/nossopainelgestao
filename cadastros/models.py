@@ -432,3 +432,42 @@ class DominiosDNS(models.Model):
     def __str__(self):
         return self.dominio
 
+
+class TelefoneLeads(models.Model):
+    """Modela os números de telefone coletados como leads para futuras campanhas."""
+    telefone = models.CharField(max_length=20, unique=True)
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name_plural = "Telefones Leads"
+
+    def __str__(self):
+        return self.telefone
+    
+
+class EnviosLeads(models.Model):
+    """Registra os envios de mensagens para os leads coletados."""
+    telefone = models.CharField(max_length=20)
+    data_envio = models.DateTimeField(auto_now_add=True)
+    mensagem = models.TextField()
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name_plural = "Envios de Mensagens Leads"
+
+    def __str__(self):
+        return self.telefone
+    
+
+class MensagensLeads(models.Model):
+    """Armazena as mensagens enviadas para os leads."""
+    nome = models.CharField(max_length=255)
+    tipo = models.CharField(max_length=50, choices=[('ativos', 'Clientes ativos'), ('cancelados', 'Clientes cancelados'), ('avulso', 'Leads avulsos')])
+    mensagem = models.TextField()
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name_plural = "Mensagens Leads"
+
+    def __str__(self):
+        return self.tipo

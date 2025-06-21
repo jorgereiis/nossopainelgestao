@@ -16,6 +16,9 @@ from .models import (
     ContaDoAplicativo,
     MensagemEnviadaWpp,
     DominiosDNS,
+    TelefoneLeads,
+    EnviosLeads,
+    MensagensLeads,
 )
 
 # --- ADMINISTRADORES ---
@@ -146,6 +149,27 @@ class DominiosDNSAdmin(admin.ModelAdmin):
     ordering = ("-id",)
 
 
+class TelefoneLeadsAdmin(admin.ModelAdmin):
+    list_display = ("id", "telefone", "usuario")
+    list_filter = ("usuario",)
+    search_fields = ("telefone",)
+    ordering = ("-id",)
+
+
+class EnviosLeadsAdmin(admin.ModelAdmin):
+    list_display = ("id", "telefone", "data_envio", "mensagem", "usuario")
+    list_filter = ("usuario", "data_envio")
+    search_fields = ("telefone",)
+    ordering = ("-data_envio",)
+
+
+class MensagensLeadsAdmin(admin.ModelAdmin):
+    list_display = ("id", "nome", "tipo", "mensagem", "usuario")
+    list_filter = ("usuario", "tipo")
+    search_fields = ("telefone",)
+    ordering = ("-id",)
+
+
 # --- REGISTRO NO ADMIN ---
 
 admin.site.register(Plano, PlanoAdmin)
@@ -164,3 +188,13 @@ admin.site.register(PlanoIndicacao, PlanoIndicacaoAdmin)
 admin.site.register(ContaDoAplicativo, ContaDoAplicativoAdmin)
 admin.site.register(MensagemEnviadaWpp, MensagemEnviadaWppAdmin)
 admin.site.register(DominiosDNS, DominiosDNSAdmin)
+admin.site.register(TelefoneLeads, TelefoneLeadsAdmin)
+admin.site.register(EnviosLeads, EnviosLeadsAdmin)
+admin.site.register(MensagensLeads, MensagensLeadsAdmin)
+
+# Configurações adicionais do admin
+admin.site.site_header = "Administração do Sistema"
+admin.site.site_title = "Painel de Administração"
+admin.site.index_title = "Bem-vindo ao Painel de Administração"
+admin.site.enable_nav_sidebar = False  # Desabilita a barra lateral de navegação
+admin.site.empty_value_display = '- vazio -'  # Exibe '- vazio -' para campos vazios
