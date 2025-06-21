@@ -172,7 +172,7 @@ def obter_mensalidades_a_vencer(usuario_query):
             elif tipo_mensagem == "lembrete 1 dia":
                 mensagem = (
                     f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
-                    f"O seu plano *{plano_nome}* vencerá em *{dias} dia(s)*.\n\n"
+                    f"O seu plano *{plano_nome}* vencerá em *{dias} dia*.\n\n"
                     f"Fique atento(a)! 💡"
                 )
 
@@ -480,7 +480,7 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             )
             time.sleep(random.uniform(10, 20))
 
-        time.sleep(random.uniform(30, 90))
+        time.sleep(random.uniform(30, 180))
 
 
 def obter_img_base64(image_name: str, sub_directory: str) -> str:
