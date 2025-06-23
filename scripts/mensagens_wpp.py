@@ -606,8 +606,6 @@ def run_scheduled_tasks():
         imagem = None
         mensagem = None
 
-        print(dia_semana)
-
         if dia_semana in ["Monday", "Wednesday"]:
             tipo = "ativos"
             imagem = "img1.png"
