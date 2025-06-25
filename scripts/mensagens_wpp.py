@@ -609,9 +609,9 @@ def run_scheduled_tasks():
         if dia_semana in ["Monday", "Wednesday"]:
             tipo = "ativos"
             imagem = "img1.png"
-            if dia == second_saturday:
+            if dia <= 14:
                 nome_msg = "msg1"
-            elif dia == last_saturday:
+            elif dia >= 15:
                 nome_msg = "msg2"
 
         elif dia_semana in ["Tuesday", "Thursday", "Saturday"]:
