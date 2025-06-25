@@ -1232,8 +1232,8 @@ def pay_monthly_fee(request, mensalidade_id):
     mensalidade = Mensalidade.objects.get(pk=mensalidade_id, usuario=request.user)
 
     # Verifica se a mensalidade está atrasada por mais de 7 dias
-    """    if mensalidade.dt_vencimento < hoje - timedelta(days=7):
-            return JsonResponse({"error_message": "erro"})"""
+    if mensalidade.dt_vencimento < hoje - timedelta(days=7):
+        return JsonResponse({"error_message": "erro"})
     
     # Realiza as modificações na mensalidade paga
     mensalidade.dt_pagamento = timezone.localtime().date()
