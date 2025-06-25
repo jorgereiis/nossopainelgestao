@@ -604,7 +604,7 @@ def run_scheduled_tasks():
         # Inicializa parâmetros
         tipo = None
         imagem = None
-        mensagem = None
+        nome_msg = None
 
         if dia_semana in ["Monday", "Wednesday"]:
             tipo = "ativos"
