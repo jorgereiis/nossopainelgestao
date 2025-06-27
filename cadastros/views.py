@@ -2026,6 +2026,7 @@ def import_customers(request):
         with transaction.atomic():
             # 1º loop: salva todos os clientes sem indicado_por
             for idx, row in enumerate(registros, 1):
+                time.sleep(3)
                 try:
                     servidor_nome = clean_cell(row, 'servidor')
                     dispositivo_nome = clean_cell(row, 'dispositivo')

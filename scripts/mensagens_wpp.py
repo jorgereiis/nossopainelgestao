@@ -409,7 +409,7 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             continue
 
         # Para avulsos: ignora se já enviado neste mês
-        if tipo_envio == "avulso":
+        if tipo_envio in ["avulso", "ativos", "cancelados"]:
             hoje = localtime()
             if MensagemEnviadaWpp.objects.filter(
                 usuario=usuario,
@@ -464,7 +464,7 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             if response.status_code in (200, 201):
                 registrar_log(TEMPLATE_LOG_MSG_SUCESSO.format(timestamp, tipo_envio.upper(), usuario, telefone), usuario, DIR_LOGS_AGENDADOS)
                 registrar_log(f"[{timestamp}] {telefone} - ✅ Mensagem enviada", usuario, DIR_LOGS_AGENDADOS)
-                MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone[2:] if telefone.startswith('55') else telefone)
+                MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone)
                 total_enviados += 1
                 break
 
@@ -614,7 +614,7 @@ def run_scheduled_tasks():
             elif dia >= 15:
                 nome_msg = "msg2"
 
-        elif dia_semana in ["Tuesday", "Thursday", "Saturday"]:
+        elif dia_semana in ["Friday", "Tuesday", "Thursday", "Saturday"]:
             tipo = "avulso"
             if 1 <= dia <= 10:
                 imagem, nome_msg = "img2-1.png", "msg2-1"
