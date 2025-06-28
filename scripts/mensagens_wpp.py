@@ -614,7 +614,7 @@ def run_scheduled_tasks():
             elif dia >= 15:
                 nome_msg = "msg2"
 
-        elif dia_semana in ["Friday", "Tuesday", "Thursday", "Saturday"]:
+        elif dia_semana in ["Tuesday", "Thursday", "Saturday"]:
             tipo = "avulso"
             if 1 <= dia <= 10:
                 imagem, nome_msg = "img2-1.png", "msg2-1"
