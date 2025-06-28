@@ -2227,6 +2227,8 @@ def create_customer(request):
             })
 
         resultado_wpp = validar_tel_whatsapp(telefone, token.token, user=usuario)
+        print("Telefone recebido:", telefone)
+        print("Resultado da validação do WhatsApp:", resultado_wpp)
         # Verifica se o número possui WhatsApp (antes de qualquer validação de duplicidade)
         if not resultado_wpp.get("wpp"):
             return render(request, "pages/cadastro-cliente.html", {

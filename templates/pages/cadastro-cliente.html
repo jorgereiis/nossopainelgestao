@@ -461,6 +461,17 @@
         this.value = formatted;
       }
     });
+
+    // --- Antes do envio, garantir que o valor final tenha o DDI (getNumber) ---
+    const form = telefoneInput.closest('form');
+    form.addEventListener('submit', function (e) {
+      const countryCode = iti.getSelectedCountryData().iso2;
+
+      // Número internacional completo apenas se não for BR
+      if (countryCode !== 'br') {
+        telefoneInput.value = iti.getNumber();
+      }
+    });
   });
 </script>
 
