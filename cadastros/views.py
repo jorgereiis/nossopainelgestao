@@ -1976,17 +1976,6 @@ def import_customers(request):
     def clean_cell(row, key):
         valor = row.get(key, None)
         return "" if pd.isnull(valor) or valor is None else str(valor).strip()
-    
-    if not token:
-        error_message = (
-            "Você precisa conectar sua conta ao WhatsApp antes de importar clientes. "
-            "Vá até a tela de integração com o WhatsApp e faça a conexão para prosseguir."
-        )
-        return render(request, "pages/importar-cliente.html", {
-            "error_message": error_message,
-            "page_group": page_group,
-            "page": page,
-        })
 
     if request.method == "POST" and 'importar' in request.POST:
         arquivo = request.FILES.get('arquivo')
@@ -2035,6 +2024,19 @@ def import_customers(request):
 
         registros = dados.to_dict('records')
         with transaction.atomic():
+
+            # Verifica se o usuário tem uma sessão ativa do WhatsApp
+            if not token:
+                error_message = (
+                    "Você precisa conectar sua conta ao WhatsApp antes de importar clientes. "
+                    "Vá até a tela de integração com o WhatsApp e faça a conexão para prosseguir."
+                )
+                return render(request, "pages/importar-cliente.html", {
+                    "error_message": error_message,
+                    "page_group": page_group,
+                    "page": page,
+                })
+            
             # 1º loop: salva todos os clientes sem indicado_por
             for idx, row in enumerate(registros, 1):
                 time.sleep(3)
