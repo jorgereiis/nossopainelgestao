@@ -1976,6 +1976,17 @@ def import_customers(request):
     def clean_cell(row, key):
         valor = row.get(key, None)
         return "" if pd.isnull(valor) or valor is None else str(valor).strip()
+    
+    if not token:
+        error_message = (
+            "Você precisa conectar sua conta ao WhatsApp antes de importar clientes. "
+            "Vá até a tela de integração com o WhatsApp e faça a conexão para prosseguir."
+        )
+        return render(request, "pages/importar-cliente.html", {
+            "error_message": error_message,
+            "page_group": page_group,
+            "page": page,
+        })
 
     if request.method == "POST" and 'importar' in request.POST:
         arquivo = request.FILES.get('arquivo')
