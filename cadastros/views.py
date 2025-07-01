@@ -2220,9 +2220,26 @@ def create_customer(request):
 
     # Processa requisição POST (cadastro)
     if request.method == 'POST' and 'cadastrar' in request.POST:
-        post = request.POST
+        
+        # Verifica se o usuário tem uma sessão ativa do WhatsApp
+        if not token:
+            return render(request, "pages/cadastro-cliente.html", {
+                'error_message': (
+                    "Você precisa conectar sua conta ao WhatsApp antes de cadastrar um cliente.<br>"
+                    "Vá até a tela de integração com o WhatsApp e faça a conexão para prosseguir."
+                ),
+                'servidores': servidor_queryset,
+                'dispositivos': dispositivo_queryset,
+                'sistemas': sistema_queryset,
+                'indicadores': indicador_por_queryset,
+                'formas_pgtos': forma_pgto_queryset,
+                'planos': plano_queryset,
+                'page_group': page_group,
+                'page': page,
+            })
 
         # Coleta e sanitiza dados do formulário
+        post = request.POST
         nome = post.get('nome', '').strip()
         sobrenome = post.get('sobrenome', '').strip()
         telefone = post.get('telefone', '').strip()
