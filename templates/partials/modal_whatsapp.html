@@ -266,5 +266,14 @@
         clearInterval(statusInterval);
         statusInterval = null;
     });
+
+    // Função de exibição do modal da sessão do WhatsApp
+    function modal_whatsapp() {
+        $('#qrcode-modal').modal('show');
+
+        $('#qrcode-modal').on('click', '.btn-close, .btn-secondary', function () {
+            $('#qrcode-modal').modal('hide');
+        });
+    }
 </script>
 <!-- end script -->
