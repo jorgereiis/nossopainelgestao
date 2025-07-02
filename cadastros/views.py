@@ -958,9 +958,22 @@ def generate_graphic_columns(request):
     return HttpResponse(buffer.getvalue(), content_type="image/png")
 
 
+def user_cache_key(request):
+    return f"user-{request.user.id}" if request.user.is_authenticated else "anonymous"
+
+
+# Wrapper para cache_page com key prefix dinâmico
+def cache_page_by_user(timeout):
+    def decorator(view_func):
+        def _wrapped_view(request, *args, **kwargs):
+            return cache_page(timeout, key_prefix=user_cache_key(request))(view_func)(request, *args, **kwargs)
+        return _wrapped_view
+    return decorator
+
+
 @xframe_options_exempt
-@vary_on_cookie
-@cache_page(60 * 120)
+@login_required
+@cache_page_by_user(60 * 120)
 def generate_graphic_map_customers(request):
     usuario = request.user
 
