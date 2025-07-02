@@ -7,6 +7,7 @@ from django.views.decorators.http import require_http_methods
 from plotly.colors import sample_colorscale, make_colorscale
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.decorators.vary import vary_on_cookie
 from django.views.decorators.http import require_POST
 from django.db.models.deletion import ProtectedError
 from django.views.decorators.cache import cache_page
@@ -957,8 +958,9 @@ def generate_graphic_columns(request):
     return HttpResponse(buffer.getvalue(), content_type="image/png")
 
 
-@cache_page(60 * 120)  # cache por 2 hora
-@xframe_options_exempt  # permite ser exibido em iframe
+@xframe_options_exempt
+@vary_on_cookie
+@cache_page(60 * 120)
 def generate_graphic_map_customers(request):
     usuario = request.user
 
