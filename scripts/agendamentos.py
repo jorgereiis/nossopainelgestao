@@ -56,9 +56,9 @@ schedule.every().day.at("00:35").do(
 schedule.every(60).minutes.do(
     run_threaded, backup_db_sh
 )
-schedule.every(10).minutes.do(
+"""schedule.every(10).minutes.do(
     run_threaded, executar_check_canais_dns_com_lock
-)
+)"""
 schedule.every(1).minutes.do(
     run_threaded, executar_envios_agendados
 )
