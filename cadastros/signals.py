@@ -161,24 +161,24 @@ def cliente_post_save(sender, instance, created, **kwargs):
         try:
             token = SessaoWpp.objects.filter(usuario=instance.usuario, is_active=True).first()
         except SessaoWpp.DoesNotExist:
-            print(f"⚠️ Sessão do WhatsApp não encontrada para o usuário {instance.usuario}")
+            print(f"[INFO] Sessão do WhatsApp não encontrada para o usuário {instance.usuario}")
             return
 
         # Verifica se número existe no WhatsApp
         try:
             numero_existe = check_number_status(telefone, token.token, user=token)
             if not numero_existe:
-                print(f"⚠️ Número {telefone} não é válido no WhatsApp.")
+                print(f"[INFO] Número {telefone} não é válido no WhatsApp.")
                 return
         except Exception as e:
-            print(f"❌ Erro ao verificar número no WhatsApp: {e}")
+            print(f"[ERROR] Erro ao verificar número no WhatsApp: {e}")
             return
 
         # Obtém labels atuais
         try:
             labels_atuais = get_label_contact(telefone, token.token, user=token)
         except Exception as e:
-            print(f"❌ Erro ao obter labels atuais do contato: {e}")
+            print(f"[ERROR] Erro ao obter labels atuais do contato: {e}")
             labels_atuais = []
 
         # Define a nova label de acordo com o contexto
@@ -191,10 +191,10 @@ def cliente_post_save(sender, instance, created, **kwargs):
             # Escolhe a cor fixa, se existir
             hex_color = LABELS_CORES_FIXAS.get(label_desejada.upper())
 
-            # Cria label se necessário (agora passando a cor fixa)
+            # Cria label se necessário
             nova_label_id = criar_label_se_nao_existir(label_desejada, token.token, user=token, hex_color=hex_color)
             if not nova_label_id:
-                print(f"⚠️ Não foi possível obter ou criar a label '{label_desejada}'")
+                print(f"[INFO] Não foi possível obter ou criar a label '{label_desejada}'")
                 return
 
             # Altera labels do contato
@@ -208,4 +208,4 @@ def cliente_post_save(sender, instance, created, **kwargs):
             )
 
         except Exception as e:
-            print(f"❌ Erro ao alterar label do contato: {e}")
+            print(f"[ERROR] Erro ao alterar label do contato: {e}")

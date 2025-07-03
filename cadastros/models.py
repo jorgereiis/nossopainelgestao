@@ -152,29 +152,17 @@ class Cliente(models.Model):
         if self.data_adesao and self.data_vencimento is None:
             self.data_vencimento = self.data_adesao
 
-        self.formatar_telefone()
         self.definir_uf()
         super().save(*args, **kwargs)
 
-    def formatar_telefone(self):
-        """Normaliza o telefone para o padrão internacional E.164: +55DDDNÚMERO."""
-        numero = re.sub(r'\D+', '', self.telefone)
-
-        # Adiciona DDI Brasil se for nacional
-        if len(numero) in (10, 11) and not numero.startswith('55'):
-            numero = '55' + numero
-
-        if not numero.startswith('+'):
-            numero = '+' + numero
-        
-        self.telefone = numero  # Ex: +5500000000000
-
     def definir_uf(self):
-        """Define a unidade federativa (UF) com base no DDD do telefone."""
-        raw_telefone = re.sub(r'\D+', '', self.telefone)
-        if raw_telefone.startswith('55'):
-            raw_telefone = raw_telefone[2:]
-        self.uf = DDD_UF_MAP.get(raw_telefone[:2], None) if len(raw_telefone) >= 2 else None
+        """Define a unidade federativa (UF) com base no DDD do telefone apenas se for nacional."""
+        if not self.telefone.startswith('+55') or len(self.telefone) < 5:
+            self.uf = None
+            return
+
+        ddd = self.telefone[3:5]
+        self.uf = DDD_UF_MAP.get(ddd)
 
     def __str__(self):
         return self.nome

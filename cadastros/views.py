@@ -2090,6 +2090,8 @@ def import_customers(request):
                     if resultado_telefone.get("cliente_existe_telefone"):
                         clientes_existentes.append(f"Linha {idx}: {telefone} (já existe cliente com esse telefone)")
                         continue
+                    if resultado_telefone.get("telefone_validado_wpp"):
+                        telefone = resultado_telefone.get("telefone_validado_wpp")
 
                     # Parse plano_valor
                     try:
@@ -2271,9 +2273,9 @@ def create_customer(request):
                 "error_message": "O campo telefone não pode estar em branco.",
             })
 
+        print("[DEBUG] Telefone informado para Cadastro de Cliente: ", telefone)
         resultado_wpp = validar_tel_whatsapp(telefone, token.token, user=usuario)
-        print("Telefone recebido:", telefone)
-        print("Resultado da validação do WhatsApp:", resultado_wpp)
+        print("[DEBUG] Resultado da validação do WhatsApp: ", resultado_wpp)
         # Verifica se o número possui WhatsApp (antes de qualquer validação de duplicidade)
         if not resultado_wpp.get("wpp"):
             return render(request, "pages/cadastro-cliente.html", {
@@ -2321,6 +2323,10 @@ def create_customer(request):
                         "Por favor, tente novamente ou contate o suporte."
                     ),
                 })
+            
+        # Obtém o telefone validado com WhatsApp
+        if resultado_wpp.get("telefone_validado_wpp"):
+            telefone = resultado_wpp.get("telefone_validado_wpp")
 
         # Trata indicador (pode ser nulo)
         indicador = None

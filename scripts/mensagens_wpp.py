@@ -707,7 +707,7 @@ def backup_db_sh():
         print('[{}] [BACKUP DIÁRIO] Backup do DB realizado.'.format(data_hora_atual))
     else:
         print('[{}] [BACKUP DIÁRIO] Falha durante backup do DB.'.format(data_hora_atual))
-        print('Erro: ', resultado.stderr)
+        print('[ERROR] ', resultado.stderr)
         
     time.sleep(random.randint(10, 20))
 ##### FIM #####

@@ -53,7 +53,7 @@ os.makedirs(os.path.dirname(STATUS_SNAPSHOT_FILE), exist_ok=True)
 
 # --- Verificação de variáveis obrigatórias ---
 if not all([USERNAME, PASSWORD, URL_API_WPP, WPP_TELEFONE, WPP_USER, WPP_TOKEN]):
-    print("❌ Variáveis obrigatórias não definidas.")
+    print("[ERROR] Variáveis obrigatórias não definidas.")
     sys.exit(1)
 
 HEADERS = {
@@ -91,7 +91,7 @@ def registrar_log(mensagem, arquivo=LOG_FILE, titulo_destacado=None, titulo_m3u_
 
     except Exception as e:
         import sys
-        print(f"Erro ao gravar log: {e}", file=sys.stderr)
+        print(f"[ERROR] Erro ao gravar log: {e}", file=sys.stderr)
 
 
 # --- Envio de mensagens via WPPConnect ---

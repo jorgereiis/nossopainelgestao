@@ -230,11 +230,11 @@ def get_label_contact(telefone, token, user):
             return labels
         else:
             # Exibe erro caso a resposta não tenha sido bem-sucedida
-            print(f"Erro ao obter labels do contato Nº {telefone}: {response.status_code} - {response.text}")
+            print(f"[ERROR] Erro ao obter labels do telefone {telefone}: {response.status_code} - {response.text}")
             return []
     except Exception as e:
         # Trata exceções como erro de rede ou parsing
-        print(f"Exceção ao fazer requisição: {e}")
+        print(f"[ERROR] Exceção ao fazer requisição: {e}")
         return []
 
 
@@ -262,14 +262,15 @@ def check_number_status(telefone, token, user):
             response_data = response.json()
             # Retorna o valor booleano que indica se o número existe
             status = response_data.get('response', {}).get('numberExists', False)
+            print(f"[SUCCESS] Número {telefone} existe no WhatsApp: {status}")
             return status
         else:
             # Exibe erro caso não tenha sucesso
-            print(f"Erro ao verificar status do número {telefone}: {response.status_code} - {response.text}")
+            print(f"[ERROR] Erro ao verificar status do número {telefone}: {response.status_code} - {response.text}")
             return False
     except Exception as e:
         # Trata falhas na requisição
-        print(f"Exceção ao verificar status do número: {e}")
+        print(f"[ERROR] Exceção ao verificar status do número: {e}")
         return False
 
 
@@ -300,11 +301,11 @@ def get_all_labels(token, user):
             return labels
         else:
             # Exibe mensagem de erro se a resposta falhar
-            print(f"Erro ao obter labels: {response.status_code} - {response.text}")
+            print(f"[ERROR] Erro ao obter labels: {response.status_code} - {response.text}")
             return []
     except Exception as e:
         # Captura e mostra falhas na requisição
-        print(f"Exceção ao tentar obter labels: {e}")
+        print(f"[ERROR] Exceção ao tentar obter labels: {e}")
         return []
 
 
@@ -318,7 +319,7 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
 
     # ⚠️ Se a label desejada já está aplicada, não faz nada
     if label_id_1 in labels_atual:
-        print(f"ℹ️ Label '{label_name}' já atribuída ao contato {telefone}. Nenhuma alteração necessária.")
+        print(f"[INFO] Label '{label_name}' já atribuída ao contato {telefone}. Nenhuma alteração necessária.")
         return 200, {"status": "skipped", "message": "Label já atribuída"}
 
     # Prepara headers e URL
@@ -344,10 +345,10 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
 
     if response.status_code in [200, 201]:
         # Mensagem de sucesso
-        print(f"✅ Label do contato alterada para {label_id_1} - {label_name}.")
+        print(f"[SUCCESS] Label do contato alterada para {label_id_1} - {label_name}.")
     else:
         # Mensagem de erro com status code e texto da resposta
-        print(f"❌ Erro ao alterar label do contato Nº {telefone}: {response.status_code} - {response.text}")
+        print(f"[ERROR] Erro ao alterar label do telefone {telefone}: {response.status_code} - {response.text}")
 
     try:
         # Tenta converter a resposta para JSON
@@ -388,12 +389,12 @@ def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
             color_int = int(hex_color.lstrip("#"), 16) + (255 << 24)  # adiciona alpha FF
             body["options"] = {"labelColor": color_int}
         except ValueError:
-            print(f"⚠️ Cor inválida para a label '{nome_label}': {hex_color}")
+            print(f"[ERROR] Cor inválida para a label '{nome_label}': {hex_color}")
 
     # Faz a requisição
     response = requests.post(url, headers=headers, json=body)
     if response.status_code in [200, 201]:
-        print(f"✅ Label '{nome_label}' criada com sucesso.")
+        print(f"[SUCCESS] Label '{nome_label}' criada com sucesso.")
 
         # --- Correção ---
         # Após criar, buscar novamente todas as labels para encontrar o ID
@@ -403,14 +404,14 @@ def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
             if nova_label:
                 return nova_label.get("id")
             else:
-                print(f"⚠️ Label '{nome_label}' criada mas não encontrada após criação.")
+                print(f"[INFO] Label '{nome_label}' criada mas não encontrada após criação.")
                 return None
         except Exception as e:
-            print(f"❌ Erro ao buscar labels após criação: {e}")
+            print(f"[ERROR] Erro ao buscar labels após criação: {e}")
             return None
 
     else:
-        print(f"❌ Erro ao criar label '{nome_label}': {response.status_code} - {response.text}")
+        print(f"[ERROR] Erro ao criar label '{nome_label}': {response.status_code} - {response.text}")
         return None
     
 
@@ -437,11 +438,11 @@ def get_all_groups(token, user):
             return groups
         else:
             # Exibe mensagem de erro se a resposta falhar
-            print(f"Erro ao obter grupos: {response.status_code} - {response.text}")
+            print(f"[ERROR] Erro ao obter grupos: {response.status_code} - {response.text}")
             return []
     except Exception as e:
         # Captura e mostra falhas na requisição
-        print(f"Exceção ao tentar obter grupos: {e}")
+        print(f"[ERROR] Exceção ao tentar obter grupos: {e}")
         return []
     
 
