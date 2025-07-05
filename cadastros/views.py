@@ -2054,8 +2054,9 @@ def import_customers(request):
             
             # 1º loop: salva todos os clientes sem indicado_por
             for idx, row in enumerate(registros, 1):
-                time.sleep(3)
+                #time.sleep(3)
                 try:
+                    print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [IMPORT] Processando linha {idx} - dados: {row}")
                     servidor_nome = clean_cell(row, 'servidor')
                     dispositivo_nome = clean_cell(row, 'dispositivo')
                     sistema_nome = clean_cell(row, 'sistema')
