@@ -107,11 +107,12 @@ class Aplicativo(models.Model):
 class Plano(models.Model):
     """Modela os planos de mensalidade disponíveis para os clientes."""
     MENSAL = "Mensal"
+    BIMESTRAL = "Bimestral"
     TRIMESTRAL = "Trimestral"
     SEMESTRAL = "Semestral"
     ANUAL = "Anual"
 
-    CHOICES = ((MENSAL, MENSAL), (TRIMESTRAL, TRIMESTRAL), (SEMESTRAL, SEMESTRAL), (ANUAL, ANUAL))
+    CHOICES = ((MENSAL, MENSAL), (BIMESTRAL, BIMESTRAL), (TRIMESTRAL, TRIMESTRAL), (SEMESTRAL, SEMESTRAL), (ANUAL, ANUAL))
 
     nome = models.CharField("Nome do plano", max_length=255, choices=CHOICES, default=MENSAL)
     telas = models.IntegerField("Número de telas", default=1)
