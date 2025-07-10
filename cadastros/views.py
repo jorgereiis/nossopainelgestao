@@ -69,6 +69,7 @@ from .utils import (
 # Constantes
 PLANOS_MESES = {
     'mensal': 1,
+    'bimestral': 2,
     'trimestral': 3,
     'semestral': 6,
     'anual': 12
@@ -2093,6 +2094,13 @@ def import_customers(request):
                         continue
                     if resultado_telefone.get("telefone_validado_wpp"):
                         telefone = resultado_telefone.get("telefone_validado_wpp")
+
+                    # Valida se o plano informado é um dos permitidos
+                    planos_validos = [plano[0] for plano in Plano.CHOICES]
+                    if plano_nome not in planos_validos:
+                        fail += 1
+                        erros_importacao.append(f"Linha {idx}: plano '{plano_nome}' inválido. Deve ser um dos: {', '.join(planos_validos)}.")
+                        continue
 
                     # Parse plano_valor
                     try:

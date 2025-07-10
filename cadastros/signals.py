@@ -90,6 +90,8 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         plano_nome = instance.cliente.plano.nome.lower()
         if "mensal" in plano_nome:
             nova_data_vencimento += relativedelta(months=1)
+        elif "bimestral" in plano_nome:
+            nova_data_vencimento += relativedelta(months=2)
         elif "trimestral" in plano_nome:
             nova_data_vencimento += relativedelta(months=3)
         elif "semestral" in plano_nome:

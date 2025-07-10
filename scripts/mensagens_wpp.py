@@ -116,8 +116,6 @@ def obter_mensalidades_a_vencer(usuario_query):
         0: "vence_hoje"
     }
 
-    horario_log = localtime().strftime('%Y-%m-%d %H:%M:%S')
-
     for dias, tipo_mensagem in dias_envio.items():
         data_referencia = localtime().date() + timedelta(days=dias)
 
@@ -129,7 +127,7 @@ def obter_mensalidades_a_vencer(usuario_query):
             cancelado=False
         )
 
-        print(f"[{horario_log}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
+        print(f"[{localtime().strftime('%Y-%m-%d %H:%M:%S')}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
 
         for mensalidade in mensalidades:
             cliente = mensalidade.cliente
@@ -202,9 +200,6 @@ def obter_mensalidades_a_vencer(usuario_query):
 ######################################################################
 
 def obter_mensalidades_vencidas(usuario_query):
-    horario_log = localtime().strftime('%Y-%m-%d %H:%M:%S')
-    hora_atual = localtime().time()
-
     dias_atraso = {
         2: "lembrete atraso",
         3: "suspensao"
@@ -220,7 +215,7 @@ def obter_mensalidades_vencidas(usuario_query):
             cancelado=False
         )
 
-        print(f"[{horario_log}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
+        print(f"[{localtime().strftime('%Y-%m-%d %H:%M:%S')}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
 
         for mensalidade in mensalidades:
             cliente = mensalidade.cliente
@@ -234,7 +229,7 @@ def obter_mensalidades_vencidas(usuario_query):
                 continue
 
             primeiro_nome = cliente.nome.split()[0]
-            saudacao = get_saudacao_por_hora(hora_atual)
+            saudacao = get_saudacao_por_hora(localtime().time())
 
             if tipo_mensagem == "lembrete atraso":
                 mensagem = (

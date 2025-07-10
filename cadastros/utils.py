@@ -742,6 +742,8 @@ def criar_mensalidade(cliente):
         plano_nome = cliente.plano.nome.lower()
         if "mensal" in plano_nome:
             vencimento += relativedelta(months=1)
+        elif "bimestral" in plano_nome:
+            vencimento += relativedelta(months=2)
         elif "trimestral" in plano_nome:
             vencimento += relativedelta(months=3)
         elif "semestral" in plano_nome:
