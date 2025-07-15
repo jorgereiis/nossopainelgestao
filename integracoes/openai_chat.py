@@ -40,5 +40,5 @@ def consultar_chatgpt(pergunta: str, user: str) -> str:
         return response.choices[0].message.content.strip()
 
     except Exception as e:
-        print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Erro ao consultar o ChatGPT: {str(e)}")
+        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao consultar o ChatGPT: {str(e)}")
         return f"❌ Erro ao consultar o ChatGPT: {str(e)}"

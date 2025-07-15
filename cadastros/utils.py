@@ -234,11 +234,11 @@ def get_label_contact(telefone, token, user):
             return labels
         else:
             # Exibe erro caso a resposta não tenha sido bem-sucedida
-            print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Erro ao obter labels do telefone {telefone}: {response.status_code} - {response.text}")
+            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao obter labels do telefone {telefone}: {response.status_code} - {response.text}")
             return []
     except Exception as e:
         # Trata exceções como erro de rede ou parsing
-        print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Exceção ao fazer requisição: {e}")
+        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Exceção ao fazer requisição: {e}")
         return []
 
 
@@ -269,15 +269,15 @@ def check_number_status(telefone, token, user):
             response_data = response.json()
             # Retorna o valor booleano que indica se o número existe
             status = response_data.get('response', {}).get('numberExists', False)
-            print(f"[{timestamp}] [{func_name}] [{user}] [SUCCESS] Número {telefone} existe no WhatsApp: {status}")
+            print(f"[{timestamp}] [SUCCESS] [{func_name}] [{user}] Número {telefone} existe no WhatsApp: {status}")
             return status
         else:
             # Exibe erro caso não tenha sucesso
-            print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Erro ao verificar status do número {telefone}: {response.status_code} - {response.text}")
+            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao verificar status do número {telefone}: {response.status_code} - {response.text}")
             return False
     except Exception as e:
         # Trata falhas na requisição
-        print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Exceção ao verificar status do número: {e}")
+        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Exceção ao verificar status do número: {e}")
         return False
 
 
@@ -308,15 +308,15 @@ def get_all_labels(token, user):
             response_data = response.json()
             # Retorna a lista de labels encontradas
             labels = response_data.get('response', [])
-            print(f"[{timestamp}] [{func_name}] [{user}] [SUCCESS] Labels obtidas com sucesso: {len(labels)} encontradas.")
+            print(f"[{timestamp}] [SUCCESS] [{func_name}] [{user}] Labels obtidas com sucesso: {len(labels)} encontradas.")
             return labels
         else:
             # Exibe mensagem de erro se a resposta falhar
-            print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Erro ao obter labels: {response.status_code} - {response.text}")
+            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao obter labels: {response.status_code} - {response.text}")
             return []
     except Exception as e:
         # Captura e mostra falhas na requisição
-        print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Exceção ao tentar obter labels: {e}")
+        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Exceção ao tentar obter labels: {e}")
         return []
 
 
@@ -333,7 +333,7 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
 
     # Se a label desejada já está aplicada, não faz nada
     if label_id_1 in labels_atual:
-        print(f"[{timestamp}] [{func_name}] [{user}] [INFO] Label '{label_name}' já atribuída ao contato {telefone}. Nenhuma alteração necessária.")
+        print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Label '{label_name}' já atribuída ao contato {telefone}. Nenhuma alteração necessária.")
         return 200, {"status": "skipped", "message": "Label já atribuída"}
 
     # Prepara headers e URL
@@ -356,14 +356,14 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
   
     # Envia requisição POST com JSON
     response = requests.post(url, headers=headers, json=body)
-    print(f"[{timestamp}] [{func_name}] [{user}] [DEBUG] Response status code: {response.status_code}, response text: {response.text}")
+    print(f"[{timestamp}] [DEBUG] [{func_name}] [{user}] Response status code: {response.status_code}, response text: {response.text}")
 
     if response.status_code in [200, 201]:
         # Mensagem de sucesso
-        print(f"[{timestamp}] [{func_name}] [{user}] [SUCCESS] Label do contato {telefone} alterada para {label_id_1} - {label_name}.")
+        print(f"[{timestamp}] [SUCCESS] [{func_name}] [{user}] Label do contato {telefone} alterada para {label_id_1} - {label_name}.")
     else:
         # Mensagem de erro com status code e texto da resposta
-        print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Erro ao alterar label do telefone {telefone}: {response.status_code} - {response.text}")
+        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao alterar label do telefone {telefone}: {response.status_code} - {response.text}")
 
     try:
         # Tenta converter a resposta para JSON
@@ -406,12 +406,12 @@ def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
             color_int = int(hex_color.lstrip("#"), 16) + (255 << 24)  # adiciona alpha FF
             body["options"] = {"labelColor": color_int}
         except ValueError:
-            print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Cor inválida para a label '{nome_label}': {hex_color}")
+            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Cor inválida para a label '{nome_label}': {hex_color}")
 
     # Faz a requisição
     response = requests.post(url, headers=headers, json=body)
     if response.status_code in [200, 201]:
-        print(f"[{timestamp}] [{func_name}] [{user}] [SUCCESS] Label '{nome_label}' criada com sucesso.")
+        print(f"[{timestamp}] [SUCCESS] [{func_name}] [{user}] Label '{nome_label}' criada com sucesso.")
 
         # --- Correção ---
         # Após criar, buscar novamente todas as labels para encontrar o ID
@@ -421,14 +421,14 @@ def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
             if nova_label:
                 return nova_label.get("id")
             else:
-                print(f"[{timestamp}] [{func_name}] [{user}] [INFO] Label '{nome_label}' criada mas não encontrada após criação.")
+                print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Label '{nome_label}' criada mas não encontrada após criação.")
                 return None
         except Exception as e:
-            print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Erro ao buscar labels após criação: {e}")
+            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao buscar labels após criação: {e}")
             return None
 
     else:
-        print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Erro ao criar label '{nome_label}': {response.status_code} - {response.text}")
+        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao criar label '{nome_label}': {response.status_code} - {response.text}")
         return None
     
 
@@ -458,11 +458,11 @@ def get_all_groups(token, user):
             return groups
         else:
             # Exibe mensagem de erro se a resposta falhar
-            print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Erro ao obter grupos: {response.status_code} - {response.text}")
+            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao obter grupos: {response.status_code} - {response.text}")
             return []
     except Exception as e:
         # Captura e mostra falhas na requisição
-        print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Exceção ao tentar obter grupos: {e}")
+        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Exceção ao tentar obter grupos: {e}")
         return []
     
 
