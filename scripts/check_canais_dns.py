@@ -71,7 +71,7 @@ def registrar_log(mensagem, arquivo=LOG_FILE, titulo_destacado=None, titulo_m3u_
     """
     Escreve mensagem no log, opcionalmente com título, bloco de alerta e limitação de linhas.
     """
-    timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
     linhas = str(mensagem).splitlines()
     if limitar_linhas:
         linhas = linhas[:MAX_LINHAS_QTD]
@@ -304,7 +304,7 @@ def validar_dominio(dominio, nome_servidor):
 def check_dns_canais():
     time.sleep(random.randint(10, 20))
     registrar_log("", titulo_inicio_fim=f"[INIT] Checagem de status de domínios DNS.")
-    print(f"[{localtime().strftime('%Y-%m-%d %H:%M:%S')}] [INIT] Checagem de status de domínios DNS.")
+    print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [INIT] Checagem de status de domínios DNS.")
     inicio_global = time.time()
 
     # Obtém todos os grupos e extrai IDs dos grupos desejados para envio
@@ -410,7 +410,7 @@ def check_dns_canais():
 
     fim_global = time.time()
     registrar_log("", titulo_inicio_fim=f"[END] Checagem de status de domínios DNS concluída em: {fim_global-inicio_global:.2f}s\n")
-    print(f"[{localtime().strftime('%Y-%m-%d %H:%M:%S')}] [END] Checagem de status de domínios DNS concluída em: {fim_global-inicio_global:.2f}s\n")
+    print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [END] Checagem de status de domínios DNS concluída em: {fim_global-inicio_global:.2f}s\n")
 
 ##################################################################################
 ##### LOCK PARA EVITAR EXECUÇÃO SIMULTÂNEA DA FUNÇÃO PROCESSAR_NOVOS_TITULOS #####

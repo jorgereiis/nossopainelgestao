@@ -53,7 +53,7 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
     Envia uma mensagem via API WPP para um número validado.
     Registra logs de sucesso, falha e número inválido.
     """
-    timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
 
     if not telefone:
         log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(
@@ -79,7 +79,7 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
 
         try:
             response = requests.post(url, headers=headers, json=body)
-            timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
 
             if response.status_code in (200, 201):
                 log = TEMPLATE_LOG_MSG_SUCESSO.format(
@@ -127,7 +127,7 @@ def obter_mensalidades_a_vencer(usuario_query):
             cancelado=False
         )
 
-        print(f"[{localtime().strftime('%Y-%m-%d %H:%M:%S')}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
+        print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
 
         for mensalidade in mensalidades:
             cliente = mensalidade.cliente
@@ -215,7 +215,7 @@ def obter_mensalidades_vencidas(usuario_query):
             cancelado=False
         )
 
-        print(f"[{localtime().strftime('%Y-%m-%d %H:%M:%S')}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
+        print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
 
         for mensalidade in mensalidades:
             cliente = mensalidade.cliente
@@ -412,11 +412,11 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
                 data_envio__year=hoje.year,
                 data_envio__month=hoje.month
             ).exists():
-                registrar_log(f"[{hoje.strftime('%Y-%m-%d %H:%M:%S')}] {telefone} - ⚠️ Já recebeu envio este mês (avulso)", usuario, DIR_LOGS_AGENDADOS)
+                registrar_log(f"[{hoje.strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já recebeu envio este mês (avulso)", usuario, DIR_LOGS_AGENDADOS)
                 continue
 
         if not telefone:
-            log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(localtime().strftime('%Y-%m-%d %H:%M:%S'), tipo_envio.upper(), usuario, telefone)
+            log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(localtime().strftime('%d-%m-%Y %H:%M:%S'), tipo_envio.upper(), usuario, telefone)
             registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
             continue
 
@@ -454,7 +454,7 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
                 'Authorization': f'Bearer {token}'
             }, json=payload)
 
-            timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
 
             if response.status_code in (200, 201):
                 registrar_log(TEMPLATE_LOG_MSG_SUCESSO.format(timestamp, tipo_envio.upper(), usuario, telefone), usuario, DIR_LOGS_AGENDADOS)
@@ -556,7 +556,7 @@ def obter_mensagem_personalizada(nome: str, tipo: str, usuario: User = None) -> 
             f"{mensagem_original}"
         )
 
-        mensagem_reescrita = consultar_chatgpt(pergunta=prompt)
+        mensagem_reescrita = consultar_chatgpt(pergunta=prompt, user=usuario)
         return mensagem_reescrita
 
     except Exception as e:
@@ -689,7 +689,7 @@ def backup_db_sh():
     Executa o script 'backup_db.sh' para realizar backup do banco SQLite.
     """
     # Obter a data e hora atual formatada
-    data_hora_atual = localtime().strftime('%Y-%m-%d %H:%M:%S')
+    data_hora_atual = localtime().strftime('%d-%m-%Y %H:%M:%S')
 
     # Caminho para o script de backup
     caminho_arquivo_sh = 'backup_db.sh'

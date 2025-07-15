@@ -2,6 +2,8 @@ import os
 import sys
 import openai
 import django
+import inspect
+from django.utils.timezone import localtime
 
 # --- Configuração do ambiente Django (executada apenas uma vez) ---
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -13,7 +15,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 
-def consultar_chatgpt(pergunta: str) -> str:
+def consultar_chatgpt(pergunta: str, user: str) -> str:
     """
     Envia uma pergunta para o ChatGPT (modelo gpt-4o) e retorna a resposta.
 
@@ -24,6 +26,9 @@ def consultar_chatgpt(pergunta: str) -> str:
     Returns:
         str: Resposta gerada pelo modelo.
     """
+    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+    func_name = inspect.currentframe().f_code.co_name
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -35,5 +40,5 @@ def consultar_chatgpt(pergunta: str) -> str:
         return response.choices[0].message.content.strip()
 
     except Exception as e:
-        print(f"[ERROR] Erro ao consultar o ChatGPT: {str(e)}")
+        print(f"[{timestamp}] [{func_name}] [{user}] [ERROR] Erro ao consultar o ChatGPT: {str(e)}")
         return f"❌ Erro ao consultar o ChatGPT: {str(e)}"

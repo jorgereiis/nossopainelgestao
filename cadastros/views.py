@@ -20,6 +20,7 @@ from django.utils.dateparse import parse_date
 from django.forms.models import model_to_dict
 from decimal import Decimal, InvalidOperation
 from django.db.models.functions import Upper
+from django.utils.timezone import localtime
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q, Count
 from babel.numbers import format_currency
@@ -39,6 +40,7 @@ import geopandas as gpd
 import pandas as pd
 import calendar
 import warnings
+import inspect
 
 from django.http import (
     HttpResponseBadRequest,
@@ -93,6 +95,8 @@ def whatsapp(request):
 
 @login_required
 def conectar_wpp(request):
+    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+    func_name = inspect.currentframe().f_code.co_name
     if request.method != "POST":
         return JsonResponse({"erro": "Método não permitido."}, status=405)
 
@@ -109,23 +113,23 @@ def conectar_wpp(request):
     sessao_existente = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
     if sessao_existente:
         token = sessao_existente.token
-        print(f"[INFO] Token reutilizado para sessão '{session}'")
+        print(f"[{timestamp}] [{func_name}] [{usuario}] [INFO] Token reutilizado para sessão '{session}'")
     else:
         token_data, token_status = gerar_token(session, secret)
         if token_status != 201:
             return JsonResponse({"erro": "Falha ao gerar token de autenticação."}, status=400)
         token = token_data["token"]
-        print(f"[INFO] Novo token gerado para sessão '{session}'")
+        print(f"[{timestamp}] [{func_name}] [{usuario}] [INFO] Novo token gerado para sessão '{session}'")
 
     # 2. Inicia a sessão
     init_data, init_status = start_session(session, token)
-    print(f"[DEBUG] Resposta inicial de start-session: {init_data}")
+    print(f"[{timestamp}] [{func_name}] [{usuario}] [DEBUG] Resposta inicial de start-session: {init_data}")
 
     # 3. Verifica imediatamente se já está conectado
     status_data, status_code = status_session(session, token)
     status = status_data.get("status")
     if status == "CONNECTED":
-        print(f"[INFO] Sessão '{session}' já está conectada.")
+        print(f"[{timestamp}] [{func_name}] [{usuario}] [INFO] Sessão '{session}' já está conectada.")
         SessaoWpp.objects.update_or_create(
             usuario=session,
             defaults={
@@ -146,12 +150,12 @@ def conectar_wpp(request):
     for tentativa in range(max_tentativas):
         status_data, status_code = status_session(session, token)
         status = status_data.get("status")
-        print(f"[DEBUG] Tentativa {tentativa+1}: status = {status}")
+        print(f"[{timestamp}] [{func_name}] [{usuario}] [DEBUG] Tentativa {tentativa+1}: status = {status}")
         if status == "QRCODE":
             break
         time.sleep(intervalo_segundos)
     else:
-        print(f"[ERRO] QRCode não gerado após {max_tentativas} tentativas.")
+        print(f"[{timestamp}] [{func_name}] [{usuario}] [ERRO] QRCode não gerado após {max_tentativas} tentativas.")
         return JsonResponse({
             "erro": "Não foi possível gerar QRCode. Tente novamente em instantes.",
             "detalhes": status_data
@@ -166,7 +170,7 @@ def conectar_wpp(request):
             "is_active": True
         }
     )
-    print(f"[INFO] Sessão '{session}' salva com sucesso.")
+    print(f"[{timestamp}] [{func_name}] [{usuario}] [INFO] Sessão '{session}' salva com sucesso.")
 
     # 6. Retorna QRCode
     return JsonResponse({
@@ -244,6 +248,9 @@ def desconectar_wpp(request):
 
 @login_required
 def cancelar_sessao_wpp(request):
+    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+    func_name = inspect.currentframe().f_code.co_name
+
     if request.method != "POST":
         return JsonResponse({"erro": "Método não permitido."}, status=405)
 
@@ -261,7 +268,7 @@ def cancelar_sessao_wpp(request):
 
         # Mesmo que a API retorne 500, se for JSON e tiver estrutura esperada, tratamos com sucesso
         if isinstance(resp_data, dict) and "status" in resp_data:
-            print(f"[INFO] Resposta ao fechar sessão: {resp_data}")
+            print(f"[{timestamp}] [{func_name}] [{usuario}] [INFO] Resposta ao fechar sessão: {resp_data}")
 
             # Considera a sessão encerrada se a API retornou status 500 com JSON válido
             sessao.is_active = False
@@ -277,7 +284,7 @@ def cancelar_sessao_wpp(request):
             raise ValueError("Resposta da API não é um JSON válido")
 
     except Exception as e:
-        print(f"[ERRO] Exceção ao cancelar sessão: {e}")
+        print(f"[{timestamp}] [{func_name}] [{usuario}] [ERRO] Exceção ao cancelar sessão: {e}")
         return JsonResponse({
             "erro": "Erro interno ao cancelar sessão",
             "detalhes": str(e)
@@ -1982,6 +1989,8 @@ def create_app_account(request):
 
 @login_required
 def import_customers(request):
+    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+    func_name = inspect.currentframe().f_code.co_name
     usuario = request.user
     token = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
     page_group = 'clientes'
@@ -2057,7 +2066,7 @@ def import_customers(request):
             for idx, row in enumerate(registros, 1):
                 #time.sleep(3)
                 try:
-                    print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [IMPORT] Processando linha {idx} - dados: {row}")
+                    print(f"[{timestamp}] [{func_name}] [{usuario}] [IMPORT] Processando linha {idx} - dados: {row}")
                     servidor_nome = clean_cell(row, 'servidor')
                     dispositivo_nome = clean_cell(row, 'dispositivo')
                     sistema_nome = clean_cell(row, 'sistema')
@@ -2231,6 +2240,8 @@ def import_customers(request):
 # AÇÃO PARA CRIAR NOVO CLIENTE ATRAVÉS DO FORMULÁRIO
 @login_required
 def create_customer(request):
+    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+    func_name = inspect.currentframe().f_code.co_name
     usuario = request.user
     token = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
     page_group = "clientes"
@@ -2282,9 +2293,9 @@ def create_customer(request):
                 "error_message": "O campo telefone não pode estar em branco.",
             })
 
-        print("[DEBUG] Telefone informado para Cadastro de Cliente: ", telefone)
+        print(f"[{timestamp}] [{func_name}] [{usuario}] [DEBUG] Telefone informado para Cadastro de Cliente: ", telefone)
         resultado_wpp = validar_tel_whatsapp(telefone, token.token, user=usuario)
-        print("[DEBUG] Resultado da validação do WhatsApp: ", resultado_wpp)
+        print(f"[{timestamp}] [{func_name}] [{usuario}] [DEBUG] Resultado da validação do WhatsApp: ", resultado_wpp)
         # Verifica se o número possui WhatsApp (antes de qualquer validação de duplicidade)
         if not resultado_wpp.get("wpp"):
             return render(request, "pages/cadastro-cliente.html", {

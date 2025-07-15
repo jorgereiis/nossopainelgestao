@@ -27,7 +27,7 @@ os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
 # Função para registrar mensagens no arquivo de log principal
 def registrar_log(mensagem, log_file):
-    timestamp = localtime().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
     print(f"[{timestamp}] [{NOME_SCRIPT}] {mensagem}")
     
     with open(log_file, "a", encoding="utf-8") as log:
