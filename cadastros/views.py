@@ -477,7 +477,9 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
             ).order_by("mensalidade__dt_vencimento").distinct()
         )
         if query:
-            queryset = queryset.filter(nome__icontains=query)
+            queryset = queryset.filter(
+                Q(nome__icontains=query) | Q(telefone__icontains=query)
+            )
         
         time.sleep(0.5)
         return queryset
