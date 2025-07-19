@@ -1357,14 +1357,15 @@ def edit_customer(request, cliente_id):
         if cliente.nome != nome:
             cliente.nome = nome
 
-        # Telefone + UF
+        # Telefone
         telefone_novo = post.get("telefone", "").strip()
-        resultado_wpp = validar_tel_whatsapp(telefone_novo, token.token, user)
-        cliente_existe_telefone = resultado_wpp.get("cliente_existe_telefone")
-        telefone_novo = resultado_wpp.get("telefone_validado_wpp")
-
         if cliente.telefone != telefone_novo:
-            # Verifica se o novo número possui WhatsApp
+
+            # Valida o novo telefone
+            resultado_wpp = validar_tel_whatsapp(telefone_novo, token.token, user)
+            cliente_existe_telefone = resultado_wpp.get("cliente_existe_telefone")
+            telefone_novo = resultado_wpp.get("telefone_validado_wpp")
+
             if not resultado_wpp.get("wpp"):
                 logger.warning(
                     f"[WARN][EDITAR CLIENTE] O número {telefone_novo} não possui um WhatsApp."

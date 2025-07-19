@@ -2313,6 +2313,24 @@ searchInput.addEventListener("input", function () {
         this.value = formatted;
       }
     });
+
+    // --- Antes do envio, garantir que o número BR tenha formato esperado pelo backend ---
+    const form = telefoneInput.closest('form');
+    form.addEventListener('submit', function (e) {
+      const countryCode = iti.getSelectedCountryData().iso2;
+
+      if (countryCode === 'br') {
+        let numero = telefoneInput.value.replace(/\D/g, '');
+
+        if (numero.length >= 10) {
+          telefoneInput.value = '+55' + numero;
+        }
+
+      } else {
+        // Para outros países, usa o formato internacional padrão com DDI
+        telefoneInput.value = iti.getNumber();
+      }
+    });
   });
 </script>
 
