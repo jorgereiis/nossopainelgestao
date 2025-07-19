@@ -631,7 +631,7 @@
                     <div class="modal-content">
                     <div class="modal-header">
                         <h4 class="modal-title" id="edit-cliente-label">Editar Cliente</h4>
-                        <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                     </div>
                     <div class="modal-body">
                         <form method="POST" id="edit-cliente-form">
@@ -750,7 +750,7 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                         <button type="submit" form="edit-cliente-form" class="btn btn-primary btn-confirmar-acao">
                                 Salvar
                         </button>
@@ -2316,20 +2316,6 @@ searchInput.addEventListener("input", function () {
   });
 </script>
 
-<script>
-// FUNÇÃO PARA EXIBIR/ESCONDER O MENU LATERAL
-document.addEventListener("DOMContentLoaded", function () {
-    const navToggle = document.getElementById("nav-toggle");
-    const dbWrapper = document.getElementById("db-wrapper");
-
-    if (navToggle) {
-        navToggle.addEventListener("click", function (e) {
-            e.preventDefault();
-            dbWrapper.classList.toggle("toggled");
-        });
-    }
-});
-</script>
 <style>
   /* Estilo para o campo de telefone */
   .iti {

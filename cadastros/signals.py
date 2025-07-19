@@ -171,14 +171,14 @@ def cliente_post_save(sender, instance, created, **kwargs):
             return
 
         # Verifica se número existe no WhatsApp
-        try:
-            numero_existe = check_number_status(telefone, token.token, user=token)
-            if not numero_existe:
-                print(f"[{timestamp}] [{func_name}] [{instance.usuario}] [INFO] Número {telefone} não é válido no WhatsApp.")
-                return
-        except Exception as e:
-            print(f"[{timestamp}] [{func_name}] [{instance.usuario}] [ERROR] Erro ao verificar número no WhatsApp: {e}")
-            return
+        """        try:
+                    numero_existe = check_number_status(telefone, token.token, user=token)
+                    if not numero_existe:
+                        print(f"[{timestamp}] [{func_name}] [{instance.usuario}] [INFO] Número {telefone} não é válido no WhatsApp.")
+                        return
+                except Exception as e:
+                    print(f"[{timestamp}] [{func_name}] [{instance.usuario}] [ERROR] Erro ao verificar número no WhatsApp: {e}")
+                    return"""
 
         # Obtém labels atuais
         try:

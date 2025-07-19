@@ -192,6 +192,8 @@
     <!-- Scripts -->
     {% include 'partials/scripts.html' %}
     {% include 'partials/modal_whatsapp.html' %}
+    {% include 'partials/modal_logs.html' %}
+    {% include 'partials/modal_dns.html' %}
     {% include 'partials/footer.html' %}
 
     {% if success_message %}
@@ -462,13 +464,20 @@
       }
     });
 
-    // --- Antes do envio, garantir que o valor final tenha o DDI (getNumber) ---
+    // --- Antes do envio, garantir que o número BR tenha formato esperado pelo backend ---
     const form = telefoneInput.closest('form');
     form.addEventListener('submit', function (e) {
       const countryCode = iti.getSelectedCountryData().iso2;
 
-      // Número internacional completo apenas se não for BR
-      if (countryCode !== 'br') {
+      if (countryCode === 'br') {
+        let numero = telefoneInput.value.replace(/\D/g, '');
+
+        if (numero.length >= 10) {
+          telefoneInput.value = '+55' + numero;
+        }
+
+      } else {
+        // Para outros países, usa o formato internacional padrão com DDI
         telefoneInput.value = iti.getNumber();
       }
     });

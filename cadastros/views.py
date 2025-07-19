@@ -113,23 +113,23 @@ def conectar_wpp(request):
     sessao_existente = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
     if sessao_existente:
         token = sessao_existente.token
-        print(f"[{timestamp}] [{func_name}] [{usuario}] [INFO] Token reutilizado para sessão '{session}'")
+        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Token reutilizado para sessão '{session}'")
     else:
         token_data, token_status = gerar_token(session, secret)
         if token_status != 201:
             return JsonResponse({"erro": "Falha ao gerar token de autenticação."}, status=400)
         token = token_data["token"]
-        print(f"[{timestamp}] [{func_name}] [{usuario}] [INFO] Novo token gerado para sessão '{session}'")
+        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Novo token gerado para sessão '{session}'")
 
     # 2. Inicia a sessão
     init_data, init_status = start_session(session, token)
-    print(f"[{timestamp}] [{func_name}] [{usuario}] [DEBUG] Resposta inicial de start-session: {init_data}")
+    print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Resposta inicial de start-session: {init_data}")
 
     # 3. Verifica imediatamente se já está conectado
     status_data, status_code = status_session(session, token)
     status = status_data.get("status")
     if status == "CONNECTED":
-        print(f"[{timestamp}] [{func_name}] [{usuario}] [INFO] Sessão '{session}' já está conectada.")
+        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Sessão '{session}' já está conectada.")
         SessaoWpp.objects.update_or_create(
             usuario=session,
             defaults={
@@ -150,7 +150,7 @@ def conectar_wpp(request):
     for tentativa in range(max_tentativas):
         status_data, status_code = status_session(session, token)
         status = status_data.get("status")
-        print(f"[{timestamp}] [{func_name}] [{usuario}] [DEBUG] Tentativa {tentativa+1}: status = {status}")
+        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Tentativa {tentativa+1}: status = {status}")
         if status == "QRCODE":
             break
         time.sleep(intervalo_segundos)
@@ -170,7 +170,7 @@ def conectar_wpp(request):
             "is_active": True
         }
     )
-    print(f"[{timestamp}] [{func_name}] [{usuario}] [INFO] Sessão '{session}' salva com sucesso.")
+    print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Sessão '{session}' salva com sucesso.")
 
     # 6. Retorna QRCode
     return JsonResponse({
@@ -268,7 +268,7 @@ def cancelar_sessao_wpp(request):
 
         # Mesmo que a API retorne 500, se for JSON e tiver estrutura esperada, tratamos com sucesso
         if isinstance(resp_data, dict) and "status" in resp_data:
-            print(f"[{timestamp}] [{func_name}] [{usuario}] [INFO] Resposta ao fechar sessão: {resp_data}")
+            print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Resposta ao fechar sessão: {resp_data}")
 
             # Considera a sessão encerrada se a API retornou status 500 com JSON válido
             sessao.is_active = False
@@ -993,6 +993,7 @@ def generate_graphic_map_customers(request):
         .values_list('uf', 'total')
     )
     total_geral = sum(dados.values())
+    clientes_internacionais = Cliente.objects.filter(cancelado=False, usuario=usuario, uf__isnull=True).count()
 
     # Carrega o arquivo GeoJSON local
     mapa = gpd.read_file("archives/brasil_estados.geojson")
@@ -1051,8 +1052,8 @@ def generate_graphic_map_customers(request):
             "porcentagem": True
         },
         mapbox_style="white-bg",
-        center={"lat": -19.29285, "lon": -49.35954},
-        zoom=2.6,
+        center={"lat": -19.68828, "lon": -54.72019},
+        zoom=2.2,
         opacity=0.6,
     )
 
@@ -1082,6 +1083,11 @@ def generate_graphic_map_customers(request):
     grafico_html = plot(fig, output_type="div", include_plotlyjs="cdn")
 
     # Envolve com estrutura HTML e CSS responsivo
+    info_adicional = f"""
+    <div style='text-align:center; font-family:Arial; font-size:12px; color: #333; margin-top: 8px;'>
+        Qtd. fora do país: {clientes_internacionais}
+    </div>
+    """
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -1108,6 +1114,7 @@ def generate_graphic_map_customers(request):
         </style>
     </head>
     <body>
+        {info_adicional}
         {grafico_html}
     </body>
     </html>
@@ -2064,7 +2071,6 @@ def import_customers(request):
             
             # 1º loop: salva todos os clientes sem indicado_por
             for idx, row in enumerate(registros, 1):
-                #time.sleep(3)
                 try:
                     print(f"[{timestamp}] [{func_name}] [{usuario}] [IMPORT] Processando linha {idx} - dados: {row}")
                     servidor_nome = clean_cell(row, 'servidor')
@@ -2099,6 +2105,7 @@ def import_customers(request):
                         clientes_invalidos_whatsapp.append(f"Linha {idx}: {telefone} (não foi possível validar o telefone para WhatsApp)")
                         continue
                     if resultado_telefone.get("cliente_existe_telefone"):
+                        fail += 1
                         clientes_existentes.append(f"Linha {idx}: {telefone} (já existe cliente com esse telefone)")
                         continue
                     if resultado_telefone.get("telefone_validado_wpp"):
@@ -2293,9 +2300,8 @@ def create_customer(request):
                 "error_message": "O campo telefone não pode estar em branco.",
             })
 
-        print(f"[{timestamp}] [{func_name}] [{usuario}] [DEBUG] Telefone informado para Cadastro de Cliente: ", telefone)
+        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Iniciando cadastro de Novo Cliente.")
         resultado_wpp = validar_tel_whatsapp(telefone, token.token, user=usuario)
-        print(f"[{timestamp}] [{func_name}] [{usuario}] [DEBUG] Resultado da validação do WhatsApp: ", resultado_wpp)
         # Verifica se o número possui WhatsApp (antes de qualquer validação de duplicidade)
         if not resultado_wpp.get("wpp"):
             return render(request, "pages/cadastro-cliente.html", {
@@ -2436,6 +2442,7 @@ def create_customer(request):
                     logger.error("Erro ao criar a mensalidade: %s", e, exc_info=True)
                     raise Exception("Falha ao criar a mensalidade do cliente.")
 
+            print(f"[{timestamp}] [SUCCESS] [{func_name}] [{usuario}] Cliente {cliente.nome} ({cliente.telefone}) cadastrado com sucesso!")
             return render(request, "pages/cadastro-cliente.html", {
                 "success_message": "Novo cliente cadastrado com sucesso!",
             })

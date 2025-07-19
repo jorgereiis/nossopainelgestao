@@ -7,6 +7,7 @@ import inspect
 import requests
 import pandas as pd
 from typing import Union
+from pprint import pprint
 from decimal import Decimal
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -170,6 +171,9 @@ def validar_tel_whatsapp(telefone: str, token: str, user=None) -> Union[str, Non
         - Se o telefone existe no WhatsApp;
         - Telefone formatado para WhatsApp;
     """
+    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+    func_name = inspect.currentframe().f_code.co_name
+
     telefone_variacoes = gerar_variacoes_telefone(telefone)
     resultado = {
         "telefone_cadastro": telefone,
@@ -178,22 +182,23 @@ def validar_tel_whatsapp(telefone: str, token: str, user=None) -> Union[str, Non
         "wpp": False
     }
 
-    for num in telefone_variacoes:
-        try:
-            wpp_valido = check_number_status(num, token, user)
-        except Exception as e:
-            logger.error(f"[VALIDAR][ERRO] Erro ao checar {num} no WhatsApp: {e}")
-            wpp_valido = False
+    try:
+        check = check_number_status(telefone, token, user)
+        if check['status']:
+            wpp_valido = True
+            telefone = str(check['user'])
+    except Exception as e:
+        logger.error(f"[VALIDAR][ERRO] Erro ao checar {telefone} no WhatsApp: {e}")
+        wpp_valido = False
 
-        if wpp_valido:
-            if not str(num).startswith('+'):
-                num_formatado = f'+{num}'
-            else:
-                num_formatado = str(num)
-            resultado["telefone_validado_wpp"] = num_formatado
-            resultado["wpp"] = True
-            resultado["cliente_existe_telefone"] = existe_cliente_variacoes(telefone_variacoes, user)
-            return resultado
+    if wpp_valido:
+        num_formatado = telefone if str(telefone).startswith('+') else f'+{telefone}'
+        resultado["telefone_validado_wpp"] = num_formatado
+        resultado["wpp"] = True
+        resultado["cliente_existe_telefone"] = existe_cliente_variacoes(telefone_variacoes, user)
+        
+        print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Resultado da validação: {resultado}")
+        return resultado
 
     return resultado
 ##### FIM #####
@@ -269,8 +274,9 @@ def check_number_status(telefone, token, user):
             response_data = response.json()
             # Retorna o valor booleano que indica se o número existe
             status = response_data.get('response', {}).get('numberExists', False)
-            print(f"[{timestamp}] [SUCCESS] [{func_name}] [{user}] Número {telefone} existe no WhatsApp: {status}")
-            return status
+            user_number = response_data.get('response', {}).get('id', None).get('user', None)
+            print(f"[{timestamp}] [INFO] [{func_name}] [{user}] O número informado é válido no WhatsApp.")
+            return {'status': status, 'user': user_number}
         else:
             # Exibe erro caso não tenha sucesso
             print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao verificar status do número {telefone}: {response.status_code} - {response.text}")
@@ -308,7 +314,7 @@ def get_all_labels(token, user):
             response_data = response.json()
             # Retorna a lista de labels encontradas
             labels = response_data.get('response', [])
-            print(f"[{timestamp}] [SUCCESS] [{func_name}] [{user}] Labels obtidas com sucesso: {len(labels)} encontradas.")
+            print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Labels obtidas com sucesso - {len(labels)} labels encontradas.")
             return labels
         else:
             # Exibe mensagem de erro se a resposta falhar
@@ -333,7 +339,7 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
 
     # Se a label desejada já está aplicada, não faz nada
     if label_id_1 in labels_atual:
-        print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Label '{label_name}' já atribuída ao contato {telefone}. Nenhuma alteração necessária.")
+        print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Label '{label_name}' já atribuída ao contato. Nenhuma alteração necessária.")
         return 200, {"status": "skipped", "message": "Label já atribuída"}
 
     # Prepara headers e URL
@@ -356,11 +362,11 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
   
     # Envia requisição POST com JSON
     response = requests.post(url, headers=headers, json=body)
-    print(f"[{timestamp}] [DEBUG] [{func_name}] [{user}] Response status code: {response.status_code}, response text: {response.text}")
+    print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Response status code: {response.status_code}, response text: {response.text}")
 
     if response.status_code in [200, 201]:
         # Mensagem de sucesso
-        print(f"[{timestamp}] [SUCCESS] [{func_name}] [{user}] Label do contato {telefone} alterada para {label_id_1} - {label_name}.")
+        print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Label definida: {label_id_1} - {label_name}.")
     else:
         # Mensagem de erro com status code e texto da resposta
         print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao alterar label do telefone {telefone}: {response.status_code} - {response.text}")
@@ -403,7 +409,7 @@ def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
 
     if hex_color:
         try:
-            color_int = int(hex_color.lstrip("#"), 16) + (255 << 24)  # adiciona alpha FF
+            color_int = int(hex_color.lstrip("#"), 16) + (255 << 24)
             body["options"] = {"labelColor": color_int}
         except ValueError:
             print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Cor inválida para a label '{nome_label}': {hex_color}")
@@ -411,9 +417,8 @@ def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
     # Faz a requisição
     response = requests.post(url, headers=headers, json=body)
     if response.status_code in [200, 201]:
-        print(f"[{timestamp}] [SUCCESS] [{func_name}] [{user}] Label '{nome_label}' criada com sucesso.")
+        print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Label '{nome_label}' criada com sucesso.")
 
-        # --- Correção ---
         # Após criar, buscar novamente todas as labels para encontrar o ID
         try:
             labels = get_all_labels(token, user)
