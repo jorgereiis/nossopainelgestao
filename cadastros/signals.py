@@ -16,7 +16,7 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
 from .models import Mensalidade, Cliente, Plano, PlanoIndicacao, SessaoWpp
-from .utils import (
+from wpp.api_connection import (
     check_number_status,
     get_label_contact,
     add_or_remove_label_contact,
@@ -167,24 +167,24 @@ def cliente_post_save(sender, instance, created, **kwargs):
         try:
             token = SessaoWpp.objects.filter(usuario=instance.usuario, is_active=True).first()
         except SessaoWpp.DoesNotExist:
-            print(f"[{timestamp}] [{func_name}] [{instance.usuario}] [INFO] Sessão do WhatsApp não encontrada para o usuário {instance.usuario}")
+            print(f"[{timestamp}] [INFO] [{func_name}] [{instance.usuario}] Sessão do WhatsApp não encontrada para o usuário {instance.usuario}")
             return
 
         # Verifica se número existe no WhatsApp
         """        try:
                     numero_existe = check_number_status(telefone, token.token, user=token)
                     if not numero_existe:
-                        print(f"[{timestamp}] [{func_name}] [{instance.usuario}] [INFO] Número {telefone} não é válido no WhatsApp.")
+                        print(f"[{timestamp}] [INFO] [{func_name}] [{instance.usuario}] Número {telefone} não é válido no WhatsApp.")
                         return
                 except Exception as e:
-                    print(f"[{timestamp}] [{func_name}] [{instance.usuario}] [ERROR] Erro ao verificar número no WhatsApp: {e}")
+                    print(f"[{timestamp}] [ERROR] [{func_name}] [{instance.usuario}] Erro ao verificar número no WhatsApp: {e}")
                     return"""
 
         # Obtém labels atuais
         try:
             labels_atuais = get_label_contact(telefone, token.token, user=token)
         except Exception as e:
-            print(f"[{timestamp}] [{func_name}] [{instance.usuario}] [ERROR] Erro ao obter labels atuais do contato: {e}")
+            print(f"[{timestamp}] [ERROR] [{func_name}] [{instance.usuario}] Erro ao obter labels atuais do contato: {e}")
             labels_atuais = []
 
         # Define a nova label de acordo com o contexto
@@ -200,7 +200,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
             # Cria label se necessário
             nova_label_id = criar_label_se_nao_existir(label_desejada, token.token, user=token, hex_color=hex_color)
             if not nova_label_id:
-                print(f"[{timestamp}] [{func_name}] [{instance.usuario}] [INFO] Não foi possível obter ou criar a label '{label_desejada}'")
+                print(f"[{timestamp}] [INFO] [{func_name}] [{instance.usuario}] Não foi possível obter ou criar a label '{label_desejada}'")
                 return
 
             # Altera labels do contato
@@ -214,4 +214,4 @@ def cliente_post_save(sender, instance, created, **kwargs):
             )
 
         except Exception as e:
-            print(f"[{timestamp}] [{func_name}] [{instance.usuario}] [ERROR] Erro ao alterar label do contato: {e}")
+            print(f"[{timestamp}] [ERROR] [{func_name}] [{instance.usuario}] Erro ao alterar label do contato: {e}")

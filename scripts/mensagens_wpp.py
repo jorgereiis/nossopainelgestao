@@ -27,6 +27,8 @@ from django.shortcuts import get_object_or_404
 from cadastros.utils import (
     get_saudacao_por_hora,
     registrar_log,
+)
+from wpp.api_connection import (
     check_number_status,
 )
 from integracoes.openai_chat import consultar_chatgpt

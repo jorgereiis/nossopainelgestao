@@ -6,8 +6,8 @@ import django
 import random
 import requests
 import threading
-from cadastros.utils import get_all_groups
 from django.utils.timezone import localtime
+from wpp.api_connection import get_all_groups, get_ids_grupos_envio
 
 # --- Configuração do ambiente Django ---
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -157,38 +157,6 @@ def dividir_mensagem_em_blocos(mensagem, max_tamanho=3900):
     return blocos
 
 
-# --- Extrai ID dos grupos do WhatsApp para envio das notificações ---
-def get_ids_grupos_envio(grupos, adm_envia_alertas):
-    """
-    Retorna lista de grupos do WhatsApp em que o ADM é admin.
-    Cada item: (group_id, nome)
-    """
-    numero = str(adm_envia_alertas)
-    if not numero.startswith('55'):
-        numero = f'55{numero}'
-    telefone_adm = f"{numero}@c.us"
-
-    grupos_admin = []
-    for g in grupos:
-        participantes = (
-            g.get("groupMetadata", {}).get("participants", [])
-            or g.get("participants", [])
-        )
-        eh_admin = any(
-            p.get("id", {}).get("_serialized") == telefone_adm and (
-                bool(p.get("isAdmin")) or bool(p.get("isSuperAdmin"))
-            )
-            for p in participantes
-        )
-        if eh_admin:
-            group_id = g.get("id", {}).get("_serialized")
-            nome = g.get("name") or g.get("groupMetadata", {}).get("subject") or "Grupo sem nome"
-            if group_id:
-                grupos_admin.append((group_id, nome))
-                registrar_log(f"Grupo autorizado: {nome} ({group_id})", LOG_FILE_GRUPOS_WHATSAPP)
-    return grupos_admin
-
-
 ############################################################
 #################### FUNÇÕES OPERACIONAIS ##################
 ############################################################
@@ -309,7 +277,7 @@ def check_dns_canais():
 
     # Obtém todos os grupos e extrai IDs dos grupos desejados para envio
     grupos = get_all_groups(WPP_TOKEN, sessao_wpp)
-    grupos_envio = get_ids_grupos_envio(grupos, ADM_ENVIA_ALERTAS)
+    grupos_envio = get_ids_grupos_envio(grupos, ADM_ENVIA_ALERTAS, LOG_FILE_GRUPOS_WHATSAPP)
 
     # Pega todos os domínios do sistema (online e offline) ordenados por Servidor
     dominios = DominiosDNS.objects.filter(monitorado=True).order_by("servidor")
