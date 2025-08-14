@@ -17,23 +17,18 @@ django.setup()
 from telethon import TelegramClient, events, sync
 from telethon.tl.types import MessageMediaPhoto
 
-# Variáveis de configuração
-IMAGES_BASE_DIR = "images/status_wpp/banners_fup/"
-MEU_NUM_CLARO = os.getenv('MEU_NUM_CLARO')
-
+# Variáveis de ambiente e configuração
+hoje = localtime().strftime('%d-%m-%Y')
 api_id = '21357610'
 api_hash = '6bb5cdc0797e1f281db5f85986541a0f'
 phone = '+5583993329190'
 bot_username  = ''
 channel_username = 'mybannerscc'
 
-# Data atual
-hoje = localtime().strftime('%d-%m-%Y')
-
-# Caminho completo para o diretório do dia
+MEU_NUM_CLARO = os.getenv('MEU_NUM_CLARO')
+IMAGES_BASE_DIR = "images/status_wpp/banners_fup/"
 IMAGES_DIR = os.path.join(IMAGES_BASE_DIR, hoje)
 os.makedirs(IMAGES_DIR, exist_ok=True)
-
 
 async def telegram_connection():
     # Inicializa o cliente do Telegram
@@ -55,7 +50,7 @@ async def telegram_connection():
 
         async for message in client.iter_messages(entity, limit=50):
             try:
-                # Converte a data da mensagem para o fuso local
+                # Convertendo a data da mensagem para o fuso local
                 data_msg_local = localtime(message.date).date()
                 data_hoje_local = localtime().date()
                 if (

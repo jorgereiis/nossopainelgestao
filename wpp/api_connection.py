@@ -30,8 +30,8 @@ def registrar_log(mensagem: str, log_path: str) -> None:
 ##### FUNÇÕES PARA CONEXÃO COM API WPPCONNECT #####
 ###################################################
 
-##### FUNÇÕES PARA GERENCIAR SESSÕES DO WHATSAPP
-# Estas funções permitem gerar token, iniciar sessão, verificar status, obter QR code, verificar conexão, fechar sessão e fazer logout.
+##### FUNÇÕES PARA GERENCIAR SESSÕES DO WHATSAPP #####
+# --- Estas funções permitem gerar token, iniciar sessão, verificar status, obter QR code, verificar conexão, fechar sessão e fazer logout. ---
 def gerar_token(session: str, secret: str):
     url = f"{URL_API_WPP}/{session}/{secret}/generate-token"
     response = requests.post(url)
@@ -82,8 +82,8 @@ def logout_session(session: str, token: str):
     time.sleep(3)
     return response.json(), response.status_code
 
-##### FUNÇÕES PARA GERENCIAR CONTATOS E LABELS
-# Função para obter labels de um contato
+##### FUNÇÕES PARA GERENCIAR CONTATOS E LABELS #####
+# --- Função para obter labels de um contato ---
 def get_label_contact(telefone, token, user):
     timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
     func_name = inspect.currentframe().f_code.co_name
@@ -121,7 +121,7 @@ def get_label_contact(telefone, token, user):
         print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Exceção ao fazer requisição: {e}")
         return []
 
-# Função para verificar se o número existe no WhatsApp
+# --- Função para verificar se o número existe no WhatsApp ---
 def check_number_status(telefone, token, user):
     timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
     func_name = inspect.currentframe().f_code.co_name
@@ -161,7 +161,7 @@ def check_number_status(telefone, token, user):
         return False
 
 
-# Função para obter todas as labels disponíveis para um contato
+# --- Função para obter todas as labels disponíveis para um contato ---
 def get_all_labels(token, user):
     timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
     func_name = inspect.currentframe().f_code.co_name
@@ -200,7 +200,7 @@ def get_all_labels(token, user):
         return []
 
 
-# Função para adicionar ou remover labels de um contato
+# --- Função para adicionar ou remover labels de um contato ---
 def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, token, user):
     timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
     func_name = inspect.currentframe().f_code.co_name
@@ -256,7 +256,7 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
     return response.status_code, response_data
 
 
-# Função para criar uma nova label se não existir
+# --- Função para criar uma nova label se não existir ---
 def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
     """
     Cria a label no WhatsApp se não existir. Se hex_color for fornecido, aplica a cor.
@@ -309,8 +309,9 @@ def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
     else:
         print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao criar label '{nome_label}': {response.status_code} - {response.text}")
         return None
-    
-# Função para obter todos os grupos disponíveis na sessão do WhatsApp
+
+##### FUNÇÃO PARA GERENCIAR GRUPOS DO WHATSAPP #####
+# --- Obter todos os grupos disponíveis na sessão do WhatsApp ---
 def get_all_groups(token, user):
     timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
     func_name = inspect.currentframe().f_code.co_name
@@ -374,6 +375,7 @@ def get_ids_grupos_envio(grupos, adm_envia_alertas, log_path):
                 registrar_log(f"Grupo autorizado: {nome} ({group_id})", log_path)
     return grupos_admin
 
+##### FUNÇÃO PARA ENVIAR MENSAGENS DE STATUS NO WHATSAPP #####
 # --- Envia mensagem de texto para o status do WhatsApp ---
 def upload_status_sem_imagem(texto_status, usuario, token, log_path):
     url = f"{URL_API_WPP}/{usuario}/send-text-storie"
