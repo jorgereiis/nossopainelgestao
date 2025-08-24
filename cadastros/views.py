@@ -19,7 +19,7 @@ from datetime import timedelta, datetime, date
 from django.utils.dateparse import parse_date
 from django.forms.models import model_to_dict
 from decimal import Decimal, InvalidOperation
-from django.db.models.functions import Upper
+from django.db.models.functions import Upper, Coalesce
 from django.utils.timezone import localtime
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q, Count
@@ -393,7 +393,7 @@ class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
         }
 
         return JsonResponse(data)
-    
+
 
 class CarregarInidicacoes(LoginRequiredMixin, View):
 
@@ -678,6 +678,16 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             .order_by('-ano')
         )
 
+        query_telas = (
+            Cliente.objects
+            .filter(usuario=self.request.user, cancelado=False, plano__usuario=self.request.user)
+            .select_related("plano")
+            .only("id", "plano__telas", "plano__nome")
+        )
+        total_telas = query_telas.aggregate(
+            total=Coalesce(Sum("plano__telas"), 0)
+        )["total"]
+
         range_num = range(1,32)
 
         context.update(
@@ -696,6 +706,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "valor_total_pago_qtd": valor_total_pago_qtd,
                 "valor_total_receber_qtd": valor_total_receber_qtd,
                 "clientes_cancelados_qtd": clientes_cancelados_qtd,
+                "total_telas_ativas": int(total_telas),
                 ## context para modal de edição
                 "planos": planos,
                 "servidores": servidores,

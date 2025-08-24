@@ -144,6 +144,11 @@
                                         sem atrasos
                                     </span>
                                     {% endif %}
+                                    <span class="me-2 ms-auto">
+                                        <i class="bi bi-tv  me-2"></i>
+                                        <span class="text-dark me-2 value_tela_span">{{total_telas_ativas}}</span>
+                                        telas ativas
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -1008,6 +1013,7 @@
     const values2_span = document.querySelectorAll(".values2_span");
     const values3_h1 = document.querySelectorAll(".values3_h1");
     const values3_span = document.querySelectorAll(".values3_span");
+    const value_tela_span = document.querySelectorAll(".value_tela_span");
 
     // Carrega a classe salva no localStorage para manter o "olho" habilitado ou desabilitado
     if (localStorage.getItem("eyeClass") == "bi-eye") {
@@ -1035,6 +1041,9 @@
         for (let i = 0; i < values3_span.length; i++) {
             values3_span[i].textContent = "{{valor_total_receber_qtd}}";
         }
+        for (let i = 0; i < value_tela_span.length; i++) {
+            value_tela_span[i].textContent = "{{total_telas_ativas}}";
+        }
     } else if (localStorage.getItem("eyeClass") == "bi-eye-slash") {
         eyeIcon.classList.remove("bi-eye");
         eyeIcon.classList.add("bi-eye-slash");
@@ -1059,6 +1068,9 @@
         }
         for (let i = 0; i < values3_span.length; i++) {
             values3_span[i].textContent = "*";
+        }
+        for (let i = 0; i < value_tela_span.length; i++) {
+            value_tela_span[i].textContent = "*";
         }
     }
 
@@ -1089,6 +1101,9 @@
             for (let i = 0; i < values3_span.length; i++) {
                 values3_span[i].textContent = "*";
             }
+            for (let i = 0; i < value_tela_span.length; i++) {
+                value_tela_span[i].textContent = "*";
+            }
 
             // Salva a classe atual no localStorage
             localStorage.setItem("eyeClass", "bi-eye-slash");
@@ -1117,6 +1132,9 @@
             }
             for (let i = 0; i < values3_span.length; i++) {
                 values3_span[i].textContent = "{{valor_total_receber_qtd}}";
+            }
+            for (let i = 0; i < value_tela_span.length; i++) {
+                value_tela_span[i].textContent = "{{total_telas_ativas}}";
             }
 
             // Salva a classe atual no localStorage
