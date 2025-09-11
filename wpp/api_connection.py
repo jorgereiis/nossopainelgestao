@@ -347,7 +347,7 @@ def get_all_groups(token, user):
 # --- Extrai ID dos grupos do WhatsApp para envio das notificações ---
 def get_ids_grupos_envio(grupos, adm_envia_alertas, log_path):
     """
-    Retorna lista de grupos do WhatsApp em que o ADM é admin.
+    Retorna lista de grupos do WhatsApp em que o USER é admin.
     Cada item: (group_id, nome)
     """
     numero = str(adm_envia_alertas)
@@ -374,6 +374,50 @@ def get_ids_grupos_envio(grupos, adm_envia_alertas, log_path):
                 grupos_admin.append((group_id, nome))
                 registrar_log(f"Grupo autorizado: {nome} ({group_id})", log_path)
     return grupos_admin
+
+# --- Buscar IDs de grupos a partir de nomes fornecidos ---
+def get_group_ids_by_names(token, user, group_names, log_path=None):
+    """
+    Retorna os IDs dos grupos do WhatsApp com base nos nomes informados.
+
+    :param token: Token da sessão WPPConnect
+    :param user: Usuário/diretório da sessão
+    :param group_names: Lista com nomes (ou parte do nome) dos grupos
+    :param log_path: Caminho do log (opcional)
+    :return: Lista de tuplas (group_id, nome)
+    """
+    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+    func_name = inspect.currentframe().f_code.co_name
+
+    try:
+        # Obter todos os grupos disponíveis
+        grupos = get_all_groups(token, user)
+        if not grupos:
+            print(f"[{timestamp}] [WARN] [{func_name}] [{user}] Nenhum grupo encontrado.")
+            return []
+
+        # Normaliza nomes para comparação (case insensitive e strip)
+        nomes_busca = [n.strip().lower() for n in group_names]
+
+        grupos_encontrados = []
+        for g in grupos:
+            group_id = g.get("id", {}).get("_serialized")
+            nome = g.get("name") or g.get("groupMetadata", {}).get("subject") or "Grupo sem nome"
+
+            if nome and any(n in nome.lower() for n in nomes_busca):
+                grupos_encontrados.append((group_id, nome))
+                if log_path:
+                    registrar_log(f"Grupo encontrado: {nome} ({group_id})", log_path)
+
+        if not grupos_encontrados:
+            print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Nenhum grupo correspondente encontrado para {group_names}.")
+
+        return grupos_encontrados
+
+    except Exception as e:
+        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao buscar grupos por nome: {e}")
+        return []
+
 
 ##### FUNÇÃO PARA ENVIAR MENSAGENS DE STATUS NO WHATSAPP #####
 # --- Envia mensagem de texto para o status do WhatsApp ---

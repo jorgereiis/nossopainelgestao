@@ -15,6 +15,9 @@ import time
 import asyncio
 import schedule
 import threading
+from mensagem_gp_wpp import (
+    chamada_funcao_gp_vendas
+)
 from mensagens_wpp import (
     run_scheduled_tasks,
     executar_envios_agendados,
@@ -43,11 +46,17 @@ def run_telegram_connection():
     asyncio.run(telegram_connection())
 
 # Agendar a execução das tarefas em horários específicos
+schedule.every().day.at("08:00").do(
+    run_threaded, chamada_funcao_gp_vendas
+)
 schedule.every().day.at("12:00").do(
     run_threaded, run_scheduled_tasks
 )
 schedule.every().day.at("17:00").do(
     run_threaded, obter_mensalidades_canceladas
+)
+schedule.every().day.at("20:00").do(
+    run_threaded, chamada_funcao_gp_vendas
 )
 schedule.every().day.at("23:00").do(
     run_threaded, run_telegram_connection
