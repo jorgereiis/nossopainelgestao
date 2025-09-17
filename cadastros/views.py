@@ -19,8 +19,8 @@ from datetime import timedelta, datetime, date
 from django.utils.dateparse import parse_date
 from django.forms.models import model_to_dict
 from decimal import Decimal, InvalidOperation
-from django.db.models.functions import Upper, Coalesce
-from django.utils.timezone import localtime
+from django.db.models.functions import Upper, Coalesce, ExtractDay
+from django.utils.timezone import localtime, now
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q, Count
 from babel.numbers import format_currency
@@ -678,6 +678,13 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             .order_by('-ano')
         )
 
+        lista_meses = [
+            (1, 'Jan'), (2, 'Fev'), (3, 'Mar'), (4, 'Abr'), (5, 'Mai'), (6, 'Jun'),
+            (7, 'Jul'), (8, 'Ago'), (9, 'Set'), (10, 'Out'), (11, 'Nov'), (12, 'Dez')
+        ]
+
+        data_atual = timezone.localtime().date()
+
         query_telas = (
             Cliente.objects
             .filter(usuario=self.request.user, cancelado=False, plano__usuario=self.request.user)
@@ -715,7 +722,9 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "formas_pgtos": formas_pgtos,
                 ## context para o gráfico de adesões e cancelamentos
                 "anos_adesao": anos_adesao,
+                "lista_meses": lista_meses,
                 "anuo_atual": ano_atual,
+                "data_atual": data_atual,
             }
         )
         return context
@@ -893,7 +902,122 @@ def profile_page(request):
     )
 
 
-def generate_graphic_columns(request):
+# Wrapper para cache_page com key prefix dinâmico
+def cache_page_by_user(timeout):
+    def decorator(view_func):
+        def _wrapped_view(request, *args, **kwargs):
+            return cache_page(timeout, key_prefix=user_cache_key(request))(view_func)(request, *args, **kwargs)
+        return _wrapped_view
+    return decorator
+
+
+@xframe_options_exempt
+@login_required
+@cache_page_by_user(60 * 120)
+def generate_graphic_columns_per_month(request):
+    # Obtém o ano atual e o mês fornecido via GET (ou o atual)
+    ano_atual = now().year
+    mes = int(request.GET.get("mes", now().month))
+    usuario = request.user
+
+    # Garante que o mês requisitado pertence ao ano atual
+    if not (1 <= mes <= 12):
+        return HttpResponse("Mês inválido", status=400)
+
+    # Filtra adesões e cancelamentos apenas do mês/ano atual
+    dados_adesoes = Cliente.objects.filter(
+        data_adesao__year=ano_atual,
+        data_adesao__month=mes,
+        usuario=usuario
+    ).annotate(dia=ExtractDay("data_adesao")) \
+     .values("dia") \
+     .annotate(total=Count("id")) \
+     .order_by("dia")
+
+    dados_cancelamentos = Cliente.objects.filter(
+        data_cancelamento__year=ano_atual,
+        data_cancelamento__month=mes,
+        usuario=usuario
+    ).annotate(dia=ExtractDay("data_cancelamento")) \
+     .values("dia") \
+     .annotate(total=Count("id")) \
+     .order_by("dia")
+
+    # Dicionários auxiliares
+    adesoes_dict = {dado["dia"]: dado["total"] for dado in dados_adesoes}
+    cancelamentos_dict = {dado["dia"]: dado["total"] for dado in dados_cancelamentos}
+
+    # Listas para plotagem
+    dias = []
+    adesoes = []
+    cancelamentos = []
+
+    total_dias_mes = calendar.monthrange(ano_atual, mes)[1]
+
+    for dia in range(1, total_dias_mes + 1):
+        if dia in adesoes_dict or dia in cancelamentos_dict:
+            dias.append(str(dia))
+            adesoes.append(adesoes_dict.get(dia, 0))
+            cancelamentos.append(cancelamentos_dict.get(dia, 0))
+
+    total_adesoes = sum(adesoes)
+    total_cancelamentos = sum(cancelamentos)
+    saldo_final = total_adesoes - total_cancelamentos
+
+    # Criar gráfico de colunas
+    plt.figure(figsize=(7, 3))
+    plt.bar(dias, adesoes, color="#4CAF50", width=0.4, label="Adesões")
+    plt.bar(dias, cancelamentos, color="#F44336", width=0.4, bottom=adesoes, label="Cancelamentos")
+
+    # Rótulos nas barras
+    for i, v in enumerate(adesoes):
+        if v > 0:
+            plt.text(i, v / 2, str(v), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
+
+    for i, v in enumerate(cancelamentos):
+        if v > 0:
+            plt.text(i, adesoes[i] + v / 2, str(v), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
+
+
+    nomes_pt = [
+        "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ]
+    nome_mes = nomes_pt[mes]
+    plt.title(f"Adesões e Cancelamentos por mês - {nome_mes} {ano_atual}", fontsize=14)
+    plt.xlabel("Dia", fontsize=12)
+    plt.ylabel("Quantidade", fontsize=12)
+    plt.xticks(fontsize=10, fontweight='bold')
+    plt.yticks(fontsize=10)
+
+    # Legenda
+    cor_saldo = "#624BFF" if saldo_final >= 0 else "#F44336"
+    texto_saldo = f"Saldo {nome_mes}: {'+' if saldo_final > 0 else ''}{saldo_final}"
+
+    saldo_patch = Patch(color=cor_saldo, label=texto_saldo)
+    plt.legend(handles=[
+        Patch(color="#4CAF50", label=f"Adesões: {total_adesoes}"),
+        Patch(color="#F44336", label=f"Cancelamentos: {total_cancelamentos}"),
+        saldo_patch
+    ])
+
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
+
+    # Gera imagem
+    buffer = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(buffer, format='png', bbox_inches="tight", dpi=100)
+    buffer.seek(0)
+    plt.close()
+
+    return HttpResponse(buffer.getvalue(), content_type="image/png")
+
+
+@xframe_options_exempt
+@login_required
+@cache_page_by_user(60 * 120)
+def generate_graphic_columns_per_year(request):
     # Obtendo o ano escolhido (se não for informado, pega o atual)
     ano = request.GET.get("ano", timezone.now().year)
     usuario = request.user
@@ -948,9 +1072,9 @@ def generate_graphic_columns(request):
             plt.text(i, adesoes[i] + v / 2, str(v), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
 
     # Melhorando a estética do gráfico
+    plt.title(f'Adesão e Cancelamentos por ano - {ano}', fontsize=14)
     plt.xlabel('Mês', fontsize=12)
     plt.ylabel('Quantidade', fontsize=12)
-    plt.title(f'Adesão e Cancelamentos por ano - {ano}', fontsize=14)
     plt.xticks(fontsize=10, fontweight='bold')
     plt.yticks(fontsize=10)
 
@@ -962,9 +1086,11 @@ def generate_graphic_columns(request):
     saldo_patch = Patch(color=cor_saldo, label=texto_saldo)
 
     # Adicionando a legenda com "Saldo" personalizado
-    plt.legend(handles=[Patch(color="#4CAF50", label="Adesões"), 
-                        Patch(color="#F44336", label="Cancelamentos"), 
-                        saldo_patch])
+    plt.legend(handles=[
+        Patch(color="#4CAF50", label=f"Adesões: {total_adesoes}"),
+        Patch(color="#F44336", label=f"Cancelamentos: {total_cancelamentos}"),
+        saldo_patch
+    ])
 
     # Removendo bordas superiores e laterais para um design mais limpo
     plt.gca().spines['top'].set_visible(False)
@@ -981,15 +1107,6 @@ def generate_graphic_columns(request):
 
 def user_cache_key(request):
     return f"user-{request.user.id}" if request.user.is_authenticated else "anonymous"
-
-
-# Wrapper para cache_page com key prefix dinâmico
-def cache_page_by_user(timeout):
-    def decorator(view_func):
-        def _wrapped_view(request, *args, **kwargs):
-            return cache_page(timeout, key_prefix=user_cache_key(request))(view_func)(request, *args, **kwargs)
-        return _wrapped_view
-    return decorator
 
 
 @xframe_options_exempt

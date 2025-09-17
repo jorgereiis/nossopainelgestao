@@ -47,10 +47,11 @@ from .views import (
     check_connection_wpp,
     delete_payment_method,
     create_payment_method,
-    generate_graphic_columns,
     CarregarContasDoAplicativo,
     generate_graphic_map_customers,
     CarregarQuantidadesMensalidades,
+    generate_graphic_columns_per_year,
+    generate_graphic_columns_per_month,
 )
 
 urlpatterns = [
@@ -73,7 +74,8 @@ urlpatterns = [
     path("qtds-mensalidades/", CarregarQuantidadesMensalidades.as_view(), name="qtds-mensalidades"),
 
     ############ Graphics ###########
-    path("grafico/", generate_graphic_columns, name="grafico"),
+    path("grafico/anual/", generate_graphic_columns_per_year, name="grafico-anual"),
+    path("grafico/mensal/", generate_graphic_columns_per_month, name="grafico-mensal"),
     path("grafico/mapa-clientes/", generate_graphic_map_customers, name="grafico-mapa-clientes"),
 
     ############ Create ###########

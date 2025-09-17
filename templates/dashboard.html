@@ -255,36 +255,49 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="col-xl-13 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card -->
                         <div class="card">
                             <!-- card body -->
                             <div class="card-body">
-                                <!-- filter -->
+                                <!-- filtros -->
                                 <div class="d-flex justify-content-between align-items-center mb-3 objeto">
-                                    <div class="ms-auto">
-                                        <form id="filtro-ano" class="me-3">
-                                            <label for="ano">Escolha o Ano:</label>
-                                            <select id="ano" name="ano" class="mb-0 rounded border border-light-200 px-1 py-2 bg-transparent">
-                                                {% for ano in anos_adesao %}
-                                                    <option value="{{ ano }}" {% if ano == ano_atual %}selected{% endif %}>{{ ano }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </form>
-                                    </div>
+                                    <!-- Filtro tipo de gráfico -->
+                                    <form id="filtro-grafico" class="me-3">
+                                        <label for="tipo_grafico">Gráfico:</label>
+                                        <select id="tipo_grafico" class="mb-0 rounded border border-light-200 px-1 py-2 bg-transparent">
+                                            <option value="mensal" selected>Mensal</option>
+                                            <option value="anual">Anual</option>
+                                        </select>
+                                    </form>
+
+                                    <!-- Filtro mês -->
+                                    <form id="filtro-mes" class="me-3">
+                                        <label for="mes">Escolha o Mês:</label>
+                                        <select id="mes" name="mes" class="mb-0 rounded border border-light-200 px-1 py-2 bg-transparent">
+                                            {% for numero, nome in lista_meses %}
+                                                <option value="{{ numero }}" {% if numero == data_atual.month %}selected{% endif %}>
+                                                    {{ nome }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </form>
+
+                                    <!-- Filtro ano -->
+                                    <form id="filtro-ano" class="me-3" style="display:none;">
+                                        <label for="ano">Escolha o Ano:</label>
+                                        <select id="ano" name="ano" class="mb-0 rounded border border-light-200 px-1 py-2 bg-transparent">
+                                            {% for ano in anos_adesao %}
+                                                <option value="{{ ano }}" {% if ano == ano_atual %}selected{% endif %}>{{ ano }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </form>
                                 </div>
 
-                                <!-- graphic 1 -->
+                                <!-- gráfico -->
                                 <div class="d-flex align-items-center justify-content-center flex-column flex-md-row">
-                    
-                                    <img id="grafico" src="{% url 'grafico' %}" alt="Gráfico de Adesões e Cancelamentos" class="img-fluid" />
-                    
-                                    <script>
-                                    document.getElementById("ano").addEventListener("change", function() {
-                                        let anoSelecionado = this.value;
-                                        document.getElementById("grafico").src = `{% url 'grafico' %}?ano=${anoSelecionado}`;
-                                    });
-                                    </script>
+                                    <img id="grafico" src="{% url 'grafico-mensal' %}?mes={{ data_atual.month }}" alt="Gráfico de Adesões e Cancelamentos" class="img-fluid" />
                                 </div>
                             </div>
                         </div>
@@ -2362,3 +2375,41 @@ searchInput.addEventListener("input", function () {
     z-index: 10000;
   }
 </style>
+
+<script>
+    // FUNÇÃO PARA TRATAR O FILTRO DE GRÁFICOS NA DASHBOARD
+    const tipoGraficoSelect = document.getElementById("tipo_grafico");
+    const filtroMes = document.getElementById("filtro-mes");
+    const filtroAno = document.getElementById("filtro-ano");
+    const selectMes = document.getElementById("mes");
+    const selectAno = document.getElementById("ano");
+    const graficoImg = document.getElementById("grafico");
+
+    function atualizarGrafico() {
+        const tipo = tipoGraficoSelect.value;
+        if (tipo === "mensal") {
+            const mes = selectMes.value;
+            graficoImg.src = `{% url 'grafico-mensal' %}?mes=${mes}`;
+        } else {
+            const ano = selectAno.value;
+            graficoImg.src = `{% url 'grafico-anual' %}?ano=${ano}`;
+        }
+    }
+
+    tipoGraficoSelect.addEventListener("change", () => {
+        const tipo = tipoGraficoSelect.value;
+
+        if (tipo === "mensal") {
+            filtroMes.style.display = "inline-block";
+            filtroAno.style.display = "none";
+        } else {
+            filtroMes.style.display = "none";
+            filtroAno.style.display = "inline-block";
+        }
+
+        atualizarGrafico();
+    });
+
+    selectMes.addEventListener("change", atualizarGrafico);
+    selectAno.addEventListener("change", atualizarGrafico);
+</script>
