@@ -902,18 +902,6 @@ def profile_page(request):
     )
 
 
-# Wrapper para cache_page com key prefix dinâmico
-def cache_page_by_user(timeout):
-    def decorator(view_func):
-        def _wrapped_view(request, *args, **kwargs):
-            return cache_page(timeout, key_prefix=user_cache_key(request))(view_func)(request, *args, **kwargs)
-        return _wrapped_view
-    return decorator
-
-
-@xframe_options_exempt
-@login_required
-@cache_page_by_user(60 * 120)
 def generate_graphic_columns_per_month(request):
     # Obtém o ano atual e o mês fornecido via GET (ou o atual)
     ano_atual = now().year
@@ -1014,9 +1002,6 @@ def generate_graphic_columns_per_month(request):
     return HttpResponse(buffer.getvalue(), content_type="image/png")
 
 
-@xframe_options_exempt
-@login_required
-@cache_page_by_user(60 * 120)
 def generate_graphic_columns_per_year(request):
     # Obtendo o ano escolhido (se não for informado, pega o atual)
     ano = request.GET.get("ano", timezone.now().year)
@@ -1108,6 +1093,13 @@ def generate_graphic_columns_per_year(request):
 def user_cache_key(request):
     return f"user-{request.user.id}" if request.user.is_authenticated else "anonymous"
 
+# Wrapper para cache_page com key prefix dinâmico
+def cache_page_by_user(timeout):
+    def decorator(view_func):
+        def _wrapped_view(request, *args, **kwargs):
+            return cache_page(timeout, key_prefix=user_cache_key(request))(view_func)(request, *args, **kwargs)
+        return _wrapped_view
+    return decorator
 
 @xframe_options_exempt
 @login_required

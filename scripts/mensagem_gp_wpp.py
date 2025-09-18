@@ -360,7 +360,12 @@ def chamada_funcao_gp_vendas():
         nomes_grupos=[
             "Vendas e Desapegos",
             "👗Bazar das Meninas👗",
-            "🌴BV2(Bazar/venda/troca)"
+            "🌴BV2(Bazar/venda/troca)",
+            "👾OLX Brasil Ｇrµ ¹⁹",
+            "OLX FORTALEZA",
+            "OLX CEARÁ",
+            "Compras, vendas e trocas br",
+            "💥 TROCAS E VENDAS 💥",
         ],
         mensagem="🔹 A *Star Max Streaming* se trata de um serviço onde através da sua TV Smart poderá ter acesso aos canais da TV Fechada brasileira e internacional.\n\n" \
         "🎬 Conteúdos de Filmes, Séries e Novelas das maiores plataformas de streaming, como _Amazon, Netflix, Globo Play, Disney+ e outras._\n\n"
