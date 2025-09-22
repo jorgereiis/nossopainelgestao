@@ -366,6 +366,7 @@ def chamada_funcao_gp_vendas():
             "OLX CEARÁ",
             "Compras, vendas e trocas br",
             "💥 TROCAS E VENDAS 💥",
+            "OLX  JACINTINHO - MACEIÓ. VENDAS/TROCAS/ PRESTAÇÃO DE SERVIÇOS.",
         ],
         mensagem="🔹 A *Star Max Streaming* se trata de um serviço onde através da sua TV Smart poderá ter acesso aos canais da TV Fechada brasileira e internacional.\n\n" \
         "🎬 Conteúdos de Filmes, Séries e Novelas das maiores plataformas de streaming, como _Amazon, Netflix, Globo Play, Disney+ e outras._\n\n"
