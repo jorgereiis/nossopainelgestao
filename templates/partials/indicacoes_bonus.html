@@ -117,7 +117,6 @@
                     lista.insertAdjacentHTML('beforeend', item);
                 });
 
-                // Atualiza os ícones feather (se usar feather icons)
                 if (window.feather) window.feather.replace();
             })
             .catch((err) => {
@@ -131,13 +130,13 @@
     function togglePlanoAtivo(botao) {
         const planoId = botao.getAttribute('data-plano-id');
         const nomeDisplay = botao.getAttribute('data-nome');
-        const statusAtual = botao.getAttribute('data-status'); // "on" ou "off"
+        const statusAtual = botao.getAttribute('data-status');
         const inputValor = document.getElementById('valor_indicacao_' + planoId);
         let valor = inputValor ? inputValor.value : "0";
         const valor_minimo = 5.00;
-        const sessao_wpp = botao.getAttribute('data-sessao-wpp'); //True ou False
+        const sessao_wpp = botao.getAttribute('data-sessao-wpp');
 
-        const novoAtivo = (statusAtual === "off"); // Se estava OFF, ativa. Se estava ON, desativa.
+        const novoAtivo = (statusAtual === "off");
 
         // --- Validação: se for ativar, valor deve ser > 0 ---
         if (novoAtivo && (isNaN(valor) || parseFloat(valor) <= 0)) {
@@ -155,7 +154,7 @@
             return;
         }
 
-        // --- Se DESATIVAR, forçamos o valor para ZERO no envio ---
+        // --- Se DESATIVAR, define o valor para ZERO no envio ---
         if (!novoAtivo) {
             valor = "0";
         }
@@ -199,7 +198,7 @@
                     inputValor.value = data.plano.valor;
                     inputValor.disabled = novoAtivo;
                 }
-                // Sempre zera visualmente ao desativar, mesmo que backend não retorne zero
+
                 if (!novoAtivo && inputValor) {
                     inputValor.value = "0";
                 }
@@ -220,7 +219,7 @@
         });
     }
 
-    // Função utilitária para CSRF (pode já estar no seu projeto)
+    // Função utilitária para CSRF
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -254,7 +253,6 @@
 
                 data.horarios.forEach(horario => {
                     const collapseId = `collapseHorario${horario.id}`;
-                    // Input só fica habilitado se status = false (desativado)
                     const isInputDisabled = horario.status ? 'disabled' : '';
                     const btnClass = horario.status ? 'btn-danger' : 'btn-primary';
                     const btnText = horario.status ? 'Desativar' : 'Ativar';
@@ -345,7 +343,7 @@
             });
     }
 
-    // Função para ativar/desativar um horário (faça POST como nos planos)
+    // Função para ativar/desativar um horário
     function toggleHorarioAtivo(botao) {
         const horarioId = botao.getAttribute('data-horario-id');
         const statusAtual = botao.getAttribute('data-status'); // "on" ou "off"
@@ -378,7 +376,7 @@
             horarioValue = "";
         }
 
-        // Monta payload
+        // Payload
         const payload = {
             id: horarioId,
             status: novoStatus,
@@ -404,10 +402,10 @@
                 } else {
                     botao.classList.add("btn-primary");
                 }
-                // Input só fica desbloqueado se o status for falso (desativado)
+
                 if (inputHorario) {
                     inputHorario.disabled = novoStatus;
-                    if (!novoStatus) inputHorario.value = ""; // Limpa campo ao desativar
+                    if (!novoStatus) inputHorario.value = "";
                 }
                 const statusSpan = document.getElementById('status-horario-' + horarioId);
                 if (statusSpan) {

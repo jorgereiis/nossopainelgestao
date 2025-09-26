@@ -5,13 +5,14 @@ import time
 import shutil
 import random
 import inspect
+import logging
 import requests
 import threading
 from datetime import datetime
 from django.contrib.auth.models import User
 from django.utils.timezone import localtime
 from django.shortcuts import get_object_or_404
-from cadastros.models import ConteudoM3U8, SessaoWpp
+from cadastros.models import User, ConteudoM3U8, SessaoWpp
 from wpp.api_connection import upload_imagem_status, upload_status_sem_imagem
 
 # --- Configura o ambiente Django ---
@@ -156,55 +157,75 @@ def executar_upload_status():
 ##### FUNÇÃO PARA UPLOAD DE IMAGENS DE STATUS DO WHATSAPP A PARTIR DO TELEGRAM #####
 ####################################################################################
 
-# --- Caminho base para as imagens de status ---
-CAMINHO_BASE = "images/status_wpp/banners_fup"
+# --- Caminho base e logs ---
+CAMINHO_BASE = "images/telegram_banners/"
 LOG_PATH = "logs/UploadStatusWpp/images_from_telegram.log"
-user = User.objects.get(id=1)
-sessao = get_object_or_404(SessaoWpp, usuario=user, is_active=True)
+
+# Configuração do logger (arquivo + console)
+os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+logger = logging.getLogger("UploadStatusWpp")
+logger.setLevel(logging.INFO)
+
+formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(funcName)s] %(message)s")
+
+# Console
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+# Arquivo
+file_handler = logging.FileHandler(LOG_PATH)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
 
 def extrair_numero(nome_arquivo):
-    numeros = re.findall(r'\d+', nome_arquivo)
+    numeros = re.findall(r"\d+", nome_arquivo)
     return int(numeros[-1]) if numeros else 0
+
 
 def limpar_diretorios_antigos(caminho_base, manter=7):
     """
     Mantém apenas os últimos 'manter' diretórios baseados no nome em formato dd-mm-YYYY.
     Remove os mais antigos.
     """
-    func_name = inspect.currentframe().f_code.co_name
     padrao_data = re.compile(r"^\d{2}-\d{2}-\d{4}$")
     diretorios = [
         d for d in os.listdir(caminho_base)
         if os.path.isdir(os.path.join(caminho_base, d)) and padrao_data.match(d)
     ]
 
-    # Converte os nomes em datas e ordena do mais recente para o mais antigo
     diretorios_ordenados = sorted(
         diretorios,
         key=lambda d: datetime.strptime(d, "%d-%m-%Y"),
-        reverse=True
+        reverse=True,
     )
 
-    # Mantém os mais recentes e remove os demais
     for dir_antigo in diretorios_ordenados[manter:]:
         dir_path = os.path.join(caminho_base, dir_antigo)
         try:
             shutil.rmtree(dir_path)
-            print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [INFO] [{func_name}] [{user}] Diretório removido: {dir_path}")
+            logger.info(f"Diretório removido: {dir_path}")
         except Exception as e:
-            print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [ERRO] [{func_name}] [{user}] Falha ao remover {dir_path}: {e}")
+            logger.error(f"Falha ao remover {dir_path}: {e}")
 
-# --- Função principal ---
+
 def upload_image_from_telegram():
     hoje_str = localtime().strftime("%d-%m-%Y")
     pasta_hoje = os.path.join(CAMINHO_BASE, hoje_str)
-    func_name = inspect.currentframe().f_code.co_name
-    token = sessao.token
 
+    # Recarregar user e sessão ativa a cada execução
+    user = User.objects.get(id=1)
+    sessao = SessaoWpp.objects.filter(usuario=user, is_active=True).first()
+    if not sessao:
+        logger.error(f"[{user}] Nenhuma sessão ativa encontrada!")
+        return
+
+    token = sessao.token
     limpar_diretorios_antigos(CAMINHO_BASE, manter=7)
 
     if not os.path.exists(pasta_hoje):
-        print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [ERROR] [{func_name}] [{user}] Nenhuma imagem encontrada para o dia: {hoje_str}")
+        logger.warning(f"[{user}] Nenhuma imagem encontrada para o dia: {hoje_str}")
         return
 
     arquivos = os.listdir(pasta_hoje)
@@ -214,23 +235,27 @@ def upload_image_from_telegram():
     )
 
     if not imagens:
-        print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [ERROR] [{func_name}] [{user}] Nenhuma imagem válida encontrada na pasta: {pasta_hoje}")
+        logger.warning(f"[{user}] Nenhuma imagem válida encontrada na pasta: {pasta_hoje}")
         return
 
     for img_nome in imagens:
-        time.sleep(random.randint(5, 10))
         caminho_img = os.path.join(pasta_hoje, img_nome)
-        sucesso = upload_imagem_status(
-            imagem=caminho_img,
-            legenda="",
-            usuario=user,
-            token=token,
-            log_path=LOG_PATH
-        )
 
-        status = "[SUCCESS]" if sucesso else "[ERROR]"
-        msg = f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] {status} [{func_name}] [{user}] {'Imagem enviada' if sucesso else 'Falha ao enviar imagem'} '{img_nome}'"
-        print(msg)
+        for tentativa in range(2):  # tenta 2x
+            time.sleep(random.randint(10, 15))
+            sucesso = upload_imagem_status(
+                imagem=caminho_img,
+                legenda="",
+                usuario=user,
+                token=token,
+                log_path=LOG_PATH,
+            )
+
+            if sucesso:
+                logger.info(f"[{user}] Imagem enviada '{img_nome}' (tentativa {tentativa+1})")
+                break
+            else:
+                logger.error(f"[{user}] Falha ao enviar '{img_nome}' (tentativa {tentativa+1})")
 
 
 #################################################################################

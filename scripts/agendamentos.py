@@ -15,8 +15,10 @@ import time
 import asyncio
 import schedule
 import threading
+from datetime import datetime
 from mensagem_gp_wpp import (
-    chamada_funcao_gp_vendas
+    chamada_funcao_gp_vendas,
+    chamada_funcao_gp_futebol,
 )
 from mensagens_wpp import (
     run_scheduled_tasks,
@@ -38,7 +40,7 @@ from integracoes.telegram_connection import telegram_connection
 # Threading para executar os jobs em paralelo
 def run_threaded(job):
     job_thread = threading.Thread(target=job)
-    job_thread.daemon = True # Permite que o programa feche mesmo com threads ativas
+    job_thread.daemon = True
     job_thread.start()
 
 # Função para executar a tarefa assíncrona de agendamento
@@ -47,6 +49,9 @@ def run_telegram_connection():
 
 # Agendar a execução das tarefas em horários específicos
 schedule.every().day.at("08:00").do(
+    run_threaded, chamada_funcao_gp_futebol
+)
+schedule.every().day.at("10:00").do(
     run_threaded, chamada_funcao_gp_vendas
 )
 schedule.every().day.at("12:00").do(
@@ -86,10 +91,9 @@ schedule.every(1).minutes.do(
 )
 
 # Executa imediatamente ao iniciar o servidor
-#run_threaded(run_scheduled_tasks)
+#run_threaded(run_scheduled_tasks) 
 
 # Executar indefinidamente
 while True:
     schedule.run_pending()
     time.sleep(5)
-

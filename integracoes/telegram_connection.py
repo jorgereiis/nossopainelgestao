@@ -1,77 +1,101 @@
 import os
 import sys
 import django
-from datetime import datetime
 from django.utils.timezone import localtime
 import traceback
+import logging
+from telethon import TelegramClient
 
-# Definir a variável de ambiente DJANGO_SETTINGS_MODULE
+# ======================
+# Configuração Django
+# ======================
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
-
-# Adiciona a raiz do projeto ao sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Carregar as configurações do Django
 django.setup()
 
-from telethon import TelegramClient, events, sync
-from telethon.tl.types import MessageMediaPhoto
-
-# Variáveis de ambiente e configuração
-hoje = localtime().strftime('%d-%m-%Y')
+# ======================
+# Configuração Telegram
+# ======================
 api_id = '21357610'
 api_hash = '6bb5cdc0797e1f281db5f85986541a0f'
 phone = '+5583993329190'
-bot_username  = ''
 channel_username = 'mybannerscc'
 
-MEU_NUM_CLARO = os.getenv('MEU_NUM_CLARO')
-IMAGES_BASE_DIR = "images/status_wpp/banners_fup/"
-IMAGES_DIR = os.path.join(IMAGES_BASE_DIR, hoje)
-os.makedirs(IMAGES_DIR, exist_ok=True)
+IMAGES_BASE_DIR = "images/telegram_banners/"
+LOG_DIR = "logs/TelegramConnection/"
+LOG_FILE = os.path.join(LOG_DIR, "telegram_connection.log")
 
+# ======================
+# Configuração Logging
+# ======================
+os.makedirs(LOG_DIR, exist_ok=True)
+
+logger = logging.getLogger("TelegramConnection")
+logger.setLevel(logging.DEBUG)
+
+# Log em arquivo
+file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+file_handler.setLevel(logging.DEBUG)
+
+# Log no console
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+# Formato dos logs
+formatter = logging.Formatter(
+    "[%(asctime)s] [%(levelname)s] [TELEGRAM] %(message)s",
+    datefmt="%d-%m-%Y %H:%M:%S"
+)
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Evitar duplicidade de handlers
+if not logger.handlers:
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+# ======================
+# Função principal
+# ======================
 async def telegram_connection():
-    # Inicializa o cliente do Telegram
+    hoje = localtime().strftime('%d-%m-%Y')
+    IMAGES_DIR = os.path.join(IMAGES_BASE_DIR, hoje)
+    os.makedirs(IMAGES_DIR, exist_ok=True)
+
     client = TelegramClient('telegram_bot', api_id, api_hash)
 
     try:
         await client.start(phone=phone)
-        print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [TELEGRAM] [INIT] Buscando imagens de hoje no canal '{channel_username}'...")
-        try:
-            entity = await client.get_entity(channel_username)
-            print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [TELEGRAM] [OK] Canal encontrado: {entity.title}")
-        except Exception as e:
-            print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [TELEGRAM] [ERRO] Falha ao obter entidade do canal '{channel_username}': {e}")
-            traceback.print_exc()
-            return
+        logger.info(f"Buscando imagens de hoje no canal '{channel_username}'...")
+
+        entity = await client.get_entity(channel_username)
+        logger.info(f"Canal encontrado: {entity.title}")
 
         count = 0
         imagens_baixadas = 0
+        data_hoje_local = localtime().date()
 
-        async for message in client.iter_messages(entity, limit=50):
+        async for message in client.iter_messages(entity, limit=500):
             try:
-                # Convertendo a data da mensagem para o fuso local
                 data_msg_local = localtime(message.date).date()
-                data_hoje_local = localtime().date()
-                if (
-                    message.photo
-                    and data_msg_local == data_hoje_local
-                ):
+                if message.photo and data_msg_local == data_hoje_local:
                     file_name = os.path.join(IMAGES_DIR, f"imagem_{message.id}.jpg")
-                    await message.download_media(file_name)
-                    print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [TELEGRAM] [OK] Imagem baixada: {file_name}")
-                    imagens_baixadas += 1
+                    if not os.path.exists(file_name):
+                        await message.download_media(file_name)
+                        logger.info(f"Imagem baixada: {file_name}")
+                        imagens_baixadas += 1
+                    else:
+                        logger.debug(f"Imagem já existente (ignorada): {file_name}")
                 count += 1
             except Exception as e:
-                print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [TELEGRAM] [ERRO] Erro ao processar mensagem {message.id}: {e}")
+                logger.error(f"Erro ao processar mensagem {message.id}: {e}")
                 traceback.print_exc()
 
-        print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [TELEGRAM] [SUCCESS] Total de mensagens processadas: {count}")
-        print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [TELEGRAM] [SUCCESS] Total de imagens baixadas hoje: {imagens_baixadas}")
+        logger.info(f"Total de mensagens processadas: {count}")
+        logger.info(f"Total de imagens baixadas hoje: {imagens_baixadas}")
 
     except Exception as e:
-        print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [TELEGRAM] [ERRO FATAL] Erro geral no processo: {e}")
+        logger.critical(f"Erro fatal: {e}")
         traceback.print_exc()
     finally:
         await client.disconnect()
- 

@@ -522,11 +522,14 @@
                                     <h4 class="fw-bold mb-2 mt-2">Histórico de indicações</h4>
                                     <div class="card p-5 border rounded me-4 mb-4">
                                         <div class="table-responsive custom-table-scroll mb-4">
-                                            <table class="table text-nowrap mb-0 table-hover" id="table-indicados">
+                                            <table class="table text-nowrap mb-0 table-hover table-center" id="table-indicados">
                                                 <thead class="text-muted fs-6">
                                                     <tr>
                                                         <td>
                                                             <span>ID</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Status</span>
                                                         </td>
                                                         <td>
                                                             <span>Nome</span>
@@ -1462,7 +1465,7 @@
                     // Se não há indicações, adiciona uma única linha com a mensagem
                     var tr = document.createElement('tr');
                     var tdMensagem = document.createElement('td');
-                    tdMensagem.setAttribute('colspan', '3');
+                    tdMensagem.setAttribute('colspan', '4');
                     tdMensagem.textContent = 'Não há indicações desse usuário!';
                     tdMensagem.style.textAlign = 'center';
                     tdMensagem.style.verticalAlign = 'middle';
@@ -1482,6 +1485,14 @@
                             var dataFormatada = partes[2] + '/' + partes[1] + '/' + partes[0];
                             return dataFormatada;
                         }
+
+                        var tdStatus = document.createElement('td');
+                        if (indicado.cancelado) {
+                            tdStatus.innerHTML = '<span class="badge rounded-pill bg-warning pill-invoice">Cancelado</span>';
+                        } else {
+                            tdStatus.innerHTML = '<span class="badge rounded-pill bg-info pill-invoice">Ativo</span>';
+                        }
+                        tr.appendChild(tdStatus);
 
                         var tdNome = document.createElement('td');
                         tdNome.textContent = indicado.nome;

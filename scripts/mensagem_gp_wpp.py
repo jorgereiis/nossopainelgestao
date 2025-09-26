@@ -65,6 +65,16 @@ def _mime_from_ext(filename: str) -> str:
         '.webp': 'image/webp',
     }.get(ext, 'image/png')
 
+def _subdir_futebol(data_envio: Optional[str]) -> str:
+    """
+    Retorna o subdiretório (relativo a /images) para os banners de futebol
+    no padrão: 'telegram_banners/DD-MM-YYYY'.
+
+    :param data_envio: string 'DD-MM-YYYY' para testes; se None, usa data atual.
+    """
+    data_str = (data_envio or localtime().strftime('%d-%m-%Y')).strip()
+    return f"telegram_banners/{data_str}"
+
 # ----------------- ENVIO -----------------
 def enviar_mensagem_grupos(
     grupo_id: str,
@@ -74,6 +84,7 @@ def enviar_mensagem_grupos(
     token: str,
     tipo_envio: str,
     image_name: Optional[str] = None,
+    data_envio: Optional[str] = None,   # << novo: permite testar datas passadas (DD-MM-YYYY)
 ) -> None:
     """
     Envia mensagens/imagens para grupos conforme o tipo_envio:
@@ -81,14 +92,16 @@ def enviar_mensagem_grupos(
     - 'grupo_vendas':
         * Envia 1 imagem (de 'gp_vendas') com legenda = `mensagem`.
         * Usa `image_name` para escolher a imagem.
+
     - 'grupo_futebol':
-        * Envia TODAS as imagens existentes em 'gp_futebol', SEM legenda.
-        * Ao final, envia APENAS um texto com `mensagem`.
+        * Envia TODAS as imagens existentes em 'images/telegram_banners/DD-MM-YYYY', SEM legenda.
+        * Ao final, envia APENAS um texto com `mensagem` **SE e somente SE ao menos uma imagem foi enviada**.
 
     Observações:
         - `grupo_id` deve ser o id do grupo (ex.: '12345-67890@g.us').
         - `usuario` é o identificador da sessão no WPPConnect usado na URL.
         - `token` é o Bearer Token da sessão.
+        - `data_envio` opcional no formato 'DD-MM-YYYY' para testar datas passadas.
     """
     url_base = f"{URL_API_WPP}/{usuario}"
     headers = {
@@ -164,35 +177,47 @@ def enviar_mensagem_grupos(
 
     # --------- fluxo GRUPO FUTEBOL ---------
     if tipo_envio == 'grupo_futebol':
-        imagens = _listar_imagens('gp_futebol')
-        # 1) Envia TODAS as imagens, SEM legenda
-        for img in imagens:
-            img_b64 = obter_img_base64(img, 'gp_futebol')
-            if not img_b64:
-                _log_fail(1, -1, f"Falha ao converter '{img}' em base64 (gp_futebol). Pulando arquivo.")
-                continue
+        subdir_dia = _subdir_futebol(data_envio)  # usa pasta do dia (ou data_override)
+        imagens = _listar_imagens(subdir_dia)
 
-            mime = _mime_from_ext(img)
-            payload_img = {
-                'phone': grupo_id,
-                'isGroup': True,
-                'filename': img,
-                'base64': f'data:{mime};base64,{img_b64}',
-            }
-            url_img = f"{url_base}/send-image"
+        # Contará imagens efetivamente enviadas
+        imagens_enviadas = 0
 
-            enviado = False
-            for tentativa in range(1, 3):
-                ok, err, status = _post_json(url_img, payload_img, tentativa)
-                if ok:
-                    _log_ok()
-                    enviado = True
-                    break
-                _log_fail(tentativa, status, err)
-                time.sleep(random.uniform(20, 30))
+        # Se não houver imagens, loga e NÃO envia o texto final.
+        if not imagens:
+            _log_fail(1, -1, f"Nenhuma imagem encontrada em /images/{subdir_dia}. Texto final será ignorado.")
+        else:
+            # 1) Envia TODAS as imagens do dia, SEM legenda
+            for img in imagens:
+                img_b64 = obter_img_base64(img, subdir_dia)
+                if not img_b64:
+                    _log_fail(1, -1, f"Falha ao converter '{img}' em base64 ({subdir_dia}). Pulando arquivo.")
+                    continue
 
-        # 2) Ao final, envia APENAS o texto `mensagem`
-        if mensagem:
+                mime = _mime_from_ext(img)
+                payload_img = {
+                    'phone': grupo_id,
+                    'isGroup': True,
+                    'filename': img,
+                    'base64': f'data:{mime};base64,{img_b64}',
+                }
+                url_img = f"{url_base}/send-image"
+
+                enviado_essa = False
+                for tentativa in range(1, 3):
+                    ok, err, status = _post_json(url_img, payload_img, tentativa)
+                    if ok:
+                        _log_ok()
+                        enviado_essa = True
+                        break
+                    _log_fail(tentativa, status, err)
+                    time.sleep(random.uniform(20, 30))
+
+                if enviado_essa:
+                    imagens_enviadas += 1
+
+        # 2) Envia o texto final **apenas se ao menos 1 imagem foi enviada**
+        if imagens_enviadas > 0 and mensagem:
             payload_txt = {
                 'phone': grupo_id,
                 'isGroup': True,
@@ -207,6 +232,8 @@ def enviar_mensagem_grupos(
                     break
                 _log_fail(tentativa, status, err)
                 time.sleep(random.uniform(20, 30))
+        elif imagens_enviadas == 0:
+            _log_fail(1, -1, f"Nenhuma imagem enviada com sucesso em /images/{subdir_dia}. Texto final não será enviado.")
         return
 
     # --------- tipo_envio inválido ---------
@@ -239,7 +266,6 @@ def _imagem_vendas_escolher(image_name: Optional[str]) -> Optional[str]:
     if not arquivos:
         return None
 
-    # escolhe a mais recente por mtime
     arquivos.sort(key=lambda f: os.path.getmtime(os.path.join(base_dir, f)), reverse=True)
     return arquivos[0]
 
@@ -249,8 +275,9 @@ def mensagem_gp_wpp(
     nomes_grupos: List[str],
     mensagem: str,
     image_name: Optional[str] = None,
-    atraso_min_s: float = 6.0,
-    atraso_max_s: float = 10.0,
+    atraso_min_s: float = 10.0,
+    atraso_max_s: float = 20.0,
+    data_envio: Optional[str] = None,
 ) -> None:
     """
     Controla o envio de mensagens para grupos do WhatsApp.
@@ -262,18 +289,16 @@ def mensagem_gp_wpp(
         image_name: (opcional) nome do arquivo a usar em 'gp_vendas';
                     se None, escolhe a mais recente da pasta
         atraso_min_s / atraso_max_s: jitter entre envios para reduzir rate limit
+        data_envio: (opcional) 'DD-MM-YYYY' para buscar imagens em telegram_banners/data
     """
     ts = localtime().strftime('%d-%m-%Y %H:%M:%S')
 
-    # ---- resolve sessão/token/usuário da API ----
     django_user = User.objects.get(id=1)  # ajuste se necessário
     sessao = get_object_or_404(SessaoWpp, usuario=django_user)
     token = sessao.token
 
-    # identificador "user" utilizado na rota da API (ex.: nome da sessão WPPConnect)
     api_user = getattr(django_user, "username", str(django_user))
 
-    # ---- valida tipo_envio ----
     if tipo_envio not in {"grupo_vendas", "grupo_futebol"}:
         registrar_log(
             TEMPLATE_LOG_MSG_GRUPO_FALHOU.format(
@@ -284,7 +309,6 @@ def mensagem_gp_wpp(
         )
         return
 
-    # ---- encontra grupos a partir dos nomes informados ----
     try:
         grupos_encontrados = get_group_ids_by_names(token, api_user, nomes_grupos, log_path=LOG_GRUPOS)
     except Exception as e:
@@ -307,7 +331,6 @@ def mensagem_gp_wpp(
         )
         return
 
-    # ---- prepara imagem (somente para vendas) ----
     vendas_img = None
     if tipo_envio == "grupo_vendas":
         vendas_img = _imagem_vendas_escolher(image_name)
@@ -321,11 +344,8 @@ def mensagem_gp_wpp(
             )
             return
 
-    # ---- fan-out de envios por grupo ----
     for group_id, group_name in grupos_encontrados:
         try:
-            # Para vendas: envia UMA imagem com legenda = mensagem
-            # Para futebol: enviar_mensagem_grupos cuidará de enviar TODAS as imagens + texto final
             enviar_mensagem_grupos(
                 grupo_id=group_id,
                 grupo_nome=group_name,
@@ -334,6 +354,7 @@ def mensagem_gp_wpp(
                 token=token,
                 tipo_envio=tipo_envio,
                 image_name=vendas_img if tipo_envio == "grupo_vendas" else None,
+                data_envio=data_envio,  # << propaga data override para futebol
             )
         except Exception as e:
             registrar_log(
@@ -349,17 +370,15 @@ def mensagem_gp_wpp(
                 LOG_GRUPOS,
             )
 
-        # jitter entre grupos para aliviar rate limits
         time.sleep(random.uniform(atraso_min_s, atraso_max_s))
 ##### FIM #####
 
-# VENDAS – usa a última imagem mais recente de images/gp_vendas e legenda informada
+# Exemplo de chamadas
 def chamada_funcao_gp_vendas():
     mensagem_gp_wpp(
         tipo_envio="grupo_vendas",
         nomes_grupos=[
             "Vendas e Desapegos",
-            "👗Bazar das Meninas👗",
             "🌴BV2(Bazar/venda/troca)",
             "👾OLX Brasil Ｇrµ ¹⁹",
             "OLX FORTALEZA",
@@ -368,21 +387,40 @@ def chamada_funcao_gp_vendas():
             "💥 TROCAS E VENDAS 💥",
             "OLX  JACINTINHO - MACEIÓ. VENDAS/TROCAS/ PRESTAÇÃO DE SERVIÇOS.",
         ],
-        mensagem="🔹 A *Star Max Streaming* se trata de um serviço onde através da sua TV Smart poderá ter acesso aos canais da TV Fechada brasileira e internacional.\n\n" \
-        "🎬 Conteúdos de Filmes, Séries e Novelas das maiores plataformas de streaming, como _Amazon, Netflix, Globo Play, Disney+ e outras._\n\n"
-        "* Tudo isso usando apenas a sua TV Smart e internet, sem precisar outros aparelhos;\n"
-        "* Um excelente serviço por um custo baixíssimo;\n"
-        "* Pague com *PIX ou Cartão de Crédito.*\n"
-        "* 💰Planos a partir de R$ 25.00\n\n" \
-        "‼️ Entre em contato conosco aqui mesmo no WhatsApp: +55 83 99332-9190",
-        image_name="01.png",  # None => escolhe a mais recente em images/gp_vendas
+        mensagem=(
+            "🔹 A *Star Max Streaming* se trata de um serviço onde através da sua TV Smart poderá ter acesso aos canais da TV Fechada brasileira e internacional.\n\n"
+            "🎬 Conteúdos de Filmes, Séries e Novelas das maiores plataformas de streaming, como _Amazon, Netflix, Globo Play, Disney+ e outras._\n\n"
+            "* Tudo isso usando apenas a sua TV Smart e internet, sem precisar outros aparelhos;\n"
+            "* Um excelente serviço por um custo baixíssimo;\n"
+            "* Pague com *PIX ou Cartão de Crédito.*\n"
+            "* 💰Planos a partir de R$ 25.00\n\n"
+            "‼️ Entre em contato conosco aqui mesmo no WhatsApp: +55 83 99332-9190"
+        ),
+        image_name="01.png",
     )
 
-# FUTEBOL – envia todas as imagens de images/gp_futebol (sem legendas) e ao final um texto
-"""mensagem_gp_wpp(
-    tipo_envio="grupo_futebol",
-    nomes_grupos=["Anotações 📝",],
-    mensagem="⚽️ *FUTEBOL DO DIA!*"
-    "\n📅 *DATA DOS JOGOS:* {}".format(localtime().strftime('%d/%m/%Y')),
-)"""
+def chamada_funcao_gp_futebol():
+    # sem override => usa a pasta do dia atual
+    mensagem_gp_wpp(
+        tipo_envio="grupo_futebol",
+        nomes_grupos=[
+            "BAMOR 5° VG 🇲🇫🌪️",
+            "Jampa de Aço 5988",
+        ],
+        mensagem="⚽️ *AGENDA FUTEBOL DO DIA!*"
+                 "\n📅 *DATA:* {}\n\n" \
+                 "Transmissão completa de todos os campeonatos apenas aqui 😉\n\n" \
+                 "Chamaaaaa!! 🔥".format(localtime().strftime('%d/%m/%Y')),
+    )
+
+def chamada_funcao_gp_futebol_teste_data_passada():
+    # com override => busca imagens em images/telegram_banners/26-09-2025
+    mensagem_gp_wpp(
+        tipo_envio="grupo_futebol",
+        nomes_grupos=["Anotações 📝"],
+        mensagem="⚽️ *FUTEBOL (TESTE PASSADO)*"
+                 "\n📅 *DATA DOS JOGOS:* 26/09/2025",
+        data_envio="26-09-2025",
+    )
+
 ##### FIM DO SCRIPT #####
