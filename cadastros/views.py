@@ -623,10 +623,9 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             ).aggregate(valor_total=Sum("valor"))["valor_total"]
             or 0
         )
-
         valor_total_pago = format_currency(valor_total_pago, moeda)
 
-        valor_total_pago_qtd = Mensalidade.objects.filter(
+        total_pago_qtd = Mensalidade.objects.filter(
             cancelado=False,
             dt_pagamento__year=ano_atual,
             dt_pagamento__month=mes_atual,
@@ -646,10 +645,11 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         )
         valor_total_receber = format_currency(valor_total_receber, moeda)
 
-        valor_total_receber_qtd = Mensalidade.objects.filter(
+        total_receber_qtd = Mensalidade.objects.filter(
             cancelado=False,
             dt_vencimento__year=ano_atual,
             dt_vencimento__month=mes_atual,
+            dt_vencimento__day__gte=hoje.day,
             usuario=self.request.user,
             pgto=False,
         ).count()
@@ -742,8 +742,8 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "novos_clientes_qtd": novos_clientes_qtd,
                 "clientes_em_atraso": clientes_em_atraso,
                 "valor_total_receber": valor_total_receber,
-                "valor_total_pago_qtd": valor_total_pago_qtd,
-                "valor_total_receber_qtd": valor_total_receber_qtd,
+                "valor_total_pago_qtd": total_pago_qtd,
+                "valor_total_receber_qtd": total_receber_qtd,
                 "clientes_cancelados_qtd": clientes_cancelados_qtd,
                 "total_telas_ativas": int(total_telas),
                 'planos_resumo': planos_resumo,
