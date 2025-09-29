@@ -1,15 +1,23 @@
 import os
 import sys
 import json
-import re
-import time
 import django
-import base64
-import random
 import calendar
 import requests
+import requests
 import subprocess
+from pathlib import Path
+from django.db.models import Q
+from django.utils import timezone
+from urllib3.util.retry import Retry
 from datetime import datetime, timedelta
+from requests.adapters import HTTPAdapter
+import base64, mimetypes, re, time, random
+from django.db import transaction, IntegrityError
+import logging
+
+# Configuração do logger
+logger = logging.getLogger(__name__)
 
 # Definir a variável de ambiente DJANGO_SETTINGS_MODULE
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
@@ -364,7 +372,10 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
     - Ainda não tiver sido enviada naquele dia.
     """
     usuario = User.objects.get(id=1)
-    sessao = get_object_or_404(SessaoWpp, usuario=usuario)
+    sessao = SessaoWpp.objects.filter(usuario=usuario).first()
+    if not sessao or not sessao.token:
+        logger.error("Sessão/token WPP ausente", extra={"user": usuario.username})
+        return
     token = sessao.token
 
     url_envio = f"{URL_API_WPP}/{usuario}/send-{'image' if image_name else 'message'}"
@@ -405,7 +416,7 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já foi feito envio hoje!", usuario, DIR_LOGS_AGENDADOS)
             continue
 
-        # Para avulsos: ignora se já enviado neste mês
+        # ignora se já enviado neste mês (avulso, ativos e cancelados)
         if tipo_envio in ["avulso", "ativos", "cancelados"]:
             hoje = localtime()
             if MensagemEnviadaWpp.objects.filter(
@@ -642,11 +653,6 @@ def run_scheduled_tasks():
     except Exception as e:
         print(f"[ERRO] run_scheduled_tasks(): {str(e)}")
 ##### FIM #####
-
-
-############################################################
-##### FUNÇÃO PARA ENVIAR MENSAGEM AOS GRUPOS DE VENDAS #####
-############################################################
 
 
 ###########################################################

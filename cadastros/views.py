@@ -19,10 +19,10 @@ from datetime import timedelta, datetime, date
 from django.utils.dateparse import parse_date
 from django.forms.models import model_to_dict
 from decimal import Decimal, InvalidOperation
-from django.db.models.functions import Upper, Coalesce, ExtractDay
+from django.db.models.functions import Upper, Coalesce, ExtractDay, Trim
 from django.utils.timezone import localtime, now
 from django.contrib.auth.models import User
-from django.db.models import Sum, Q, Count
+from django.db.models import Sum, Q, Count, F
 from babel.numbers import format_currency
 from matplotlib.patches import Patch
 from django.contrib import messages
@@ -648,8 +648,8 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 
         valor_total_receber_qtd = Mensalidade.objects.filter(
             cancelado=False,
-            dt_vencimento__gte=hoje,
-            dt_vencimento__lt=proxima_semana,
+            dt_vencimento__year=ano_atual,
+            dt_vencimento__month=mes_atual,
             usuario=self.request.user,
             pgto=False,
         ).count()
@@ -677,6 +677,38 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             .distinct()
             .order_by('-ano')
         )
+
+        # Resumo dos planos de adesão
+        planos_adesao = (
+            Cliente.objects
+            .filter(usuario=self.request.user, cancelado=False)
+            .annotate(nome_norm=Upper(Trim(F('plano__nome'))))
+            .values('nome_norm')
+            .annotate(qtd_adesoes=Count('id'))
+            .order_by('nome_norm')
+        )
+        planos_cadastrados_norm = list(
+            Plano.objects.filter(usuario=self.request.user)
+            .annotate(nome_norm=Upper(Trim(F('nome'))))
+            .values_list('nome_norm', flat=True)
+            .distinct()
+        )
+        contagens = {row['nome_norm']: int(row['qtd_adesoes']) for row in planos_adesao}
+        ordem_norm = ['MENSAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL']
+        planos_ordenados_norm = sorted(
+            set(planos_cadastrados_norm),
+            key=lambda n: (ordem_norm.index(n) if n in ordem_norm else len(ordem_norm), n)
+        )
+        def label(n):
+            mapa = {'MENSAL': 'Mensal', 'TRIMESTRAL': 'Trimestral', 'SEMESTRAL': 'Semestral', 'ANUAL': 'Anual'}
+            return mapa.get(n, n.title())
+        total = int(total_clientes) if total_clientes else 0
+        planos_resumo = []
+        for nome_norm in planos_ordenados_norm:
+            qtd = contagens.get(nome_norm, 0)
+            pct = (qtd / total * 100) if total else 0
+            planos_resumo.append({'nome': label(nome_norm), 'qtd': qtd, 'pct': pct})
+        # Fim resumo dos planos de adesão
 
         lista_meses = [
             (1, 'Jan'), (2, 'Fev'), (3, 'Mar'), (4, 'Abr'), (5, 'Mai'), (6, 'Jun'),
@@ -714,6 +746,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "valor_total_receber_qtd": valor_total_receber_qtd,
                 "clientes_cancelados_qtd": clientes_cancelados_qtd,
                 "total_telas_ativas": int(total_telas),
+                'planos_resumo': planos_resumo,
                 ## context para modal de edição
                 "planos": planos,
                 "servidores": servidores,

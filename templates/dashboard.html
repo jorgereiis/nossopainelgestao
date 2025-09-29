@@ -95,12 +95,12 @@
                 </div>
             </div>
             <!-- end offcanvas settings -->
-  
-            <!-- Container fluid -->
+
+            <!-- Faixa superior -->
             <div class="bg-primary pt-10 pb-21"></div>
             <div class="container-fluid mt-n22 px-6">
                 <div class="row">
-                    <div class="col-lg-12 col-md-12 col-12">
+                    <div class="col-12">
                         <!-- Page header -->
                         <div>
                             <div class="d-flex justify-content-between align-items-center">
@@ -114,12 +114,12 @@
                         </div>
                     </div>
 
-                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
-                        <!-- card -->
+                <!-- LINHA DE CARDS: 1/2/4/5 por breakpoint -->
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 row-cols-xl-5 g-4 mt-6">
+                    <div class="col objeto">
+                        <!-- card superior 1 -->
                         <div class="card ">
-                            <!-- card body -->
                             <div class="card-body">
-                                <!-- heading -->
                                 <div class="d-flex justify-content-between align-items-center mb-3 objeto">
                                     <div>
                                         <h4 class="mb-0">Clientes</h4>
@@ -129,24 +129,11 @@
                                     </div>
                                 </div>
 
-                                <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold values1_h1">{{total_clientes}}</h1>
-                                    {% if clientes_em_atraso > 0 %}
-                                    <span class="me-2 ms-auto">
-                                        <i class="bi bi-hand-thumbs-down text-danger me-2"></i>
-                                        <span class="text-dark me-2 values1_span">{{clientes_em_atraso}}</span>
-                                        em atraso
-                                    </span>
-                                    {% else %}
-                                    <span class="me-2 ms-auto">
-                                        <span class="text-dark me-2 values1_span">{{clientes_em_atraso}}</span>
-                                        sem atrasos
-                                    </span>
-                                    {% endif %}
                                     <span class="me-2 ms-auto">
                                         <i class="bi bi-tv  me-2"></i>
-                                        <span class="text-dark me-2 value_tela_span">{{total_telas_ativas}}</span>
+                                        <span class="text-dark me-2 fs-6 value_tela_span">{{total_telas_ativas}}</span>
                                         telas ativas
                                     </span>
                                 </div>
@@ -154,12 +141,10 @@
                         </div>
                     </div>
 
-                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
-                        <!-- card -->
+                    <div class="col objeto">
+                        <!-- card superior 2 -->
                         <div class="card ">
-                            <!-- card body -->
                             <div class="card-body">
-                                <!-- heading -->
                                 <div class="d-flex justify-content-between align-items-center mb-3 objeto">
                                     <div>
                                         <h4 class="mb-0">Recebido no mês</h4>
@@ -169,18 +154,17 @@
                                     </div>
                                 </div>
 
-                                <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold values2_h1">{{valor_total_pago}}</h1>
                                     {% if valor_total_pago_qtd > 0 %}
                                     <p class="mb-0">
                                         <i class="bi bi-hand-thumbs-up text-success me-2"></i>
-                                        <span class="text-dark me-2 values2_span">{{valor_total_pago_qtd}}</span>
+                                        <span class="text-dark me-2 fs-6 values2_span">{{valor_total_pago_qtd}}</span>
                                         pago(s) neste mês
                                     </p>
                                     {% else %}
                                     <p class="mb-0">
-                                        <span class="text-dark me-2 values2_span">{{valor_total_pago_qtd}}</span>
+                                        <span class="text-dark me-2 fs-6 values2_span">{{valor_total_pago_qtd}}</span>
                                         sem pagamentos
                                     </p>
                                     {% endif %}
@@ -189,12 +173,10 @@
                         </div>
                     </div>
 
-                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
-                        <!-- card -->
+                    <div class="col objeto">
+                        <!-- card superior 3 -->
                         <div class="card ">
-                            <!-- card body -->
                             <div class="card-body">
-                                <!-- heading -->
                                 <div class="d-flex justify-content-between align-items-center mb-3 objeto">
                                     <div>
                                         <h4 class="mb-0">À receber no mês</h4>
@@ -204,32 +186,72 @@
                                     </div>
                                 </div>
 
-                                <!-- project number -->
                                 <div>
                                     <h1 class="fw-bold values3_h1">{{valor_total_receber}}</h1>
                                     {% if valor_total_receber_qtd > 0 %}
-                                    <p class="mb-0 ">
-                                        <i class="bi bi-exclamation-triangle text-warning me-2"></i>
-                                        <span class="text-dark values3_span">{{valor_total_receber_qtd}}</span> 
-                                        vencem em até 7 dias
-                                    </p>
+                                    <span class="me-2 ms-auto">
+                                        <i class="bi bi-exclamation-triangle text-warning me-0"></i>
+                                        <span class="text-dark me-2 fs-6 values3_span">{{valor_total_receber_qtd}}</span> 
+                                        à vencer
+                                    </span>
                                     {% else %}
-                                    <p class="mb-0 ">
-                                        <span class="text-dark me-2 values3_span">{{valor_total_receber_qtd}}</span> 
+                                    <span class="me-2 ms-auto">
+                                        <span class="text-dark me-2 fs-6 values3_span">{{valor_total_receber_qtd}}</span> 
                                         sem vencimentos
-                                    </p>
+                                    </span>
+                                    {% endif %}
+                                    {% if clientes_em_atraso > 0 %}
+                                    <span class="me-0 ms-auto">
+                                        <i class="bi bi-hand-thumbs-down text-danger me-0"></i>
+                                        <span class="text-dark me-2 fs-6 values1_span">{{clientes_em_atraso}}</span>
+                                        em atraso
+                                    </span>
+                                    {% else %}
+                                    <span class="me-0 ms-auto">
+                                        <span class="text-dark me-2 fs-6 values1_span">{{clientes_em_atraso}}</span>
+                                        sem atrasos
+                                    </span>
                                     {% endif %}
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="col-xl-3 col-lg-6 col-md-12 col-12 mt-6 objeto">
-                        <!-- card -->
+                    <div class="col objeto">
+                    <!-- card superior 4 -->
+                    <div class="card">
+                        <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3 objeto">
+                            <div>
+                            <h4 class="mb-0">Resumo planos de adesão</h4>
+                            </div>
+                            <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
+                            <i class="bi bi-graph-up-arrow fs-4"></i>
+                            </div>
+                        </div>
+
+                        <div class="d-flex">
+                            <div style="display:flex; flex-direction:column; font-size:12px;">
+                            {% for p in planos_resumo %}
+                                <p class="mb-0 mt-0">
+                                {{ p.qtd }}
+                                <span class="ms-2 fw-bold text-primary">{{ p.nome|title }}</span>
+                                ({{ p.pct|floatformat:0 }}%)
+                                </p>
+                            {% empty %}
+                                <p class="mb-0 mt-0 text-muted">Nenhum plano cadastrado.</p>
+                            {% endfor %}
+                            </div>
+                        </div>
+
+                        </div>
+                    </div>
+                    </div>
+
+                    <div class="col objeto">
+                        <!-- card superior 5 -->
                         <div class="card">
-                            <!-- card body -->
                             <div class="card-body">
-                                <!-- heading -->
                                 <div class="d-flex justify-content-between align-items-center mb-3 objeto">
                                     <div>
                                         <h5 class="mb-0">Adesões e cancelamentos neste mês</h5>
@@ -239,7 +261,6 @@
                                     </div>
                                 </div>
 
-                                <!-- project number -->
                                 <div class="d-flex">
                                     <div style="display: flex; flex-direction: column; mr-0">
                                         <h2 class="fw-bold mb-0">{{novos_clientes_qtd}}</h2>
@@ -255,11 +276,11 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
                     <div class="col-xl-13 col-lg-6 col-md-12 col-12 mt-6 objeto">
-                        <!-- card -->
+                        <!-- card graficos -->
                         <div class="card">
-                            <!-- card body -->
                             <div class="card-body">
                                 <!-- filtros -->
                                 <div class="d-flex justify-content-between align-items-center mb-3 objeto">
@@ -304,11 +325,10 @@
                     </div>
                     
                     <div class="col-xl-13 col-lg-6 col-md-12 col-12 mt-6 objeto">
-                        <!-- card graphic 2 -->
+                        <!-- card mapa -->
                         <div class="card">
-                            <!-- card body graphic 2 -->
                             <div class="card-body">
-                                <!-- graphic 2 image -->
+                                <!-- mapa imagem -->
                                 <div class="d-flex align-items-center justify-content-center flex-column flex-md-row">
                                     <iframe src="{% url 'grafico-mapa-clientes' %}" width="100%" height="378" frameborder="0"></iframe>
                                 </div>
