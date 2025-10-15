@@ -1,0 +1,9 @@
+{% extends "dashboard.html" %}
+{% block content %}
+<h3>Mensalidade #{{ object.pk }}</h3>
+<p><strong>Cliente:</strong> {{ object.cliente.nome }}</p>
+<p><strong>Vencimento:</strong> {{ object.dt_vencimento|date:"d/m/Y" }}</p>
+<p><strong>Valor:</strong> R$ {{ object.valor }}</p>
+<p><strong>Plano:</strong> {{ object.cliente.plano.nome }}</p>
+<p><strong>Forma de pagamento:</strong> {{ object.cliente.forma_pgto.nome }}</p>
+{% endblock %}

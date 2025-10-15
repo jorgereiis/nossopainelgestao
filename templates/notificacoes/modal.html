@@ -1,0 +1,53 @@
+{% load static %}
+
+<!-- Modal Notificações -->
+<div class="modal fade" id="notifModal" tabindex="-1" aria-labelledby="notifModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="notifModalLabel">Notificações</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body" id="notifModalBody">
+        <div class="text-center py-5" id="notifLoader">Carregando…</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const openBtn = document.getElementById('openAllNotifications');
+  const modalEl = document.getElementById('notifModal');
+  const modalBody = document.getElementById('notifModalBody');
+
+  function loadNotifications(url) {
+    modalBody.innerHTML = '<div class="text-center py-5">Carregando…</div>';
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(r => r.text())
+      .then(html => { modalBody.innerHTML = html; })
+      .catch(() => { modalBody.innerHTML = '<div class="text-danger p-3">Erro ao carregar notificações.</div>'; });
+  }
+
+  // Abre modal e carrega a 1ª página
+  openBtn?.addEventListener('click', function (e) {
+    e.preventDefault();
+    const modal = new bootstrap.Modal(modalEl);
+    loadNotifications("{% url 'notifications_modal' %}");
+    modal.show();
+  });
+
+  // Paginação via delegação de eventos
+  modalBody?.addEventListener('click', function (e) {
+    const a = e.target.closest('a.js-notif-page');
+    if (a) {
+      e.preventDefault();
+      const url = "{% url 'notifications_modal' %}" + a.getAttribute('href');
+      loadNotifications(url);
+    }
+  });
+})();
+</script>

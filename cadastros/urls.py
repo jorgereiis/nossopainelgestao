@@ -52,6 +52,9 @@ from .views import (
     CarregarQuantidadesMensalidades,
     generate_graphic_columns_per_year,
     generate_graphic_columns_per_month,
+    notifications_dropdown,
+    NotificationsModalView,
+    MensalidadeDetailView,
 )
 
 urlpatterns = [
@@ -72,6 +75,11 @@ urlpatterns = [
     path("dashboard/busca/", TabelaDashboardAjax.as_view(), name="dashboard-busca"),
     path("clientes-cancelados/", ClientesCancelados.as_view(), name="clientes-cancelados"),
     path("qtds-mensalidades/", CarregarQuantidadesMensalidades.as_view(), name="qtds-mensalidades"),
+
+    ############ Notifications ###########
+    path("notifications/dropdown/", notifications_dropdown, name="notifications_dropdown"),
+    path("notificacoes/modal/", NotificationsModalView.as_view(), name="notifications_modal"),
+    path("mensalidades/<int:pk>/", MensalidadeDetailView.as_view(), name="mensalidade_detalhe"),
 
     ############ Graphics ###########
     path("grafico/anual/", generate_graphic_columns_per_year, name="grafico-anual"),

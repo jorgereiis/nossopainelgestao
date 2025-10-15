@@ -1,4 +1,6 @@
 import requests, operator, logging, codecs, random, base64, json, time, re, os, io
+from django.db.models import Sum, Q, Count, F, ExpressionWrapper, DurationField
+from django.db.models.functions import Upper, Coalesce, ExtractDay, Trim
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.shortcuts import render, redirect, get_object_or_404
@@ -13,16 +15,15 @@ from django.db.models.deletion import ProtectedError
 from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_exempt
 from django.core.validators import validate_email
+from django.utils.timezone import localtime, now
 from django.contrib.auth.views import LoginView
 from django.views.generic.list import ListView
 from datetime import timedelta, datetime, date
 from django.utils.dateparse import parse_date
 from django.forms.models import model_to_dict
 from decimal import Decimal, InvalidOperation
-from django.db.models.functions import Upper, Coalesce, ExtractDay, Trim
-from django.utils.timezone import localtime, now
+from django.views.generic import DetailView
 from django.contrib.auth.models import User
-from django.db.models import Sum, Q, Count, F
 from babel.numbers import format_currency
 from matplotlib.patches import Patch
 from django.contrib import messages
@@ -1276,6 +1277,48 @@ def generate_graphic_map_customers(request):
     """
 
     return HttpResponse(html, content_type="text/html")
+
+
+@login_required
+def notifications_dropdown(request):
+    return render(request, "partials/notifications_dropdown.html", {})
+
+class NotificationsModalView(LoginRequiredMixin, ListView):
+    model = Mensalidade
+    template_name = "notificacoes/_lista_modal.html"
+    context_object_name = "mensalidades"
+    paginate_by = 15
+
+    def get_queryset(self):
+        hoje = timezone.localdate()
+        return (
+            Mensalidade.objects
+            .select_related("cliente", "cliente__forma_pgto", "cliente__plano")
+            .filter(
+                usuario=self.request.user,
+                pgto=False,
+                cancelado=False,
+                cliente__cancelado=False,
+                cliente__forma_pgto__nome=Tipos_pgto.CARTAO,
+                dt_vencimento__lt=hoje,
+            )
+            .annotate(
+                dias_atraso=ExpressionWrapper(
+                    hoje - F("dt_vencimento"), output_field=DurationField()
+                )
+            )
+            .order_by("dt_vencimento")
+        )
+
+class MensalidadeDetailView(LoginRequiredMixin, DetailView):
+    model = Mensalidade
+    template_name = "mensalidades/detalhe.html"
+
+    def get_queryset(self):
+        # Restringe ao usuário logado
+        return Mensalidade.objects.select_related("cliente", "cliente__plano", "cliente__forma_pgto").filter(
+            usuario=self.request.user
+        )
 
 ############################################ UPDATE VIEW ############################################
 

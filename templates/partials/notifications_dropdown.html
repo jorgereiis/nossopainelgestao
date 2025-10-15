@@ -1,0 +1,22 @@
+{% comment %} Lista de notificações para o dropdown {% endcomment %}
+<ul class="list-group list-group-flush notification-list-scroll">
+  {% if notif_count == 0 %}
+    <li class="list-group-item text-center text-muted">Nenhuma notificação 😊</li>
+  {% else %}
+    {% for m in notif_items %}
+      <li class="list-group-item bg-light">
+        <a href="{% url 'mensalidade_detalhe' m.id %}" class="text-muted">
+          <h5 class="mb-1">
+            <span class="badge bg-danger me-2">Vencida</span>
+            {{ m.cliente.nome }} — {{ m.cliente.forma_pgto.nome }}
+          </h5>
+          <p class="mb-0">
+            Venceu em <strong>{{ m.dt_vencimento|date:"d/m/Y" }}</strong>.
+            Plano: <strong>{{ m.cliente.plano.nome }}</strong>.
+            Valor: <strong>R$ {{ m.valor }}</strong>.
+          </p>
+        </a>
+      </li>
+    {% endfor %}
+  {% endif %}
+</ul>

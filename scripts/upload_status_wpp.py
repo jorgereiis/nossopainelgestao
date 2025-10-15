@@ -11,7 +11,6 @@ import threading
 from datetime import datetime
 from django.contrib.auth.models import User
 from django.utils.timezone import localtime
-from django.shortcuts import get_object_or_404
 from cadastros.models import User, ConteudoM3U8, SessaoWpp
 from wpp.api_connection import upload_imagem_status, upload_status_sem_imagem
 

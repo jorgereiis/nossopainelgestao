@@ -204,7 +204,7 @@
                     statusSessao = "DISCONNECTED";
                 } else if (!isConnected && tentativas < maxTentativas) {
                     console.warn("⚠️ Sessão não foi encerrada corretamente. Retentando...");
-                    setTimeout(tentarDesconectar, 2000); // espera 2s antes de repetir
+                    setTimeout(tentarDesconectar, 2000);
                 } else {
                     console.error("❌ Falha ao encerrar sessão após múltiplas tentativas.");
                     exibirMensagemErro("Não foi possível desconectar a sessão.");
@@ -216,7 +216,7 @@
             });
         }
 
-        tentarDesconectar(); // inicia o processo
+        tentarDesconectar();
     }
 
     // Atualiza a visibilidade dos botões com base no status da sessão

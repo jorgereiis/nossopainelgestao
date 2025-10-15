@@ -431,14 +431,24 @@ def upload_status_sem_imagem(texto_status, usuario, token, log_path):
     body = {"text": texto_status}
 
     try:
-        response = requests.post(url, json=body, headers=headers, timeout=30)
-        response.raise_for_status()
-        registrar_log(f"[OK] Mensagem de status enviada para {usuario}", log_path)
-        random.randint(10, 30)
-        return True
+        resp = requests.post(url, json=body, headers=headers, timeout=30)
+        ctype = resp.headers.get("content-type", "")
+        payload = resp.json() if "application/json" in ctype else resp.text
+        ok = (200 <= resp.status_code < 300) and (
+            (isinstance(payload, dict) and (payload.get("success") is True or payload.get("status") in ("OK","success","SENT")))
+            or (isinstance(payload, str) and "success" in payload.lower())
+        )
+        if ok:
+            registrar_log(f"[OK] Mensagem de status enviada para {usuario}", log_path)
+            time.sleep(random.randint(10, 30))
+            return True, payload
+        else:
+            registrar_log(f"[ERRO] {usuario} => status={resp.status_code} payload={payload}", log_path)
+            return False, payload
     except Exception as e:
         registrar_log(f"[ERRO] {usuario} => {e}", log_path)
-        return False
+        return False, f"exception: {e}"
+
 
 # --- Envia imagem com legenda para o status do WhatsApp ---
 def upload_imagem_status(imagem, legenda, usuario, token, log_path):
@@ -450,14 +460,11 @@ def upload_imagem_status(imagem, legenda, usuario, token, log_path):
             # Arquivo local — converte para base64 com tipo MIME
             if not os.path.exists(imagem):
                 raise FileNotFoundError(f"Arquivo não encontrado: {imagem}")
-
             mime_type, _ = mimetypes.guess_type(imagem)
             if not mime_type:
                 raise ValueError("Tipo MIME não identificado para a imagem.")
-
-            with open(imagem, "rb") as img_file:
-                img_base64 = base64.b64encode(img_file.read()).decode("utf-8")
-
+            with open(imagem, "rb") as f:
+                img_base64 = base64.b64encode(f.read()).decode("utf-8")
             path_param = f"data:{mime_type};base64,{img_base64}"
 
         url = f"{URL_API_WPP}/{usuario}/send-image-storie"
@@ -466,16 +473,22 @@ def upload_imagem_status(imagem, legenda, usuario, token, log_path):
             'Accept': 'application/json',
             'Authorization': 'Bearer ' + token
         }
-        body = {
-            "path": path_param,
-            "caption": legenda or ""
-        }
+        body = {"path": path_param, "caption": (legenda or "")}
 
-        response = requests.post(url, json=body, headers=headers, timeout=30)
-        response.raise_for_status()
-        registrar_log(f"[OK] Imagem enviada para {usuario}: {legenda}", log_path)
-        return True
+        resp = requests.post(url, json=body, headers=headers, timeout=60)
+        ctype = resp.headers.get("content-type", "")
+        payload = resp.json() if "application/json" in ctype else resp.text
 
+        ok = (200 <= resp.status_code < 300) and (
+            (isinstance(payload, dict) and (payload.get("success") is True or payload.get("status") in ("OK","success","SENT")))
+            or (isinstance(payload, str) and "success" in payload.lower())
+        )
+        if ok:
+            registrar_log(f"[OK] Imagem enviada para {usuario}: {os.path.basename(imagem)}", log_path)
+            return True, payload
+        else:
+            registrar_log(f"[ERRO] {usuario} => status={resp.status_code} payload={payload}", log_path)
+            return False, payload
     except Exception as e:
         registrar_log(f"[ERRO] {usuario} => {e}", log_path)
-        return False
+        return False, f"exception: {e}"

@@ -99,6 +99,10 @@ TEMPLATES = [
     },
 ]
 
+TEMPLATES[0]["OPTIONS"]["context_processors"] += [
+    "setup.context_processors.notifications",
+]
+
 WSGI_APPLICATION = "setup.wsgi.application"
 
 
