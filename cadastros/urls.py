@@ -47,14 +47,16 @@ from .views import (
     check_connection_wpp,
     delete_payment_method,
     create_payment_method,
+    MensalidadeDetailView,
+    notifications_dropdown,
+    NotificationsModalView,
     CarregarContasDoAplicativo,
+    notifications_mark_all_read,
     generate_graphic_map_customers,
     CarregarQuantidadesMensalidades,
     generate_graphic_columns_per_year,
     generate_graphic_columns_per_month,
-    notifications_dropdown,
-    NotificationsModalView,
-    MensalidadeDetailView,
+    notifications_count,
 )
 
 urlpatterns = [
@@ -80,6 +82,8 @@ urlpatterns = [
     path("notifications/dropdown/", notifications_dropdown, name="notifications_dropdown"),
     path("notificacoes/modal/", NotificationsModalView.as_view(), name="notifications_modal"),
     path("mensalidades/<int:pk>/", MensalidadeDetailView.as_view(), name="mensalidade_detalhe"),
+    path("notifications/count/", notifications_count, name="notifications_count"),
+    path("notifications/mark-all-read/", notifications_mark_all_read, name="notifications_mark_all_read"),
 
     ############ Graphics ###########
     path("grafico/anual/", generate_graphic_columns_per_year, name="grafico-anual"),

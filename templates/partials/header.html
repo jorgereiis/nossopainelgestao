@@ -10,27 +10,31 @@
 
       <!-- Notifications -->
       <li class="dropdown stopevent ms-2">
-        <a class="btn btn-ghost btn-icon rounded-circle position-relative"
+        <a class="btn btn-ghost btn-icon rounded-circle position-relative
+                  {% if notif_count|default:0 > 0 %}notif-alert{% endif %}"
           href="#!" role="button" id="dropdownNotification"
           data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <i class="icon-xs" data-feather="bell"></i>
-          {% if notif_count and notif_count > 0 %}
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-              {{ notif_count|default:"" }}
-            </span>
-          {% endif %}
+
+          <span id="notifBadgeWrapper">
+            {% if notif_count|default:0 > 0 %}
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifBadge">
+                {{ notif_count }}
+              </span>
+            {% endif %}
+          </span>
         </a>
 
         <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end" aria-labelledby="dropdownNotification">
           <div>
             <div class="border-bottom px-3 pt-2 pb-3 d-flex justify-content-between align-items-center">
               <p class="mb-0 text-dark fw-medium fs-4">Notificações</p>
-              <a href="#" class="text-muted">
-                <span><i class="me-1 icon-xs" data-feather="settings"></i></span>
+              <a href="#!" class="text-inherit" id="markAllNotifBtn">
+                Marcar todas como lidas
               </a>
             </div>
             <div id="notif-container" data-simplebar style="height: 250px">
-              {% include "partials/notifications_dropdown.html" %}
+              {% include "notificacoes/dropdown.html" %}
             </div>
             <div class="border-top px-3 py-2 text-center">
               <a href="#!" class="text-inherit" id="openAllNotifications">Ver todas notificações</a>
@@ -102,13 +106,67 @@
 <script>
   // Recarrega o dropdown quando abrir
   document.getElementById('dropdownNotification')?.addEventListener('show.bs.dropdown', function () {
-    $("#notif-container").load("{% url 'notifications_dropdown' %}");
+    $("#notif-container").load("{% url 'notifications_dropdown' %}" + "?_=" + Date.now());
   });
 
-  // (Opcional) Poll leve a cada 60s para atualizar o badge e a lista se o dropdown estiver aberto
+  // Poll leve
   setInterval(function(){
     if ($('.dropdown-menu.show[aria-labelledby="dropdownNotification"]').length) {
-      $("#notif-container").load("{% url 'notifications_dropdown' %}");
+      $("#notif-container").load("{% url 'notifications_dropdown' %}" + "?_=" + Date.now());
     }
   }, 60000);
+</script>
+
+<script>
+(function(){
+  // util: pegar CSRF do cookie padrão do Django
+  function getCookie(name) {
+    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+  const csrftoken = getCookie('csrftoken');
+
+  function refreshDropdown() {
+    $("#notif-container").load("{% url 'notifications_dropdown' %}" + "?_=" + Date.now());
+  }
+
+  function refreshBadge() {
+    fetch("{% url 'notifications_count' %}", { headers: { 'X-Requested-With':'XMLHttpRequest' }})
+      .then(r => r.json())
+      .then(data => {
+        const wrap = document.getElementById('notifBadgeWrapper');
+        if (!wrap) return;
+        if (data.count > 0) {
+          wrap.innerHTML = `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifBadge">${data.count}</span>`;
+          document.getElementById('dropdownNotification')?.classList.add('notif-alert');
+        } else {
+          wrap.innerHTML = "";
+          document.getElementById('dropdownNotification')?.classList.remove('notif-alert');
+        }
+      });
+  }
+
+  // Clique no link "Marcar todas como lidas"
+  document.getElementById('markAllNotifBtn')?.addEventListener('click', function(e){
+    e.preventDefault();
+    const link = this;
+    const oldHtml = link.innerHTML;
+    link.innerHTML = 'Processando…';
+
+    fetch("{% url 'notifications_mark_all_read' %}", {
+      method: "POST",
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRFToken": csrftoken,
+      },
+    })
+    .then(r => r.json())
+    .then(() => {
+      refreshDropdown();
+      refreshBadge();
+    })
+    .catch(() => { alert("Falha ao marcar notificações."); })
+    .finally(() => { link.innerHTML = oldHtml; });
+  });
+})();
 </script>

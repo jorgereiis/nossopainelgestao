@@ -5,12 +5,15 @@
   {% else %}
     {% for m in notif_items %}
       <li class="list-group-item bg-light">
-        <a href="{% url 'mensalidade_detalhe' m.id %}" class="text-muted">
-          <h5 class="mb-1">
+        <a href="#!" class="text-muted">
+          <h6 class="mb-1">
             <span class="badge bg-danger me-2">Vencida</span>
-            {{ m.cliente.nome }} — {{ m.cliente.forma_pgto.nome }}
-          </h5>
-          <p class="mb-0">
+            {{ m.cliente.nome }}
+            — <span class="badge {% if m.cliente.forma_pgto.nome == 'Cartão de Crédito' %}bg-primary{% else %}bg-warning text-dark{% endif %}">
+                {{ m.cliente.forma_pgto.nome }}
+              </span>
+          </h6>
+          <p class="mb-0 fs-6">
             Venceu em <strong>{{ m.dt_vencimento|date:"d/m/Y" }}</strong>.
             Plano: <strong>{{ m.cliente.plano.nome }}</strong>.
             Valor: <strong>R$ {{ m.valor }}</strong>.

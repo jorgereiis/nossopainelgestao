@@ -3,6 +3,7 @@ from django.db.models import Sum, Q, Count, F, ExpressionWrapper, DurationField
 from django.db.models.functions import Upper, Coalesce, ExtractDay, Trim
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.views.decorators.clickjacking import xframe_options_exempt
+from django.views.decorators.cache import cache_page, never_cache
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models.functions import ExtractMonth, ExtractYear
 from django.views.decorators.http import require_http_methods
@@ -12,7 +13,6 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.decorators.vary import vary_on_cookie
 from django.views.decorators.http import require_POST
 from django.db.models.deletion import ProtectedError
-from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_exempt
 from django.core.validators import validate_email
 from django.utils.timezone import localtime, now
@@ -1280,8 +1280,29 @@ def generate_graphic_map_customers(request):
 
 
 @login_required
+@never_cache
 def notifications_dropdown(request):
-    return render(request, "partials/notifications_dropdown.html", {})
+    return render(request, "notificacoes/dropdown.html", {})
+
+@login_required
+@require_POST
+def notifications_mark_all_read(request):
+    hoje = timezone.localdate()
+    tipos = [Tipos_pgto.CARTAO, Tipos_pgto.BOLETO]
+    ids = list(
+        Mensalidade.objects.filter(
+            usuario=request.user,
+            pgto=False, cancelado=False,
+            cliente__cancelado=False,
+            cliente__forma_pgto__nome__in=tipos,
+            dt_vencimento__lt=hoje,
+        ).values_list("id", flat=True)
+    )
+    read_ids = set(request.session.get("notif_read_ids", []))
+    read_ids.update(map(int, ids))
+    request.session["notif_read_ids"] = list(read_ids)
+    request.session.modified = True
+    return JsonResponse({"ok": True, "cleared": len(ids)})
 
 class NotificationsModalView(LoginRequiredMixin, ListView):
     model = Mensalidade
@@ -1309,6 +1330,26 @@ class NotificationsModalView(LoginRequiredMixin, ListView):
             )
             .order_by("dt_vencimento")
         )
+
+@login_required
+def notifications_count(request):
+    hoje = timezone.localdate()
+    read_ids = set(request.session.get("notif_read_ids", []))
+    tipos = [Tipos_pgto.CARTAO, Tipos_pgto.BOLETO]
+
+    count = (
+        Mensalidade.objects
+        .filter(
+            usuario=request.user,
+            pgto=False, cancelado=False,
+            cliente__cancelado=False,
+            cliente__forma_pgto__nome__in=tipos,
+            dt_vencimento__lt=hoje,
+        )
+        .exclude(id__in=read_ids)
+        .count()
+    )
+    return JsonResponse({"count": count})
 
 class MensalidadeDetailView(LoginRequiredMixin, DetailView):
     model = Mensalidade
