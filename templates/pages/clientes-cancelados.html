@@ -20,17 +20,26 @@
                 <div class="row">
                     <div class="col-lg-12 col-md-12 col-12">
                         <!-- Page header -->
-                        <div class="border-bottom pb-4 mb-4 d-flex justify-content-between align-items-center">
-                            <h3 class="mb-0 fw-bold">Listagem de clientes cancelados</h3>
-                            <!-- Dropdown Opções -->
-                            <div class="btn-group">
-                                <div>
-                                    <div>
-                                        <a class="btn btn-outline-secondary" href="{% url 'cadastro-cliente' %}">
-                                            <img src="{% static 'assets/images/svg/person-plus.svg' %}"> Novo Cliente
+                        <div class="border-bottom pb-4 mb-4">
+                            <div class="row align-items-center g-2">
+                                <!-- Título -->
+                                <div class="col-12 col-md">
+                                    <h3 class="mb-0 fw-bold text-truncate">Listagem de clientes cancelados</h3>
+                                </div>
+                    
+                                <!-- Botões -->
+                                <div class="col-12 col-md-auto">
+                                    <div class="d-grid gap-2 d-sm-flex justify-content-md-end">
+                                        <a class="btn btn-outline-secondary d-flex align-items-center justify-content-center w-100 w-sm-auto"
+                                            href="{% url 'cadastro-cliente' %}">
+                                            <img class="me-2" src="{% static 'assets/images/svg/person-plus.svg' %}" alt="">
+                                            Novo Cliente
                                         </a>
-                                        <a class="btn btn-outline-secondary" href="{% url 'importar-clientes' %}">
-                                            <img src="{% static 'assets/images/svg/upload.svg' %}"> Importar Clientes
+                    
+                                        <a class="btn btn-outline-secondary d-flex align-items-center justify-content-center w-100 w-sm-auto"
+                                            href="{% url 'importar-clientes' %}">
+                                            <img class="me-2" src="{% static 'assets/images/svg/upload.svg' %}" alt="">
+                                            Importar Clientes
                                         </a>
                                     </div>
                                 </div>
