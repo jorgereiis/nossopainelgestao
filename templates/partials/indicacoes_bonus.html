@@ -21,12 +21,11 @@
     });
 
     function buscarTodosOsPlanos() {
-        fetch("/edit-referral-plan/")
-            .then(response => {
-                return response.json();
-            })
+        fetch("/edit-referral-plan/", { credentials: "same-origin" })
+            .then(response => parseJsonResponse(response, "carregamento dos planos de indicação"))
             .then(data => {
                 if (data.error) {
+                    console.error("[Planos de indicação] Backend devolveu erro lógico", data.error);
                     Swal.fire("Erro", data.error, "error");
                     return;
                 }
@@ -120,8 +119,8 @@
                 if (window.feather) window.feather.replace();
             })
             .catch((err) => {
-                Swal.fire("Erro", "Erro ao buscar planos.", "error");
-                console.error("Erro no fetch:", err);
+                console.error("[Planos de indicação] Erro ao buscar dados", err);
+                Swal.fire("Erro", err.message || "Erro ao buscar planos.", "error");
             });
     }
 
@@ -175,45 +174,72 @@
             status: novoAtivo
         };
 
+        const textoAnterior = statusAtual === "off" ? "Ativar" : "Desativar";
+        const classeAnterior = statusAtual === "off" ? "btn-primary" : "btn-danger";
+        const statusSpan = document.getElementById('status-plano-' + planoId);
+        const valorAnterior = inputValor ? inputValor.value : "";
+        const inputDesabilitadoAnterior = inputValor ? inputValor.disabled : false;
+
         fetch("/edit-referral-plan/", {
             method: "POST",
+            credentials: "same-origin",
             headers: {
                 "Content-Type": "application/json",
                 "X-CSRFToken": getCookie("csrftoken"),
             },
             body: JSON.stringify(payload)
         })
-        .then(response => response.json())
+        .then(response => parseJsonResponse(response, "atualização do plano de indicação"))
         .then(data => {
-            if (data.success) {
-                botao.setAttribute("data-status", novoAtivo ? "on" : "off");
-                botao.textContent = novoAtivo ? "Desativar" : "Ativar";
-                botao.classList.remove("btn-primary", "btn-danger");
-                if (novoAtivo) {
-                    botao.classList.add("btn-danger");
-                } else {
-                    botao.classList.add("btn-primary");
-                }
-                if (inputValor && data.plano && data.plano.valor !== undefined) {
-                    inputValor.value = data.plano.valor;
-                    inputValor.disabled = novoAtivo;
-                }
+            if (!data.success) {
+                console.error("[Planos de indicação] Resposta sem sucesso", data);
+                throw new Error(data.error || "Erro ao atualizar plano.");
+            }
 
-                if (!novoAtivo && inputValor) {
-                    inputValor.value = "0";
+            botao.setAttribute("data-status", novoAtivo ? "on" : "off");
+            botao.textContent = novoAtivo ? "Desativar" : "Ativar";
+            botao.classList.remove("btn-primary", "btn-danger");
+            botao.classList.add(novoAtivo ? "btn-danger" : "btn-primary");
+
+            if (inputValor && data.plano && data.plano.valor !== undefined) {
+                inputValor.value = data.plano.valor;
+                inputValor.disabled = novoAtivo;
+            }
+
+            if (!novoAtivo && inputValor) {
+                inputValor.value = "0";
+            }
+
+            if (statusSpan) {
+                statusSpan.innerHTML = novoAtivo
+                    ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
+                    : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
+            }
+
+            Swal.fire("Sucesso", "Plano atualizado!", "success");
+        })
+        .catch((error) => {
+            console.error("[Planos de indicação] Falha ao atualizar", error);
+            Swal.fire("Erro", error.message || "Erro de comunicação.", "error");
+
+            botao.setAttribute("data-status", statusAtual);
+            botao.textContent = textoAnterior;
+            botao.classList.remove("btn-primary", "btn-danger");
+            botao.classList.add(classeAnterior);
+
+            if (inputValor) {
+                inputValor.disabled = inputDesabilitadoAnterior;
+                if (!inputValor.disabled) {
+                    inputValor.value = valorAnterior;
                 }
-                const statusSpan = document.getElementById('status-plano-' + planoId);
-                if (statusSpan) {
-                    statusSpan.innerHTML = novoAtivo
-                        ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
-                        : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
-                }
-                Swal.fire("Sucesso", "Plano atualizado!", "success");
-            } else {
-                Swal.fire("Erro", data.error || "Erro ao atualizar plano.", "error");
+            }
+
+            if (statusSpan) {
+                statusSpan.innerHTML = statusAtual === "on"
+                    ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
+                    : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
             }
         })
-        .catch(() => Swal.fire("Erro", "Erro de comunicação.", "error"))
         .finally(() => {
             botao.disabled = false;
         });
@@ -221,26 +247,59 @@
 
     // Função utilitária para CSRF
     function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            let cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                let cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
+        if (name === "csrftoken") {
+            const metaToken = document.querySelector('meta[name="csrf-token"]');
+            if (metaToken && metaToken.content) {
+                return metaToken.content;
             }
         }
-        return cookieValue;
+
+        if (!document.cookie || document.cookie === "") {
+            return null;
+        }
+
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                return decodeURIComponent(cookie.substring(name.length + 1));
+            }
+        }
+
+        return null;
+    }
+
+    function parseJsonResponse(response, context) {
+        const contentType = response.headers.get("content-type") || "";
+
+        if (contentType.includes("application/json")) {
+            return response.json().then((data) => {
+                if (!response.ok) {
+                    console.error(`[${context}] Resposta com erro`, { status: response.status, data });
+                    const message = data.error || data.message || `Falha ao processar ${context}.`;
+                    throw new Error(message);
+                }
+
+                return data;
+            });
+        }
+
+        return response.text().then((text) => {
+            console.error(`[${context}] Resposta não JSON`, {
+                status: response.status,
+                preview: text.slice(0, 300),
+            });
+            throw new Error("Resposta inesperada do servidor.");
+        });
     }
 
     // HORARIOS
     function buscarHorariosEnvios() {
-        fetch("/edit-horario-envios/")
-            .then(response => response.json())
+        fetch("/edit-horario-envios/", { credentials: "same-origin" })
+            .then(response => parseJsonResponse(response, "carregamento dos horários de envio"))
             .then(data => {
                 if (data.error) {
+                    console.error("[Horários de envio] Backend devolveu erro lógico", data.error);
                     Swal.fire("Erro", data.error, "error");
                     return;
                 }
@@ -338,8 +397,8 @@
                 if (window.feather) window.feather.replace();
             })
             .catch((err) => {
-                Swal.fire("Erro", "Erro ao buscar horários.", "error");
-                console.error("Erro no fetch:", err);
+                console.error("[Horários de envio] Erro ao buscar dados", err);
+                Swal.fire("Erro", err.message || "Erro ao buscar horários.", "error");
             });
     }
 
@@ -383,42 +442,68 @@
             horario: horarioValue,
         };
 
+        const textoAnterior = statusAtual === "off" ? "Ativar" : "Desativar";
+        const classeAnterior = statusAtual === "off" ? "btn-primary" : "btn-danger";
+        const statusSpan = document.getElementById('status-horario-' + horarioId);
+        const valorAnterior = inputHorario ? inputHorario.value : "";
+        const inputDesabilitadoAnterior = inputHorario ? inputHorario.disabled : false;
+
         fetch("/edit-horario-envios/", {
             method: "POST",
+            credentials: "same-origin",
             headers: {
                 "Content-Type": "application/json",
                 "X-CSRFToken": getCookie("csrftoken"),
             },
             body: JSON.stringify(payload)
         })
-        .then(response => response.json())
+        .then(response => parseJsonResponse(response, "atualização do horário de envio"))
         .then(data => {
-            if (data.success) {
-                botao.setAttribute("data-status", novoStatus ? "on" : "off");
-                botao.textContent = novoStatus ? "Desativar" : "Ativar";
-                botao.classList.remove("btn-primary", "btn-danger");
-                if (novoStatus) {
-                    botao.classList.add("btn-danger");
-                } else {
-                    botao.classList.add("btn-primary");
-                }
+            if (!data.success) {
+                console.error("[Horários de envio] Resposta sem sucesso", data);
+                throw new Error(data.error || "Erro ao atualizar horário.");
+            }
 
-                if (inputHorario) {
-                    inputHorario.disabled = novoStatus;
-                    if (!novoStatus) inputHorario.value = "";
+            botao.setAttribute("data-status", novoStatus ? "on" : "off");
+            botao.textContent = novoStatus ? "Desativar" : "Ativar";
+            botao.classList.remove("btn-primary", "btn-danger");
+            botao.classList.add(novoStatus ? "btn-danger" : "btn-primary");
+
+            if (inputHorario) {
+                inputHorario.disabled = novoStatus;
+                if (!novoStatus) {
+                    inputHorario.value = "";
                 }
-                const statusSpan = document.getElementById('status-horario-' + horarioId);
-                if (statusSpan) {
-                    statusSpan.innerHTML = novoStatus
-                        ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
-                        : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
-                }
-                Swal.fire("Sucesso", "Horário atualizado!", "success");
-            } else {
-                Swal.fire("Erro", data.error || "Erro ao atualizar horário.", "error");
+            }
+
+            if (statusSpan) {
+                statusSpan.innerHTML = novoStatus
+                    ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
+                    : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
+            }
+
+            Swal.fire("Sucesso", "Horário atualizado!", "success");
+        })
+        .catch((error) => {
+            console.error("[Horários de envio] Falha ao atualizar", error);
+            Swal.fire("Erro", error.message || "Erro de comunicação.", "error");
+
+            botao.setAttribute("data-status", statusAtual);
+            botao.textContent = textoAnterior;
+            botao.classList.remove("btn-primary", "btn-danger");
+            botao.classList.add(classeAnterior);
+
+            if (inputHorario) {
+                inputHorario.disabled = inputDesabilitadoAnterior;
+                inputHorario.value = valorAnterior;
+            }
+
+            if (statusSpan) {
+                statusSpan.innerHTML = statusAtual === "on"
+                    ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
+                    : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
             }
         })
-        .catch(() => Swal.fire("Erro", "Erro de comunicação.", "error"))
         .finally(() => {
             botao.disabled = false;
         });

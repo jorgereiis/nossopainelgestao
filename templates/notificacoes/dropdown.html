@@ -1,15 +1,15 @@
 {% comment %} Lista de notificações para o dropdown {% endcomment %}
 <ul class="list-group list-group-flush notification-list-scroll">
-  {% if notif_count == 0 %}
-    <li class="list-group-item text-center text-muted">Nenhuma notificação 😊</li>
+  {% if notif_items|length == 0 %}
+    <li class="list-group-item text-center text-muted">Nenhuma notificação 🙂</li>
   {% else %}
     {% for m in notif_items %}
       <li class="list-group-item bg-light">
-        <a href="#!" class="text-muted">
+        <a href="#" class="text-muted text-decoration-none">
           <h6 class="mb-1">
             <span class="badge bg-danger me-2">Vencida</span>
             {{ m.cliente.nome }}
-            — <span class="badge {% if m.cliente.forma_pgto.nome == 'Cartão de Crédito' %}bg-primary{% else %}bg-warning text-dark{% endif %}">
+            &mdash; <span class="badge {% if m.cliente.forma_pgto.nome == 'Cartão de Crédito' %}bg-primary{% else %}bg-warning text-dark{% endif %}">
                 {{ m.cliente.forma_pgto.nome }}
               </span>
           </h6>

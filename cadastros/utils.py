@@ -10,7 +10,7 @@ from typing import Union
 from pprint import pprint
 from decimal import Decimal
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from django.utils.timezone import localtime, now
 from dateutil.relativedelta import relativedelta
 from django.db.models import Q
@@ -19,7 +19,7 @@ from .models import (
     PlanoIndicacao, Cliente,
     Servidor, Dispositivo,
     Aplicativo, Plano, Tipos_pgto,
-    ContaDoAplicativo,
+    ContaDoAplicativo, UserActionLog,
 )
 from wpp.api_connection import (
     check_number_status,
@@ -73,6 +73,83 @@ def registrar_log(mensagem: str, usuario: str, log_directory: str) -> None:
 
     with open(log_filename, "a", encoding="utf-8") as log:
         log.write(mensagem + "\n")
+#### FIM #####
+
+
+def _prepare_extra_payload(value):
+    """
+    Normaliza dados suplementares para armazenamento em JSONField.
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, (str, int, float, bool)):
+        return value
+
+    if isinstance(value, Decimal):
+        return str(value)
+
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+
+    if isinstance(value, dict):
+        return {str(key): _prepare_extra_payload(val) for key, val in value.items()}
+
+    if isinstance(value, (list, tuple, set)):
+        return [_prepare_extra_payload(item) for item in value]
+
+    return str(value)
+
+
+def log_user_action(
+    request,
+    action: str,
+    instance=None,
+    message: str = "",
+    extra=None,
+    entity: str = None,
+    object_id=None,
+    object_repr: str = None,
+) -> None:
+    """
+    Registra uma ação realizada pelo usuário autenticado no sistema.
+    """
+    user = getattr(request, "user", None)
+    if not user or not getattr(user, "is_authenticated", False):
+        return
+
+    try:
+        if entity is None and instance is not None:
+            entity = instance.__class__.__name__
+
+        if object_id is None and instance is not None:
+            object_id = getattr(instance, "pk", "") or ""
+
+        if object_repr is None and instance is not None:
+            object_repr = str(instance)
+
+        ip_address = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        if ip_address:
+            ip_address = ip_address.split(",")[0].strip()
+        else:
+            ip_address = request.META.get("REMOTE_ADDR", "")
+
+        payload = {
+            "usuario": user,
+            "acao": action if action in dict(UserActionLog.ACTION_CHOICES) else UserActionLog.ACTION_OTHER,
+            "entidade": entity or "",
+            "objeto_id": str(object_id) if object_id not in (None, "") else "",
+            "objeto_repr": (object_repr or "")[:255],
+            "mensagem": message or "",
+            "extras": _prepare_extra_payload(extra),
+            "ip": ip_address or None,
+            "request_path": (getattr(request, "path", "") or "")[:255],
+        }
+
+        UserActionLog.objects.create(**payload)
+
+    except Exception as exc:
+        logger.exception("Falha ao registrar log de ação do usuário: %s", exc)
 #### FIM #####
 
 

@@ -1,0 +1,87 @@
+<div class="modal fade" id="userLogsModal" tabindex="-1" aria-labelledby="userLogsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="userLogsModalLabel">Logs de ações do usuário</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 align-items-end mb-3" id="userLogsFilters">
+          <div class="col-sm-6 col-md-3">
+            <label for="userLogsAction" class="form-label form-label-sm">Tipo de ação</label>
+            <select class="form-select form-select-sm" id="userLogsAction">
+              <option value="">Todas</option>
+            </select>
+          </div>
+          <div class="col-sm-6 col-md-3 d-none" id="userLogsUserWrapper">
+            <label for="userLogsUser" class="form-label form-label-sm">Usuário</label>
+            <select class="form-select form-select-sm" id="userLogsUser">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="col-sm-4 col-md-2">
+            <label for="userLogsLimit" class="form-label form-label-sm">Limite</label>
+            <select class="form-select form-select-sm" id="userLogsLimit">
+              <option value="20">20</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="150">150</option>
+              <option value="200">200</option>
+            </select>
+          </div>
+          <div class="col-sm-8 col-md-2">
+            <label for="userLogsSearch" class="form-label form-label-sm">Busca</label>
+            <input type="search" class="form-control form-control-sm" id="userLogsSearch" placeholder="Mensagem ou entidade">
+          </div>
+          <div class="col-md-2">
+            <button type="button" class="btn btn-primary btn-sm w-100" id="userLogsRefresh">
+              Atualizar
+            </button>
+          </div>
+        </div>
+        <div class="row g-2 mb-3" id="userLogsDateFilters">
+          <div class="col-sm-6 col-md-3">
+            <label for="userLogsSince" class="form-label form-label-sm">A partir de</label>
+            <input type="date" class="form-control form-control-sm" id="userLogsSince">
+          </div>
+          <div class="col-sm-6 col-md-3">
+            <label for="userLogsUntil" class="form-label form-label-sm">Até</label>
+            <input type="date" class="form-control form-control-sm" id="userLogsUntil">
+          </div>
+          <div class="col-md-3 d-flex align-items-end">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="userLogsClearFilters">
+              Limpar filtros
+            </button>
+          </div>
+        </div>
+        <div id="userLogsFeedback" class="alert alert-info d-none" role="alert"></div>
+        <div class="table-responsive border rounded">
+          <table class="table table-sm align-middle mb-0" id="userLogsTable">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">Data/Hora</th>
+                <th scope="col">Usuário</th>
+                <th scope="col">Ação</th>
+                <th scope="col">Entidade</th>
+                <th scope="col">Mensagem</th>
+                <th scope="col">Extras</th>
+                <th scope="col">Origem</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4">Nenhuma informação encontrada.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <small class="text-muted" id="userLogsSummary"></small>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

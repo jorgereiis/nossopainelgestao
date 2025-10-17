@@ -1,0 +1,31 @@
+{% load static %}
+
+<!-- Modal de exibição dos logs do sistema -->
+<div class="modal fade" id="logs-modal" tabindex="-1" role="dialog" aria-labelledby="logs-label">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content d-flex flex-column">
+            <div class="modal-header">
+                <h4 class="modal-title" id="logs-label">LOGs</h4>
+                <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
+                </button>
+            </div>
+                <div class="modal-body">
+                    <div id="show-logs" class="row g-2 flex-wrap justify-content-center"></div>
+                </div>
+            <div class="modal-footer d-flex justify-content-center">
+            </div>
+        </div>
+    </div>
+</div>
+<!-- end modal -->
+
+<style>
+#logs-modal .modal-dialog {
+    max-width: 95vw;   /* pode ser menor, tipo 800px, se preferir */
+    width: auto;
+}
+#logs-modal .modal-body {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+</style>

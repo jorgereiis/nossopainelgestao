@@ -1,5 +1,4 @@
 {% load static %}
-
 <div class="header">
   <!-- navbar -->
   <nav class="navbar-classic navbar navbar-expand-lg">
@@ -12,7 +11,7 @@
       <li class="dropdown stopevent ms-2">
         <a class="btn btn-ghost btn-icon rounded-circle position-relative
                   {% if notif_count|default:0 > 0 %}notif-alert{% endif %}"
-          href="#!" role="button" id="dropdownNotification"
+          href="#" role="button" id="dropdownNotification"
           data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <i class="icon-xs" data-feather="bell"></i>
 
@@ -29,7 +28,7 @@
           <div>
             <div class="border-bottom px-3 pt-2 pb-3 d-flex justify-content-between align-items-center">
               <p class="mb-0 text-dark fw-medium fs-4">Notificações</p>
-              <a href="#!" class="text-inherit" id="markAllNotifBtn">
+              <a href="#" class="text-inherit" id="markAllNotifBtn">
                 Marcar todas como lidas
               </a>
             </div>
@@ -37,7 +36,7 @@
               {% include "notificacoes/dropdown.html" %}
             </div>
             <div class="border-top px-3 py-2 text-center">
-              <a href="#!" class="text-inherit" id="openAllNotifications">Ver todas notificações</a>
+              <a href="#" class="text-inherit" id="openAllNotifications">Ver todas notificações</a>
             </div>
           </div>
         </div>
@@ -52,30 +51,25 @@
         </a>
         <div class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownUser">
           <div class="px-4 pb-0 pt-2">
-
-
-            <div class="lh-1 ">
+            <div class="lh-1">
               <h5 class="mb-1"> {{ request.user }}</h5>
               <a href="{% url 'perfil' %}" class="text-inherit fs-6">Ver perfil</a>
             </div>
-            <div class=" dropdown-divider mt-3 mb-2"></div>
+            <div class="dropdown-divider mt-3 mb-2"></div>
           </div>
 
           <ul class="list-unstyled">
-
             <li>
               <button class="dropdown-item" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasConfigs"
                 aria-controls="offcanvasConfigs">
                 <i class="me-2 icon-xxs dropdown-item-icon" data-feather="settings"></i>Configurações
               </button>
             </li>
-
             <li>
-              <a class="dropdown-item" href="#">
+              <button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#userLogsModal" id="openUserLogsBtn">
                 <i class="me-2 icon-xxs dropdown-item-icon" data-feather="book"></i>Logs
-              </a>
+              </button>
             </li>
-
             <li>
               <form method="POST" action="{% url 'logout' %}" style="display: inline;">
                 {% csrf_token %}
@@ -92,11 +86,6 @@
   </nav>
 </div>
 
-<!-- loader.html -->
-<div class="spinner-border text-primary" role="status" id="loader" style="display: none;">
-  <span class="visually-hidden">Loading...</span>
-</div>
-
 {% include 'partials/scripts.html' %}
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css">
@@ -104,12 +93,10 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 
 <script>
-  // Recarrega o dropdown quando abrir
   document.getElementById('dropdownNotification')?.addEventListener('show.bs.dropdown', function () {
     $("#notif-container").load("{% url 'notifications_dropdown' %}" + "?_=" + Date.now());
   });
 
-  // Poll leve
   setInterval(function(){
     if ($('.dropdown-menu.show[aria-labelledby="dropdownNotification"]').length) {
       $("#notif-container").load("{% url 'notifications_dropdown' %}" + "?_=" + Date.now());
@@ -119,12 +106,7 @@
 
 <script>
 (function(){
-  // util: pegar CSRF do cookie padrão do Django
-  function getCookie(name) {
-    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return m ? m.pop() : '';
-  }
-  const csrftoken = getCookie('csrftoken');
+  const csrftoken = "{{ csrf_token }}" || null;
 
   function refreshDropdown() {
     $("#notif-container").load("{% url 'notifications_dropdown' %}" + "?_=" + Date.now());
@@ -146,12 +128,17 @@
       });
   }
 
-  // Clique no link "Marcar todas como lidas"
   document.getElementById('markAllNotifBtn')?.addEventListener('click', function(e){
     e.preventDefault();
     const link = this;
     const oldHtml = link.innerHTML;
     link.innerHTML = 'Processando…';
+
+    if (!csrftoken) {
+      alert("Token CSRF indisponível. Recarregue a página e tente novamente.");
+      link.innerHTML = oldHtml;
+      return;
+    }
 
     fetch("{% url 'notifications_mark_all_read' %}", {
       method: "POST",

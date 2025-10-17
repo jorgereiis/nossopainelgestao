@@ -1,10 +1,10 @@
-function modal_logs() {
+function modal_adminlogs() {
     $('#logs-modal').modal('show');
     $("#show-logs").html('<div class="text-muted">Carregando arquivos de log...</div>');
     console.log("Modal de logs aberto");
     console.log(typeof $('#logs-modal').modal);
 
-    // Buscar lista de arquivos de log
+    // Buscar lista de arquivos de log do Admin
     $.get("/logs/list/", function(response) {
         if (response.files.length === 0) {
             $("#show-logs").html('<div class="alert alert-warning">Nenhum arquivo de log encontrado.</div>');

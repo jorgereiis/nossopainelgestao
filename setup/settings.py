@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path, os
 from dotenv import load_dotenv
 import logging
+from django.core.exceptions import ImproperlyConfigured
 
 
 
@@ -25,8 +26,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-
 SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY environment variable is not set.")
 
 # reCaptcha Configs
 
@@ -38,7 +40,19 @@ RECAPTCHA_REQUIRED_SCORE = 0.85
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['nossopainel.com.br', 'www.nossopainel.com.br', 'localhost', '127.0.0.1', '67.23.235.238', '186.227.198.200', '187.45.181.20']
+_allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS")
+if _allowed_hosts_env:
+    ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_env.split(",") if host.strip()]
+else:
+    ALLOWED_HOSTS = [
+        'nossopainel.com.br',
+        'www.nossopainel.com.br',
+        'localhost',
+        '127.0.0.1',
+        '67.23.235.238',
+        '186.227.198.200',
+        '187.45.181.20',
+    ]
 
 # Application definition
 
@@ -73,6 +87,17 @@ MIDDLEWARE = [
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "SAMEORIGIN"
+SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "0").lower() in ("1", "true", "yes")
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = bool(SECURE_HSTS_SECONDS)
+SECURE_HSTS_PRELOAD = False
 
 CSRF_TRUSTED_ORIGINS = [
     'https://nossopainel.com.br',

@@ -122,8 +122,8 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
 def obter_mensalidades_a_vencer(usuario_query):
     dias_envio = {
         2: "à vencer 2 dias",
-        1: "lembrete 1 dia",
-        0: "vence_hoje"
+        1: "à vencer 1 dia",
+        0: "vence hoje"
     }
 
     for dias, tipo_mensagem in dias_envio.items():

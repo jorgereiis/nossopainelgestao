@@ -19,6 +19,7 @@ from .models import (
     TelefoneLeads,
     EnviosLeads,
     MensagensLeads,
+    UserActionLog,
 )
 
 # --- ADMINISTRADORES ---
@@ -170,6 +171,15 @@ class MensagensLeadsAdmin(admin.ModelAdmin):
     ordering = ("-id",)
 
 
+class UserActionLogAdmin(admin.ModelAdmin):
+    list_display = ("criado_em", "usuario", "acao", "entidade", "objeto_repr")
+    list_filter = ("acao", "entidade", "usuario")
+    search_fields = ("objeto_repr", "mensagem", "usuario__username", "objeto_id")
+    readonly_fields = ("usuario", "acao", "entidade", "objeto_id", "objeto_repr", "mensagem", "extras", "ip", "request_path", "criado_em")
+    ordering = ("-criado_em",)
+    list_per_page = 50
+
+
 # --- REGISTRO NO ADMIN ---
 
 admin.site.register(Plano, PlanoAdmin)
@@ -191,6 +201,7 @@ admin.site.register(DominiosDNS, DominiosDNSAdmin)
 admin.site.register(TelefoneLeads, TelefoneLeadsAdmin)
 admin.site.register(EnviosLeads, EnviosLeadsAdmin)
 admin.site.register(MensagensLeads, MensagensLeadsAdmin)
+admin.site.register(UserActionLog, UserActionLogAdmin)
 
 # Configurações adicionais do admin
 admin.site.site_header = "Administração do Sistema"

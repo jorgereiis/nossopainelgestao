@@ -460,3 +460,67 @@ class MensagensLeads(models.Model):
 
     def __str__(self):
         return self.tipo
+
+
+class NotificationRead(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications_read")
+    mensalidade = models.ForeignKey(Mensalidade, on_delete=models.CASCADE, related_name="notifications_read")
+    marcado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Notificação lida"
+        verbose_name_plural = "Notificações lidas"
+        unique_together = (("usuario", "mensalidade"),)
+
+    def __str__(self):
+        return f"{self.usuario} - {self.mensalidade_id}"
+
+
+class UserActionLog(models.Model):
+    """Armazena o histórico de ações feitas manualmente pelos usuários no sistema."""
+
+    ACTION_CREATE = "create"
+    ACTION_UPDATE = "update"
+    ACTION_DELETE = "delete"
+    ACTION_IMPORT = "import"
+    ACTION_CANCEL = "cancel"
+    ACTION_REACTIVATE = "reactivate"
+    ACTION_PAYMENT = "payment"
+    ACTION_OTHER = "other"
+
+    ACTION_CHOICES = [
+        (ACTION_CREATE, "Criação"),
+        (ACTION_UPDATE, "Atualização"),
+        (ACTION_DELETE, "Exclusão"),
+        (ACTION_IMPORT, "Importação"),
+        (ACTION_CANCEL, "Cancelamento"),
+        (ACTION_REACTIVATE, "Reativação"),
+        (ACTION_PAYMENT, "Pagamento"),
+        (ACTION_OTHER, "Ação"),
+    ]
+
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name="action_logs")
+    acao = models.CharField(max_length=32, choices=ACTION_CHOICES, default=ACTION_OTHER)
+    entidade = models.CharField(max_length=100, blank=True)
+    objeto_id = models.CharField(max_length=64, blank=True)
+    objeto_repr = models.CharField(max_length=255, blank=True)
+    mensagem = models.TextField(blank=True)
+    extras = models.JSONField(blank=True, null=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    request_path = models.CharField(max_length=255, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Log de ação de usuário"
+        verbose_name_plural = "Logs de ações de usuários"
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(fields=["usuario", "-criado_em"]),
+            models.Index(fields=["entidade", "acao"]),
+        ]
+
+    def __str__(self):
+        entidade = self.entidade or "Objeto"
+        return f"{self.usuario} - {entidade} - {self.get_acao_display()} em {self.criado_em:%d/%m/%Y %H:%M}"
+
+
