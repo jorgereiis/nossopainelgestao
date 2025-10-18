@@ -8,7 +8,7 @@ from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.cache import cache_page, never_cache
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models.functions import ExtractMonth, ExtractYear
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_GET
 from plotly.colors import sample_colorscale, make_colorscale
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -1184,6 +1184,284 @@ def generate_graphic_columns_per_month(request):
     plt.close()
 
     return HttpResponse(buffer.getvalue(), content_type="image/png")
+
+
+def _month_name_pt(month: int) -> str:
+    nomes = [
+        "",
+        "Janeiro",
+        "Fevereiro",
+        "Mar\u00e7o",
+        "Abril",
+        "Maio",
+        "Junho",
+        "Julho",
+        "Agosto",
+        "Setembro",
+        "Outubro",
+        "Novembro",
+        "Dezembro",
+    ]
+    if 1 <= month < len(nomes):
+        return nomes[month]
+    return str(month)
+
+
+def _month_abbr_pt(month: int) -> str:
+    abreviacoes = [
+        "Jan",
+        "Fev",
+        "Mar",
+        "Abr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Set",
+        "Out",
+        "Nov",
+        "Dez",
+    ]
+    if 1 <= month <= len(abreviacoes):
+        return abreviacoes[month - 1]
+    return str(month)
+
+
+def _dataset_adesao_cancelamentos_mensal(usuario, year: int, month: int):
+    dados_adesoes = (
+        Cliente.objects.filter(
+            data_adesao__year=year,
+            data_adesao__month=month,
+            usuario=usuario,
+        )
+        .annotate(dia=ExtractDay("data_adesao"))
+        .values("dia")
+        .annotate(total=Count("id"))
+        .order_by("dia")
+    )
+
+    dados_cancelamentos = (
+        Cliente.objects.filter(
+            data_cancelamento__year=year,
+            data_cancelamento__month=month,
+            usuario=usuario,
+        )
+        .annotate(dia=ExtractDay("data_cancelamento"))
+        .values("dia")
+        .annotate(total=Count("id"))
+        .order_by("dia")
+    )
+
+    adesoes_dict = {item["dia"]: item["total"] for item in dados_adesoes}
+    cancelamentos_dict = {item["dia"]: item["total"] for item in dados_cancelamentos}
+
+    categorias = []
+    adesoes = []
+    cancelamentos = []
+    saldo = []
+
+    total_dias = calendar.monthrange(year, month)[1]
+    for dia in range(1, total_dias + 1):
+        if dia in adesoes_dict or dia in cancelamentos_dict:
+            valor_adesao = adesoes_dict.get(dia, 0)
+            valor_cancelamento = cancelamentos_dict.get(dia, 0)
+            categorias.append(str(dia))
+            adesoes.append(valor_adesao)
+            cancelamentos.append(valor_cancelamento)
+            saldo.append(valor_adesao - valor_cancelamento)
+
+    total_adesoes = sum(adesoes)
+    total_cancelamentos = sum(cancelamentos)
+    saldo_final = total_adesoes - total_cancelamentos
+
+    return {
+        "mode": "monthly",
+        "categories": categorias,
+        "series": [
+            {"key": "adesoes", "name": "Ades\u00f5es", "type": "bar", "data": adesoes},
+            {"key": "cancelamentos", "name": "Cancelamentos", "type": "bar", "data": cancelamentos},
+            {"key": "saldo", "name": "Saldo", "type": "line", "data": saldo},
+        ],
+        "summary": {
+            "total_adesoes": total_adesoes,
+            "total_cancelamentos": total_cancelamentos,
+            "saldo": saldo_final,
+            "saldo_label": f"{'+' if saldo_final > 0 else ''}{saldo_final}",
+        },
+        "meta": {
+            "mode": "monthly",
+            "month": month,
+            "month_name": _month_name_pt(month),
+            "year": year,
+            "range_label": f"{_month_name_pt(month)} {year}",
+        },
+    }
+
+
+def _dataset_adesao_cancelamentos_lifetime(usuario):
+    dados_adesoes = (
+        Cliente.objects.filter(usuario=usuario, data_adesao__isnull=False)
+        .annotate(ano=ExtractYear("data_adesao"), mes=ExtractMonth("data_adesao"))
+        .values("ano", "mes")
+        .annotate(total=Count("id"))
+        .order_by("ano", "mes")
+    )
+
+    dados_cancelamentos = (
+        Cliente.objects.filter(usuario=usuario, data_cancelamento__isnull=False)
+        .annotate(ano=ExtractYear("data_cancelamento"), mes=ExtractMonth("data_cancelamento"))
+        .values("ano", "mes")
+        .annotate(total=Count("id"))
+        .order_by("ano", "mes")
+    )
+
+    adesoes_dict = {(item["ano"], item["mes"]): item["total"] for item in dados_adesoes}
+    cancelamentos_dict = {(item["ano"], item["mes"]): item["total"] for item in dados_cancelamentos}
+
+    todos_periodos = sorted(set(adesoes_dict.keys()) | set(cancelamentos_dict.keys()))
+
+    categorias = []
+    adesoes = []
+    cancelamentos = []
+    saldo = []
+
+    for ano, mes in todos_periodos:
+        valor_adesao = adesoes_dict.get((ano, mes), 0)
+        valor_cancelamento = cancelamentos_dict.get((ano, mes), 0)
+        categorias.append(f"{_month_abbr_pt(mes)} {ano}")
+        adesoes.append(valor_adesao)
+        cancelamentos.append(valor_cancelamento)
+        saldo.append(valor_adesao - valor_cancelamento)
+
+    total_adesoes = sum(adesoes)
+    total_cancelamentos = sum(cancelamentos)
+    saldo_final = total_adesoes - total_cancelamentos
+
+    meta = {
+        "mode": "lifetime",
+        "title": "Ades\u00e3o e Cancelamentos - Hist\u00f3rico completo",
+    }
+    if todos_periodos:
+        ano_inicio, mes_inicio = todos_periodos[0]
+        ano_fim, mes_fim = todos_periodos[-1]
+        meta.update(
+            {
+                "start_year": ano_inicio,
+                "start_month": mes_inicio,
+                "end_year": ano_fim,
+                "end_month": mes_fim,
+                "range_label": f"De {_month_abbr_pt(mes_inicio)} {ano_inicio} a {_month_abbr_pt(mes_fim)} {ano_fim}",
+            }
+        )
+
+    return {
+        "mode": "lifetime",
+        "categories": categorias,
+        "series": [
+            {"key": "adesoes", "name": "Ades\u00f5es", "type": "bar", "data": adesoes},
+            {"key": "cancelamentos", "name": "Cancelamentos", "type": "bar", "data": cancelamentos},
+            {"key": "saldo", "name": "Saldo", "type": "line", "data": saldo},
+        ],
+        "summary": {
+            "total_adesoes": total_adesoes,
+            "total_cancelamentos": total_cancelamentos,
+            "saldo": saldo_final,
+            "saldo_label": f"{'+' if saldo_final > 0 else ''}{saldo_final}",
+        },
+        "meta": meta,
+    }
+
+
+def _dataset_adesao_cancelamentos_anual(usuario, year: int):
+    dados_adesoes = (
+        Cliente.objects.filter(data_adesao__year=year, usuario=usuario)
+        .annotate(mes=ExtractMonth("data_adesao"))
+        .values("mes")
+        .annotate(total=Count("id"))
+        .order_by("mes")
+    )
+
+    dados_cancelamentos = (
+        Cliente.objects.filter(data_cancelamento__year=year, usuario=usuario)
+        .annotate(mes=ExtractMonth("data_cancelamento"))
+        .values("mes")
+        .annotate(total=Count("id"))
+        .order_by("mes")
+    )
+
+    adesoes_dict = {item["mes"]: item["total"] for item in dados_adesoes}
+    cancelamentos_dict = {item["mes"]: item["total"] for item in dados_cancelamentos}
+
+    categorias = []
+    adesoes = []
+    cancelamentos = []
+    saldo = []
+
+    for mes in range(1, 13):
+        valor_adesao = adesoes_dict.get(mes, 0)
+        valor_cancelamento = cancelamentos_dict.get(mes, 0)
+        if valor_adesao or valor_cancelamento:
+            categorias.append(_month_abbr_pt(mes))
+            adesoes.append(valor_adesao)
+            cancelamentos.append(valor_cancelamento)
+            saldo.append(valor_adesao - valor_cancelamento)
+
+    total_adesoes = sum(adesoes)
+    total_cancelamentos = sum(cancelamentos)
+    saldo_final = total_adesoes - total_cancelamentos
+
+    return {
+        "mode": "annual",
+        "categories": categorias,
+        "series": [
+            {"key": "adesoes", "name": "Ades\u00f5es", "type": "bar", "data": adesoes},
+            {"key": "cancelamentos", "name": "Cancelamentos", "type": "bar", "data": cancelamentos},
+            {"key": "saldo", "name": "Saldo", "type": "line", "data": saldo},
+        ],
+        "summary": {
+            "total_adesoes": total_adesoes,
+            "total_cancelamentos": total_cancelamentos,
+            "saldo": saldo_final,
+            "saldo_label": f"{'+' if saldo_final > 0 else ''}{saldo_final}",
+        },
+        "meta": {
+            "mode": "annual",
+            "year": year,
+            "range_label": str(year),
+        },
+    }
+
+
+@login_required
+@require_GET
+def adesoes_cancelamentos_chart(request):
+    modo = (request.GET.get("mode", "monthly") or "monthly").lower()
+    hoje = timezone.localdate()
+    usuario = request.user
+
+    try:
+        ano = int(request.GET.get("year", hoje.year))
+    except (TypeError, ValueError):
+        ano = hoje.year
+
+    if modo not in {"monthly", "annual", "lifetime"}:
+        modo = "monthly"
+
+    if modo == "annual":
+        resultado = _dataset_adesao_cancelamentos_anual(usuario, ano)
+        resultado["meta"]["title"] = f"Ades\u00e3o e Cancelamentos por ano - {ano}"
+    elif modo == "lifetime":
+        resultado = _dataset_adesao_cancelamentos_lifetime(usuario)
+    else:
+        try:
+            mes = int(request.GET.get("month", hoje.month))
+        except (TypeError, ValueError):
+            mes = hoje.month
+        mes = max(1, min(12, mes))
+        resultado = _dataset_adesao_cancelamentos_mensal(usuario, ano, mes)
+        resultado["meta"]["title"] = f"Ades\u00e3o e Cancelamentos por m\u00eas - {resultado['meta']['month_name']} {ano}"
+
+    return JsonResponse(resultado)
 
 
 @login_required
@@ -3831,9 +4109,6 @@ def get_location_from_ip(ip):
 ############################################
 # API: Evolução do Patrimônio (JSON)
 ############################################
-
-from django.views.decorators.http import require_GET
-
 
 def _last_day_of_month(d: date) -> date:
     _, last = calendar.monthrange(d.year, d.month)

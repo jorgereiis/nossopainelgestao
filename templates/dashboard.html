@@ -789,6 +789,14 @@
                                             <span class="dashboard-tab-label">Evolu&ccedil;&atilde;o do Patrim&ocirc;nio</span>
                                         </button>
                                     </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="tab-adesao-cancelamentos" data-bs-toggle="tab" data-bs-target="#pane-adesao-cancelamentos" type="button" role="tab" aria-controls="pane-adesao-cancelamentos" aria-selected="false">
+                                            <span class="dashboard-tab-icon tab-icon-adesao">
+                                                <i class="bi bi-bar-chart-steps"></i>
+                                            </span>
+                                            <span class="dashboard-tab-label">Ades&atilde;o e Cancelamentos</span>
+                                        </button>
+                                    </li>
                                 </ul>
                             </div>
                             <div class="dashboard-tab-content">
@@ -825,6 +833,50 @@
                                                     Nenhum dado disponível para o período selecionado.
                                                 </div>
                                             </div>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="pane-adesao-cancelamentos" role="tabpanel" aria-labelledby="tab-adesao-cancelamentos">
+                                        <div class="dashboard-tab-body">
+                                            <div class="d-flex flex-column flex-xl-row align-items-start align-items-xl-center gap-3 mb-4">
+                                                <form id="adesao-cancelamentos-filter" class="d-flex flex-column flex-sm-row align-items-sm-center gap-3 flex-wrap">
+                                                    <div class="d-flex flex-column">
+                                                        <label for="adesao-cancelamentos-mode" class="fw-semibold text-muted small text-uppercase mb-0">Vis&atilde;o</label>
+                                                        <select id="adesao-cancelamentos-mode" class="form-select form-select-sm">
+                                                            <option value="monthly" selected>Mensal</option>
+                                                            <option value="annual">Anual</option>
+                                                            <option value="lifetime">Desde o in&iacute;cio</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="d-flex flex-column" id="adesao-cancelamentos-month-group">
+                                                        <label for="adesao-cancelamentos-month" class="fw-semibold text-muted small text-uppercase mb-0">M&ecirc;s</label>
+                                                        <select id="adesao-cancelamentos-month" class="form-select form-select-sm">
+                                                            <option value="1">Janeiro</option>
+                                                            <option value="2">Fevereiro</option>
+                                                            <option value="3">Mar&ccedil;o</option>
+                                                            <option value="4">Abril</option>
+                                                            <option value="5">Maio</option>
+                                                            <option value="6">Junho</option>
+                                                            <option value="7">Julho</option>
+                                                            <option value="8">Agosto</option>
+                                                            <option value="9">Setembro</option>
+                                                            <option value="10">Outubro</option>
+                                                            <option value="11">Novembro</option>
+                                                            <option value="12">Dezembro</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="d-flex flex-column" id="adesao-cancelamentos-year-group">
+                                                        <label for="adesao-cancelamentos-year" class="fw-semibold text-muted small text-uppercase mb-0">Ano</label>
+                                                        <select id="adesao-cancelamentos-year" class="form-select form-select-sm"></select>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                            <div class="d-flex align-items-center justify-content-center flex-column flex-md-row gap-4 position-relative" id="adesao-cancel-chart-wrapper" style="min-height: 320px;">
+                                                <canvas id="adesaoCancelChart" style="width:100%; height:320px"></canvas>
+                                                <div id="adesao-cancel-empty" class="text-muted small d-none text-center">
+                                                    Nenhum dado dispon�vel para o filtro selecionado.
+                                                </div>
+                                            </div>
+                                            <div id="adesao-cancel-summary" class="text-muted small text-center mt-3"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -1031,6 +1083,11 @@
     .tab-icon-evolucao {
         --dashboard-tab-icon-bg: #e7fafe;
         --dashboard-tab-icon-color: #0ea5e9;
+    }
+
+    .tab-icon-adesao {
+        --dashboard-tab-icon-bg: #fef3c7;
+        --dashboard-tab-icon-color: #f97316;
     }
 
     .dashboard-tab-label {

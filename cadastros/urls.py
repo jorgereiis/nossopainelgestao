@@ -59,6 +59,7 @@ from .views import (
     generate_graphic_columns_per_month,
     notifications_count,
     evolucao_patrimonio,
+    adesoes_cancelamentos_chart,
 )
 
 urlpatterns = [
@@ -93,6 +94,7 @@ urlpatterns = [
     path("grafico/mensal/", generate_graphic_columns_per_month, name="grafico-mensal"),
     path("grafico/mapa-clientes/", generate_graphic_map_customers, name="grafico-mapa-clientes"),
     path("api/evolucao-patrimonio/", evolucao_patrimonio, name="evolucao-patrimonio"),
+    path("api/adesoes-cancelamentos/", adesoes_cancelamentos_chart, name="adesoes-cancelamentos"),
 
     ############ Create ###########
     path("cadastro-cliente/", create_customer, name="cadastro-cliente"),
