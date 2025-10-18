@@ -44,8 +44,9 @@
                     <h4 class="mb-1">Formulário de cadastro</h4>
                   </div>
 
-              <form method="POST">
+              <form method="POST" id="cadastro-cliente-form">
                 {% csrf_token %}
+                <input type="hidden" name="cadastrar" value="1">
 
                 <!-- Nome -->
                 <div class="mb-3 row">
@@ -190,12 +191,44 @@
     </div>
 
     <!-- Scripts -->
-    {% include 'partials/scripts.html' %}
     {% include 'partials/modal_whatsapp.html' %}
     {% include 'partials/modal_adminlogs.html' %}
     {% include 'partials/modal_userlogs.html' %}
     {% include 'partials/modal_dns.html' %}
     {% include 'partials/footer.html' %}
+    {% include 'partials/scripts.html' %}
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var form = document.getElementById('cadastro-cliente-form');
+        var submitButton = document.getElementById('cadastrar');
+
+        if (!form || !submitButton) {
+          return;
+        }
+
+        var defaultButtonContent = submitButton.innerHTML;
+        var resetButtonState = function () {
+          submitButton.disabled = false;
+          submitButton.innerHTML = defaultButtonContent;
+        };
+
+        resetButtonState();
+
+        form.addEventListener('submit', function () {
+          if (submitButton.disabled) {
+            return;
+          }
+
+          submitButton.disabled = true;
+          submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Cadastrando...';
+        });
+
+        window.addEventListener('pageshow', function () {
+          resetButtonState();
+        });
+      });
+    </script>
 
     {% if success_message %}
     <script>

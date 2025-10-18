@@ -814,35 +814,54 @@
                 <!-- row  -->
                 <div class="row mt-6">
                     <div class="col-md-12 col-12">
-                        <!-- card  -->
-                        <div class="card">
-                            <!-- card header  -->
-                            <div class="d-flex justify-content-between align-items-center card-header bg-white py-4">
-                                <h4 class="mb-0">Renovações</h4>
-                                <label for="paginate-by"></label>
-                                <select name="paginate_by" id="paginate-by" class="ms-auto mb-0 rounded border border-light-200 px-1 py-2 d-flex align-items-center me-1 g-rows-per-page-trigger bg-transparent">
-                                <option value="5"{% if page_obj.paginator.per_page == 5 %} selected{% endif %}>5</option>
-                                <option value="10"{% if page_obj.paginator.per_page == 10 %} selected{% endif %}>10</option>
-                                <option value="15"{% if page_obj.paginator.per_page == 15 %} selected{% endif %}>15</option>
-                                <option value="25"{% if page_obj.paginator.per_page == 25 %} selected{% endif %}>25</option>
-                                <option value="50"{% if page_obj.paginator.per_page == 50 %} selected{% endif %}>50</option>
-                                </select>
+                        <div class="card card-dashboard-tabs">
+                            <div class="dashboard-tabs-surface">
+                                <ul class="nav nav-tabs dashboard-tabs" id="dashboard-table-tabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="tab-renovacoes" data-bs-toggle="tab" data-bs-target="#pane-renovacoes" type="button" role="tab" aria-controls="pane-renovacoes" aria-selected="true">
+                                            <span class="dashboard-tab-icon tab-icon-renovacoes">
+                                                <i class="bi bi-arrow-repeat"></i>
+                                            </span>
+                                            <span class="dashboard-tab-label">Renovações</span>
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="tab-renovacoes-futuras" data-bs-toggle="tab" data-bs-target="#pane-renovacoes-futuras" type="button" role="tab" aria-controls="pane-renovacoes-futuras" aria-selected="false">
+                                            <span class="dashboard-tab-icon tab-icon-renovacoes-futuras">
+                                                <i class="bi bi-clock-history"></i>
+                                            </span>
+                                            <span class="dashboard-tab-label">Renovações futuras</span>
+                                        </button>
+                                    </li>
+                                </ul>
                             </div>
-
-                            <!-- campo de pesquisa  -->
-                            <div class="input-group mb-3 card-header bg-white py-4">
-                                <input type="text" name="q" class="form-control" placeholder="Pesquisar"
-                                    aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput"
-                                    autocomplete="off">
+                            <div class="dashboard-tab-content">
+                                <div class="tab-content" id="dashboard-table-tabs-content">
+                                    <div class="tab-pane fade show active" id="pane-renovacoes" role="tabpanel" aria-labelledby="tab-renovacoes">
+                                        <div class="dashboard-tab-body">
+                                            <div class="dashboard-search mb-4">
+                                                <input type="text" name="q" class="form-control" placeholder="Pesquisar"
+                                                    aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput"
+                                                    autocomplete="off">
+                                            </div>
+                                            <div id="tabela-container">
+                                                {% include 'partials/table-clients.html' %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="pane-renovacoes-futuras" role="tabpanel" aria-labelledby="tab-renovacoes-futuras">
+                                        <div class="dashboard-tab-body">
+                                            <div class="dashboard-search mb-4">
+                                                <input type="text" name="q-futuras" class="form-control" placeholder="Pesquisar"
+                                                    aria-label="Pesquisar renovações futuras" autocomplete="off" disabled>
+                                            </div>
+                                            <div class="text-center text-muted py-5">
+                                                Em breve você poderá acompanhar aqui as renovações futuras.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            
-
-                            <!-- TABELA  -->
-                            <div id="tabela-container">
-                                {% include 'partials/table-clients.html' %}
-                            </div>
-
-                            <!-- Container para exibir os toasts -->
                             <div id="toast-container" class="position-fixed bottom-0 start-0 p-3" style="z-index: 9999;"></div>
                         </div>
                     </div>
@@ -870,7 +889,7 @@
     }
 
     #searchInput {
-        border-radius: 5px 5px 5px 5px;
+        border-radius: 0.75rem;
     }
 
     #button-pesquisar {
@@ -951,6 +970,134 @@
     }
     .charge-summary {
     flex-wrap: wrap;
+    }
+
+    .card-dashboard-tabs {
+        border: none;
+        background: transparent;
+        --dashboard-panel-bg: var(--bs-body-bg, #ffffff);
+    }
+
+    body.bg-light .card-dashboard-tabs {
+        --dashboard-panel-bg: var(--bs-light-bg-subtle, #f8f9fa);
+    }
+
+    .dashboard-tabs-surface {
+        background: #f4f7ff;
+        border: 1px solid #dfe3f5;
+        border-bottom: 0;
+        border-radius: 1.25rem 1.25rem 0 0;
+        padding: 1.1rem 1.75rem 0;
+        position: relative;
+    }
+
+    .dashboard-tabs {
+        border-bottom: none;
+        gap: 0.75rem;
+    }
+
+    .dashboard-tabs .nav-link {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.85rem 1.25rem;
+        color: #6c7aa5;
+        font-weight: 600;
+        border-radius: 1rem 1rem 0 0;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        background: transparent;
+        transition: all 0.2s ease-in-out;
+        margin-bottom: -1px;
+    }
+
+    .dashboard-tabs .nav-link:hover {
+        background: rgba(255, 255, 255, 0.8);
+        color: #2643b7;
+    }
+
+    .dashboard-tabs .nav-link.active {
+        background: var(--dashboard-panel-bg);
+        color: #1d3a8a;
+        border-color: #dfe3f5;
+        box-shadow: none;
+        z-index: 3;
+    }
+
+    .dashboard-tabs .nav-link:not(.active) {
+        background: rgba(255, 255, 255, 0.55);
+        color: #8290b3;
+    }
+
+    .dashboard-tab-content {
+        border: 1px solid #dfe3f5;
+        border-top: 0;
+        border-radius: 0 0 1.25rem 1.25rem;
+        padding: 1.75rem 1.75rem 1.5rem;
+        background: var(--dashboard-panel-bg);
+        margin-top: -1px;
+    }
+
+    .dashboard-tab-body {
+        padding: 0;
+    }
+
+    .dashboard-tab-icon {
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: var(--dashboard-tab-icon-bg, #e0dcfe);
+        color: var(--dashboard-tab-icon-color, #624bff);
+        font-size: 1.25rem;
+    }
+
+    .tab-icon-renovacoes {
+        --dashboard-tab-icon-bg: #e0dcfe;
+        --dashboard-tab-icon-color: #624bff;
+    }
+
+    .tab-icon-renovacoes-futuras {
+        --dashboard-tab-icon-bg: #eaf6ec;
+        --dashboard-tab-icon-color: #2f9d64;
+    }
+
+    .dashboard-tab-label {
+        font-size: 1rem;
+    }
+
+    .dashboard-search {
+        display: flex;
+        width: 100%;
+    }
+
+    .dashboard-search .form-control {
+        border-radius: 0.75rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid #d9dff1;
+        background-color: #ffffff;
+    }
+
+    .dashboard-search .form-control:focus {
+        box-shadow: 0 0 0 0.25rem rgba(98, 75, 255, 0.25);
+        border-color: #b1a5ff;
+    }
+
+    @media (max-width: 576px) {
+    .dashboard-tabs-surface {
+        padding: 0.75rem;
+    }
+    .dashboard-tabs .nav-link {
+        width: 100%;
+        justify-content: center;
+    }
+    .dashboard-tab-content {
+        padding: 1.5rem 1.25rem;
+    }
     }
 
     @media (max-width: 576px) {

@@ -133,6 +133,23 @@
                 </div>
             </li>
 
+            <!-- Nav item -->
+            <li class="nav-item">
+                <a class="nav-link has-arrow {% if page_group != 'logs' %} collapsed {% endif %}" href="#!"
+                    data-bs-toggle="collapse" data-bs-target="#navLogs" aria-expanded="false" aria-controls="navLogs">
+                    <i data-feather="book" class="nav-icon icon-xs me-2"></i> Logs
+                </a>
+
+                <div id="navLogs" class="collapse {% if page_group == 'logs' %} show {% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'logs1' %}active{% endif %}" href="#userLogsModal" data-bs-toggle="modal" data-bs-target="#userLogsModal">Meus logs</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
             {% if request.user.is_superuser %}
             <!-- Nav item -->
             <li class="nav-item">

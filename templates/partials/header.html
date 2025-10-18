@@ -66,14 +66,9 @@
               </button>
             </li>
             <li>
-              <button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#userLogsModal" id="openUserLogsBtn">
-                <i class="me-2 icon-xxs dropdown-item-icon" data-feather="book"></i>Logs
-              </button>
-            </li>
-            <li>
               <form method="POST" action="{% url 'logout' %}" style="display: inline;">
                 {% csrf_token %}
-                <button type="submit" class="dropdown-item" style="border: none; background: none;">
+                <button type="submit" class="dropdown-item logout-action" style="border: none; background: none;">
                   <i class="me-2 icon-xxs dropdown-item-icon" data-feather="power"></i>Logout
                 </button>
               </form>
@@ -86,11 +81,26 @@
   </nav>
 </div>
 
-{% include 'partials/scripts.html' %}
-
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css">
 <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+<style>
+  .dropdown-menu .logout-action {
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .dropdown-menu .logout-action:hover,
+  .dropdown-menu .logout-action:focus {
+    background-color: rgba(220, 53, 69, 0.12);
+    color: #b02a37;
+  }
+
+  .dropdown-menu .logout-action:hover .dropdown-item-icon,
+  .dropdown-menu .logout-action:focus .dropdown-item-icon {
+    color: #b02a37;
+  }
+</style>
 
 <script>
   document.getElementById('dropdownNotification')?.addEventListener('show.bs.dropdown', function () {

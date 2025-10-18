@@ -20,6 +20,7 @@ from .models import (
     EnviosLeads,
     MensagensLeads,
     UserActionLog,
+    NotificationRead,
 )
 
 # --- ADMINISTRADORES ---
@@ -171,6 +172,13 @@ class MensagensLeadsAdmin(admin.ModelAdmin):
     ordering = ("-id",)
 
 
+class NotificationReadAdmin(admin.ModelAdmin):
+    list_display = ("usuario", "mensalidade", "marcado_em")
+    list_filter = ("usuario", "marcado_em")
+    search_fields = ("usuario__username", "mensalidade__cliente__nome", "mensalidade__cliente__telefone")
+    ordering = ("-marcado_em",)
+
+
 class UserActionLogAdmin(admin.ModelAdmin):
     list_display = ("criado_em", "usuario", "acao", "entidade", "objeto_repr")
     list_filter = ("acao", "entidade", "usuario")
@@ -201,6 +209,7 @@ admin.site.register(DominiosDNS, DominiosDNSAdmin)
 admin.site.register(TelefoneLeads, TelefoneLeadsAdmin)
 admin.site.register(EnviosLeads, EnviosLeadsAdmin)
 admin.site.register(MensagensLeads, MensagensLeadsAdmin)
+admin.site.register(NotificationRead, NotificationReadAdmin)
 admin.site.register(UserActionLog, UserActionLogAdmin)
 
 # Configurações adicionais do admin
