@@ -2,7 +2,7 @@
 
 (function () {
   let chartInstance = null;
-  let currentMonths = null;
+  let currentPeriod = null;
 
   function formatCurrencyBRL(value) {
     try {
@@ -23,7 +23,7 @@
     if (chartInstance) {
       try { chartInstance.destroy(); } catch (err) { console.warn('Falha ao destruir gráfico:', err); }
       chartInstance = null;
-      currentMonths = null;
+      currentPeriod = null;
     }
     if (empty) {
       empty.textContent = message || 'Nenhum dado encontrado para o período escolhido.';
@@ -41,15 +41,16 @@
     if (canvas) canvas.classList.remove('d-none');
   }
 
-  async function fetchData(months = 12) {
-    const url = `/api/evolucao-patrimonio/?months=${months}`;
+  async function fetchData(periodValue = '12') {
+    const normalized = periodValue === 'all' ? 'all' : String(parseInt(periodValue, 10) || 12);
+    const url = `/api/evolucao-patrimonio/?months=${encodeURIComponent(normalized)}`;
     try {
       const resp = await fetch(url, { credentials: 'same-origin' });
       if (!resp.ok) throw new Error(`Falha ao carregar dados (${resp.status})`);
       return await resp.json();
     } catch (e) {
-      console.error('Erro ao buscar dados da evolução:', e);
-      showEmpty('Não foi possível carregar os dados. Tente novamente mais tarde.');
+      console.error('Erro ao buscar dados da evolu\u00e7\u00e3o:', e);
+      showEmpty('N\u00e3o foi poss\u00edvel carregar os dados. Tente novamente mais tarde.');
       return null;
     }
   }
@@ -142,20 +143,21 @@
     if (!canvas) return;
 
     const periodSelect = $periodSelect();
-    const months = parseInt(periodSelect?.value || '12', 10) || 12;
+    const rawValue = periodSelect?.value || '12';
+    const normalized = rawValue === 'all' ? 'all' : `${parseInt(rawValue, 10) || 12}`;
 
-    if (!forceUpdate && chartInstance && currentMonths === months) {
+    if (!forceUpdate && chartInstance && currentPeriod === normalized) {
       try {
         chartInstance.resize();
       } catch (err) {
-        console.warn('Falha ao redimensionar gráfico:', err);
+        console.warn('Falha ao redimensionar gr\u00e1fico:', err);
       }
       return;
     }
 
-    const payload = await fetchData(months);
+    const payload = await fetchData(normalized);
     if (!payload) return;
-    currentMonths = months;
+    currentPeriod = normalized;
     buildChart(canvas.getContext('2d'), payload);
   }
 

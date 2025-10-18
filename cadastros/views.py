@@ -1,7 +1,7 @@
 import requests, operator, logging, codecs, random, base64, json, time, re, os, io
 import unicodedata
 from pathlib import Path
-from django.db.models import Sum, Q, Count, F, ExpressionWrapper, DurationField, Exists, OuterRef
+from django.db.models import Sum, Q, Count, F, ExpressionWrapper, DurationField, Exists, OuterRef, Min
 from django.db.models.functions import Upper, Coalesce, ExtractDay, Trim
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -64,7 +64,7 @@ from .models import (
     DadosBancarios, MensagemEnviadaWpp,
     DominiosDNS, PlanoIndicacao,
     HorarioEnvios, NotificationRead,
-    UserActionLog
+    UserActionLog, ClientePlanoHistorico
 )
 from .utils import (
     envio_apos_novo_cadastro,
@@ -3843,41 +3843,67 @@ def _last_day_of_month(d: date) -> date:
 @login_required
 @require_GET
 def evolucao_patrimonio(request):
-    """Retorna patrimônio mensal e evolução para os últimos N meses (JSON).
+    """Retorna patrimonio mensal e evolucao para o periodo solicitado (JSON)."""
 
-    Compatível com SQLite e MySQL: calculado em Python com queries simples.
-    """
-    try:
-        months = int(request.GET.get('months', '12'))
-    except ValueError:
-        months = 12
-    months = max(1, min(months, 36))
+    months_param_raw = (request.GET.get('months', '12') or '12').strip().lower()
+    max_months = 120
 
-    # gera primeiro dia de cada mês retrocedendo
-    cursor = timezone.localdate().replace(day=1)
+    months_value: Optional[int]
+    if months_param_raw == 'all':
+        months_value = None
+    else:
+        try:
+            months_value = int(months_param_raw)
+        except ValueError:
+            months_value = 12
+        months_value = max(1, min(months_value, max_months))
+
+    today_month = timezone.localdate().replace(day=1)
     months_list = []
-    for _ in range(months):
-        months_list.append(cursor)
-        # mês anterior
-        prev = (cursor - timedelta(days=1)).replace(day=1)
-        cursor = prev
-    months_list.reverse()
+
+    historico_qs = ClientePlanoHistorico.objects.filter(usuario=request.user)
+
+    if months_value is None:
+        first_inicio = historico_qs.aggregate(Min('inicio'))['inicio__min']
+        if first_inicio:
+            if isinstance(first_inicio, datetime):
+                first_inicio = first_inicio.date()
+            start_month = date(first_inicio.year, first_inicio.month, 1)
+            if start_month > today_month:
+                start_month = today_month
+            cursor = start_month
+            end_month = today_month
+            while cursor <= end_month:
+                months_list.append(cursor)
+                if cursor.month == 12:
+                    cursor = date(cursor.year + 1, 1, 1)
+                else:
+                    cursor = date(cursor.year, cursor.month + 1, 1)
+        else:
+            months_value = 12
+
+    if months_value is not None and not months_list:
+        cursor = today_month
+        for _ in range(months_value):
+            months_list.append(cursor)
+            cursor = (cursor - timedelta(days=1)).replace(day=1)
+        months_list.reverse()
+
+    if not months_list:
+        months_list = [today_month]
 
     categorias = []
     patrim = []
-    from .models import ClientePlanoHistorico
 
     for m in months_list:
         ref = _last_day_of_month(m)
         # ativos (sem fim) até a data de referência
-        ativos = ClientePlanoHistorico.objects.filter(
-            usuario=request.user,
+        ativos = historico_qs.filter(
             inicio__lte=ref,
             fim__isnull=True,
         ).values_list('valor_plano', flat=True)
         # encerrados mas ainda ativos na data de referência (fim >= ref)
-        encerrados = ClientePlanoHistorico.objects.filter(
-            usuario=request.user,
+        encerrados = historico_qs.filter(
             inicio__lte=ref,
             fim__gte=ref,
         ).values_list('valor_plano', flat=True)
