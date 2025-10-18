@@ -71,6 +71,8 @@ from .utils import (
     validar_tel_whatsapp,
     criar_mensalidade,
     log_user_action,
+    historico_iniciar,
+    historico_encerrar_vigente,
 )
 
 # Constantes
@@ -1652,6 +1654,12 @@ def reactivate_customer(request, cliente_id):
     cliente.data_vencimento = data_hoje
     cliente.save()
 
+    # histórico: inicia novo período vigente
+    try:
+        historico_iniciar(cliente, inicio=data_hoje, motivo='reactivate')
+    except Exception:
+        pass
+
     try:
         # Obtém a última mensalidade do cliente
         ultima_mensalidade = Mensalidade.objects.filter(cliente=cliente).order_by('-dt_vencimento').first()
@@ -1767,6 +1775,12 @@ def cancel_customer(request, cliente_id):
             mensalidade.cancelado = True
             mensalidade.dt_cancelamento = timezone.localtime().date()
             mensalidade.save()
+
+        # Encerra histórico vigente na data do cancelamento
+        try:
+            historico_encerrar_vigente(cliente, timezone.localdate())
+        except Exception:
+            pass
 
         # Retorna uma resposta JSON indicando que o cliente foi cancelado com sucesso
         log_user_action(
@@ -1922,6 +1936,13 @@ def edit_customer(request, cliente_id):
             if plano and cliente.plano != plano:
                 cliente.plano = plano
                 mensalidade.valor = plano.valor
+                # Atualiza histórico de planos: encerra vigente e inicia novo
+                hoje = timezone.localdate()
+                try:
+                    historico_encerrar_vigente(cliente, fim=hoje - timedelta(days=1))
+                    historico_iniciar(cliente, plano=plano, inicio=hoje, motivo='plan_change')
+                except Exception:
+                    pass
 
         # Data de vencimento
         data_vencimento_str = post.get("dt_pgto", "").strip()
@@ -3236,6 +3257,13 @@ def create_customer(request):
                     logger.error("Erro ao criar a mensalidade: %s", e, exc_info=True)
                     raise Exception("Falha ao criar a mensalidade do cliente.")
 
+                # Histórico de planos (inicial)
+                try:
+                    inicio_hist = cliente.data_adesao or timezone.localdate()
+                    historico_iniciar(cliente, plano=plano, inicio=inicio_hist, motivo='create')
+                except Exception:
+                    pass
+
             print(f"[{timestamp}] [SUCCESS] [{func_name}] [{usuario}] Cliente {cliente.nome} ({cliente.telefone}) cadastrado com sucesso!")
             log_user_action(
                 request=request,
@@ -3798,6 +3826,82 @@ def get_location_from_ip(ip):
         return f"{cidade}, {pais}"
     except Exception:
         return "Localização desconhecida"
+
+
+############################################
+# API: Evolução do Patrimônio (JSON)
+############################################
+
+from django.views.decorators.http import require_GET
+
+
+def _last_day_of_month(d: date) -> date:
+    _, last = calendar.monthrange(d.year, d.month)
+    return date(d.year, d.month, last)
+
+
+@login_required
+@require_GET
+def evolucao_patrimonio(request):
+    """Retorna patrimônio mensal e evolução para os últimos N meses (JSON).
+
+    Compatível com SQLite e MySQL: calculado em Python com queries simples.
+    """
+    try:
+        months = int(request.GET.get('months', '12'))
+    except ValueError:
+        months = 12
+    months = max(1, min(months, 36))
+
+    # gera primeiro dia de cada mês retrocedendo
+    cursor = timezone.localdate().replace(day=1)
+    months_list = []
+    for _ in range(months):
+        months_list.append(cursor)
+        # mês anterior
+        prev = (cursor - timedelta(days=1)).replace(day=1)
+        cursor = prev
+    months_list.reverse()
+
+    categorias = []
+    patrim = []
+    from .models import ClientePlanoHistorico
+
+    for m in months_list:
+        ref = _last_day_of_month(m)
+        # ativos (sem fim) até a data de referência
+        ativos = ClientePlanoHistorico.objects.filter(
+            usuario=request.user,
+            inicio__lte=ref,
+            fim__isnull=True,
+        ).values_list('valor_plano', flat=True)
+        # encerrados mas ainda ativos na data de referência (fim >= ref)
+        encerrados = ClientePlanoHistorico.objects.filter(
+            usuario=request.user,
+            inicio__lte=ref,
+            fim__gte=ref,
+        ).values_list('valor_plano', flat=True)
+
+        total = sum((v or 0) for v in list(ativos) + list(encerrados))
+        patrim.append(float(total))
+        categorias.append(f"{m.month:02d}/{str(m.year)[2:]}")
+
+    evol = []
+    prev = None
+    for val in patrim:
+        if prev is None:
+            evol.append(0.0)
+        else:
+            evol.append(float(val - prev))
+        prev = val
+
+    return JsonResponse({
+        'categories': categorias,
+        'series': [
+            {'name': 'Patrimônio', 'data': patrim},
+            {'name': 'Evolução', 'data': evol},
+        ],
+    })
 
 
 

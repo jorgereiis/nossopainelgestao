@@ -188,6 +188,51 @@ class Mensalidade(models.Model):
         return f"[{self.dt_vencimento.strftime('%d/%m/%Y')}] {self.valor} - {self.cliente}"
 
 
+class ClientePlanoHistorico(models.Model):
+    """Mantém o histórico do plano/valor por cliente para cálculo de patrimônio.
+
+    Cada registro representa um período contínuo em que o cliente esteve com um
+    determinado plano e valor. Ao mudar de plano, cancelar ou reativar, abrimos
+    ou encerramos registros para manter a linha do tempo sem sobreposição.
+    """
+
+    MOTIVO_CREATE = "create"
+    MOTIVO_PLAN_CHANGE = "plan_change"
+    MOTIVO_CANCEL = "cancel"
+    MOTIVO_REACTIVATE = "reactivate"
+
+    MOTIVO_CHOICES = [
+        (MOTIVO_CREATE, "Criação"),
+        (MOTIVO_PLAN_CHANGE, "Troca de plano"),
+        (MOTIVO_CANCEL, "Cancelamento"),
+        (MOTIVO_REACTIVATE, "Reativação"),
+    ]
+
+    cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='historico_planos')
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    plano = models.ForeignKey('Plano', on_delete=models.SET_NULL, null=True, blank=True)
+    plano_nome = models.CharField(max_length=255)
+    telas = models.IntegerField(default=1)
+    valor_plano = models.DecimalField(max_digits=7, decimal_places=2)
+    inicio = models.DateField()
+    fim = models.DateField(null=True, blank=True)
+    motivo = models.CharField(max_length=32, choices=MOTIVO_CHOICES, default=MOTIVO_CREATE)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Histórico de Plano do Cliente"
+        verbose_name_plural = "Históricos de Plano dos Clientes"
+        ordering = ["cliente", "-inicio", "-criado_em"]
+        indexes = [
+            models.Index(fields=["usuario", "inicio"], name="cadastros_c_usuario_07f805_idx"),
+            models.Index(fields=["cliente", "inicio"], name="cadastros_c_cliente_9a7e3f_idx"),
+            models.Index(fields=["cliente", "fim"], name="cadastros_c_cliente_2a7d1b_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.cliente} - {self.plano_nome} ({self.valor_plano}) {self.inicio} -> {self.fim or '...'}"
+
+
 class HorarioEnvios(models.Model):
     """Define o horário preferencial de envio de mensagens automáticas."""
     TITULO = [
@@ -515,8 +560,8 @@ class UserActionLog(models.Model):
         verbose_name_plural = "Logs de ações de usuários"
         ordering = ["-criado_em"]
         indexes = [
-            models.Index(fields=["usuario", "-criado_em"]),
-            models.Index(fields=["entidade", "acao"]),
+            models.Index(fields=["usuario", "-criado_em"], name="cadastros_u_usuario_966dcb_idx"),
+            models.Index(fields=["entidade", "acao"], name="cadastros_u_entidad_4d2aba_idx"),
         ]
 
     def __str__(self):

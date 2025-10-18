@@ -20,6 +20,7 @@ from .models import (
     Servidor, Dispositivo,
     Aplicativo, Plano, Tipos_pgto,
     ContaDoAplicativo, UserActionLog,
+    ClientePlanoHistorico,
 )
 from wpp.api_connection import (
     check_number_status,
@@ -74,6 +75,53 @@ def registrar_log(mensagem: str, usuario: str, log_directory: str) -> None:
     with open(log_filename, "a", encoding="utf-8") as log:
         log.write(mensagem + "\n")
 #### FIM #####
+
+
+#############################################################
+########## HISTÓRICO DE PLANO DO CLIENTE (UTILS) ###########
+#############################################################
+
+def historico_obter_vigente(cliente: Cliente):
+    """Retorna o registro de histórico vigente (sem fim) do cliente, se existir."""
+    return (
+        ClientePlanoHistorico.objects
+        .filter(cliente=cliente, usuario=cliente.usuario, fim__isnull=True)
+        .order_by('-inicio', '-criado_em')
+        .first()
+    )
+
+
+def historico_encerrar_vigente(cliente: Cliente, fim: date) -> None:
+    """Encerra o histórico vigente do cliente na data informada, se houver.
+
+    Garante que não encerra antes do início do período.
+    """
+    vigente = historico_obter_vigente(cliente)
+    if not vigente:
+        return
+    if fim < vigente.inicio:
+        fim = vigente.inicio
+    vigente.fim = fim
+    vigente.save(update_fields=["fim"]) 
+
+
+def historico_iniciar(cliente: Cliente, plano: Plano = None, inicio: date = None, motivo: str = ClientePlanoHistorico.MOTIVO_CREATE) -> ClientePlanoHistorico:
+    """Cria um novo registro de histórico para o cliente a partir da data informada."""
+    if inicio is None:
+        inicio = timezone.localdate()
+    if plano is None:
+        plano = cliente.plano
+    return ClientePlanoHistorico.objects.create(
+        cliente=cliente,
+        usuario=cliente.usuario,
+        plano=plano,
+        plano_nome=getattr(plano, 'nome', ''),
+        telas=getattr(plano, 'telas', 1) or 1,
+        valor_plano=getattr(plano, 'valor', 0) or 0,
+        inicio=inicio,
+        motivo=motivo,
+    )
+
 
 
 def _prepare_extra_payload(value):

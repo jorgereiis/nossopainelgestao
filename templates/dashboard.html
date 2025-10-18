@@ -280,51 +280,7 @@
                     </div>
                 </div>
                 
-                    <div class="col-xl-13 col-lg-6 col-md-12 col-12 mt-6 objeto">
-                        <!-- card graficos -->
-                        <div class="card">
-                            <div class="card-body">
-                                <!-- filtros -->
-                                <div class="d-flex justify-content-between align-items-center mb-3 objeto">
-                                    <!-- Filtro tipo de gráfico -->
-                                    <form id="filtro-grafico" class="me-3">
-                                        <label for="tipo_grafico">Gráfico:</label>
-                                        <select id="tipo_grafico" class="mb-0 rounded border border-light-200 px-1 py-2 bg-transparent">
-                                            <option value="mensal" selected>Mensal</option>
-                                            <option value="anual">Anual</option>
-                                        </select>
-                                    </form>
-
-                                    <!-- Filtro mês -->
-                                    <form id="filtro-mes" class="me-3">
-                                        <label for="mes">Escolha o Mês:</label>
-                                        <select id="mes" name="mes" class="mb-0 rounded border border-light-200 px-1 py-2 bg-transparent">
-                                            {% for numero, nome in lista_meses %}
-                                                <option value="{{ numero }}" {% if numero == data_atual.month %}selected{% endif %}>
-                                                    {{ nome }}
-                                                </option>
-                                            {% endfor %}
-                                        </select>
-                                    </form>
-
-                                    <!-- Filtro ano -->
-                                    <form id="filtro-ano" class="me-3" style="display:none;">
-                                        <label for="ano">Escolha o Ano:</label>
-                                        <select id="ano" name="ano" class="mb-0 rounded border border-light-200 px-1 py-2 bg-transparent">
-                                            {% for ano in anos_adesao %}
-                                                <option value="{{ ano }}" {% if ano == ano_atual %}selected{% endif %}>{{ ano }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </form>
-                                </div>
-
-                                <!-- gráfico -->
-                                <div class="d-flex align-items-center justify-content-center flex-column flex-md-row">
-                                    <img id="grafico" src="{% url 'grafico-mensal' %}?mes={{ data_atual.month }}" alt="Gráfico de Adesões e Cancelamentos" class="img-fluid" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    
                     
                     <div class="col-xl-13 col-lg-6 col-md-12 col-12 mt-6 objeto">
                         <!-- card mapa -->
@@ -826,11 +782,11 @@
                                         </button>
                                     </li>
                                     <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="tab-renovacoes-futuras" data-bs-toggle="tab" data-bs-target="#pane-renovacoes-futuras" type="button" role="tab" aria-controls="pane-renovacoes-futuras" aria-selected="false">
-                                            <span class="dashboard-tab-icon tab-icon-renovacoes-futuras">
-                                                <i class="bi bi-clock-history"></i>
+                                        <button class="nav-link" id="tab-evolucao" data-bs-toggle="tab" data-bs-target="#pane-evolucao" type="button" role="tab" aria-controls="pane-evolucao" aria-selected="false">
+                                            <span class="dashboard-tab-icon tab-icon-evolucao">
+                                                <i class="bi bi-graph-up"></i>
                                             </span>
-                                            <span class="dashboard-tab-label">Renovações futuras</span>
+                                            <span class="dashboard-tab-label">Sua evolução</span>
                                         </button>
                                     </li>
                                 </ul>
@@ -849,14 +805,23 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="tab-pane fade" id="pane-renovacoes-futuras" role="tabpanel" aria-labelledby="tab-renovacoes-futuras">
+                                    <div class="tab-pane fade" id="pane-evolucao" role="tabpanel" aria-labelledby="tab-evolucao">
                                         <div class="dashboard-tab-body">
-                                            <div class="dashboard-search mb-4">
-                                                <input type="text" name="q-futuras" class="form-control" placeholder="Pesquisar"
-                                                    aria-label="Pesquisar renovações futuras" autocomplete="off" disabled>
+                                            <div class="d-flex flex-column flex-xl-row align-items-start align-items-xl-center gap-3 mb-4">
+                                                <form id="filtro-grafico" class="d-flex flex-column flex-sm-row align-items-sm-center gap-2">
+                                                    <label for="evolucao-period-select" class="fw-semibold text-muted small text-uppercase mb-0">Período</label>
+                                                    <select id="evolucao-period-select" class="form-select form-select-sm">
+                                                        <option value="6">6 meses</option>
+                                                        <option value="12" selected>12 meses</option>
+                                                        <option value="24">24 meses</option>
+                                                    </select>
+                                                </form>
                                             </div>
-                                            <div class="text-center text-muted py-5">
-                                                Em breve você poderá acompanhar aqui as renovações futuras.
+                                            <div class="d-flex align-items-center justify-content-center flex-column flex-md-row gap-4 position-relative" id="evolucao-chart-wrapper" style="min-height: 320px;">
+                                                <canvas id="evolucaoChart" style="width:100%; height:320px"></canvas>
+                                                <div id="evolucao-empty-state" class="text-muted small d-none text-center">
+                                                    Nenhum dado disponível para o período selecionado.
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1061,9 +1026,9 @@
         --dashboard-tab-icon-color: #624bff;
     }
 
-    .tab-icon-renovacoes-futuras {
-        --dashboard-tab-icon-bg: #eaf6ec;
-        --dashboard-tab-icon-color: #2f9d64;
+    .tab-icon-evolucao {
+        --dashboard-tab-icon-bg: #e7fafe;
+        --dashboard-tab-icon-color: #0ea5e9;
     }
 
     .dashboard-tab-label {
