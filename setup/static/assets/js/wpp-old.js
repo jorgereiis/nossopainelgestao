@@ -234,12 +234,23 @@ function modal_whatsapp() {
 
 // Função para obter o valor do cookie "token-wpp"
 function getCookie(name) {
+    if (name === 'csrftoken') {
+        const metaToken = document.querySelector('meta[name="csrf-token"]');
+        if (metaToken && metaToken.content) {
+            return metaToken.content;
+        }
+    }
+
+    if (!document.cookie || document.cookie === '') {
+        return null;
+    }
+
     const cookies = document.cookie.split(';');
     for (let i = 0; i < cookies.length; i++) {
-    const cookie = cookies[i].trim();
-    if (cookie.startsWith(`${name}=`)) {
-        return cookie.substring(name.length + 1);
-    }
+        const cookie = cookies[i].trim();
+        if (cookie.startsWith(`${name}=`)) {
+            return decodeURIComponent(cookie.substring(name.length + 1));
+        }
     }
     return null;
 }

@@ -5,6 +5,7 @@ import time
 import django
 import random
 import requests
+from datetime import datetime, timedelta
 from django.utils.timezone import localtime
 from typing import List, Optional, Tuple
 
@@ -65,15 +66,67 @@ def _mime_from_ext(filename: str) -> str:
         '.webp': 'image/webp',
     }.get(ext, 'image/png')
 
-def _subdir_futebol(data_envio: Optional[str]) -> str:
+def _subdir_futebol(data_envio: Optional[str]) -> Tuple[str, str, str, List[str]]:
     """
-    Retorna o subdiretório (relativo a /images) para os banners de futebol
-    no padrão: 'telegram_banners/DD-MM-YYYY'.
+    Resolve o subdiretório (relativo a /images) onde estão os banners de futebol,
+    aplicando fallback quando `data_envio` não for informada.
 
-    :param data_envio: string 'DD-MM-YYYY' para testes; se None, usa data atual.
+    Ordem de busca:
+      1. Pasta do dia solicitado (ou dia atual, se `data_envio` for None);
+      2. Pasta do dia anterior;
+      3. Pasta mais recente disponível (ordem decrescente).
+
+    Retorna uma tupla:
+      (subdir_resolvido, data_resolvida, data_solicitada, imagens_encontradas)
     """
-    data_str = (data_envio or localtime().strftime('%d-%m-%Y')).strip()
-    return f"telegram_banners/{data_str}"
+    data_solicitada = (data_envio or localtime().strftime('%d-%m-%Y')).strip()
+
+    def _build_subdir(date_str: str) -> str:
+        return f"telegram_banners/{date_str}"
+
+    def _listar_para_data(date_str: str) -> List[str]:
+        return _listar_imagens(_build_subdir(date_str))
+
+    # Se uma data específica foi informada, mantém comportamento original (sem fallback extra).
+    if data_envio:
+        imagens_data = _listar_para_data(data_solicitada)
+        return _build_subdir(data_solicitada), data_solicitada, data_solicitada, imagens_data
+
+    base_dir = os.path.join(os.path.dirname(__file__), '../images/telegram_banners')
+    now_local = localtime()
+    candidatos: List[str] = []
+    vistos = set()
+
+    def _adicionar_candidato(date_str: str) -> None:
+        if date_str and date_str not in vistos:
+            candidatos.append(date_str)
+            vistos.add(date_str)
+
+    _adicionar_candidato(data_solicitada)
+    _adicionar_candidato((now_local - timedelta(days=1)).strftime('%d-%m-%Y'))
+
+    if os.path.isdir(base_dir):
+        datas_disponiveis: List[str] = []
+        for nome in os.listdir(base_dir):
+            caminho = os.path.join(base_dir, nome)
+            if not os.path.isdir(caminho):
+                continue
+            try:
+                datetime.strptime(nome, '%d-%m-%Y')
+            except ValueError:
+                continue
+            datas_disponiveis.append(nome)
+
+        for nome in sorted(datas_disponiveis, key=lambda d: datetime.strptime(d, '%d-%m-%Y'), reverse=True):
+            _adicionar_candidato(nome)
+
+    for candidato in candidatos:
+        imagens_candidato = _listar_para_data(candidato)
+        if imagens_candidato:
+            return _build_subdir(candidato), candidato, data_solicitada, imagens_candidato
+
+    imagens_solicitada = _listar_para_data(data_solicitada)
+    return _build_subdir(data_solicitada), data_solicitada, data_solicitada, imagens_solicitada
 
 # ----------------- ENVIO -----------------
 def enviar_mensagem_grupos(
@@ -177,13 +230,18 @@ def enviar_mensagem_grupos(
 
     # --------- fluxo GRUPO FUTEBOL ---------
     if tipo_envio == 'grupo_futebol':
-        subdir_dia = _subdir_futebol(data_envio)  # usa pasta do dia (ou data_override)
-        imagens = _listar_imagens(subdir_dia)
+        subdir_dia, data_resolvida, data_solicitada, imagens = _subdir_futebol(data_envio)
 
-        # Contará imagens efetivamente enviadas
+        if data_resolvida != data_solicitada:
+            registrar_log(
+                f"{localtime().strftime('%d-%m-%Y %H:%M:%S')} "
+                f"[TIPO][{tipo_envio.upper()}] [USUARIO][{usuario}] [GRUPO][{grupo_nome}] [CODE][N/A] "
+                f"[FALLBACK] - Pasta '{data_solicitada}' indisponível. Usando '{data_resolvida}'.",
+                LOG_GRUPOS,
+            )
+
         imagens_enviadas = 0
 
-        # Se não houver imagens, loga e NÃO envia o texto final.
         if not imagens:
             _log_fail(1, -1, f"Nenhuma imagem encontrada em /images/{subdir_dia}. Texto final será ignorado.")
         else:

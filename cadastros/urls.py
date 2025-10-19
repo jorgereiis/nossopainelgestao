@@ -33,6 +33,7 @@ from .views import (
     secret_token_api,
     edit_payment_plan,
     LogFileContentView,
+    UserActionLogListView,
     ClientesCancelados,
     edit_referral_plan,
     delete_app_account,
@@ -52,11 +53,14 @@ from .views import (
     NotificationsModalView,
     CarregarContasDoAplicativo,
     notifications_mark_all_read,
-    generate_graphic_map_customers,
+    mapa_clientes_data,
     CarregarQuantidadesMensalidades,
     generate_graphic_columns_per_year,
     generate_graphic_columns_per_month,
     notifications_count,
+    evolucao_patrimonio,
+    adesoes_cancelamentos_api,
+    clientes_servidor_data,
 )
 
 urlpatterns = [
@@ -72,6 +76,7 @@ urlpatterns = [
     path("logs/list/", LogFilesListView.as_view(), name="logs-list"),
     path("indicacoes/", CarregarInidicacoes.as_view(), name="indicacoes"),
     path("logs/content/", LogFileContentView.as_view(), name="logs-content"),
+    path("user-logs/", UserActionLogListView.as_view(), name="user-logs"),
     path("modal-dns-json/", ModalDNSJsonView.as_view(), name="modal-dns-json"),
     path("contas-apps/", CarregarContasDoAplicativo.as_view(), name="contas-apps"),
     path("dashboard/busca/", TabelaDashboardAjax.as_view(), name="dashboard-busca"),
@@ -88,7 +93,10 @@ urlpatterns = [
     ############ Graphics ###########
     path("grafico/anual/", generate_graphic_columns_per_year, name="grafico-anual"),
     path("grafico/mensal/", generate_graphic_columns_per_month, name="grafico-mensal"),
-    path("grafico/mapa-clientes/", generate_graphic_map_customers, name="grafico-mapa-clientes"),
+    path("api/mapa-clientes/", mapa_clientes_data, name="mapa-clientes"),
+    path("api/clientes-por-servidor/", clientes_servidor_data, name="clientes-por-servidor"),
+    path("api/evolucao-patrimonio/", evolucao_patrimonio, name="evolucao-patrimonio"),
+    path("api/adesoes-cancelamentos/", adesoes_cancelamentos_api, name="adesoes-cancelamentos"),
 
     ############ Create ###########
     path("cadastro-cliente/", create_customer, name="cadastro-cliente"),

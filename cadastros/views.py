@@ -1,15 +1,17 @@
 import requests, operator, logging, codecs, random, base64, json, time, re, os, io
-from django.db.models import Sum, Q, Count, F, ExpressionWrapper, DurationField
+import unicodedata
+from pathlib import Path
+from django.db.models import Sum, Q, Count, F, ExpressionWrapper, DurationField, Exists, OuterRef, Min
 from django.db.models.functions import Upper, Coalesce, ExtractDay, Trim
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.cache import cache_page, never_cache
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models.functions import ExtractMonth, ExtractYear
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_GET
 from plotly.colors import sample_colorscale, make_colorscale
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.decorators.vary import vary_on_cookie
 from django.views.decorators.http import require_POST
 from django.db.models.deletion import ProtectedError
@@ -61,12 +63,16 @@ from .models import (
     SessaoWpp, SecretTokenAPI,
     DadosBancarios, MensagemEnviadaWpp,
     DominiosDNS, PlanoIndicacao,
-    HorarioEnvios
+    HorarioEnvios, NotificationRead,
+    UserActionLog, ClientePlanoHistorico
 )
 from .utils import (
     envio_apos_novo_cadastro,
     validar_tel_whatsapp,
     criar_mensalidade,
+    log_user_action,
+    historico_iniciar,
+    historico_encerrar_vigente,
 )
 
 # Constantes
@@ -88,8 +94,16 @@ warnings.filterwarnings(
 logger = logging.getLogger(__name__)
 url_api = os.getenv("URL_API")
 
+class StaffRequiredMixin(UserPassesTestMixin):
+    raise_exception = True
+
+    def test_func(self):
+        user = self.request.user
+        return user.is_authenticated and (user.is_staff or user.is_superuser)
+
 ############################################ WPP VIEW ############################################
 
+@login_required
 def whatsapp(request):
     return render(request, 'pages/whatsapp.html')
 
@@ -327,9 +341,12 @@ class CarregarContasDoAplicativo(LoginRequiredMixin, View):
         Imprime a lista de contas de aplicativo para fins de depuração.
         Retorna a lista de contas de aplicativo como resposta JSON.
         """
-        id = self.request.GET.get("cliente_id")
-        cliente = Cliente.objects.get(id=id)
-        conta_app = ContaDoAplicativo.objects.filter(cliente=cliente, usuario=self.request.user).select_related('app')
+        cliente_id = self.request.GET.get("cliente_id")
+        cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
+        conta_app = (
+            ContaDoAplicativo.objects.filter(cliente=cliente, usuario=self.request.user)
+            .select_related('app')
+        )
 
         conta_app_json = []
 
@@ -363,8 +380,8 @@ class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
         Cria um dicionário com os valores de quantidade de mensalidades para cada status.
         Retorna a resposta em formato JSON com os dados de quantidade de mensalidades.
         """
-        id = self.request.GET.get("cliente_id")
-        cliente = Cliente.objects.get(id=id)
+        cliente_id = self.request.GET.get("cliente_id")
+        cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
         hoje = timezone.localtime().date()
         mensalidades_totais = Mensalidade.objects.filter(usuario=self.request.user, cliente=cliente).order_by('-id').values()
         mensalidades_pagas = Mensalidade.objects.filter(usuario=self.request.user, pgto=True, cliente=cliente)
@@ -399,8 +416,13 @@ class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
 class CarregarInidicacoes(LoginRequiredMixin, View):
 
     def get(self, request):
-        id = self.request.GET.get("cliente_id")
-        indicados = Cliente.objects.filter(indicado_por=id).order_by('-id').values()
+        cliente_id = self.request.GET.get("cliente_id")
+        cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
+        indicados = (
+            Cliente.objects.filter(indicado_por=cliente, usuario=self.request.user)
+            .order_by('-id')
+            .values()
+        )
 
         data = {'indicacoes': list(indicados),}
 
@@ -493,7 +515,9 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
 
 class ModalDNSJsonView(LoginRequiredMixin, View):
     def get(self, request):
-        dns = DominiosDNS.objects.all().order_by("-status", "-data_online", "-servidor", "dominio")
+        dns = DominiosDNS.objects.filter(usuario=request.user).order_by(
+            "-status", "-data_online", "-servidor", "dominio"
+        )
         data = []
         for d in dns:
             data.append({
@@ -509,38 +533,139 @@ class ModalDNSJsonView(LoginRequiredMixin, View):
         return JsonResponse({"dns": data})
 
 
-class LogFilesListView(View):
+class LogFilesListView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request):
+        base_path = Path(LOG_DIR)
+        if not base_path.exists():
+            return JsonResponse({"files": []})
+
+        resolved_base = base_path.resolve()
         log_files = []
-        for dirpath, dirnames, filenames in os.walk(LOG_DIR):
-            for filename in filenames:
-                if filename.endswith('.log'):
-                    # Caminho relativo para exibir no frontend
-                    rel_dir = os.path.relpath(dirpath, LOG_DIR)
-                    if rel_dir == '.':
-                        rel_path = filename
-                    else:
-                        rel_path = os.path.join(rel_dir, filename)
-                    log_files.append(rel_path)
-        return JsonResponse({"files": log_files})
+        for path in resolved_base.rglob("*.log"):
+            if not path.is_file():
+                continue
+            try:
+                relative_path = path.relative_to(resolved_base)
+            except ValueError:
+                continue
+            log_files.append(str(relative_path).replace("\\", "/"))
+
+        return JsonResponse({"files": sorted(log_files)})
 
 
-class LogFileContentView(View):
+class LogFileContentView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request):
-        filename = request.GET.get("file")
-        if not filename or '..' in filename or filename.startswith('/'):
-            raise Http404("Arquivo não permitido.")
-        # Caminho absoluto seguro
-        full_path = os.path.normpath(os.path.join(LOG_DIR, filename))
-        # Segurança: verifica se o caminho começa com LOG_DIR
-        if not full_path.startswith(os.path.abspath(LOG_DIR)):
-            raise Http404("Arquivo não permitido.")
-        if not os.path.exists(full_path):
-            raise Http404("Arquivo não encontrado.")
-        with open(full_path, encoding='utf-8', errors='replace') as f:
-            lines = f.readlines()[-2000:]
-        return JsonResponse({"content": ''.join(lines)})
+        filename = request.GET.get("file", "").strip()
+        if not filename:
+            return JsonResponse({'error': 'Arquivo não informado.'}, status=400)
 
+        base_path = Path(LOG_DIR)
+        if not base_path.exists():
+            raise Http404('Arquivo não encontrado.')
+
+        resolved_base = base_path.resolve()
+        candidate = (resolved_base / filename).resolve()
+
+        if candidate == resolved_base or resolved_base not in candidate.parents:
+            raise Http404('Arquivo não permitido.')
+
+        if candidate.suffix != '.log' or not candidate.is_file():
+            raise Http404('Arquivo não encontrado.')
+
+        with candidate.open(encoding='utf-8', errors='replace') as handler:
+            lines = handler.readlines()[-2000:]
+
+        return JsonResponse({'content': ''.join(lines)})
+
+class UserActionLogListView(LoginRequiredMixin, View):
+    def get(self, request):
+        try:
+            limit = int(request.GET.get('limit', 50))
+        except (TypeError, ValueError):
+            limit = 50
+        limit = max(1, min(limit, 200))
+
+        user_is_staff = request.user.is_staff or request.user.is_superuser
+        queryset = UserActionLog.objects.all() if user_is_staff else UserActionLog.objects.filter(usuario=request.user)
+
+        target_user = None
+        user_param = request.GET.get('user')
+        if user_is_staff and user_param:
+            try:
+                target_user = User.objects.get(pk=int(user_param))
+            except (ValueError, User.DoesNotExist):
+                try:
+                    target_user = User.objects.get(username=user_param)
+                except User.DoesNotExist:
+                    target_user = None
+        if target_user:
+            queryset = queryset.filter(usuario=target_user)
+
+        action_filter = request.GET.get('action')
+        valid_actions = {choice for choice, _ in UserActionLog.ACTION_CHOICES}
+        if action_filter in valid_actions:
+            queryset = queryset.filter(acao=action_filter)
+
+        search_term = request.GET.get('search')
+        if search_term:
+            queryset = queryset.filter(
+                Q(mensagem__icontains=search_term)
+                | Q(entidade__icontains=search_term)
+                | Q(objeto_repr__icontains=search_term)
+            )
+
+        start_date = request.GET.get('since')
+        end_date = request.GET.get('until')
+        if start_date:
+            parsed = parse_date(start_date)
+            if parsed:
+                queryset = queryset.filter(criado_em__date__gte=parsed)
+        if end_date:
+            parsed = parse_date(end_date)
+            if parsed:
+                queryset = queryset.filter(criado_em__date__lte=parsed)
+
+        queryset = queryset.select_related('usuario')
+        total_registros = queryset.count()
+        queryset = queryset.order_by('-criado_em')[:limit]
+
+        dados = []
+        for log in queryset:
+            dados.append({
+                'id': log.id,
+                'timestamp': timezone.localtime(log.criado_em).strftime('%d/%m/%Y %H:%M:%S'),
+                'acao': log.acao,
+                'acao_label': log.get_acao_display(),
+                'entidade': log.entidade,
+                'objeto_id': log.objeto_id,
+                'objeto_repr': log.objeto_repr,
+                'mensagem': log.mensagem,
+                'extras': log.extras or {},
+                'ip': log.ip,
+                'request_path': log.request_path,
+                'usuario': {
+                    'id': log.usuario_id,
+                    'username': log.usuario.get_username(),
+                    'nome': log.usuario.get_full_name() or log.usuario.get_username(),
+                },
+            })
+
+        return JsonResponse({
+            'results': dados,
+            'actions': [{'value': value, 'label': label} for value, label in UserActionLog.ACTION_CHOICES],
+            'total': total_registros,
+            'limit': limit,
+            'can_view_all': user_is_staff,
+            'selected_user': target_user.id if target_user else request.user.id,
+            'users': [
+                {
+                    'id': user.id,
+                    'username': user.get_username(),
+                    'nome': user.get_full_name() or user.get_username(),
+                }
+                for user in User.objects.filter(is_active=True).order_by('username')
+            ] if user_is_staff else [],
+        })
 
 class TabelaDashboard(LoginRequiredMixin, ListView):
     """
@@ -854,22 +979,26 @@ def send_message_wpp(request):
 
 
 
+@require_http_methods(["GET"])
 @login_required
 def secret_token_api(request):
     """
         Função de view para consultar o Secret Token da API WPP Connect
     """
-    if request.method == 'GET':
-        if request.user:
-            query = SecretTokenAPI.objects.get(id=1)
-            token = query.token
-        else:
-            return JsonResponse({"error_message": "Usuário da requisição não identificado."}, status=500)
-    else:
-        return JsonResponse({"error_message": "Método da requisição não permitido."}, status=500)
-    
-    return JsonResponse({"stkn": token}, status=200)
+    if not request.user.is_superuser:
+        return JsonResponse({'error_message': 'Permissão negada.'}, status=403)
 
+    token = (
+        SecretTokenAPI.objects.filter(usuario=request.user)
+        .order_by('-dt_criacao')
+        .values_list('token', flat=True)
+        .first()
+    )
+
+    if not token:
+        return JsonResponse({'error_message': 'Token não encontrado.'}, status=404)
+
+    return JsonResponse({'stkn': token}, status=200)
 
 @login_required
 def get_session_wpp(request):
@@ -888,25 +1017,27 @@ def get_session_wpp(request):
     return JsonResponse({"token": token}, status=200)
 
 
+@require_http_methods(["GET"])
 @login_required
 def get_logs_wpp(request):
-    if request.method == 'POST':
+    log_path = Path(LOG_DIR) / "Envios manuais" / f"{request.user.username}_send_result.log"
 
-        file_path = './logs/Envios manuais/{}_send_result.log'.format(request.user)
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
-            logs = file.read()
+    if not log_path.exists():
+        return JsonResponse({'logs': ''})
 
+    logs = log_path.read_text(encoding='utf-8', errors='ignore')
     return JsonResponse({'logs': logs})
 
 
+@login_required
 def profile_page(request):
-    user = User.objects.get(username=request.user)
-    dados_bancarios = DadosBancarios.objects.filter(usuario=user.id).first()
+    user = request.user
+    dados_bancarios = DadosBancarios.objects.filter(usuario=user).first()
 
     dt_inicio = user.date_joined.strftime('%d/%m/%Y') if user.date_joined else '--'
-    f_name = user.first_name if user.first_name else '--'
-    l_name = user.last_name if user.last_name else '--'
-    email = user.email if user.email else '--'
+    f_name = user.first_name or '--'
+    l_name = user.last_name or '--'
+    email = user.email or '--'
 
     beneficiario = dados_bancarios.beneficiario if dados_bancarios else '--'
     instituicao = dados_bancarios.instituicao if dados_bancarios else '--'
@@ -928,7 +1059,7 @@ def profile_page(request):
             'sobrenome_user': l_name,
             'dt_inicio': dt_inicio,
             'nome_user': f_name,
-            'username': user,
+            'username': user.username,
             'email': email,
             'chave': chave,
             'wpp': wpp,
@@ -936,40 +1067,42 @@ def profile_page(request):
     )
 
 
+@login_required
 def generate_graphic_columns_per_month(request):
-    # Obtém o ano atual e o mês fornecido via GET (ou o atual)
     ano_atual = now().year
     mes = int(request.GET.get("mes", now().month))
     usuario = request.user
 
-    # Garante que o mês requisitado pertence ao ano atual
     if not (1 <= mes <= 12):
         return HttpResponse("Mês inválido", status=400)
 
-    # Filtra adesões e cancelamentos apenas do mês/ano atual
-    dados_adesoes = Cliente.objects.filter(
-        data_adesao__year=ano_atual,
-        data_adesao__month=mes,
-        usuario=usuario
-    ).annotate(dia=ExtractDay("data_adesao")) \
-     .values("dia") \
-     .annotate(total=Count("id")) \
-     .order_by("dia")
+    dados_adesoes = (
+        Cliente.objects.filter(
+            data_adesao__year=ano_atual,
+            data_adesao__month=mes,
+            usuario=usuario,
+        )
+        .annotate(dia=ExtractDay("data_adesao"))
+        .values("dia")
+        .annotate(total=Count("id"))
+        .order_by("dia")
+    )
 
-    dados_cancelamentos = Cliente.objects.filter(
-        data_cancelamento__year=ano_atual,
-        data_cancelamento__month=mes,
-        usuario=usuario
-    ).annotate(dia=ExtractDay("data_cancelamento")) \
-     .values("dia") \
-     .annotate(total=Count("id")) \
-     .order_by("dia")
+    dados_cancelamentos = (
+        Cliente.objects.filter(
+            data_cancelamento__year=ano_atual,
+            data_cancelamento__month=mes,
+            usuario=usuario,
+        )
+        .annotate(dia=ExtractDay("data_cancelamento"))
+        .values("dia")
+        .annotate(total=Count("id"))
+        .order_by("dia")
+    )
 
-    # Dicionários auxiliares
     adesoes_dict = {dado["dia"]: dado["total"] for dado in dados_adesoes}
     cancelamentos_dict = {dado["dia"]: dado["total"] for dado in dados_cancelamentos}
 
-    # Listas para plotagem
     dias = []
     adesoes = []
     cancelamentos = []
@@ -986,24 +1119,41 @@ def generate_graphic_columns_per_month(request):
     total_cancelamentos = sum(cancelamentos)
     saldo_final = total_adesoes - total_cancelamentos
 
-    # Criar gráfico de colunas
     plt.figure(figsize=(7, 3))
     plt.bar(dias, adesoes, color="#4CAF50", width=0.4, label="Adesões")
     plt.bar(dias, cancelamentos, color="#F44336", width=0.4, bottom=adesoes, label="Cancelamentos")
 
-    # Rótulos nas barras
-    for i, v in enumerate(adesoes):
-        if v > 0:
-            plt.text(i, v / 2, str(v), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
+    for i, valor in enumerate(adesoes):
+        if valor > 0:
+            plt.text(i, valor / 2, str(valor), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
 
-    for i, v in enumerate(cancelamentos):
-        if v > 0:
-            plt.text(i, adesoes[i] + v / 2, str(v), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
-
+    for i, valor in enumerate(cancelamentos):
+        if valor > 0:
+            plt.text(
+                i,
+                adesoes[i] + valor / 2,
+                str(valor),
+                ha='center',
+                va='center',
+                fontsize=10,
+                color='white',
+                fontweight='bold',
+            )
 
     nomes_pt = [
-        "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        "",
+        "Janeiro",
+        "Fevereiro",
+        "Março",
+        "Abril",
+        "Maio",
+        "Junho",
+        "Julho",
+        "Agosto",
+        "Setembro",
+        "Outubro",
+        "Novembro",
+        "Dezembro",
     ]
     nome_mes = nomes_pt[mes]
     plt.title(f"Adesões e Cancelamentos por mês - {nome_mes} {ano_atual}", fontsize=14)
@@ -1012,21 +1162,21 @@ def generate_graphic_columns_per_month(request):
     plt.xticks(fontsize=10, fontweight='bold')
     plt.yticks(fontsize=10)
 
-    # Legenda
     cor_saldo = "#624BFF" if saldo_final >= 0 else "#F44336"
     texto_saldo = f"Saldo {nome_mes}: {'+' if saldo_final > 0 else ''}{saldo_final}"
 
     saldo_patch = Patch(color=cor_saldo, label=texto_saldo)
-    plt.legend(handles=[
-        Patch(color="#4CAF50", label=f"Adesões: {total_adesoes}"),
-        Patch(color="#F44336", label=f"Cancelamentos: {total_cancelamentos}"),
-        saldo_patch
-    ])
+    plt.legend(
+        handles=[
+            Patch(color="#4CAF50", label=f"Adesões: {total_adesoes}"),
+            Patch(color="#F44336", label=f"Cancelamentos: {total_cancelamentos}"),
+            saldo_patch,
+        ]
+    )
 
     plt.gca().spines['top'].set_visible(False)
     plt.gca().spines['right'].set_visible(False)
 
-    # Gera imagem
     buffer = io.BytesIO()
     plt.tight_layout()
     plt.savefig(buffer, format='png', bbox_inches="tight", dpi=100)
@@ -1036,86 +1186,364 @@ def generate_graphic_columns_per_month(request):
     return HttpResponse(buffer.getvalue(), content_type="image/png")
 
 
-def generate_graphic_columns_per_year(request):
-    # Obtendo o ano escolhido (se não for informado, pega o atual)
-    ano = request.GET.get("ano", timezone.now().year)
-    usuario = request.user
+def _month_name_pt(month: int) -> str:
+    nomes = [
+        "",
+        "Janeiro",
+        "Fevereiro",
+        "Mar\u00e7o",
+        "Abril",
+        "Maio",
+        "Junho",
+        "Julho",
+        "Agosto",
+        "Setembro",
+        "Outubro",
+        "Novembro",
+        "Dezembro",
+    ]
+    if 1 <= month < len(nomes):
+        return nomes[month]
+    return str(month)
 
-    # Filtrando os dados do banco com base no ano escolhido
-    dados_adesoes = Cliente.objects.filter(data_adesao__year=ano, usuario=usuario) \
-        .annotate(mes=ExtractMonth("data_adesao")) \
-        .values("mes") \
-        .annotate(total=Count("id")) \
-        .order_by("mes")
 
-    dados_cancelamentos = Cliente.objects.filter(data_cancelamento__year=ano, usuario=usuario) \
-        .annotate(mes=ExtractMonth("data_cancelamento")) \
-        .values("mes") \
-        .annotate(total=Count("id")) \
-        .order_by("mes")
+def _month_abbr_pt(month: int) -> str:
+    abreviacoes = [
+        "Jan",
+        "Fev",
+        "Mar",
+        "Abr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Set",
+        "Out",
+        "Nov",
+        "Dez",
+    ]
+    if 1 <= month <= len(abreviacoes):
+        return abreviacoes[month - 1]
+    return str(month)
 
-    # Criando listas dinâmicas de meses, adesões e cancelamentos
-    meses = []
+
+def _dataset_adesao_cancelamentos_mensal(usuario, year: int, month: int):
+    dados_adesoes = (
+        Cliente.objects.filter(
+            data_adesao__year=year,
+            data_adesao__month=month,
+            usuario=usuario,
+        )
+        .annotate(dia=ExtractDay("data_adesao"))
+        .values("dia")
+        .annotate(total=Count("id"))
+        .order_by("dia")
+    )
+
+    dados_cancelamentos = (
+        Cliente.objects.filter(
+            data_cancelamento__year=year,
+            data_cancelamento__month=month,
+            usuario=usuario,
+        )
+        .annotate(dia=ExtractDay("data_cancelamento"))
+        .values("dia")
+        .annotate(total=Count("id"))
+        .order_by("dia")
+    )
+
+    adesoes_dict = {item["dia"]: item["total"] for item in dados_adesoes}
+    cancelamentos_dict = {item["dia"]: item["total"] for item in dados_cancelamentos}
+
+    categorias = []
     adesoes = []
     cancelamentos = []
+    saldo = []
 
-    # Criando dicionários auxiliares
-    adesoes_dict = {dado["mes"]: dado["total"] for dado in dados_adesoes}
-    cancelamentos_dict = {dado["mes"]: dado["total"] for dado in dados_cancelamentos}
+    total_dias = calendar.monthrange(year, month)[1]
+    for dia in range(1, total_dias + 1):
+        if dia in adesoes_dict or dia in cancelamentos_dict:
+            valor_adesao = adesoes_dict.get(dia, 0)
+            valor_cancelamento = cancelamentos_dict.get(dia, 0)
+            categorias.append(str(dia))
+            adesoes.append(valor_adesao)
+            cancelamentos.append(valor_cancelamento)
+            saldo.append(valor_adesao - valor_cancelamento)
 
-    # Preenchendo os dados de acordo com os meses existentes no banco
-    for mes in range(1, 13):
-        if mes in adesoes_dict or mes in cancelamentos_dict:
-            meses.append(calendar.month_abbr[mes])  # Ex: "Jan", "Feb", ...
-            adesoes.append(adesoes_dict.get(mes, 0))
-            cancelamentos.append(cancelamentos_dict.get(mes, 0))
-
-    # Cálculo do saldo final
     total_adesoes = sum(adesoes)
     total_cancelamentos = sum(cancelamentos)
     saldo_final = total_adesoes - total_cancelamentos
 
-    # Criando o gráfico de colunas
+    return {
+        "mode": "monthly",
+        "categories": categorias,
+        "series": [
+            {"key": "adesoes", "name": "Ades\u00f5es", "type": "bar", "data": adesoes},
+            {"key": "cancelamentos", "name": "Cancelamentos", "type": "bar", "data": cancelamentos},
+            {"key": "saldo", "name": "Saldo", "type": "line", "data": saldo},
+        ],
+        "summary": {
+            "total_adesoes": total_adesoes,
+            "total_cancelamentos": total_cancelamentos,
+            "saldo": saldo_final,
+            "saldo_label": f"{'+' if saldo_final > 0 else ''}{saldo_final}",
+        },
+        "meta": {
+            "mode": "monthly",
+            "month": month,
+            "month_name": _month_name_pt(month),
+            "year": year,
+            "range_label": f"{_month_name_pt(month)} {year}",
+        },
+    }
+
+
+def _dataset_adesao_cancelamentos_lifetime(usuario):
+    dados_adesoes = (
+        Cliente.objects.filter(usuario=usuario, data_adesao__isnull=False)
+        .annotate(ano=ExtractYear("data_adesao"), mes=ExtractMonth("data_adesao"))
+        .values("ano", "mes")
+        .annotate(total=Count("id"))
+        .order_by("ano", "mes")
+    )
+
+    dados_cancelamentos = (
+        Cliente.objects.filter(usuario=usuario, data_cancelamento__isnull=False)
+        .annotate(ano=ExtractYear("data_cancelamento"), mes=ExtractMonth("data_cancelamento"))
+        .values("ano", "mes")
+        .annotate(total=Count("id"))
+        .order_by("ano", "mes")
+    )
+
+    adesoes_dict = {(item["ano"], item["mes"]): item["total"] for item in dados_adesoes}
+    cancelamentos_dict = {(item["ano"], item["mes"]): item["total"] for item in dados_cancelamentos}
+
+    todos_periodos = sorted(set(adesoes_dict.keys()) | set(cancelamentos_dict.keys()))
+
+    categorias = []
+    adesoes = []
+    cancelamentos = []
+    saldo = []
+
+    for ano, mes in todos_periodos:
+        valor_adesao = adesoes_dict.get((ano, mes), 0)
+        valor_cancelamento = cancelamentos_dict.get((ano, mes), 0)
+        categorias.append(f"{_month_abbr_pt(mes)} {ano}")
+        adesoes.append(valor_adesao)
+        cancelamentos.append(valor_cancelamento)
+        saldo.append(valor_adesao - valor_cancelamento)
+
+    total_adesoes = sum(adesoes)
+    total_cancelamentos = sum(cancelamentos)
+    saldo_final = total_adesoes - total_cancelamentos
+
+    meta = {
+        "mode": "lifetime",
+        "title": "Ades\u00e3o e Cancelamentos - Hist\u00f3rico completo",
+    }
+    if todos_periodos:
+        ano_inicio, mes_inicio = todos_periodos[0]
+        ano_fim, mes_fim = todos_periodos[-1]
+        meta.update(
+            {
+                "start_year": ano_inicio,
+                "start_month": mes_inicio,
+                "end_year": ano_fim,
+                "end_month": mes_fim,
+                "range_label": f"De {_month_abbr_pt(mes_inicio)} {ano_inicio} a {_month_abbr_pt(mes_fim)} {ano_fim}",
+            }
+        )
+
+    return {
+        "mode": "lifetime",
+        "categories": categorias,
+        "series": [
+            {"key": "adesoes", "name": "Ades\u00f5es", "type": "bar", "data": adesoes},
+            {"key": "cancelamentos", "name": "Cancelamentos", "type": "bar", "data": cancelamentos},
+            {"key": "saldo", "name": "Saldo", "type": "line", "data": saldo},
+        ],
+        "summary": {
+            "total_adesoes": total_adesoes,
+            "total_cancelamentos": total_cancelamentos,
+            "saldo": saldo_final,
+            "saldo_label": f"{'+' if saldo_final > 0 else ''}{saldo_final}",
+        },
+        "meta": meta,
+    }
+
+
+def _dataset_adesao_cancelamentos_anual(usuario, year: int):
+    dados_adesoes = (
+        Cliente.objects.filter(data_adesao__year=year, usuario=usuario)
+        .annotate(mes=ExtractMonth("data_adesao"))
+        .values("mes")
+        .annotate(total=Count("id"))
+        .order_by("mes")
+    )
+
+    dados_cancelamentos = (
+        Cliente.objects.filter(data_cancelamento__year=year, usuario=usuario)
+        .annotate(mes=ExtractMonth("data_cancelamento"))
+        .values("mes")
+        .annotate(total=Count("id"))
+        .order_by("mes")
+    )
+
+    adesoes_dict = {item["mes"]: item["total"] for item in dados_adesoes}
+    cancelamentos_dict = {item["mes"]: item["total"] for item in dados_cancelamentos}
+
+    categorias = []
+    adesoes = []
+    cancelamentos = []
+    saldo = []
+
+    for mes in range(1, 13):
+        valor_adesao = adesoes_dict.get(mes, 0)
+        valor_cancelamento = cancelamentos_dict.get(mes, 0)
+        if valor_adesao or valor_cancelamento:
+            categorias.append(_month_abbr_pt(mes))
+            adesoes.append(valor_adesao)
+            cancelamentos.append(valor_cancelamento)
+            saldo.append(valor_adesao - valor_cancelamento)
+
+    total_adesoes = sum(adesoes)
+    total_cancelamentos = sum(cancelamentos)
+    saldo_final = total_adesoes - total_cancelamentos
+
+    return {
+        "mode": "annual",
+        "categories": categorias,
+        "series": [
+            {"key": "adesoes", "name": "Ades\u00f5es", "type": "bar", "data": adesoes},
+            {"key": "cancelamentos", "name": "Cancelamentos", "type": "bar", "data": cancelamentos},
+            {"key": "saldo", "name": "Saldo", "type": "line", "data": saldo},
+        ],
+        "summary": {
+            "total_adesoes": total_adesoes,
+            "total_cancelamentos": total_cancelamentos,
+            "saldo": saldo_final,
+            "saldo_label": f"{'+' if saldo_final > 0 else ''}{saldo_final}",
+        },
+        "meta": {
+            "mode": "annual",
+            "year": year,
+            "range_label": str(year),
+        },
+    }
+
+
+@login_required
+@require_GET
+def adesoes_cancelamentos_api(request):
+    modo = (request.GET.get("mode", "monthly") or "monthly").lower()
+    hoje = timezone.localdate()
+    usuario = request.user
+
+    try:
+        ano = int(request.GET.get("year", hoje.year))
+    except (TypeError, ValueError):
+        ano = hoje.year
+
+    if modo not in {"monthly", "annual", "lifetime"}:
+        modo = "monthly"
+
+    if modo == "annual":
+        resultado = _dataset_adesao_cancelamentos_anual(usuario, ano)
+        resultado["meta"]["title"] = f"Ades\u00e3o e Cancelamentos por ano - {ano}"
+    elif modo == "lifetime":
+        resultado = _dataset_adesao_cancelamentos_lifetime(usuario)
+    else:
+        try:
+            mes = int(request.GET.get("month", hoje.month))
+        except (TypeError, ValueError):
+            mes = hoje.month
+        mes = max(1, min(12, mes))
+        resultado = _dataset_adesao_cancelamentos_mensal(usuario, ano, mes)
+        resultado["meta"]["title"] = f"Ades\u00e3o e Cancelamentos por m\u00eas - {resultado['meta']['month_name']} {ano}"
+
+    return JsonResponse(resultado)
+
+
+@login_required
+def generate_graphic_columns_per_year(request):
+    ano = request.GET.get("ano", timezone.now().year)
+    usuario = request.user
+
+    dados_adesoes = (
+        Cliente.objects.filter(data_adesao__year=ano, usuario=usuario)
+        .annotate(mes=ExtractMonth("data_adesao"))
+        .values("mes")
+        .annotate(total=Count("id"))
+        .order_by("mes")
+    )
+
+    dados_cancelamentos = (
+        Cliente.objects.filter(data_cancelamento__year=ano, usuario=usuario)
+        .annotate(mes=ExtractMonth("data_cancelamento"))
+        .values("mes")
+        .annotate(total=Count("id"))
+        .order_by("mes")
+    )
+
+    meses = []
+    adesoes = []
+    cancelamentos = []
+
+    adesoes_dict = {dado["mes"]: dado["total"] for dado in dados_adesoes}
+    cancelamentos_dict = {dado["mes"]: dado["total"] for dado in dados_cancelamentos}
+
+    for mes in range(1, 13):
+        if mes in adesoes_dict or mes in cancelamentos_dict:
+            meses.append(calendar.month_abbr[mes])
+            adesoes.append(adesoes_dict.get(mes, 0))
+            cancelamentos.append(cancelamentos_dict.get(mes, 0))
+
+    total_adesoes = sum(adesoes)
+    total_cancelamentos = sum(cancelamentos)
+    saldo_final = total_adesoes - total_cancelamentos
+
     plt.figure(figsize=(7, 3))
-    
-    plt.bar(meses, adesoes, color="#4CAF50", width=0.4, label="Adesões")  # Verde
-    plt.bar(meses, cancelamentos, color="#F44336", width=0.4, bottom=adesoes, label="Cancelamentos")  # Vermelho
+    plt.bar(meses, adesoes, color="#4CAF50", width=0.4, label="Adesões")
+    plt.bar(meses, cancelamentos, color="#F44336", width=0.4, bottom=adesoes, label="Cancelamentos")
 
-    # Adicionando rótulos nas barras
-    for i, v in enumerate(adesoes):
-        if v > 0:
-            plt.text(i, v / 2, str(v), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
+    for i, valor in enumerate(adesoes):
+        if valor > 0:
+            plt.text(i, valor / 2, str(valor), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
 
-    for i, v in enumerate(cancelamentos):
-        if v > 0:
-            plt.text(i, adesoes[i] + v / 2, str(v), ha='center', va='center', fontsize=10, color='white', fontweight='bold')
+    for i, valor in enumerate(cancelamentos):
+        if valor > 0:
+            plt.text(
+                i,
+                adesoes[i] + valor / 2,
+                str(valor),
+                ha='center',
+                va='center',
+                fontsize=10,
+                color='white',
+                fontweight='bold',
+            )
 
-    # Melhorando a estética do gráfico
     plt.title(f'Adesão e Cancelamentos por ano - {ano}', fontsize=14)
     plt.xlabel('Mês', fontsize=12)
     plt.ylabel('Quantidade', fontsize=12)
     plt.xticks(fontsize=10, fontweight='bold')
     plt.yticks(fontsize=10)
 
-    # Definição da cor do saldo na legenda
     cor_saldo = "#624BFF" if saldo_final >= 0 else "#F44336"
     texto_saldo = f"Saldo {ano}: {'+' if saldo_final > 0 else ''}{saldo_final}"
 
-    # Criando um proxy para adicionar o saldo na legenda
     saldo_patch = Patch(color=cor_saldo, label=texto_saldo)
+    plt.legend(
+        handles=[
+            Patch(color="#4CAF50", label=f"Adesões: {total_adesoes}"),
+            Patch(color="#F44336", label=f"Cancelamentos: {total_cancelamentos}"),
+            saldo_patch,
+        ]
+    )
 
-    # Adicionando a legenda com "Saldo" personalizado
-    plt.legend(handles=[
-        Patch(color="#4CAF50", label=f"Adesões: {total_adesoes}"),
-        Patch(color="#F44336", label=f"Cancelamentos: {total_cancelamentos}"),
-        saldo_patch
-    ])
-
-    # Removendo bordas superiores e laterais para um design mais limpo
     plt.gca().spines['top'].set_visible(False)
     plt.gca().spines['right'].set_visible(False)
 
-    # Salvando o gráfico como imagem
     buffer = io.BytesIO()
     plt.savefig(buffer, format='png', bbox_inches="tight", dpi=100)
     buffer.seek(0)
@@ -1127,162 +1555,197 @@ def generate_graphic_columns_per_year(request):
 def user_cache_key(request):
     return f"user-{request.user.id}" if request.user.is_authenticated else "anonymous"
 
-# Wrapper para cache_page com key prefix dinâmico
+
 def cache_page_by_user(timeout):
     def decorator(view_func):
         def _wrapped_view(request, *args, **kwargs):
             return cache_page(timeout, key_prefix=user_cache_key(request))(view_func)(request, *args, **kwargs)
+
         return _wrapped_view
+
     return decorator
 
-@xframe_options_exempt
+
 @login_required
-@cache_page_by_user(60 * 120)
-def generate_graphic_map_customers(request):
+@cache_page_by_user(60 * 60)
+def mapa_clientes_data(request):
     usuario = request.user
 
-    # Consulta os clientes ativos por estado (uf)
     dados = dict(
         Cliente.objects.filter(cancelado=False, usuario=usuario)
-        .values('uf')
-        .annotate(total=Count('id'))
-        .values_list('uf', 'total')
+        .values("uf")
+        .annotate(total=Count("id"))
+        .values_list("uf", "total")
     )
+
     total_geral = sum(dados.values())
     clientes_internacionais = Cliente.objects.filter(cancelado=False, usuario=usuario, uf__isnull=True).count()
 
-    # Carrega o arquivo GeoJSON local
     mapa = gpd.read_file("archives/brasil_estados.geojson")
 
-    # Mapeia os nomes dos estados para siglas
+    def _normalizar_estado(nome):
+        if not isinstance(nome, str):
+            return ""
+        return unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode("ascii").lower()
+
     siglas = {
-        "Acre": "AC", "Alagoas": "AL", "Amapá": "AP", "Amazonas": "AM",
-        "Bahia": "BA", "Ceará": "CE", "Distrito Federal": "DF", "Espírito Santo": "ES",
-        "Goiás": "GO", "Maranhão": "MA", "Mato Grosso": "MT", "Mato Grosso do Sul": "MS",
-        "Minas Gerais": "MG", "Pará": "PA", "Paraíba": "PB", "Paraná": "PR",
-        "Pernambuco": "PE", "Piauí": "PI", "Rio de Janeiro": "RJ", "Rio Grande do Norte": "RN",
-        "Rio Grande do Sul": "RS", "Rondônia": "RO", "Roraima": "RR", "Santa Catarina": "SC",
-        "São Paulo": "SP", "Sergipe": "SE", "Tocantins": "TO"
+        "acre": "AC",
+        "alagoas": "AL",
+        "amapa": "AP",
+        "amazonas": "AM",
+        "bahia": "BA",
+        "ceara": "CE",
+        "distrito federal": "DF",
+        "espirito santo": "ES",
+        "goias": "GO",
+        "maranhao": "MA",
+        "mato grosso": "MT",
+        "mato grosso do sul": "MS",
+        "minas gerais": "MG",
+        "para": "PA",
+        "paraiba": "PB",
+        "parana": "PR",
+        "pernambuco": "PE",
+        "piaui": "PI",
+        "rio de janeiro": "RJ",
+        "rio grande do norte": "RN",
+        "rio grande do sul": "RS",
+        "rondonia": "RO",
+        "roraima": "RR",
+        "santa catarina": "SC",
+        "sao paulo": "SP",
+        "sergipe": "SE",
+        "tocantins": "TO",
     }
 
-    # Adiciona a sigla e clientes ao GeoDataFrame
-    mapa["sigla"] = mapa["name"].map(siglas)
+    mapa["sigla"] = mapa["name"].apply(lambda nome: siglas.get(_normalizar_estado(nome)))
+    mapa = mapa.dropna(subset=["sigla"])
     mapa["clientes"] = mapa["sigla"].apply(lambda uf: dados.get(uf, 0))
     mapa["porcentagem"] = mapa["clientes"].apply(
         lambda x: round((x / total_geral) * 100, 1) if total_geral > 0 else 0
     )
 
-    # Remove colunas com Timestamp (não serializáveis)
     mapa = mapa.drop(columns=["created_at", "updated_at"], errors="ignore")
-
-    # Converte para GeoJSON
     geojson_data = json.loads(mapa.to_json())
 
-    # Definindo a  escala de 1 ao máximo
-    max_clientes = max(mapa["clientes"]) if mapa["clientes"].any() else 1
+    for feature in geojson_data.get("features", []):
+        props = feature.get("properties", {})
+        props["clientes"] = int(props.get("clientes", 0) or 0)
+        props["porcentagem"] = float(props.get("porcentagem", 0) or 0)
+        feature["properties"] = props
 
-    mapa["clientes_cor"] = mapa["clientes"].apply(lambda x: x if x > 0 else None)
+    max_clientes = int(max(mapa["clientes"]) if mapa["clientes"].any() else 0)
 
-    # Gera o gráfico interativo
-    fig = px.choropleth_mapbox(
-        mapa,
-        geojson=geojson_data,
-        locations="sigla",
-        color="clientes",
-        color_continuous_scale=[
-            [0.0, "#FFFFFF"],   # clientes = 0
-            [0.01, "#cdbfff"],  # mínimo relevante
-            [1.0, "#624BFF"]    # máximo
-        ],
-        range_color=[0, max_clientes],
-        labels={
-            "clientes": "Clientes Ativos",
-            "porcentagem": "% do Total"
-        },
-        featureidkey="properties.sigla",
-        hover_name="name",
-        hover_data={
-            "clientes": True,
-            "sigla": False,
-            "clientes_cor": False,
-            "porcentagem": True
-        },
-        mapbox_style="white-bg",
-        center={"lat": -19.68828, "lon": -54.72019},
-        zoom=2.2,
-        opacity=0.6,
+    return JsonResponse(
+        {
+            "features": geojson_data.get("features", []),
+            "summary": {
+                "total_geral": int(total_geral),
+                "fora_pais": int(clientes_internacionais),
+                "max_clientes": max_clientes,
+            },
+        }
     )
 
-    fig.update_traces(
-        hoverlabel=dict(
-            bgcolor="#fff",
-            bordercolor="#724BFF",
-            font=dict(size=14, color="black", family="Arial")
-        ),
-        marker_line_color="#ABA5D9",
-        marker_line_width=0.5
+
+@login_required
+@cache_page_by_user(60 * 30)
+def clientes_servidor_data(request):
+    usuario = request.user
+
+    servidores = list(
+        Servidor.objects.filter(usuario=usuario)
+        .order_by("nome")
+        .values_list("nome", flat=True)
     )
 
-    fig.update_layout(
-        margin={"r": 0, "t": 0, "l": 0, "b": 0},
-        title_text="Clientes Ativos por Estado",
-        title_x=0.5,
-        title_y=0.95,
-        title_font=dict(size=25),
-        title_font_color="black",
-        title_font_family="Arial",
-        title_xanchor="center",
-        coloraxis_showscale=False
+    filtro = (request.GET.get("servidor") or "todos").strip()
+    selected = filtro if filtro in servidores else "todos"
+
+    base_queryset = Cliente.objects.filter(usuario=usuario, cancelado=False)
+
+    if selected != "todos":
+        queryset = base_queryset.filter(servidor__nome=selected)
+        agregados = (
+            queryset.values("sistema__nome")
+            .annotate(total=Count("id"))
+            .order_by("-total", "sistema__nome")
+        )
+        mode = "aplicativo"
+    else:
+        queryset = base_queryset
+        agregados = (
+            queryset.values("servidor__nome")
+            .annotate(total=Count("id"))
+            .order_by("-total", "servidor__nome")
+        )
+        mode = "servidor"
+
+    total = sum(item["total"] for item in agregados)
+
+    segments = []
+    for item in agregados:
+        if mode == "servidor":
+            label = item["servidor__nome"] or "Sem servidor"
+        else:
+            label = item["sistema__nome"] or "Sem aplicativo"
+        valor = int(item["total"])
+        percent = round((valor / total) * 100, 2) if total > 0 else 0.0
+        segments.append(
+            {
+                "label": label,
+                "value": valor,
+                "percent": percent,
+            }
+        )
+
+    segments.sort(key=lambda x: (-x["value"], x["label"]))
+
+    options = ["Todos Servidores"] + servidores
+    selected_label = selected if selected != "todos" else "Todos os Servidores"
+
+    return JsonResponse(
+        {
+            "options": options,
+            "selected": selected_label,
+            "mode": mode,
+            "total": int(total),
+            "segments": segments,
+        }
     )
-
-    # Gera o HTML do gráfico
-    grafico_html = plot(fig, output_type="div", include_plotlyjs="cdn")
-
-    # Envolve com estrutura HTML e CSS responsivo
-    info_adicional = f"""
-    <div style='text-align:center; font-family:Arial; font-size:12px; color: #333; margin-top: 8px;'>
-        Qtd. fora do país: {clientes_internacionais}
-    </div>
-    """
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Mapa Interativo</title>
-        <style>
-            html, body {{
-                margin: 0;
-                padding: 0;
-                height: 100%;
-                max-width: 100%;
-                overflow: hidden;
-            }}
-            .plotly-graph-div {{
-                height: 100% !important;
-                width: 100% !important;
-            }}
-            @media (max-width: 576px) {{
-                .plotly-graph-div {{
-                    height: 400px !important;
-                }}
-            }}
-        </style>
-    </head>
-    <body>
-        {info_adicional}
-        {grafico_html}
-    </body>
-    </html>
-    """
-
-    return HttpResponse(html, content_type="text/html")
 
 
 @login_required
 @never_cache
 def notifications_dropdown(request):
-    return render(request, "notificacoes/dropdown.html", {})
+    hoje = timezone.localdate()
+    tipos = [Tipos_pgto.CARTAO, Tipos_pgto.BOLETO]
+
+    queryset = (
+        Mensalidade.objects.select_related("cliente", "cliente__forma_pgto", "cliente__plano")
+        .filter(
+            usuario=request.user,
+            pgto=False,
+            cancelado=False,
+            cliente__cancelado=False,
+            cliente__forma_pgto__nome__in=tipos,
+            dt_vencimento__lt=hoje,
+        )
+        .exclude(notifications_read__usuario=request.user)
+        .annotate(
+            dias_atraso=ExpressionWrapper(
+                hoje - F("dt_vencimento"), output_field=DurationField()
+            )
+        )
+        .order_by("dt_vencimento")
+    )
+
+    itens = list(queryset[:20])
+    context = {
+        "notif_items": itens,
+        "notif_count": queryset.count(),
+    }
+    return render(request, "notificacoes/dropdown.html", context)
 
 @login_required
 @require_POST
@@ -1298,10 +1761,15 @@ def notifications_mark_all_read(request):
             dt_vencimento__lt=hoje,
         ).values_list("id", flat=True)
     )
-    read_ids = set(request.session.get("notif_read_ids", []))
-    read_ids.update(map(int, ids))
-    request.session["notif_read_ids"] = list(read_ids)
-    request.session.modified = True
+
+    objetos = [
+        NotificationRead(usuario=request.user, mensalidade_id=mensalidade_id)
+        for mensalidade_id in ids
+    ]
+    NotificationRead.objects.bulk_create(objetos, ignore_conflicts=True)
+
+    request.session.pop("notif_read_ids", None)
+
     return JsonResponse({"ok": True, "cleared": len(ids)})
 
 class NotificationsModalView(LoginRequiredMixin, ListView):
@@ -1320,21 +1788,26 @@ class NotificationsModalView(LoginRequiredMixin, ListView):
                 pgto=False,
                 cancelado=False,
                 cliente__cancelado=False,
-                cliente__forma_pgto__nome=Tipos_pgto.CARTAO,
+                cliente__forma_pgto__nome__in=[Tipos_pgto.CARTAO, Tipos_pgto.BOLETO],
                 dt_vencimento__lt=hoje,
             )
             .annotate(
+                ja_lida=Exists(
+                    NotificationRead.objects.filter(
+                        usuario=self.request.user,
+                        mensalidade=OuterRef("pk"),
+                    )
+                ),
                 dias_atraso=ExpressionWrapper(
                     hoje - F("dt_vencimento"), output_field=DurationField()
-                )
+                ),
             )
-            .order_by("dt_vencimento")
+            .order_by("ja_lida", "dt_vencimento")
         )
 
 @login_required
 def notifications_count(request):
     hoje = timezone.localdate()
-    read_ids = set(request.session.get("notif_read_ids", []))
     tipos = [Tipos_pgto.CARTAO, Tipos_pgto.BOLETO]
 
     count = (
@@ -1346,7 +1819,7 @@ def notifications_count(request):
             cliente__forma_pgto__nome__in=tipos,
             dt_vencimento__lt=hoje,
         )
-        .exclude(id__in=read_ids)
+        .exclude(notifications_read__usuario=request.user)
         .count()
     )
     return JsonResponse({"count": count})
@@ -1442,12 +1915,20 @@ def reactivate_customer(request, cliente_id):
 
     data_hoje = timezone.localdate()
     sete_dias_atras = data_hoje - timedelta(days=7)
+    nova_mensalidade_criada = False
+    mensalidade_reativada = False
 
     # Atualiza os campos de reativação
     cliente.cancelado = False
     cliente.data_cancelamento = None
     cliente.data_vencimento = data_hoje
     cliente.save()
+
+    # histórico: inicia novo período vigente
+    try:
+        historico_iniciar(cliente, inicio=data_hoje, motivo='reactivate')
+    except Exception:
+        pass
 
     try:
         # Obtém a última mensalidade do cliente
@@ -1459,6 +1940,7 @@ def reactivate_customer(request, cliente_id):
                 ultima_mensalidade.cancelado = False
                 ultima_mensalidade.dt_cancelamento = None
                 ultima_mensalidade.save()
+                mensalidade_reativada = True
             else:
                 # Mantém a mensalidade anterior como cancelada
                 ultima_mensalidade.cancelado = True
@@ -1472,6 +1954,7 @@ def reactivate_customer(request, cliente_id):
                     dt_vencimento=data_hoje,
                     usuario=cliente.usuario
                 )
+                nova_mensalidade_criada = True
         else:
             # Caso não exista mensalidade anterior, cria uma nova
             Mensalidade.objects.create(
@@ -1480,6 +1963,7 @@ def reactivate_customer(request, cliente_id):
                 dt_vencimento=data_hoje,
                 usuario=cliente.usuario
             )
+            nova_mensalidade_criada = True
 
     except Exception as erro:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
@@ -1488,6 +1972,16 @@ def reactivate_customer(request, cliente_id):
                      exc_info=True)
         return JsonResponse({"error_message": "Erro ao processar mensalidade na reativação."}, status=500)
 
+    log_user_action(
+        request=request,
+        action=UserActionLog.ACTION_REACTIVATE,
+        instance=cliente,
+        message="Cliente reativado.",
+        extra={
+            "nova_mensalidade_criada": nova_mensalidade_criada,
+            "mensalidade_reativada": mensalidade_reativada,
+        },
+    )
     return JsonResponse({"success_message_activate": "Reativação feita com sucesso!"})
 
 
@@ -1509,6 +2003,18 @@ def pay_monthly_fee(request, mensalidade_id):
     mensalidade.pgto = True
     try:
         mensalidade.save()
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_PAYMENT,
+            instance=mensalidade,
+            message="Mensalidade marcada como paga.",
+            extra={
+                "cliente": mensalidade.cliente_id,
+                "valor": str(mensalidade.valor),
+                "dt_pagamento": mensalidade.dt_pagamento.strftime('%Y-%m-%d') if mensalidade.dt_pagamento else '',
+            },
+        )
+
     except Exception as erro:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
         return JsonResponse({"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."}, status=500)
@@ -1534,12 +2040,28 @@ def cancel_customer(request, cliente_id):
 
         # Cancelar todas as mensalidades relacionadas ao cliente
         mensalidades = cliente.mensalidade_set.filter(dt_vencimento__gte=timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0), pgto=False, cancelado=False)
+        mensalidades_count = mensalidades.count()
         for mensalidade in mensalidades:
             mensalidade.cancelado = True
             mensalidade.dt_cancelamento = timezone.localtime().date()
             mensalidade.save()
 
+        # Encerra histórico vigente na data do cancelamento
+        try:
+            historico_encerrar_vigente(cliente, timezone.localdate())
+        except Exception:
+            pass
+
         # Retorna uma resposta JSON indicando que o cliente foi cancelado com sucesso
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_CANCEL,
+            instance=cliente,
+            message="Cliente cancelado.",
+            extra={
+                "mensalidades_canceladas": mensalidades_count,
+            },
+        )
         return JsonResponse({"success_message_cancel": "Eita! mais um cliente cancelado?! "})
     else:
         return redirect("login")
@@ -1588,6 +2110,24 @@ def edit_customer(request, cliente_id):
         token = SessaoWpp.objects.filter(usuario=user, is_active=True).first()
         cliente = get_object_or_404(Cliente, pk=cliente_id, usuario=user)
         mensalidade = get_object_or_404(Mensalidade, cliente=cliente, pgto=False, cancelado=False, usuario=user)
+
+        original_cliente = {
+            "nome": cliente.nome,
+            "telefone": cliente.telefone,
+            "uf": cliente.uf,
+            "indicado_por": cliente.indicado_por,
+            "servidor": cliente.servidor,
+            "forma_pgto": cliente.forma_pgto,
+            "plano": cliente.plano,
+            "data_vencimento": cliente.data_vencimento,
+            "dispositivo": cliente.dispositivo,
+            "sistema": cliente.sistema,
+            "notas": cliente.notas,
+        }
+        original_mensalidade = {
+            "dt_vencimento": mensalidade.dt_vencimento,
+            "valor": mensalidade.valor,
+        }
 
         # Nome
         nome = post.get("nome", "").strip()
@@ -1666,6 +2206,13 @@ def edit_customer(request, cliente_id):
             if plano and cliente.plano != plano:
                 cliente.plano = plano
                 mensalidade.valor = plano.valor
+                # Atualiza histórico de planos: encerra vigente e inicia novo
+                hoje = timezone.localdate()
+                try:
+                    historico_encerrar_vigente(cliente, fim=hoje - timedelta(days=1))
+                    historico_iniciar(cliente, plano=plano, inicio=hoje, motivo='plan_change')
+                except Exception:
+                    pass
 
         # Data de vencimento
         data_vencimento_str = post.get("dt_pgto", "").strip()
@@ -1710,6 +2257,35 @@ def edit_customer(request, cliente_id):
         cliente.save()
         mensalidade.save()
 
+        changes = {}
+
+        def _add_change(key, old, new):
+            if old != new:
+                changes[key] = (old, new)
+
+        _add_change("nome", original_cliente["nome"], cliente.nome)
+        _add_change("telefone", original_cliente["telefone"], cliente.telefone)
+        _add_change("uf", original_cliente["uf"], cliente.uf)
+        _add_change("indicado_por", original_cliente["indicado_por"], cliente.indicado_por)
+        _add_change("servidor", original_cliente["servidor"], cliente.servidor)
+        _add_change("forma_pgto", original_cliente["forma_pgto"], cliente.forma_pgto)
+        _add_change("plano", original_cliente["plano"], cliente.plano)
+        _add_change("data_vencimento", original_cliente["data_vencimento"], cliente.data_vencimento)
+        _add_change("dispositivo", original_cliente["dispositivo"], cliente.dispositivo)
+        _add_change("sistema", original_cliente["sistema"], cliente.sistema)
+        _add_change("notas", original_cliente["notas"], cliente.notas)
+        _add_change("mensalidade.dt_vencimento", original_mensalidade["dt_vencimento"], mensalidade.dt_vencimento)
+        _add_change("mensalidade.valor", original_mensalidade["valor"], mensalidade.valor)
+
+        mensagem_log = "Cliente atualizado." if changes else "Cliente salvo sem alteracoes."
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=cliente,
+            message=mensagem_log,
+            extra=changes if changes else None,
+        )
+
         return JsonResponse({
             "success": True,
             "success_message": f"<strong>{cliente.nome}</strong> foi atualizado com sucesso."
@@ -1734,6 +2310,12 @@ def edit_payment_plan(request, plano_id):
     """
     plano_mensal = get_object_or_404(Plano, pk=plano_id, usuario=request.user)
 
+    original_plano = {
+        "nome": plano_mensal.nome,
+        "telas": plano_mensal.telas,
+        "valor": plano_mensal.valor,
+    }
+
     planos_mensalidades = Plano.objects.all().order_by('nome')
 
     if request.method == "POST":
@@ -1748,6 +2330,22 @@ def edit_payment_plan(request, plano_id):
 
             try:
                 plano_mensal.save()
+                changes = {}
+                if original_plano["nome"] != plano_mensal.nome:
+                    changes["nome"] = (original_plano["nome"], plano_mensal.nome)
+                if original_plano["telas"] != plano_mensal.telas:
+                    changes["telas"] = (original_plano["telas"], plano_mensal.telas)
+                if original_plano["valor"] != plano_mensal.valor:
+                    changes["valor"] = (original_plano["valor"], plano_mensal.valor)
+                mensagem_plano = "Plano atualizado." if changes else "Plano salvo sem alteracoes."
+                log_user_action(
+                    request=request,
+                    action=UserActionLog.ACTION_UPDATE,
+                    instance=plano_mensal,
+                    message=mensagem_plano,
+                    extra=changes if changes else None,
+                )
+
 
             except ValidationError as erro1:
                 logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
@@ -1798,6 +2396,7 @@ def edit_payment_plan(request, plano_id):
 @login_required
 def edit_server(request, servidor_id):
     servidor = get_object_or_404(Servidor, pk=servidor_id, usuario=request.user)
+    original_nome = servidor.nome
 
     servidores = Servidor.objects.filter(usuario=request.user).order_by('nome')
 
@@ -1808,6 +2407,18 @@ def edit_server(request, servidor_id):
             servidor.nome = nome
             try:
                 servidor.save()
+                changes = {}
+                if original_nome != servidor.nome:
+                    changes["nome"] = (original_nome, servidor.nome)
+                mensagem = "Servidor atualizado." if changes else "Servidor salvo sem alteracoes."
+                log_user_action(
+                    request=request,
+                    action=UserActionLog.ACTION_UPDATE,
+                    instance=servidor,
+                    message=mensagem,
+                    extra=changes if changes else None,
+                )
+
 
             except ValidationError as erro1:
                 logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
@@ -1846,6 +2457,7 @@ def edit_server(request, servidor_id):
 @login_required
 def edit_device(request, dispositivo_id):
     dispositivo = get_object_or_404(Dispositivo, pk=dispositivo_id, usuario=request.user)
+    original_nome = dispositivo.nome
 
     dispositivos = Dispositivo.objects.filter(usuario=request.user).order_by('nome')
 
@@ -1856,6 +2468,18 @@ def edit_device(request, dispositivo_id):
             dispositivo.nome = nome
             try:
                 dispositivo.save()
+                changes = {}
+                if original_nome != dispositivo.nome:
+                    changes["nome"] = (original_nome, dispositivo.nome)
+                mensagem = "Dispositivo atualizado." if changes else "Dispositivo salvo sem alteracoes."
+                log_user_action(
+                    request=request,
+                    action=UserActionLog.ACTION_UPDATE,
+                    instance=dispositivo,
+                    message=mensagem,
+                    extra=changes if changes else None,
+                )
+
 
             except ValidationError as erro1:
                 logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
@@ -1947,21 +2571,37 @@ def edit_profile(request):
         if request.user.is_authenticated:
             try:
                 user = request.user
+                original_usuario = {
+                    "first_name": user.first_name or "",
+                    "last_name": user.last_name or "",
+                    "email": user.email or "",
+                }
                 dados_usuario = user
-                dados_usuario.last_name = request.POST.get('sobrenome', '')
-                dados_usuario.first_name = request.POST.get('nome', '')
-                dados_usuario.email = request.POST.get('email', '')
+                dados_usuario.last_name = request.POST.get('sobrenome', '').strip()
+                dados_usuario.first_name = request.POST.get('nome', '').strip()
+                dados_usuario.email = request.POST.get('email', '').strip()
                 dados_usuario.save()
 
                 dados_bancarios = DadosBancarios.objects.filter(usuario=user).first()
-                beneficiario = request.POST.get('beneficiario', '')
-                instituicao = request.POST.get('instituicao', '')
-                tipo_chave = request.POST.get('tipo_chave', '')
-                chave = request.POST.get('chave', '')
-                wpp = request.POST.get('wpp', '')
-
-                if not dados_bancarios:
+                dados_bancarios_criado = False
+                original_bancarios = None
+                if dados_bancarios:
+                    original_bancarios = {
+                        "beneficiario": dados_bancarios.beneficiario or "",
+                        "instituicao": dados_bancarios.instituicao or "",
+                        "tipo_chave": dados_bancarios.tipo_chave or "",
+                        "chave": dados_bancarios.chave or "",
+                        "wpp": dados_bancarios.wpp or "",
+                    }
+                else:
                     dados_bancarios = DadosBancarios(usuario=user)
+                    dados_bancarios_criado = True
+
+                beneficiario = request.POST.get('beneficiario', '').strip()
+                instituicao = request.POST.get('instituicao', '').strip()
+                tipo_chave = request.POST.get('tipo_chave', '').strip()
+                chave = request.POST.get('chave', '').strip()
+                wpp = request.POST.get('wpp', '').strip()
 
                 dados_bancarios.beneficiario = beneficiario
                 dados_bancarios.instituicao = instituicao
@@ -1969,6 +2609,45 @@ def edit_profile(request):
                 dados_bancarios.chave = chave
                 dados_bancarios.wpp = wpp
                 dados_bancarios.save()
+
+                changes = {}
+                if original_usuario["first_name"] != dados_usuario.first_name:
+                    changes["usuario.first_name"] = (original_usuario["first_name"], dados_usuario.first_name)
+                if original_usuario["last_name"] != dados_usuario.last_name:
+                    changes["usuario.last_name"] = (original_usuario["last_name"], dados_usuario.last_name)
+                if original_usuario["email"] != dados_usuario.email:
+                    changes["usuario.email"] = (original_usuario["email"], dados_usuario.email)
+
+                if dados_bancarios_criado:
+                    changes["dados_bancarios"] = {
+                        "created": True,
+                        "beneficiario": beneficiario,
+                        "instituicao": instituicao,
+                        "tipo_chave": tipo_chave,
+                        "chave": chave,
+                        "wpp": wpp,
+                    }
+                else:
+                    updated_bancarios = {
+                        "beneficiario": beneficiario,
+                        "instituicao": instituicao,
+                        "tipo_chave": tipo_chave,
+                        "chave": chave,
+                        "wpp": wpp,
+                    }
+                    for campo, antigo_valor in original_bancarios.items():
+                        novo_valor = updated_bancarios.get(campo, "")
+                        if antigo_valor != novo_valor:
+                            changes[f"dados_bancarios.{campo}"] = (antigo_valor, novo_valor)
+
+                mensagem = "Perfil atualizado." if changes else "Perfil salvo sem alterações."
+                log_user_action(
+                    request=request,
+                    action=UserActionLog.ACTION_UPDATE,
+                    instance=request.user,
+                    message=mensagem,
+                    extra=changes if changes else None,
+                )
 
                 messages.success(request, 'Perfil editado com sucesso!')
             except Exception as e:
@@ -2010,13 +2689,24 @@ def edit_horario_envios(request):
         with transaction.atomic():
             for horario_data in HORARIOS_OBRIGATORIOS:
                 if not HorarioEnvios.objects.filter(usuario=usuario, tipo_envio=horario_data["tipo_envio"]).exists():
-                    HorarioEnvios.objects.create(
+                    novo_horario = HorarioEnvios.objects.create(
                         usuario=usuario,
                         nome=horario_data["nome"],
                         tipo_envio=horario_data["tipo_envio"],
                         horario=horario_data["horario"],
                         status=horario_data["status"],
                         ativo=horario_data["ativo"],
+                    )
+                    log_user_action(
+                        request=request,
+                        action=UserActionLog.ACTION_CREATE,
+                        instance=novo_horario,
+                        message="Horário de envio criado automaticamente.",
+                        extra={
+                            "tipo_envio": novo_horario.tipo_envio,
+                            "status": novo_horario.status,
+                            "ativo": novo_horario.ativo,
+                        },
                     )
         horarios = HorarioEnvios.objects.filter(usuario=usuario)
         horarios_json = []
@@ -2035,19 +2725,41 @@ def edit_horario_envios(request):
         return JsonResponse({"horarios": horarios_json, "sessao_wpp": sessao_wpp}, status=200)
 
     elif request.method == "POST":
+        ip_address = request.META.get("REMOTE_ADDR")
         try:
             data = json.loads(request.body)
         except Exception as e:
+            logger.exception(
+                "JSON inválido ao atualizar horário de envio (user=%s, ip=%s)",
+                request.user,
+                ip_address,
+            )
             return JsonResponse({"error": f"JSON inválido. Detalhe: {e}"}, status=400)
 
         horario_id = data.get("id")
         if not horario_id:
+            logger.warning(
+                "Requisição para editar horário sem ID (user=%s, ip=%s)",
+                request.user,
+                ip_address,
+            )
             return JsonResponse({"error": "ID do horário não informado."}, status=400)
 
         try:
             horario_envio = HorarioEnvios.objects.get(id=horario_id, usuario=usuario)
         except HorarioEnvios.DoesNotExist:
+            logger.warning(
+                "Horário de envio %s não encontrado para usuário %s (ip=%s)",
+                horario_id,
+                request.user,
+                ip_address,
+            )
             return JsonResponse({"error": "Horário não encontrado."}, status=404)
+
+        original_horario = {
+            "horario": horario_envio.horario.strftime("%H:%M") if horario_envio.horario else "",
+            "status": horario_envio.status,
+        }
 
         # Atualiza campos permitidos
         if "horario" in data:
@@ -2060,6 +2772,13 @@ def edit_horario_envios(request):
                 else:
                     horario_envio.horario = None
             except Exception:
+                logger.warning(
+                    "Formato de horário inválido recebido: %s (user=%s, horario_id=%s, ip=%s)",
+                    horario_str,
+                    request.user,
+                    horario_id,
+                    ip_address,
+                )
                 return JsonResponse({"error": "Horário inválido (use HH:MM)."}, status=400)
         if "status" in data:
             status = data["status"]
@@ -2071,7 +2790,37 @@ def edit_horario_envios(request):
         try:
             horario_envio.save()
         except ValidationError as e:
+            logger.warning(
+                "Erro de validação ao salvar horário %s do usuário %s (ip=%s): %s",
+                horario_id,
+                request.user,
+                ip_address,
+                e,
+            )
             return JsonResponse({"error": str(e)}, status=400)
+        except Exception as e:
+            logger.exception(
+                "Erro inesperado ao salvar horário %s do usuário %s (ip=%s)",
+                horario_id,
+                request.user,
+                ip_address,
+            )
+            return JsonResponse({"error": "Erro interno ao atualizar horário."}, status=500)
+
+        changes = {}
+        novo_horario = horario_envio.horario.strftime("%H:%M") if horario_envio.horario else ""
+        if original_horario["horario"] != novo_horario:
+            changes["horario"] = (original_horario["horario"], novo_horario)
+        if original_horario["status"] != horario_envio.status:
+            changes["status"] = (original_horario["status"], horario_envio.status)
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=horario_envio,
+            message="Horário de envio atualizado.",
+            extra=changes if changes else None,
+        )
 
         return JsonResponse({
             "success": True,
@@ -2110,7 +2859,7 @@ def edit_referral_plan(request):
                 if plano_data["tipo_plano"] == "anuidade":
                     ativo = False
                 if not PlanoIndicacao.objects.filter(usuario=usuario, tipo_plano=plano_data["tipo_plano"]).exists():
-                    PlanoIndicacao.objects.create(
+                    novo_plano = PlanoIndicacao.objects.create(
                         usuario=usuario,
                         nome=plano_data["tipo_plano"],
                         tipo_plano=plano_data["tipo_plano"],
@@ -2118,6 +2867,19 @@ def edit_referral_plan(request):
                         valor_minimo_mensalidade=Decimal(str(plano_data["valor_minimo_mensalidade"])),
                         status=False,
                         ativo=ativo,
+                    )
+                    log_user_action(
+                        request=request,
+                        action=UserActionLog.ACTION_CREATE,
+                        instance=novo_plano,
+                        message="Plano de indicação criado automaticamente.",
+                        extra={
+                            "tipo_plano": novo_plano.tipo_plano,
+                            "valor": str(novo_plano.valor),
+                            "valor_minimo_mensalidade": str(novo_plano.valor_minimo_mensalidade),
+                            "status": novo_plano.status,
+                            "ativo": novo_plano.ativo,
+                        },
                     )
 
         planos = PlanoIndicacao.objects.filter(usuario=request.user, ativo=True)
@@ -2138,25 +2900,54 @@ def edit_referral_plan(request):
         return JsonResponse({"planos": planos_json, "sessao_wpp": sessao_wpp}, status=200)
 
     elif request.method == "POST":
+        ip_address = request.META.get("REMOTE_ADDR")
         try:
             data = json.loads(request.body)
         except Exception as e:
+            logger.exception(
+                "JSON inválido ao atualizar plano de indicação (user=%s, ip=%s)",
+                request.user,
+                ip_address,
+            )
             return JsonResponse({"error": f"JSON inválido. Detalhe: {e}"}, status=400)
 
         plano_id = data.get("id")
         if not plano_id:
+            logger.warning(
+                "Requisição para editar plano sem ID (user=%s, ip=%s)",
+                request.user,
+                ip_address,
+            )
             return JsonResponse({"error": "ID do plano não informado."}, status=400)
 
         try:
             plano = PlanoIndicacao.objects.get(id=plano_id, usuario=usuario)
         except PlanoIndicacao.DoesNotExist:
+            logger.warning(
+                "Plano de indicação %s não encontrado para usuário %s (ip=%s)",
+                plano_id,
+                request.user,
+                ip_address,
+            )
             return JsonResponse({"error": "Plano não encontrado."}, status=404)
+
+        original_plano = {
+            "valor": str(plano.valor),
+            "status": plano.status,
+        }
 
         # Atualiza os campos permitidos
         if "valor" in data:
             try:
                 plano.valor = Decimal(str(data["valor"]))
             except (InvalidOperation, ValueError):
+                logger.warning(
+                    "Valor inválido recebido para plano %s do usuário %s (ip=%s): %s",
+                    plano_id,
+                    request.user,
+                    ip_address,
+                    data.get("valor"),
+                )
                 return JsonResponse({"error": "Valor inválido."}, status=400)
         if "status" in data:
             status = data["status"]
@@ -2165,7 +2956,39 @@ def edit_referral_plan(request):
             else:
                 plano.status = bool(status)
 
-        plano.save()
+        try:
+            plano.save()
+        except ValidationError as e:
+            logger.warning(
+                "Erro de validação ao salvar plano %s do usuário %s (ip=%s): %s",
+                plano_id,
+                request.user,
+                ip_address,
+                e,
+            )
+            return JsonResponse({"error": str(e)}, status=400)
+        except Exception as e:
+            logger.exception(
+                "Erro inesperado ao salvar plano %s do usuário %s (ip=%s)",
+                plano_id,
+                request.user,
+                ip_address,
+            )
+            return JsonResponse({"error": "Erro interno ao atualizar plano."}, status=500)
+
+        changes = {}
+        if original_plano["valor"] != str(plano.valor):
+            changes["valor"] = (original_plano["valor"], str(plano.valor))
+        if original_plano["status"] != plano.status:
+            changes["status"] = (original_plano["status"], plano.status)
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=plano,
+            message="Plano de indicação atualizado.",
+            extra=changes if changes else None,
+        )
 
         return JsonResponse({
             "success": True,
@@ -2186,8 +3009,9 @@ def edit_referral_plan(request):
         }, status=200)
 
 
+@login_required
 def test(request):
-    clientes = Cliente.objects.all()
+    clientes = Cliente.objects.filter(usuario=request.user)
 
     return render(
         request,
@@ -2200,38 +3024,46 @@ def test(request):
 
 ############################################ CREATE VIEW ############################################
 
+@require_POST
 @login_required
 def create_app_account(request):
+    app_id = request.POST.get('app_id')
+    cliente_id = request.POST.get('cliente-id')
 
-    if request.method == "POST":
-        app_id = request.POST.get('app_id')
-        app = Aplicativo.objects.get(id=app_id, usuario=request.user)
-        cliente = Cliente.objects.get(id=request.POST.get('cliente-id'))
-        device_id = request.POST.get('device-id') or None
-        device_key = request.POST.get('device-key') or None
-        app_email = request.POST.get('app-email') or None
-    
-        nova_conta_app = ContaDoAplicativo(
-            cliente=cliente,
-            app=app,
-            device_id=device_id,
-            device_key=device_key,
-            email=app_email,
-            usuario=request.user
+    app = get_object_or_404(Aplicativo, id=app_id, usuario=request.user)
+    cliente = get_object_or_404(Cliente, id=cliente_id, usuario=request.user)
+
+    device_id = request.POST.get('device-id') or None
+    device_key = request.POST.get('device-key') or None
+    app_email = request.POST.get('app-email') or None
+
+    nova_conta_app = ContaDoAplicativo(
+        cliente=cliente,
+        app=app,
+        device_id=device_id,
+        device_key=device_key,
+        email=app_email,
+        usuario=request.user,
+    )
+
+    try:
+        nova_conta_app.save()
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_CREATE,
+            instance=nova_conta_app,
+            message="Conta de aplicativo criada.",
+            extra={
+                "cliente": cliente.nome,
+                "app": app.nome,
+                "device_id": device_id or '',
+                "email": app_email or '',
+            },
         )
-
-        try:
-            nova_conta_app.save()
-            
-            # retorna a mensagem de sucesso como resposta JSON
-            return JsonResponse({"success_message_cancel": "Conta do aplicativo cadastrada com sucesso!"}, status=200)
-
-        except Exception as erro:
-            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
-        
-        return JsonResponse({"error_message": "Ocorreu um erro ao tentar realizar o cadastro."}, status=500)
-    else:
-        return JsonResponse({"error_message": "Ocorreu um erro ao tentar realizar o cadastro."}, status=500)
+        return JsonResponse({'success_message_cancel': 'Conta do aplicativo cadastrada com sucesso!'}, status=200)
+    except Exception as erro:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META.get('REMOTE_ADDR'), erro, exc_info=True)
+        return JsonResponse({'error_message': 'Ocorreu um erro ao tentar realizar o cadastro.'}, status=500)
 
 
 @login_required
@@ -2470,6 +3302,19 @@ def import_customers(request):
                     erros_importacao.append(f"Linha {idx}: Não foi possível fazer associado do Indicador ({telefone}) com o Cliente ({indicador_raw}).")
                     continue
                 
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_IMPORT,
+            entity="Cliente",
+            message="Importação de clientes concluída.",
+            extra={
+                "sucesso": success,
+                "falhas": fail,
+                "clientes_existentes": len(clientes_existentes),
+                "clientes_invalidos_whatsapp": len(clientes_invalidos_whatsapp),
+                "erros_registrados": len(erros_importacao),
+            },
+        )
         return render(request, "pages/importar-cliente.html", {
             "success_message": "Importação concluída!",
             "num_linhas_importadas": success,
@@ -2682,7 +3527,27 @@ def create_customer(request):
                     logger.error("Erro ao criar a mensalidade: %s", e, exc_info=True)
                     raise Exception("Falha ao criar a mensalidade do cliente.")
 
+                # Histórico de planos (inicial)
+                try:
+                    inicio_hist = cliente.data_adesao or timezone.localdate()
+                    historico_iniciar(cliente, plano=plano, inicio=inicio_hist, motivo='create')
+                except Exception:
+                    pass
+
             print(f"[{timestamp}] [SUCCESS] [{func_name}] [{usuario}] Cliente {cliente.nome} ({cliente.telefone}) cadastrado com sucesso!")
+            log_user_action(
+                request=request,
+                action=UserActionLog.ACTION_CREATE,
+                instance=cliente,
+                message="Cliente criado.",
+                extra={
+                    "telefone": cliente.telefone,
+                    "plano": getattr(cliente.plano, 'nome', ''),
+                    "servidor": getattr(cliente.servidor, 'nome', ''),
+                    "forma_pgto": getattr(cliente.forma_pgto, 'nome', ''),
+                    "data_vencimento": cliente.data_vencimento.strftime('%Y-%m-%d') if cliente.data_vencimento else '',
+                },
+            )
             return render(request, "pages/cadastro-cliente.html", {
                 "success_message": "Novo cliente cadastrado com sucesso!",
             })
@@ -2725,6 +3590,17 @@ def create_payment_plan(request):
                 plano, created = Plano.objects.get_or_create(nome=request.POST.get('nome'), valor=int(request.POST.get('valor')), usuario=usuario)
 
                 if created:
+                    log_user_action(
+                        request=request,
+                        action=UserActionLog.ACTION_CREATE,
+                        instance=plano,
+                        message="Plano de adesao criado.",
+                        extra={
+                            "nome": plano.nome,
+                            "valor": str(plano.valor),
+                            "telas": plano.telas,
+                        },
+                    )
                     return render(
                             request,
                         'pages/cadastro-plano-adesao.html',
@@ -2778,6 +3654,15 @@ def create_server(request):
                 servidor, created = Servidor.objects.get_or_create(nome=nome, usuario=usuario)
 
                 if created:
+                    log_user_action(
+                        request=request,
+                        action=UserActionLog.ACTION_CREATE,
+                        instance=servidor,
+                        message="Servidor criado.",
+                        extra={
+                            "nome": servidor.nome,
+                        },
+                    )
                     return render(
                             request,
                         'pages/cadastro-servidor.html',
@@ -2832,6 +3717,15 @@ def create_payment_method(request):
                 formapgto, created = Tipos_pgto.objects.get_or_create(nome=nome, usuario=usuario)
 
                 if created:
+                    log_user_action(
+                        request=request,
+                        action=UserActionLog.ACTION_CREATE,
+                        instance=formapgto,
+                        message="Forma de pagamento criada.",
+                        extra={
+                            "nome": formapgto.nome,
+                        },
+                    )
                     return render(
                             request,
                         'pages/cadastro-forma-pagamento.html',
@@ -2886,6 +3780,15 @@ def create_device(request):
                 dispositivo, created = Dispositivo.objects.get_or_create(nome=nome, usuario=usuario)
 
                 if created:
+                    log_user_action(
+                        request=request,
+                        action=UserActionLog.ACTION_CREATE,
+                        instance=dispositivo,
+                        message="Dispositivo criado.",
+                        extra={
+                            "nome": dispositivo.nome,
+                        },
+                    )
                     return render(
                             request,
                         "pages/cadastro-dispositivo.html",
@@ -2946,6 +3849,16 @@ def create_app(request):
                 aplicativo, created = Aplicativo.objects.get_or_create(nome=nome, device_has_mac=have_mac , usuario=usuario)
 
                 if created:
+                    log_user_action(
+                        request=request,
+                        action=UserActionLog.ACTION_CREATE,
+                        instance=aplicativo,
+                        message="Aplicativo criado.",
+                        extra={
+                            "nome": aplicativo.nome,
+                            "device_has_mac": aplicativo.device_has_mac,
+                        },
+                    )
                     return render(
                             request,
                         "pages/cadastro-aplicativo.html",
@@ -2989,7 +3902,21 @@ def delete_app_account(request, pk):
     if request.method == "DELETE":
         try:
             conta_app = ContaDoAplicativo.objects.get(pk=pk, usuario=request.user)
+            log_extra = {
+                "id": conta_app.id,
+                "cliente": conta_app.cliente_id,
+                "app": conta_app.app_id,
+                "device_id": conta_app.device_id or "",
+                "email": conta_app.email or "",
+            }
             conta_app.delete()
+            log_user_action(
+                request=request,
+                action=UserActionLog.ACTION_DELETE,
+                instance=conta_app,
+                message="Conta de aplicativo removida.",
+                extra=log_extra,
+            )
 
             return JsonResponse({'success_message': 'deu bom'}, status=200)
         
@@ -3012,7 +3939,15 @@ def delete_app_account(request, pk):
 def delete_app(request, pk):
     try:
         aplicativo = Aplicativo.objects.get(pk=pk, usuario=request.user)
+        log_extra = {"id": aplicativo.id, "nome": aplicativo.nome}
         aplicativo.delete()
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_DELETE,
+            instance=aplicativo,
+            message="Aplicativo removido.",
+            extra=log_extra,
+        )
     except Aplicativo.DoesNotExist as erro1:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
         return HttpResponseNotFound(
@@ -3032,7 +3967,15 @@ def delete_app(request, pk):
 def delete_device(request, pk):
     try:
         dispositivo = Dispositivo.objects.get(pk=pk, usuario=request.user)
+        log_extra = {"id": dispositivo.id, "nome": dispositivo.nome}
         dispositivo.delete()
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_DELETE,
+            instance=dispositivo,
+            message="Dispositivo removido.",
+            extra=log_extra,
+        )
     except Dispositivo.DoesNotExist as erro1:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
         return HttpResponseNotFound(
@@ -3052,7 +3995,15 @@ def delete_device(request, pk):
 def delete_payment_method(request, pk):
     try:
         formapgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
+        log_extra = {"id": formapgto.id, "nome": formapgto.nome}
         formapgto.delete()
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_DELETE,
+            instance=formapgto,
+            message="Forma de pagamento removida.",
+            extra=log_extra,
+        )
     except Tipos_pgto.DoesNotExist as erro1:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
         return HttpResponseNotFound(
@@ -3072,7 +4023,15 @@ def delete_payment_method(request, pk):
 def delete_server(request, pk):
     try:
         servidor = Servidor.objects.get(pk=pk, usuario=request.user)
+        log_extra = {"id": servidor.id, "nome": servidor.nome}
         servidor.delete()
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_DELETE,
+            instance=servidor,
+            message="Servidor removido.",
+            extra=log_extra,
+        )
     except Servidor.DoesNotExist as erro1:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
         return HttpResponseNotFound(
@@ -3092,7 +4051,15 @@ def delete_server(request, pk):
 def delete_payment_plan(request, pk):
     try:
         plano_mensal = Plano.objects.get(pk=pk, usuario=request.user)
+        log_extra = {"id": plano_mensal.id, "nome": plano_mensal.nome}
         plano_mensal.delete()
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_DELETE,
+            instance=plano_mensal,
+            message="Plano removido.",
+            extra=log_extra,
+        )
     except Plano.DoesNotExist as erro1:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
         return HttpResponseNotFound(
@@ -3122,12 +4089,125 @@ def get_client_ip(request):
 
 def get_location_from_ip(ip):
     try:
-        response = requests.get(f'https://ipapi.co/{ip}/json/')
+        response = requests.get(f'https://ipapi.co/{ip}/json/', timeout=5)
         data = response.json()
         cidade = data.get('city', 'Desconhecida')
         pais = data.get('country_name', 'Desconhecido')
         return f"{cidade}, {pais}"
     except Exception:
         return "Localização desconhecida"
+
+
+############################################
+# API: Evolução do Patrimônio (JSON)
+############################################
+
+def _last_day_of_month(d: date) -> date:
+    _, last = calendar.monthrange(d.year, d.month)
+    return date(d.year, d.month, last)
+
+
+@login_required
+@require_GET
+def evolucao_patrimonio(request):
+    """Retorna patrimonio mensal e evolucao para o periodo solicitado (JSON)."""
+
+    months_param_raw = (request.GET.get('months', '12') or '12').strip().lower()
+    max_months = 120
+
+    months_value: Optional[int]
+    if months_param_raw == 'all':
+        months_value = None
+    else:
+        try:
+            months_value = int(months_param_raw)
+        except ValueError:
+            months_value = 12
+        months_value = max(1, min(months_value, max_months))
+
+    today_month = timezone.localdate().replace(day=1)
+    months_list = []
+
+    historico_qs = ClientePlanoHistorico.objects.filter(usuario=request.user)
+
+    if months_value is None:
+        first_inicio = historico_qs.aggregate(Min('inicio'))['inicio__min']
+        if first_inicio:
+            if isinstance(first_inicio, datetime):
+                first_inicio = first_inicio.date()
+            start_month = date(first_inicio.year, first_inicio.month, 1)
+            if start_month > today_month:
+                start_month = today_month
+            cursor = start_month
+            end_month = today_month
+            while cursor <= end_month:
+                months_list.append(cursor)
+                if cursor.month == 12:
+                    cursor = date(cursor.year + 1, 1, 1)
+                else:
+                    cursor = date(cursor.year, cursor.month + 1, 1)
+        else:
+            months_value = 12
+
+    if months_value is not None and not months_list:
+        cursor = today_month
+        for _ in range(months_value):
+            months_list.append(cursor)
+            cursor = (cursor - timedelta(days=1)).replace(day=1)
+        months_list.reverse()
+
+    if not months_list:
+        months_list = [today_month]
+
+    categorias = []
+    patrim = []
+
+    for m in months_list:
+        ref = _last_day_of_month(m)
+        # ativos (sem fim) até a data de referência
+        ativos = historico_qs.filter(
+            inicio__lte=ref,
+            fim__isnull=True,
+        ).values_list('valor_plano', flat=True)
+        # encerrados mas ainda ativos na data de referência (fim >= ref)
+        encerrados = historico_qs.filter(
+            inicio__lte=ref,
+            fim__gte=ref,
+        ).values_list('valor_plano', flat=True)
+
+        total = sum((v or 0) for v in list(ativos) + list(encerrados))
+        patrim.append(float(total))
+        categorias.append(f"{m.month:02d}/{str(m.year)[2:]}")
+
+    evol = []
+    prev = None
+    for val in patrim:
+        if prev is None:
+            evol.append(0.0)
+        else:
+            evol.append(float(val - prev))
+        prev = val
+
+    return JsonResponse({
+        'categories': categorias,
+        'series': [
+            {'name': 'Patrimônio', 'data': patrim},
+            {'name': 'Evolução', 'data': evol},
+        ],
+    })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
