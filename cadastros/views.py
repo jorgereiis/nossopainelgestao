@@ -1434,7 +1434,7 @@ def _dataset_adesao_cancelamentos_anual(usuario, year: int):
 
 @login_required
 @require_GET
-def adesoes_cancelamentos_chart(request):
+def adesoes_cancelamentos_api(request):
     modo = (request.GET.get("mode", "monthly") or "monthly").lower()
     hoje = timezone.localdate()
     usuario = request.user
@@ -1570,17 +1570,72 @@ def cache_page_by_user(timeout):
 @cache_page_by_user(60 * 60)
 def mapa_clientes_data(request):
     usuario = request.user
+
     dados = dict(
+        Cliente.objects.filter(cancelado=False, usuario=usuario)
+        .values("uf")
+        .annotate(total=Count("id"))
+        .values_list("uf", "total")
+    )
+
+    total_geral = sum(dados.values())
+    clientes_internacionais = Cliente.objects.filter(cancelado=False, usuario=usuario, uf__isnull=True).count()
+
+    mapa = gpd.read_file("archives/brasil_estados.geojson")
+
+    def _normalizar_estado(nome):
+        if not isinstance(nome, str):
+            return ""
+        return unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode("ascii").lower()
+
+    siglas = {
+        "acre": "AC",
+        "alagoas": "AL",
+        "amapa": "AP",
+        "amazonas": "AM",
+        "bahia": "BA",
+        "ceara": "CE",
+        "distrito federal": "DF",
+        "espirito santo": "ES",
+        "goias": "GO",
+        "maranhao": "MA",
+        "mato grosso": "MT",
+        "mato grosso do sul": "MS",
+        "minas gerais": "MG",
+        "para": "PA",
+        "paraiba": "PB",
+        "parana": "PR",
+        "pernambuco": "PE",
+        "piaui": "PI",
+        "rio de janeiro": "RJ",
+        "rio grande do norte": "RN",
+        "rio grande do sul": "RS",
+        "rondonia": "RO",
+        "roraima": "RR",
+        "santa catarina": "SC",
+        "sao paulo": "SP",
+        "sergipe": "SE",
+        "tocantins": "TO",
+    }
+
+    mapa["sigla"] = mapa["name"].apply(lambda nome: siglas.get(_normalizar_estado(nome)))
+    mapa = mapa.dropna(subset=["sigla"])
+    mapa["clientes"] = mapa["sigla"].apply(lambda uf: dados.get(uf, 0))
+    mapa["porcentagem"] = mapa["clientes"].apply(
         lambda x: round((x / total_geral) * 100, 1) if total_geral > 0 else 0
     )
+
     mapa = mapa.drop(columns=["created_at", "updated_at"], errors="ignore")
     geojson_data = json.loads(mapa.to_json())
+
     for feature in geojson_data.get("features", []):
         props = feature.get("properties", {})
         props["clientes"] = int(props.get("clientes", 0) or 0)
         props["porcentagem"] = float(props.get("porcentagem", 0) or 0)
         feature["properties"] = props
+
     max_clientes = int(max(mapa["clientes"]) if mapa["clientes"].any() else 0)
+
     return JsonResponse(
         {
             "features": geojson_data.get("features", []),
@@ -1591,6 +1646,74 @@ def mapa_clientes_data(request):
             },
         }
     )
+
+
+@login_required
+@cache_page_by_user(60 * 30)
+def clientes_servidor_data(request):
+    usuario = request.user
+
+    servidores = list(
+        Servidor.objects.filter(usuario=usuario)
+        .order_by("nome")
+        .values_list("nome", flat=True)
+    )
+
+    filtro = (request.GET.get("servidor") or "todos").strip()
+    selected = filtro if filtro in servidores else "todos"
+
+    base_queryset = Cliente.objects.filter(usuario=usuario, cancelado=False)
+
+    if selected != "todos":
+        queryset = base_queryset.filter(servidor__nome=selected)
+        agregados = (
+            queryset.values("sistema__nome")
+            .annotate(total=Count("id"))
+            .order_by("-total", "sistema__nome")
+        )
+        mode = "aplicativo"
+    else:
+        queryset = base_queryset
+        agregados = (
+            queryset.values("servidor__nome")
+            .annotate(total=Count("id"))
+            .order_by("-total", "servidor__nome")
+        )
+        mode = "servidor"
+
+    total = sum(item["total"] for item in agregados)
+
+    segments = []
+    for item in agregados:
+        if mode == "servidor":
+            label = item["servidor__nome"] or "Sem servidor"
+        else:
+            label = item["sistema__nome"] or "Sem aplicativo"
+        valor = int(item["total"])
+        percent = round((valor / total) * 100, 2) if total > 0 else 0.0
+        segments.append(
+            {
+                "label": label,
+                "value": valor,
+                "percent": percent,
+            }
+        )
+
+    segments.sort(key=lambda x: (-x["value"], x["label"]))
+
+    options = ["Todos Servidores"] + servidores
+    selected_label = selected if selected != "todos" else "Todos os Servidores"
+
+    return JsonResponse(
+        {
+            "options": options,
+            "selected": selected_label,
+            "mode": mode,
+            "total": int(total),
+            "segments": segments,
+        }
+    )
+
 
 @login_required
 @never_cache
