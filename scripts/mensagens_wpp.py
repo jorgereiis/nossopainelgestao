@@ -53,6 +53,21 @@ DIR_LOGS_INDICACOES = os.getenv("DIR_LOGS_INDICACOES")
 TEMPLATE_LOG_MSG_SUCESSO = os.getenv("TEMPLATE_LOG_MSG_SUCESSO")
 TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
 TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
+AUDIT_LOG_PATH = Path("logs/Audit/envios_wpp.log")
+
+
+def registrar_log_auditoria(evento: dict) -> None:
+    """
+    Persiste eventos de envio em um arquivo de auditoria estruturado.
+    """
+    try:
+        AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        registro = dict(evento or {})
+        registro.setdefault("timestamp", localtime().strftime('%d-%m-%Y %H:%M:%S'))
+        with AUDIT_LOG_PATH.open("a", encoding="utf-8") as arquivo:
+            arquivo.write(json.dumps(registro, ensure_ascii=False) + "\n")
+    except Exception as exc:
+        logger.error("Erro ao registrar log de auditoria: %s", exc, exc_info=exc)
 
 ##################################################################
 ################ FUNÇÃO PARA ENVIAR MENSAGENS ####################
@@ -64,6 +79,7 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
     Registra logs de sucesso, falha e número inválido.
     """
     timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+    usuario_str = str(usuario)
 
     if not telefone:
         log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(
@@ -71,6 +87,15 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
         )
         registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
         print(log.strip())
+        registrar_log_auditoria({
+            "funcao": "enviar_mensagem_agendada",
+            "status": "cancelado_sem_telefone",
+            "usuario": usuario_str,
+            "cliente": cliente,
+            "telefone": telefone,
+            "tipo_envio": tipo_envio,
+            "mensagem": mensagem,
+        })
         return
 
     url = f"{URL_API_WPP}/{usuario}/send-message"
@@ -87,30 +112,82 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
             'isGroup': False
         }
 
+        response = None
+        response_payload = None
+        status_code = None
+        error_message = None
+        timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+
         try:
             response = requests.post(url, headers=headers, json=body)
-            timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+            status_code = response.status_code
 
-            if response.status_code in (200, 201):
+            try:
+                response_payload = response.json()
+            except json.JSONDecodeError:
+                response_payload = response.text
+
+            if status_code in (200, 201):
                 log = TEMPLATE_LOG_MSG_SUCESSO.format(
                     timestamp, tipo_envio.upper(), usuario, telefone
                 )
                 registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
+                registrar_log_auditoria({
+                    "funcao": "enviar_mensagem_agendada",
+                    "status": "sucesso",
+                    "usuario": usuario_str,
+                    "cliente": cliente,
+                    "telefone": telefone,
+                    "tipo_envio": tipo_envio,
+                    "tentativa": tentativa,
+                    "http_status": status_code,
+                    "mensagem": mensagem,
+                    "payload": body,
+                    "response": response_payload,
+                })
                 break
 
-            # Tentativa com erro
-            response_data = response.json()
-            error_message = response_data.get('message', 'Erro desconhecido')
+            error_message = (
+                response_payload.get('message', 'Erro desconhecido')
+                if isinstance(response_payload, dict)
+                else str(response_payload)
+            )
 
-        except (requests.RequestException, json.JSONDecodeError) as e:
+        except requests.RequestException as e:
+            status_code = getattr(getattr(e, "response", None), "status_code", None)
+            if getattr(e, "response", None) is not None:
+                try:
+                    response_payload = e.response.json()
+                except (ValueError, AttributeError):
+                    response_payload = getattr(e.response, "text", None)
             error_message = str(e)
+
+        if status_code in (200, 201):
+            continue
+
+        if error_message is None:
+            error_message = "Erro desconhecido"
 
         log = TEMPLATE_LOG_MSG_FALHOU.format(
             timestamp, tipo_envio.upper(), usuario, cliente,
-            response.status_code if 'response' in locals() else 'N/A',
+            status_code if status_code is not None else 'N/A',
             tentativa, error_message
         )
         registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
+        registrar_log_auditoria({
+            "funcao": "enviar_mensagem_agendada",
+            "status": "falha",
+            "usuario": usuario_str,
+            "cliente": cliente,
+            "telefone": telefone,
+            "tipo_envio": tipo_envio,
+            "tentativa": tentativa,
+            "http_status": status_code,
+            "mensagem": mensagem,
+            "erro": error_message,
+            "payload": body,
+            "response": response_payload,
+        })
         time.sleep(random.uniform(20, 30))
 ##### FIM #####
 
@@ -120,13 +197,13 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
 #####################################################################
 
 def obter_mensalidades_a_vencer(usuario_query):
-    dias_envio = {
-        2: "à vencer 2 dias",
-        1: "à vencer 1 dia",
-        0: "vence hoje"
-    }
+    dias_envio = (
+        (2, "à vencer 2 dias"),
+        (1, "à vencer 1 dias"),
+        (0, "vence hoje"),
+    )
 
-    for dias, tipo_mensagem in dias_envio.items():
+    for dias, tipo_mensagem in dias_envio:
         data_referencia = localtime().date() + timedelta(days=dias)
 
         mensalidades = Mensalidade.objects.filter(
@@ -144,19 +221,48 @@ def obter_mensalidades_a_vencer(usuario_query):
             usuario = mensalidade.usuario
             telefone = str(cliente.telefone).strip()
             if not telefone:
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_a_vencer",
+                    "status": "cancelado_sem_telefone",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
                 continue
 
             sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
             if not sessao:
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_a_vencer",
+                    "status": "sessao_indisponivel",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
                 continue
 
             primeiro_nome = cliente.nome.split()[0].upper()
             dt_formatada = mensalidade.dt_vencimento.strftime("%d/%m")
             plano_nome = cliente.plano.nome.upper()
 
+            mensagem = None
+
             if tipo_mensagem == "à vencer 2 dias":
                 dados = DadosBancarios.objects.filter(usuario=usuario).first()
                 if not dados:
+                    registrar_log_auditoria({
+                        "funcao": "obter_mensalidades_a_vencer",
+                        "status": "dados_bancarios_ausentes",
+                        "usuario": str(usuario),
+                        "cliente": cliente.nome,
+                        "cliente_id": cliente.id,
+                        "tipo_envio": tipo_mensagem,
+                        "mensalidade_id": mensalidade.id,
+                    })
                     continue
 
                 mensagem = (
@@ -177,19 +283,36 @@ def obter_mensalidades_a_vencer(usuario_query):
                     f"‼️ _Caso já tenha pago, por favor, nos envie o comprovante._"
                 )
 
-            elif tipo_mensagem == "lembrete 1 dia":
+            elif tipo_mensagem == "à vencer 1 dias":
                 mensagem = (
                     f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
                     f"O seu plano *{plano_nome}* vencerá em *{dias} dia*.\n\n"
                     f"Fique atento(a)! 💡"
                 )
 
-            elif tipo_mensagem == "vence_hoje":
+            elif tipo_mensagem == "vence hoje":
                 mensagem = (
                     f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
                     f"O seu plano *{plano_nome}* *vence hoje* ({dt_formatada}).\n\n"
                     f"Evite interrupções e mantenha seu acesso em dia! ✅"
                 )
+
+            if not mensagem:
+                registrar_log(
+                    f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [ERRO][TIPO DESCONHECIDO] [{usuario}] {cliente.nome}",
+                    str(usuario),
+                    DIR_LOGS_AGENDADOS,
+                )
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_a_vencer",
+                    "status": "mensagem_nao_montada",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
+                continue
 
             # Envio
             enviar_mensagem_agendada(
@@ -232,10 +355,28 @@ def obter_mensalidades_vencidas(usuario_query):
             usuario = mensalidade.usuario
             telefone = str(cliente.telefone).strip()
             if not telefone:
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_vencidas",
+                    "status": "cancelado_sem_telefone",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
                 continue
 
             sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
             if not sessao:
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_vencidas",
+                    "status": "sessao_indisponivel",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
                 continue
 
             primeiro_nome = cliente.nome.split()[0]
@@ -324,6 +465,27 @@ def obter_mensalidades_canceladas():
                 sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
             except SessaoWpp.DoesNotExist:
                 print(f"[ERRO] Sessão WPP não encontrada para '{usuario}'. Pulando...")
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_canceladas",
+                    "status": "sessao_indisponivel",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "mensalidade_id": mensalidade.id,
+                    "dias_cancelado": qtd_dias,
+                })
+                continue
+
+            if not sessao or not sessao.token:
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_canceladas",
+                    "status": "sessao_indisponivel",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "mensalidade_id": mensalidade.id,
+                    "dias_cancelado": qtd_dias,
+                })
                 continue
 
             enviar_mensagem_agendada(
@@ -375,6 +537,12 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
     sessao = SessaoWpp.objects.filter(usuario=usuario).first()
     if not sessao or not sessao.token:
         logger.error("Sessão/token WPP ausente", extra={"user": usuario.username})
+        registrar_log_auditoria({
+            "funcao": "envia_mensagem_personalizada",
+            "status": "abortado_sem_sessao",
+            "usuario": usuario.username,
+            "tipo_envio": tipo_envio,
+        })
         return
     token = sessao.token
 
@@ -385,10 +553,19 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
     total_enviados = 0
     LIMITE_ENVIO_DIARIO = 100
 
+    destinatarios = []
+
     # Obtenção dos números com base no tipo
     if tipo_envio == 'ativos':
         clientes = Cliente.objects.filter(usuario=usuario, cancelado=False, nao_enviar_msgs=False)
-        numeros = [cliente.telefone for cliente in clientes]
+        destinatarios = [
+            {
+                "telefone": cliente.telefone,
+                "cliente_id": cliente.id,
+                "cliente_nome": cliente.nome,
+            }
+            for cliente in clientes
+        ]
     elif tipo_envio == 'cancelados':
         clientes = Cliente.objects.filter(
             usuario=usuario,
@@ -396,24 +573,68 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             nao_enviar_msgs=False,
             data_cancelamento__lte=localtime().now() - timedelta(days=40)
         )
-        numeros = [cliente.telefone for cliente in clientes]
+        destinatarios = [
+            {
+                "telefone": cliente.telefone,
+                "cliente_id": cliente.id,
+                "cliente_nome": cliente.nome,
+            }
+            for cliente in clientes
+        ]
     elif tipo_envio == 'avulso':
         telefones_str = processa_telefones(usuario)
         numeros = telefones_str.split(',') if telefones_str else []
+        destinatarios = [
+            {
+                "telefone": telefone.strip(),
+                "cliente_id": None,
+                "cliente_nome": None,
+            }
+            for telefone in numeros
+            if telefone.strip()
+        ]
     else:
         print(f"[ERRO] Tipo de envio desconhecido: {tipo_envio}")
         return
 
-    print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [ENVIO][{tipo_envio.upper()}] [QTD.][{len(numeros)}]")
+    if not destinatarios:
+        registrar_log_auditoria({
+            "funcao": "envia_mensagem_personalizada",
+            "status": "sem_destinatarios",
+            "usuario": usuario.username,
+            "tipo_envio": tipo_envio,
+        })
 
-    for telefone in numeros:
+    print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [ENVIO][{tipo_envio.upper()}] [QTD.][{len(destinatarios)}]")
+
+    for destinatario in destinatarios:
+        telefone = destinatario["telefone"]
+        cliente_nome = destinatario.get("cliente_nome")
+        cliente_id = destinatario.get("cliente_id")
         if total_enviados >= LIMITE_ENVIO_DIARIO:
             print(f"[LIMITE] Atingido o limite diário de {LIMITE_ENVIO_DIARIO} envios.")
+            registrar_log_auditoria({
+                "funcao": "envia_mensagem_personalizada",
+                "status": "limite_diario_atingido",
+                "usuario": usuario.username,
+                "tipo_envio": tipo_envio,
+                "total_enviados": total_enviados,
+                "limite": LIMITE_ENVIO_DIARIO,
+            })
             break
 
         # Ignora se já enviado hoje
         if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone, data_envio=localtime().now().date()).exists():
             registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já foi feito envio hoje!", usuario, DIR_LOGS_AGENDADOS)
+            registrar_log_auditoria({
+                "funcao": "envia_mensagem_personalizada",
+                "status": "ignorado_envio_diario",
+                "usuario": usuario.username,
+                "tipo_envio": tipo_envio,
+                "telefone": telefone,
+                "cliente_nome": cliente_nome,
+                "cliente_id": cliente_id,
+            })
             continue
 
         # ignora se já enviado neste mês (avulso, ativos e cancelados)
@@ -426,17 +647,44 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
                 data_envio__month=hoje.month
             ).exists():
                 registrar_log(f"[{hoje.strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já recebeu envio este mês (avulso)", usuario, DIR_LOGS_AGENDADOS)
+                registrar_log_auditoria({
+                    "funcao": "envia_mensagem_personalizada",
+                    "status": "ignorado_envio_mensal",
+                    "usuario": usuario.username,
+                    "tipo_envio": tipo_envio,
+                    "telefone": telefone,
+                    "cliente_nome": cliente_nome,
+                    "cliente_id": cliente_id,
+                })
                 continue
 
         if not telefone:
             log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(localtime().strftime('%d-%m-%Y %H:%M:%S'), tipo_envio.upper(), usuario, telefone)
             registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
+            registrar_log_auditoria({
+                "funcao": "envia_mensagem_personalizada",
+                "status": "cancelado_sem_telefone",
+                "usuario": usuario.username,
+                "tipo_envio": tipo_envio,
+                "telefone": telefone,
+                "cliente_nome": cliente_nome,
+                "cliente_id": cliente_id,
+            })
             continue
 
         # Validação via WhatsApp
         numero_existe = check_number_status(telefone, token, usuario)
         if not numero_existe:
             registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ❌ Número inválido no WhatsApp", usuario, DIR_LOGS_AGENDADOS)
+            registrar_log_auditoria({
+                "funcao": "envia_mensagem_personalizada",
+                "status": "numero_invalido",
+                "usuario": usuario.username,
+                "tipo_envio": tipo_envio,
+                "telefone": telefone,
+                "cliente_nome": cliente_nome,
+                "cliente_id": cliente_id,
+            })
             if tipo_envio == 'avulso':
                 TelefoneLeads.objects.filter(telefone=telefone, usuario=usuario).delete()
                 registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - 🗑️ Deletado do banco (avulso)", usuario, DIR_LOGS_AGENDADOS)
@@ -446,6 +694,15 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
         message = obter_mensagem_personalizada(nome=nome_msg, tipo=tipo_envio, usuario=usuario)
         if not message:
             registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ❌ Falha ao gerar variação da mensagem", usuario, DIR_LOGS_AGENDADOS)
+            registrar_log_auditoria({
+                "funcao": "envia_mensagem_personalizada",
+                "status": "erro_template",
+                "usuario": usuario.username,
+                "tipo_envio": tipo_envio,
+                "telefone": telefone,
+                "cliente_nome": cliente_nome,
+                "cliente_id": cliente_id,
+            })
             continue
 
         # Monta payload
@@ -460,31 +717,95 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             payload['caption'] = message
             payload['base64'] = f'data:image/png;base64,{image_base64}'
 
-        for tentativa in range(1, 4):
-            response = requests.post(url_envio, headers={
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': f'Bearer {token}'
-            }, json=payload)
+        audit_payload = {k: v for k, v in payload.items() if k != 'base64'}
+        audit_payload["tem_base64"] = bool(payload.get('base64'))
+        audit_payload["arquivo_imagem"] = image_name
 
+        for tentativa in range(1, 4):
+            response = None
+            response_payload = None
+            status_code = None
+            error_message = None
             timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
 
-            if response.status_code in (200, 201):
-                registrar_log(TEMPLATE_LOG_MSG_SUCESSO.format(timestamp, tipo_envio.upper(), usuario, telefone), usuario, DIR_LOGS_AGENDADOS)
-                MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone)
-                total_enviados += 1
-                break
-
             try:
-                response_data = response.json()
-                error_message = response_data.get('message', 'Erro desconhecido')
-            except json.JSONDecodeError:
-                error_message = response.text
+                response = requests.post(url_envio, headers={
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': f'Bearer {token}'
+                }, json=payload)
+                status_code = response.status_code
+
+                try:
+                    response_payload = response.json()
+                except json.JSONDecodeError:
+                    response_payload = response.text
+
+                if status_code in (200, 201):
+                    registrar_log(
+                        TEMPLATE_LOG_MSG_SUCESSO.format(timestamp, tipo_envio.upper(), usuario, telefone),
+                        usuario,
+                        DIR_LOGS_AGENDADOS
+                    )
+                    registro_envio = MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone)
+                    registrar_log_auditoria({
+                        "funcao": "envia_mensagem_personalizada",
+                        "status": "sucesso",
+                        "usuario": usuario.username,
+                        "tipo_envio": tipo_envio,
+                        "telefone": telefone,
+                        "cliente_nome": cliente_nome,
+                        "cliente_id": cliente_id,
+                        "tentativa": tentativa,
+                        "http_status": status_code,
+                        "mensagem": message,
+                        "payload": audit_payload,
+                        "response": response_payload,
+                        "registro_envio_id": registro_envio.id,
+                    })
+                    total_enviados += 1
+                    break
+
+                error_message = (
+                    response_payload.get('message', 'Erro desconhecido')
+                    if isinstance(response_payload, dict)
+                    else str(response_payload)
+                )
+
+            except requests.RequestException as exc:
+                status_code = getattr(getattr(exc, "response", None), "status_code", None)
+                if getattr(exc, "response", None) is not None:
+                    try:
+                        response_payload = exc.response.json()
+                    except (ValueError, AttributeError):
+                        response_payload = getattr(exc.response, "text", None)
+                error_message = str(exc)
+
+            if status_code in (200, 201):
+                continue
+
+            if error_message is None:
+                error_message = "Erro desconhecido"
 
             registrar_log(
-                TEMPLATE_LOG_MSG_FALHOU.format(timestamp, tipo_envio.upper(), usuario, telefone, response.status_code, tentativa, error_message),
+                TEMPLATE_LOG_MSG_FALHOU.format(timestamp, tipo_envio.upper(), usuario, telefone, status_code if status_code is not None else 'N/A', tentativa, error_message),
                 usuario, DIR_LOGS_AGENDADOS
             )
+            registrar_log_auditoria({
+                "funcao": "envia_mensagem_personalizada",
+                "status": "falha",
+                "usuario": usuario.username,
+                "tipo_envio": tipo_envio,
+                "telefone": telefone,
+                "cliente_nome": cliente_nome,
+                "cliente_id": cliente_id,
+                "tentativa": tentativa,
+                "http_status": status_code,
+                "mensagem": message,
+                "erro": error_message,
+                "payload": audit_payload,
+                "response": response_payload,
+            })
             time.sleep(random.uniform(10, 20))
 
         time.sleep(random.uniform(30, 180))
