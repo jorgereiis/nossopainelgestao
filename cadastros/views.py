@@ -1566,162 +1566,31 @@ def cache_page_by_user(timeout):
     return decorator
 
 
-@xframe_options_exempt
 @login_required
-@cache_page_by_user(60 * 120)
-def generate_graphic_map_customers(request):
+@cache_page_by_user(60 * 60)
+def mapa_clientes_data(request):
     usuario = request.user
-
     dados = dict(
-        Cliente.objects.filter(cancelado=False, usuario=usuario)
-        .values("uf")
-        .annotate(total=Count("id"))
-        .values_list("uf", "total")
-    )
-    total_geral = sum(dados.values())
-    clientes_internacionais = Cliente.objects.filter(cancelado=False, usuario=usuario, uf__isnull=True).count()
-
-    mapa = gpd.read_file("archives/brasil_estados.geojson")
-
-    def _normalizar_estado(nome):
-        if not isinstance(nome, str):
-            return ""
-        return unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode("ascii").lower()
-
-    siglas = {
-        "acre": "AC",
-        "alagoas": "AL",
-        "amapa": "AP",
-        "amazonas": "AM",
-        "bahia": "BA",
-        "ceara": "CE",
-        "distrito federal": "DF",
-        "espirito santo": "ES",
-        "goias": "GO",
-        "maranhao": "MA",
-        "mato grosso": "MT",
-        "mato grosso do sul": "MS",
-        "minas gerais": "MG",
-        "para": "PA",
-        "paraiba": "PB",
-        "parana": "PR",
-        "pernambuco": "PE",
-        "piaui": "PI",
-        "rio de janeiro": "RJ",
-        "rio grande do norte": "RN",
-        "rio grande do sul": "RS",
-        "rondonia": "RO",
-        "roraima": "RR",
-        "santa catarina": "SC",
-        "sao paulo": "SP",
-        "sergipe": "SE",
-        "tocantins": "TO",
-    }
-
-    mapa["sigla"] = mapa["name"].apply(lambda nome: siglas.get(_normalizar_estado(nome)))
-    mapa = mapa.dropna(subset=["sigla"])
-    mapa["clientes"] = mapa["sigla"].apply(lambda uf: dados.get(uf, 0))
-    mapa["porcentagem"] = mapa["clientes"].apply(
         lambda x: round((x / total_geral) * 100, 1) if total_geral > 0 else 0
     )
-
     mapa = mapa.drop(columns=["created_at", "updated_at"], errors="ignore")
     geojson_data = json.loads(mapa.to_json())
-
-    max_clientes = max(mapa["clientes"]) if mapa["clientes"].any() else 1
-    mapa["clientes_cor"] = mapa["clientes"].apply(lambda x: x if x > 0 else None)
-
-    fig = px.choropleth_mapbox(
-        mapa,
-        geojson=geojson_data,
-        locations="sigla",
-        color="clientes",
-        color_continuous_scale=[
-            [0.0, "#FFFFFF"],
-            [0.01, "#cdbfff"],
-            [1.0, "#624BFF"]
-        ],
-        range_color=[0, max_clientes],
-        labels={
-            "clientes": "Clientes Ativos",
-            "porcentagem": "% do Total"
-        },
-        featureidkey="properties.sigla",
-        hover_name="name",
-        hover_data={
-            "clientes": True,
-            "sigla": False,
-            "clientes_cor": False,
-            "porcentagem": True
-        },
-        mapbox_style="white-bg",
-        center={"lat": -19.68828, "lon": -54.72019},
-        zoom=2.2,
-        opacity=0.6,
+    for feature in geojson_data.get("features", []):
+        props = feature.get("properties", {})
+        props["clientes"] = int(props.get("clientes", 0) or 0)
+        props["porcentagem"] = float(props.get("porcentagem", 0) or 0)
+        feature["properties"] = props
+    max_clientes = int(max(mapa["clientes"]) if mapa["clientes"].any() else 0)
+    return JsonResponse(
+        {
+            "features": geojson_data.get("features", []),
+            "summary": {
+                "total_geral": int(total_geral),
+                "fora_pais": int(clientes_internacionais),
+                "max_clientes": max_clientes,
+            },
+        }
     )
-
-    fig.update_traces(
-        hoverlabel=dict(
-            bgcolor="#fff",
-            bordercolor="#724BFF",
-            font=dict(size=14, color="black", family="Arial")
-        ),
-        marker_line_color="#ABA5D9",
-        marker_line_width=0.5
-    )
-
-    fig.update_layout(
-        margin={"r": 0, "t": 0, "l": 0, "b": 0},
-        title_text="Clientes Ativos por Estado",
-        title_x=0.5,
-        title_y=0.95,
-        title_font=dict(size=25),
-        title_font_color="black",
-        title_font_family="Arial",
-        title_xanchor="center",
-        coloraxis_showscale=False
-    )
-
-    grafico_html = plot(fig, output_type="div", include_plotlyjs="cdn")
-
-    info_adicional = f"""
-    <div style='text-align:center; font-family:Arial; font-size:12px; color: #333; margin-top: 8px;'>
-        Qtd. fora do pa\u00eds: {clientes_internacionais}
-    </div>
-    """
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Mapa Interativo</title>
-        <style>
-            html, body {{
-                margin: 0;
-                padding: 0;
-                height: 100%;
-                max-width: 100%;
-                overflow: hidden;
-            }}
-            .plotly-graph-div {{
-                height: 100% !important;
-                width: 100% !important;
-            }}
-            @media (max-width: 576px) {{
-                .plotly-graph-div {{
-                    height: 400px !important;
-                }}
-            }}
-        </style>
-    </head>
-    <body>
-        {info_adicional}
-        {grafico_html}
-    </body>
-    </html>
-    """
-
-    return HttpResponse(html, content_type="text/html")
 
 @login_required
 @never_cache
