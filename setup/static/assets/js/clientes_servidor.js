@@ -16,6 +16,7 @@
     "#5ac4ff",
   ];
   const state = { chart: null };
+  const MAX_LEGEND_ITEMS = 10;
 
   const formatNumber = (value) =>
     new Intl.NumberFormat("pt-BR").format(Number(value) || 0);
@@ -156,6 +157,9 @@
 
       legendEl.innerHTML = "";
       segments.forEach((segment, index) => {
+        if (index >= MAX_LEGEND_ITEMS) {
+          return;
+        }
         const legendItem = document.createElement("div");
         legendItem.className = "clientes-servidor-legend-item";
 
@@ -164,6 +168,7 @@
         colorDot.style.backgroundColor = colors[index];
 
         const textSpan = document.createElement("span");
+        textSpan.className = "clientes-servidor-legend-text";
         const percentStrong = document.createElement("strong");
         percentStrong.textContent = formatPercent(percents[index]);
         textSpan.appendChild(percentStrong);
@@ -176,6 +181,13 @@
 
         legendEl.appendChild(legendItem);
       });
+
+      if (segments.length > MAX_LEGEND_ITEMS) {
+        const note = document.createElement("div");
+        note.className = "clientes-servidor-legend-note";
+        note.textContent = "Mostrando os 10 principais itens. Consulte o gráfico para os demais.";
+        legendEl.appendChild(note);
+      }
 
       destroyChart();
       if (typeof Chart === "undefined") {

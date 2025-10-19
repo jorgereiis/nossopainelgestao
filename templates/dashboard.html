@@ -798,7 +798,7 @@
 
                 <!-- row  -->
                 <div class="row mt-6 g-4 align-items-stretch">
-                    <div class="col-xxl-8 col-xl-8 col-lg-8 col-md-12">
+                    <div class="col-12">
                         <div class="card card-dashboard-tabs h-100">
                             <div class="dashboard-tabs-surface">
                                 <ul class="nav nav-tabs dashboard-tabs" id="dashboard-table-tabs" role="tablist">
@@ -828,7 +828,7 @@
                                     </li>
                                 </ul>
                             </div>
-                            <div class="dashboard-tab-content">
+                            <div class="dashboard-tab-content w-100">
                                 <div class="tab-content" id="dashboard-table-tabs-content">
                                     <div class="tab-pane fade show active" id="pane-renovacoes" role="tabpanel" aria-labelledby="tab-renovacoes">
                                         <div class="dashboard-tab-body">
@@ -1082,9 +1082,10 @@
         border: 1px solid #dfe3f5;
         border-top: 0;
         border-radius: 0 0 1.25rem 1.25rem;
-        padding: 1.75rem 1.75rem 1.5rem;
+        padding: 1.75rem 2.25rem 1.5rem;
         background: var(--dashboard-panel-bg);
         margin-top: -1px;
+        width: 100%;
     }
 
     .dashboard-tab-body {
@@ -1132,9 +1133,15 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        max-width: 600px;
+        margin: 0 auto;
         min-height: 260px;
     }
     .clientes-servidor-canvas-element {
+        width: 240px;
+        height: 240px;
         max-width: 100%;
         max-height: 240px;
     }
@@ -1155,28 +1162,47 @@
     }
     .clientes-servidor-legend {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 0.5rem 1rem;
-        margin-top: 1rem;
+        margin: 1rem auto 0;
         font-size: 0.82rem;
+        justify-content: center;
+        justify-items: flex-start;
+        width: min(100%, 420px);
     }
     .clientes-servidor-legend-item {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 0.6rem;
         font-weight: 500;
         color: #2f2b53;
+        word-break: break-word;
     }
-    .clientes-servidor-legend-item span {
+    .clientes-servidor-legend-text {
         display: inline-flex;
-        align-items: center;
+        flex-wrap: wrap;
+        align-items: baseline;
         gap: 0.35rem;
+        line-height: 1.3;
+        min-width: 0;
+        white-space: normal;
+    }
+    .clientes-servidor-legend-item strong {
+        white-space: nowrap;
     }
     .clientes-servidor-legend-color {
         width: 12px;
         height: 12px;
         border-radius: 50%;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+    .clientes-servidor-legend-note {
+        grid-column: 1 / -1;
+        font-weight: 400;
+        color: #677097;
+        font-size: 0.75rem;
+        line-height: 1.2;
+        margin-top: 0.25rem;
     }
 
     .dashboard-tab-label {
