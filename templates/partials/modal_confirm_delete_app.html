@@ -1,0 +1,27 @@
+                <div class="modal fade" id="confirm-delete-app-conta-modal" tabindex="-1" role="dialog"
+                aria-labelledby="confirm-delete-app-conta-label">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="confirm-delete-app-conta-label">Confirmar exclusão</h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar">
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Tem certeza que deseja excluir a conta do aplicativo?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <div class="text-danger small" id="delete-app-error-message"></div>
+                        <form method="POST" id="confirm-delete-app-conta-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="app_conta_id" id="app-conta-id">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger btn-confirmar-acao">
+                                Excluir
+                        </button>
+                        </form>
+                    </div>
+                    </div>
+                </div>
+                </div>
+                <!-- end modal -->

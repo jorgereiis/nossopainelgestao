@@ -1,0 +1,175 @@
+                <div class="modal fade" id="info-cliente-modal" tabindex="-1" role="dialog" aria-labelledby="info-cliente-label">
+                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg custom-modal-dialog modal-fullscreen-sm-down" role="document">
+                        <div class="modal-content position-relative px-7 py-4" id="modal-info-content">
+                            <div class="modal-header" id="modal-info-header">
+                                <div class="modal-title d-flex w-100 justify-content-between align-items-center">
+                                    <h1 class="fw-bold d-flex align-items-center mb-0 h2" id="info-cliente-label">
+                                        <span id="info-cliente-nome"></span>
+                                    </h1>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                </div>
+                            </div>
+                            <div class="custom-div">
+                                <p id="info-cliente-data_adesao"></p>
+                            </div>
+                            <div class="modal-body d-flex flex-column" id="modal-info-body">
+                                <div class="d-flex flex-column gap-3 px-3" id="modal-info-body-1">
+                                    <h4 class="fw-bold mb-4 mt-4">Dados do cliente</h4>
+                                    <div class="row mb-4">
+                                        <div class="col-sm-12">
+                                            <span class="fs-9 text-muted">Telefone</span>
+                                            <div class="fs-8" id="info-cliente-telefone"></div>
+                                            <div class="fs-8"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row no-gutters mb-4">
+                                        <div class="col-4">
+                                            <span class="fs-9 text-muted">Servidor</span>
+                                            <div class="fs-8" id="info-cliente-servidor"></div>
+                                        </div>
+                                        <div class="col-5">
+                                            <span class="fs-9 text-muted">Dispositivo</span>
+                                            <div class="fs-8" id="info-cliente-dispositivo"></div>
+                                        </div>
+                                        <div class="col-3">
+                                            <span class="fs-9 text-muted">Aplicativo</span>
+                                            <div class="fs-8" id="info-cliente-aplicativo"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-4">
+                                        <div class="col-4">
+                                            <span class="fs-9 text-muted">Próximo pagamento</span>
+                                            <div class="fs-8" id="info-cliente-data_vencimento"></div>
+                                        </div>
+                                        <div class="col-5">
+                                            <span class="fs-9 text-muted">Plano de adesão</span>
+                                            <div class="fs-8 text-break" id="info-cliente-plano"></div>
+                                        </div>
+                                        <div class="col-3">
+                                            <span class="fs-9 text-muted">Qtd. de telas</span>
+                                            <div class="fs-8" id="info-cliente-tela"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-4">
+                                        <div class="col-4">
+                                            <span class="fs-9 text-muted">Forma de pagamento</span>
+                                            <div class="fs-8" id="info-cliente-forma_pgto"></div>
+                                        </div>
+                                        <div class="col-5">
+                                            <span class="fs-9 text-muted">Último pagamento</span>
+                                            <div class="fs-8 text-break" id="info-cliente-ultimo_pgto"></div>
+                                        </div>
+                                        <div class="col-3">
+                                            <span class="fs-9 text-muted">Indicado por</span>
+                                            <div class="fs-8" id="info-cliente-indicado_por"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <span class="fs-9 text-muted">Notas</span>
+                                            <div class="fs-8" id="info-cliente-notas"></div>
+                                            <div class="fs-8"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p style="display: none;" id="info-cliente-id"></p>
+                                <div class="d-flex flex-column gap-3 px-3">
+                                    <div>
+                                        <h4 class="fw-bold mb-4 mt-4">Contas dos aplicativos
+                                            <iconify-icon icon="feather:plus-circle" style="color: #624bff; cursor: pointer;" width="15" height="15" id="add-apps-info" onclick="exibirModalCriarApp(this)">
+                                            </iconify-icon>
+                                        </h4>
+                                    </div>
+                                    <div class="dados-apps">
+                                        <!-- Os elementos das contas de aplicativos serão adicionados dinamicamente aqui -->
+                                    </div>
+                                    <div class="flex-column texto-aqui">
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-column gap-3 px-3">
+                                    <h4 class="fw-bold mb-4 mt-4">Resumo de cobranças</h4>
+                                    <div class="d-flex charge-summary gap-3 justify-content-center">
+                                        <div class="card rounded py-3 px-8 d-flex flex-column align-items-center justify-content-center border">
+                                            <div class="fw-bold my-0 text-center num-resumo" id="qtd_mensalidades_pagas">0</div>
+                                            <span class="badge rounded-pill bg-success">
+                                                <i class="bi bi-check-circle"></i>
+                                                Pago
+                                            </span>
+                                        </div>
+                                        <div class="card rounded py-3 px-6 d-flex flex-column align-items-center justify-content-center border">
+                                            <div class="fw-bold my-0 text-center num-resumo" id="qtd_mensalidades_pendentes">0</div>
+                                            <span class="badge rounded-pill bg-danger">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                                Inadimplente
+                                            </span>
+                                        </div>
+                                        <div class="card rounded py-3 px-6 d-flex flex-column align-items-center justify-content-center border">
+                                            <div class="fw-bold my-0 text-center num-resumo" id="qtd_mensalidades_canceladas">0</div>
+                                            <span class="badge rounded-pill bg-warning">
+                                                <i class="bi bi-x-square"></i>
+                                                Cancelado
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <h4 class="fw-bold mb-2 mt-6">Histórico de cobranças</h4>
+                                    <div class="card p-5 border rounded me-4">
+                                        <div class="table-responsive custom-table-scroll mb-4">
+                                            <table class="table text-nowrap mb-0 table-hover table-center" id="table-invoice">
+                                                <thead class="text-muted fs-6">
+                                                    <tr>
+                                                        <td>
+                                                            <span>ID</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Status</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Vencimento</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Valor</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Pagamento</span>
+                                                        </td>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <!-- Os elementos das cobranças serão adicionados dinamicamente aqui -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <h4 class="fw-bold mb-2 mt-2">Histórico de indicações</h4>
+                                    <div class="card p-5 border rounded me-4 mb-4">
+                                        <div class="table-responsive custom-table-scroll mb-4">
+                                            <table class="table text-nowrap mb-0 table-hover table-center" id="table-indicados">
+                                                <thead class="text-muted fs-6">
+                                                    <tr>
+                                                        <td>
+                                                            <span>ID</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Status</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Nome</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Data de adesão</span>
+                                                        </td>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <!-- Os elementos das cobranças serão adicionados dinamicamente aqui -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="height: 32px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- end modal -->

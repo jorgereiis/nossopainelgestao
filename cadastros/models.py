@@ -3,14 +3,15 @@ Módulo de definição das models principais da aplicação.
 Inclui entidades como Cliente, Plano, Mensalidade, Aplicativo, Sessão WhatsApp, entre outras.
 """
 
+from datetime import date, timedelta
 import re
+
+from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
-from datetime import timedelta, date
-from django.contrib.auth.models import User
-from django.utils.timezone import localtime, now
-from django.core.validators import MinValueValidator
 
+# Mapeamento de DDDs nacionais para a unidade federativa correspondente.
 DDD_UF_MAP = {
     '11': 'SP', '12': 'SP', '13': 'SP', '14': 'SP', '15': 'SP', '16': 'SP', '17': 'SP', '18': 'SP', '19': 'SP',
     '21': 'RJ', '22': 'RJ', '24': 'RJ',
@@ -149,7 +150,7 @@ class Cliente(models.Model):
         ordering = ['-data_adesao']
 
     def save(self, *args, **kwargs):
-        """Salva o cliente ajustando a data de pagamento e formatando telefone/UF."""
+        """Garante vencimento inicial e sincroniza a UF a partir do telefone."""
         if self.data_adesao and self.data_vencimento is None:
             self.data_vencimento = self.data_adesao
 
@@ -267,10 +268,12 @@ class HorarioEnvios(models.Model):
 
     @property
     def descricao(self):
+        """Retorna a descrição exibida no painel para o tipo de envio."""
         return self.DESCRICOES.get(self.tipo_envio, "")
 
     @property
     def exemplo(self):
+        """Apresenta um exemplo do fluxo disparado para o tipo."""
         return self.EXEMPLOS.get(self.tipo_envio, "")
 
     
@@ -308,10 +311,12 @@ class PlanoIndicacao(models.Model):
 
     @property
     def descricao(self):
+        """Sintetiza a finalidade do plano de indicação escolhido."""
         return self.DESCRICOES.get(self.tipo_plano, "")
 
     @property
     def exemplo(self):
+        """Fornece um cenário ilustrativo da bonificação."""
         return self.EXEMPLOS.get(self.tipo_plano, "")
 
 
@@ -326,7 +331,7 @@ class ContaDoAplicativo(models.Model):
     verificado = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
-        # Formata device_id como MAC address: XX:XX:XX:XX:XX:XX
+        """Normaliza o identificador do dispositivo para formato MAC quando necessário."""
         if self.device_id and not len(self.device_id) <= 10:
             raw = re.sub(r'[^A-Fa-f0-9]', '', self.device_id).upper()
             self.device_id = ':'.join(raw[i:i+2] for i in range(0, len(raw), 2))
@@ -397,8 +402,7 @@ class DadosBancarios(models.Model):
         self.wpp = '+' + numero  # Ex: +5500000000000
 
     def save(self, *args, **kwargs):
-        """Salva o cliente ajustando a data de pagamento e formatando telefone/UF."""
-
+        """Normaliza o telefone antes de persistir os dados bancários."""
         self.formatar_telefone()
         super().save(*args, **kwargs)
 
@@ -508,6 +512,7 @@ class MensagensLeads(models.Model):
 
 
 class NotificationRead(models.Model):
+    """Registra notificações de mensalidade marcadas como lidas."""
     usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications_read")
     mensalidade = models.ForeignKey(Mensalidade, on_delete=models.CASCADE, related_name="notifications_read")
     marcado_em = models.DateTimeField(auto_now_add=True)

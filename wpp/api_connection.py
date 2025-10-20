@@ -1,11 +1,14 @@
-import os
-import time
+"""Cliente auxiliar para interação com a API WPPConnect utilizada pelo sistema."""
+
 import base64
-import random
-import inspect
-import requests
+import logging
 import mimetypes
-from django.utils.timezone import localtime
+import os
+import random
+import time
+
+import requests
+from cadastros.services.logging import append_line
 
 URL_API_WPP = os.getenv("URL_API_WPP")
 MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
@@ -15,16 +18,12 @@ MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
 ##################################################################
 
 # Função para registrar mensagens no arquivo de log principal
-def registrar_log(mensagem: str, log_path: str) -> None:
-    """
-    Registra uma mensagem no arquivo de log do usuário.
-    """
-    # Garante que o diretório onde o log será salvo exista
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+logger = logging.getLogger(__name__)
 
-    with open(log_path, "a", encoding="utf-8") as log:
-        log.write(mensagem + "\n")
-#### FIM #####
+
+def registrar_log(mensagem: str, log_path: str) -> None:
+    """Anexa a ``mensagem`` ao arquivo de log indicado."""
+    append_line(log_path, mensagem)
 
 ###################################################
 ##### FUNÇÕES PARA CONEXÃO COM API WPPCONNECT #####
@@ -85,13 +84,9 @@ def logout_session(session: str, token: str):
 ##### FUNÇÕES PARA GERENCIAR CONTATOS E LABELS #####
 # --- Função para obter labels de um contato ---
 def get_label_contact(telefone, token, user):
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
+    """Obtém as labels associadas a um contato específico."""
 
-    # Monta a URL da requisição com o número de telefone
     url = f'{URL_API_WPP}/{user}/contact/{telefone}'
-
-    # Define os headers com o token de autenticação
     headers = {
         'Accept': 'application/json',
         'Authorization': f'Bearer {token}'
@@ -102,34 +97,36 @@ def get_label_contact(telefone, token, user):
     }
 
     try:
-        # Faz uma requisição GET para obter informações do contato
         response = requests.get(url, headers=headers, json=body)
 
-        # Se a resposta for bem-sucedida (200 ou 201)
         if response.status_code in [200, 201]:
-            # Converte a resposta JSON em dicionário
             response_data = response.json()
-            # Extrai a lista de labels, se houver
             labels = (response_data.get('response') or {}).get('labels', [])
             return labels
-        else:
-            # Exibe erro caso a resposta não tenha sido bem-sucedida
-            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao obter labels do telefone {telefone}: {response.status_code} - {response.text}")
-            return []
-    except Exception as e:
-        # Trata exceções como erro de rede ou parsing
-        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Exceção ao fazer requisição: {e}")
+
+        logger.error(
+            "[get_label_contact] %s | Erro ao obter labels (%s): %s",
+            user,
+            response.status_code,
+            response.text,
+        )
+        return []
+    except requests.RequestException as exc:
+        logger.exception("[get_label_contact] %s | Falha na requisição: %s", user, exc)
         return []
 
 # --- Função para verificar se o número existe no WhatsApp ---
 def check_number_status(telefone, token, user):
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
+    """Verifica se o telefone informado está registrado no WhatsApp.
 
-    # Monta a URL da requisição para checar status do número
+    Returns
+    -------
+    dict
+        Estrutura com as chaves ``status`` (bool) e ``user`` (str ou ``None``).
+        Em caso de erro adiciona ``error`` com detalhe textual.
+    """
+
     url = f'{URL_API_WPP}/{user}/check-number-status/{telefone}'
-
-    # Define os headers com token de autenticação
     headers = {
         'Accept': 'application/json',
         'Authorization': f'Bearer {token}'
@@ -140,36 +137,36 @@ def check_number_status(telefone, token, user):
     }
 
     try:
-        # Envia requisição GET para verificar se o número existe no WhatsApp
         response = requests.get(url, headers=headers, json=body)
 
         if response.status_code in [200, 201]:
-            # Converte a resposta em JSON
             response_data = response.json()
-            # Retorna o valor booleano que indica se o número existe
             status = response_data.get('response', {}).get('numberExists', False)
-            user_number = response_data.get('response', {}).get('id', None).get('user', None)
-            print(f"[{timestamp}] [INFO] [{func_name}] [{user}] O número informado é válido no WhatsApp.")
+            user_data = response_data.get('response', {}).get('id') or {}
+            user_number = user_data.get('user')
+            logger.info("[check_number_status] %s | Número válido: %s", user, telefone)
             return {'status': status, 'user': user_number}
-        else:
-            # Exibe erro caso não tenha sucesso
-            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao verificar status do número {telefone}: {response.status_code} - {response.text}")
-            return False
-    except Exception as e:
-        # Trata falhas na requisição
-        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Exceção ao verificar status do número: {e}")
-        return False
+
+        error_message = (
+            f"{response.status_code} - {response.text}"
+        )
+        logger.error(
+            "[check_number_status] %s | Erro ao verificar %s: %s",
+            user,
+            telefone,
+            error_message,
+        )
+        return {'status': False, 'user': None, 'error': error_message}
+    except requests.RequestException as exc:
+        logger.exception("[check_number_status] %s | Falha de requisição: %s", user, exc)
+        return {'status': False, 'user': None, 'error': str(exc)}
 
 
 # --- Função para obter todas as labels disponíveis para um contato ---
 def get_all_labels(token, user):
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
+    """Retorna todas as labels disponíveis na instância WPP do usuário."""
 
-    # Monta a URL da requisição para obter todas as labels
     url = f'{URL_API_WPP}/{user}/get-all-labels'
-
-    # Headers com autenticação
     headers = {
         'Accept': 'application/json',
         'Authorization': f'Bearer {token}'
@@ -180,43 +177,38 @@ def get_all_labels(token, user):
     }
 
     try:
-        # Envia requisição GET
         response = requests.get(url, headers=headers, json=body)
 
         if response.status_code in [200, 201]:
-            # Converte resposta para JSON
             response_data = response.json()
-            # Retorna a lista de labels encontradas
             labels = response_data.get('response', [])
-            print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Labels obtidas com sucesso - {len(labels)} labels encontradas.")
+            logger.info("[get_all_labels] %s | %s labels recuperadas.", user, len(labels))
             return labels
-        else:
-            # Exibe mensagem de erro se a resposta falhar
-            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao obter labels: {response.status_code} - {response.text}")
-            return []
-    except Exception as e:
-        # Captura e mostra falhas na requisição
-        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Exceção ao tentar obter labels: {e}")
+
+        logger.error(
+            "[get_all_labels] %s | Erro ao obter labels: %s - %s",
+            user,
+            response.status_code,
+            response.text,
+        )
+        return []
+    except requests.RequestException as exc:
+        logger.exception("[get_all_labels] %s | Falha na requisição: %s", user, exc)
         return []
 
 
 # --- Função para adicionar ou remover labels de um contato ---
 def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, token, user):
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
-    
-    # Normaliza o telefone (remove + e @c.us, caso existam)
+    """Aplica a label desejada ao contato e remove labels anteriores."""
+
     telefone = telefone.replace('+', '').replace('@c.us', '').strip()
 
-    # Garante que label_id_2 seja lista
     labels_atual = label_id_2 if isinstance(label_id_2, list) else [label_id_2]
 
-    # Se a label desejada já está aplicada, não faz nada
     if label_id_1 in labels_atual:
-        print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Label '{label_name}' já atribuída ao contato. Nenhuma alteração necessária.")
+        logger.info("[add_or_remove_label_contact] %s | Label '%s' já atribuída.", user, label_name)
         return 200, {"status": "skipped", "message": "Label já atribuída"}
 
-    # Prepara headers e URL
     url = f'{URL_API_WPP}/{user}/add-or-remove-label'
     headers = {
         'Content-Type': 'application/json',
@@ -234,44 +226,52 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
         ]
     }
   
-    # Envia requisição POST com JSON
-    response = requests.post(url, headers=headers, json=body)
-    print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Response status code: {response.status_code}, response text: {response.text}")
-
-    if response.status_code in [200, 201]:
-        # Mensagem de sucesso
-        print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Label definida: {label_id_1} - {label_name}.")
-    else:
-        # Mensagem de erro com status code e texto da resposta
-        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao alterar label do telefone {telefone}: {response.status_code} - {response.text}")
-
     try:
-        # Tenta converter a resposta para JSON
-        response_data = response.json()
-    except Exception:
-        # Se falhar, retorna o texto bruto
-        response_data = response.text
+        response = requests.post(url, headers=headers, json=body)
+        logger.info(
+            "[add_or_remove_label_contact] %s | status=%s body=%s",
+            user,
+            response.status_code,
+            response.text,
+        )
 
-    # Retorna o status da requisição e a resposta convertida ou bruta
-    return response.status_code, response_data
+        if response.status_code in [200, 201]:
+            logger.info(
+                "[add_or_remove_label_contact] %s | Label aplicada: %s (%s)",
+                user,
+                label_name,
+                label_id_1,
+            )
+        else:
+            logger.error(
+                "[add_or_remove_label_contact] %s | Falha ao ajustar label de %s: %s - %s",
+                user,
+                telefone,
+                response.status_code,
+                response.text,
+            )
+
+        try:
+            response_data = response.json()
+        except ValueError:
+            response_data = response.text
+
+        return response.status_code, response_data
+    except requests.RequestException as exc:
+        logger.exception("[add_or_remove_label_contact] %s | Erro de requisição: %s", user, exc)
+        return 500, {"status": "error", "message": str(exc)}
 
 
 # --- Função para criar uma nova label se não existir ---
 def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
-    """
-    Cria a label no WhatsApp se não existir. Se hex_color for fornecido, aplica a cor.
-    Após criação, busca novamente todas as labels para obter o ID correto.
-    """
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
+    """Cria a label no WhatsApp caso ainda não exista e retorna o ID correspondente."""
+
     labels = get_all_labels(token, user)
 
-    # Verifica se a label já existe
     label_existente = next((label for label in labels if label["name"].strip().lower() == nome_label.lower()), None)
     if label_existente:
         return label_existente.get("id")
 
-    # Monta requisição
     url = f"{URL_API_WPP}/{user}/add-new-label"
     headers = {
         "Content-Type": "application/json",
@@ -286,62 +286,66 @@ def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
             color_int = int(hex_color.lstrip("#"), 16) + (255 << 24)
             body["options"] = {"labelColor": color_int}
         except ValueError:
-            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Cor inválida para a label '{nome_label}': {hex_color}")
+            logger.error("[criar_label_se_nao_existir] %s | Cor inválida '%s'.", user, hex_color)
 
-    # Faz a requisição
-    response = requests.post(url, headers=headers, json=body)
+    try:
+        response = requests.post(url, headers=headers, json=body)
+    except requests.RequestException as exc:
+        logger.exception("[criar_label_se_nao_existir] %s | Erro na requisição: %s", user, exc)
+        return None
+
     if response.status_code in [200, 201]:
-        print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Label '{nome_label}' criada com sucesso.")
+        logger.info("[criar_label_se_nao_existir] %s | Label '%s' criada.", user, nome_label)
 
-        # Após criar, buscar novamente todas as labels para encontrar o ID
         try:
             labels = get_all_labels(token, user)
             nova_label = next((label for label in labels if label["name"].strip().lower() == nome_label.lower()), None)
             if nova_label:
                 return nova_label.get("id")
-            else:
-                print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Label '{nome_label}' criada mas não encontrada após criação.")
-                return None
-        except Exception as e:
-            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao buscar labels após criação: {e}")
+            logger.info("[criar_label_se_nao_existir] %s | Label '%s' criada mas não localizada.", user, nome_label)
+            return None
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("[criar_label_se_nao_existir] %s | Erro ao buscar labels: %s", user, exc)
             return None
 
     else:
-        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao criar label '{nome_label}': {response.status_code} - {response.text}")
+        logger.error(
+            "[criar_label_se_nao_existir] %s | Falha ao criar '%s': %s - %s",
+            user,
+            nome_label,
+            response.status_code,
+            response.text,
+        )
         return None
 
 ##### FUNÇÃO PARA GERENCIAR GRUPOS DO WHATSAPP #####
 # --- Obter todos os grupos disponíveis na sessão do WhatsApp ---
 def get_all_groups(token, user):
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
+    """Obtém todos os grupos acessíveis para a sessão informada."""
 
-    # Monta a URL da requisição para obter todos os grupos
     url = f'{URL_API_WPP}/{user}/all-groups'
-
-    # Headers com autenticação
     headers = {
         'Accept': 'application/json',
         'Authorization': f'Bearer {token}'
     }
 
     try:
-        # Envia requisição GET (sem body)
         response = requests.get(url, headers=headers)
 
         if response.status_code in [200, 201]:
-            # Converte resposta para JSON
             response_data = response.json()
-            # Retorna a lista de grupos encontrada na chave 'response'
             groups = response_data.get('response', [])
             return groups
-        else:
-            # Exibe mensagem de erro se a resposta falhar
-            print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao obter grupos: {response.status_code} - {response.text}")
-            return []
-    except Exception as e:
-        # Captura e mostra falhas na requisição
-        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Exceção ao tentar obter grupos: {e}")
+
+        logger.error(
+            "[get_all_groups] %s | Erro ao obter grupos: %s - %s",
+            user,
+            response.status_code,
+            response.text,
+        )
+        return []
+    except requests.RequestException as exc:
+        logger.exception("[get_all_groups] %s | Falha na requisição: %s", user, exc)
         return []
     
 # --- Extrai ID dos grupos do WhatsApp para envio das notificações ---
@@ -377,26 +381,14 @@ def get_ids_grupos_envio(grupos, adm_envia_alertas, log_path):
 
 # --- Buscar IDs de grupos a partir de nomes fornecidos ---
 def get_group_ids_by_names(token, user, group_names, log_path=None):
-    """
-    Retorna os IDs dos grupos do WhatsApp com base nos nomes informados.
-
-    :param token: Token da sessão WPPConnect
-    :param user: Usuário/diretório da sessão
-    :param group_names: Lista com nomes (ou parte do nome) dos grupos
-    :param log_path: Caminho do log (opcional)
-    :return: Lista de tuplas (group_id, nome)
-    """
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
+    """Retorna IDs dos grupos cujos nomes contenham valores em ``group_names``."""
 
     try:
-        # Obter todos os grupos disponíveis
         grupos = get_all_groups(token, user)
         if not grupos:
-            print(f"[{timestamp}] [WARN] [{func_name}] [{user}] Nenhum grupo encontrado.")
+            logger.warning("[get_group_ids_by_names] %s | Nenhum grupo encontrado.", user)
             return []
 
-        # Normaliza nomes para comparação (case insensitive e strip)
         nomes_busca = [n.strip().lower() for n in group_names]
 
         grupos_encontrados = []
@@ -410,12 +402,16 @@ def get_group_ids_by_names(token, user, group_names, log_path=None):
                     registrar_log(f"Grupo encontrado: {nome} ({group_id})", log_path)
 
         if not grupos_encontrados:
-            print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Nenhum grupo correspondente encontrado para {group_names}.")
+            logger.info(
+                "[get_group_ids_by_names] %s | Nenhum grupo correspondente encontrado para %s.",
+                user,
+                group_names,
+            )
 
         return grupos_encontrados
 
-    except Exception as e:
-        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao buscar grupos por nome: {e}")
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("[get_group_ids_by_names] %s | Erro ao buscar grupos: %s", user, exc)
         return []
 
 

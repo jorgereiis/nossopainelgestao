@@ -1,4 +1,15 @@
-import requests, operator, logging, codecs, random, base64, json, time, re, os, io
+"""Views responsáveis por dashboards, cadastros e integrações do painel."""
+
+import base64
+import codecs
+import io
+import json
+import logging
+import operator
+import os
+import random
+import re
+import time
 import unicodedata
 from pathlib import Path
 from django.db.models import Sum, Q, Count, F, ExpressionWrapper, DurationField, Exists, OuterRef, Min
@@ -51,11 +62,6 @@ from django.http import (
     HttpResponse, JsonResponse,
     Http404
 )
-from wpp.api_connection import (
-    gerar_token, start_session,
-    logout_session, status_session,
-    check_connection, close_session
-)
 from .models import (
     Cliente, Servidor, Dispositivo,
     Aplicativo, Tipos_pgto, Plano,
@@ -74,6 +80,14 @@ from .utils import (
     historico_iniciar,
     historico_encerrar_vigente,
 )
+from .wpp_views import (
+    cancelar_sessao_wpp,
+    check_connection_wpp,
+    conectar_wpp,
+    desconectar_wpp,
+    status_wpp,
+    whatsapp,
+)
 
 # Constantes
 PLANOS_MESES = {
@@ -85,7 +99,6 @@ PLANOS_MESES = {
 }
 
 LOG_DIR = os.path.join(settings.BASE_DIR, 'logs')
-os.getenv("")
 MESES_31_DIAS = [1, 3, 5, 7, 8, 10, 12]
 
 warnings.filterwarnings(
@@ -101,211 +114,6 @@ class StaffRequiredMixin(UserPassesTestMixin):
         user = self.request.user
         return user.is_authenticated and (user.is_staff or user.is_superuser)
 
-############################################ WPP VIEW ############################################
-
-@login_required
-def whatsapp(request):
-    return render(request, 'pages/whatsapp.html')
-
-
-@login_required
-def conectar_wpp(request):
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
-    if request.method != "POST":
-        return JsonResponse({"erro": "Método não permitido."}, status=405)
-
-    usuario = request.user
-    session = usuario.username
-
-    try:
-        user_admin = User.objects.get(is_superuser=True)
-        secret = SecretTokenAPI.objects.get(usuario=user_admin).token
-    except (User.DoesNotExist, SecretTokenAPI.DoesNotExist):
-        return JsonResponse({"erro": "Token secreto de integração não encontrado."}, status=500)
-
-    # 1. Obtém ou gera token
-    sessao_existente = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
-    if sessao_existente:
-        token = sessao_existente.token
-        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Token reutilizado para sessão '{session}'")
-    else:
-        token_data, token_status = gerar_token(session, secret)
-        if token_status != 201:
-            return JsonResponse({"erro": "Falha ao gerar token de autenticação."}, status=400)
-        token = token_data["token"]
-        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Novo token gerado para sessão '{session}'")
-
-    # 2. Inicia a sessão
-    init_data, init_status = start_session(session, token)
-    print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Resposta inicial de start-session: {init_data}")
-
-    # 3. Verifica imediatamente se já está conectado
-    status_data, status_code = status_session(session, token)
-    status = status_data.get("status")
-    if status == "CONNECTED":
-        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Sessão '{session}' já está conectada.")
-        SessaoWpp.objects.update_or_create(
-            usuario=session,
-            defaults={
-                "token": token,
-                "dt_inicio": timezone.now(),
-                "is_active": True
-            }
-        )
-        return JsonResponse({
-            "status": "CONNECTED",
-            "mensagem": "Sessão já está conectada.",
-            "session": session
-        })
-
-    # 4. Tenta obter o QRCode
-    max_tentativas = 5
-    intervalo_segundos = 2
-    for tentativa in range(max_tentativas):
-        status_data, status_code = status_session(session, token)
-        status = status_data.get("status")
-        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Tentativa {tentativa+1}: status = {status}")
-        if status == "QRCODE":
-            break
-        time.sleep(intervalo_segundos)
-    else:
-        print(f"[{timestamp}] [{func_name}] [{usuario}] [ERRO] QRCode não gerado após {max_tentativas} tentativas.")
-        return JsonResponse({
-            "erro": "Não foi possível gerar QRCode. Tente novamente em instantes.",
-            "detalhes": status_data
-        }, status=400)
-
-    # 5. Salva ou atualiza sessão
-    SessaoWpp.objects.update_or_create(
-        usuario=session,
-        defaults={
-            "token": token,
-            "dt_inicio": timezone.now(),
-            "is_active": True
-        }
-    )
-    print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Sessão '{session}' salva com sucesso.")
-
-    # 6. Retorna QRCode
-    return JsonResponse({
-        "qrcode": status_data.get("qrcode"),
-        "status": status_data.get("status"),
-        "session": session,
-        "token": token
-    })
-
-
-
-@login_required
-def get_token_ativo(usuario) -> Optional[str]:
-    sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
-    return sessao.token if sessao else None
-
-
-@login_required
-def status_wpp(request):
-    usuario = request.user
-    session = usuario.username
-
-    sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
-    if not sessao:
-        return JsonResponse({"status": "DISCONNECTED", "message": "Sessão não encontrada"}, status=404)
-
-    token = sessao.token
-    dados_status, status_code = status_session(session, token)
-
-    if status_code != 200:
-        return JsonResponse({"status": "ERRO", "message": "Falha ao obter status"}, status=500)
-
-    return JsonResponse({
-        "status": dados_status.get("status"),
-        "qrcode": dados_status.get("qrcode"),
-        "session": session,
-        "version": dados_status.get("version"),
-    })
-
-
-@login_required
-def check_connection_wpp(request):
-    usuario = request.user
-    session = usuario.username
-
-    sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
-    if not sessao:
-        return JsonResponse({"status": False, "message": "Sessão não encontrada"}, status=404)
-
-    token = sessao.token
-    dados, status_code = check_connection(session, token)
-
-    return JsonResponse(dados, status=status_code)
-
-
-@login_required
-def desconectar_wpp(request):
-    if request.method == "POST":
-        usuario = request.user
-        session = usuario.username
-
-        sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
-        if not sessao:
-            return JsonResponse({"erro": "Sessão não encontrada"}, status=404)
-
-        token = sessao.token
-        resp_data, resp_status = logout_session(session, token)
-
-        if resp_data.get("status") is True:
-            sessao.is_active = False
-            sessao.save()
-
-        return JsonResponse(resp_data, status=resp_status)
-    
-
-@login_required
-def cancelar_sessao_wpp(request):
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
-
-    if request.method != "POST":
-        return JsonResponse({"erro": "Método não permitido."}, status=405)
-
-    usuario = request.user
-    session = usuario.username
-
-    try:
-        sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
-    except SessaoWpp.DoesNotExist:
-        return JsonResponse({"erro": "Sessão não encontrada"}, status=404)
-
-    token = sessao.token
-    try:
-        resp_data, resp_status = close_session(session, token)
-
-        # Mesmo que a API retorne 500, se for JSON e tiver estrutura esperada, tratamos com sucesso
-        if isinstance(resp_data, dict) and "status" in resp_data:
-            print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Resposta ao fechar sessão: {resp_data}")
-
-            # Considera a sessão encerrada se a API retornou status 500 com JSON válido
-            sessao.is_active = False
-            sessao.save()
-
-            return JsonResponse({
-                "status": resp_data.get("status", False),
-                "message": resp_data.get("message", "Sessão encerrada com falha não crítica."),
-                "handled": True
-            }, status=200)
-
-        else:
-            raise ValueError("Resposta da API não é um JSON válido")
-
-    except Exception as e:
-        print(f"[{timestamp}] [{func_name}] [{usuario}] [ERRO] Exceção ao cancelar sessão: {e}")
-        return JsonResponse({
-            "erro": "Erro interno ao cancelar sessão",
-            "detalhes": str(e)
-        }, status=500)
-
-
 ############################################ AUTH VIEW ############################################
 
 # PÁGINA DE LOGIN
@@ -317,30 +125,16 @@ class Login(LoginView):
 
 # PÁGINA DE ERRO 404
 def not_found(request, exception):
+    """Renderiza a página 404 personalizada utilizada em diversos entrypoints."""
     return render(request, 'pages/404-error.html')
 
 ############################################ LIST VIEW ############################################
 
 class CarregarContasDoAplicativo(LoginRequiredMixin, View):
-    """
-    View para carregar as contas dos aplicativos existentes por cliente e exibi-las no modal de informações do cliente.
-    """
-    def get(self, request):
-        """
-        Método GET para retornar as contas dos aplicativos existentes por cliente.
+    """Retorna as contas de aplicativo associadas a um cliente para exibição no modal."""
 
-        Obtém o ID do cliente da consulta na URL.
-        Filtra as contas do aplicativo para o cliente e o usuário atual.
-        Cria uma lista para armazenar as contas de aplicativo serializadas.
-        Itera sobre as contas de aplicativo.
-        - Obtém o nome do aplicativo.
-        - Serializa a conta de aplicativo em um dicionário Python.
-        - Adiciona o nome do aplicativo ao dicionário.
-        - Adiciona a conta de aplicativo serializada à lista.
-        Ordena a lista de contas de aplicativo pelo nome do aplicativo.
-        Imprime a lista de contas de aplicativo para fins de depuração.
-        Retorna a lista de contas de aplicativo como resposta JSON.
-        """
+    def get(self, request):
+        """Lista contas do cliente autenticado já serializadas para o modal."""
         cliente_id = self.request.GET.get("cliente_id")
         cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
         conta_app = (
@@ -362,24 +156,10 @@ class CarregarContasDoAplicativo(LoginRequiredMixin, View):
 
 
 class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
-    """
-    View para retornar as quantidades de mensalidades pagas, inadimplentes e canceladas existentes para o modal de informações na listagem do cliente.
-    """
-    def get(self, request):
-        """
-        Método GET para retornar as quantidades de mensalidades pagas, inadimplentes e canceladas.
+    """Expõe um resumo de mensalidades (pagas, pendentes e canceladas) no modal do cliente."""
 
-        Obtém o ID do cliente da consulta na URL.
-        Filtra as mensalidades pagas para o cliente e o usuário atual.
-        Filtra as mensalidades pendentes para o cliente e o usuário atual.
-        Filtra as mensalidades canceladas para o cliente e o usuário atual.
-        Inicializa as variáveis para as quantidades de mensalidades pagas, pendentes e canceladas como zero.
-        Itera sobre as mensalidades pagas, incrementando a quantidade de mensalidades pagas para o cliente específico.
-        Itera sobre as mensalidades pendentes, incrementando a quantidade de mensalidades pendentes para o cliente específico.
-        Itera sobre as mensalidades canceladas, incrementando a quantidade de mensalidades canceladas para o cliente específico.
-        Cria um dicionário com os valores de quantidade de mensalidades para cada status.
-        Retorna a resposta em formato JSON com os dados de quantidade de mensalidades.
-        """
+    def get(self, request):
+        """Calcula as contagens por status e devolve um payload JSON para o modal."""
         cliente_id = self.request.GET.get("cliente_id")
         cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
         hoje = timezone.localtime().date()
@@ -1567,7 +1347,7 @@ def cache_page_by_user(timeout):
 
 
 @login_required
-@cache_page_by_user(60 * 60)
+@cache_page_by_user(60 * 5)
 def mapa_clientes_data(request):
     usuario = request.user
 
@@ -1649,7 +1429,7 @@ def mapa_clientes_data(request):
 
 
 @login_required
-@cache_page_by_user(60 * 30)
+@cache_page_by_user(60 * 5)
 def clientes_servidor_data(request):
     usuario = request.user
 
@@ -4195,15 +3975,6 @@ def evolucao_patrimonio(request):
             {'name': 'Evolução', 'data': evol},
         ],
     })
-
-
-
-
-
-
-
-
-
 
 
 

@@ -1,3 +1,5 @@
+"""Integração com o Telegram para download diário de banners do canal configurado."""
+
 import logging
 import os
 import sys
@@ -16,6 +18,7 @@ django.setup()
 
 
 def _get_env_setting(name: str, *, cast=str, required: bool = True, default=None):
+    """Lê variável de ambiente garantindo tipo esperado e mensagem clara em caso de erro."""
     value = os.getenv(name)
     if value in (None, ""):
         if required and default is None:
@@ -83,6 +86,7 @@ if not logger.handlers:
 # Função principal
 # ======================
 async def telegram_connection():
+    """Sincroniza as imagens do dia a partir de um canal Telegram pré-configurado."""
     hoje = localtime().strftime("%d-%m-%Y")
     images_dir = os.path.join(IMAGES_BASE_DIR, hoje)
     os.makedirs(images_dir, exist_ok=True)

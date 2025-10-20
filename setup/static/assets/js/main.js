@@ -21,20 +21,26 @@
 
     //  slimscroll for sidebar nav
 
-    if ($(".nav-scroller").length) {
+    var hasSlimScroll = $.fn && typeof $.fn.slimScroll === "function";
+
+    if (hasSlimScroll && $(".nav-scroller").length) {
         $(".nav-scroller").slimScroll({
             height: "97%",
         });
+    } else if (!hasSlimScroll) {
+        console.debug('[Main] slimScroll plugin not detected; skipping nav-scroller initialization');
     }
 
 
 
       // Notification dropdown scroll List
 
-  if ($('.notification-list-scroll').length) {
+  if (hasSlimScroll && $('.notification-list-scroll').length) {
     $(".notification-list-scroll").slimScroll({
       height: 300,
     });
+  } else if (!hasSlimScroll) {
+    console.debug('[Main] slimScroll plugin not detected; skipping notification scroll initialization');
   }
 
 
