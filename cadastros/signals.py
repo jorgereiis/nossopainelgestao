@@ -1,46 +1,30 @@
-import os
-import re
-import json
-import time
-import random
-import requests
-import inspect
-from decimal import Decimal
-from datetime import datetime, timedelta
-from django.utils.timezone import localtime
-from dateutil.relativedelta import relativedelta
-import logging
+"""Signals responsáveis por garantir consistência interna e integrações externas.
 
-from django.utils import timezone
+Centraliza regras de atualização automática vinculadas a clientes e mensalidades,
+além de orquestrar a sincronização de labels do WhatsApp após alterações.
+"""
+
+import logging
+from datetime import timedelta
+
+from dateutil.relativedelta import relativedelta
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
+from django.utils import timezone
 
-from .models import Mensalidade, Cliente, Plano, PlanoIndicacao, SessaoWpp
-from wpp.api_connection import (
-    check_number_status,
-    get_label_contact,
-    add_or_remove_label_contact,
-    criar_label_se_nao_existir,
-)
-# URL base da API do WhatsApp
-URL_API_WPP = os.getenv("URL_API_WPP")
-DIR_LOGS_AGENDADOS = os.getenv("DIR_LOGS_AGENDADOS")
-DIR_LOGS_INDICACOES = os.getenv("DIR_LOGS_INDICACOES")
-TEMPLATE_LOG_MSG_SUCESSO = os.getenv("TEMPLATE_LOG_MSG_SUCESSO")
-TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
-TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
+from .models import Cliente, Mensalidade, SessaoWpp
+from wpp.api_connection import add_or_remove_label_contact, criar_label_se_nao_existir, get_label_contact
 
-# Configure logger
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-# Atualiza o último pagamento do cliente sempre que uma mensalidade for paga
+def _log_event(level, instance, func_name, message, exc_info=None):
+    """Centraliza a formatação dos registros de log para este módulo."""
+    logger.log(level, "[%s] [%s] %s", func_name, instance.usuario, message, exc_info=exc_info)
+
 @receiver(post_save, sender=Mensalidade)
 def atualiza_ultimo_pagamento(sender, instance, **kwargs):
-    """
-    Atualiza o campo `ultimo_pagamento` do cliente sempre que uma mensalidade for paga com sucesso.
-    """
+    """Atualiza o campo `ultimo_pagamento` do cliente ao registrar um pagamento válido."""
     cliente = instance.cliente
 
     if instance.dt_pagamento and instance.pgto:
@@ -49,7 +33,6 @@ def atualiza_ultimo_pagamento(sender, instance, **kwargs):
             cliente.save()
 
 
-# CRIA NOVA MENSALIDADE APÓS A ATUAL SER PAGA
 @receiver(pre_save, sender=Mensalidade)
 def criar_nova_mensalidade(sender, instance, **kwargs):
     """
@@ -112,12 +95,11 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         instance.cliente.save()
 
 
-# ALTERAR LABEL DO CONTATO NO WHATSAPP APÓS NOVO CADASTRO OU ALTERAÇÃO DE CLIENTE
-# Armazena valores antigos antes do save
+# Cacheia valores antes do `save` para identificar mudanças relevantes.
 _clientes_servidor_anterior = {}
 _clientes_cancelado_anterior = {}
 
-# Mapeamento fixo de labels para hexColor
+# Mapeamento fixo de labels para paleta definida no WhatsApp.
 LABELS_CORES_FIXAS = {
     "LEADS": "#F0B330",
     "CLUB": "#8B6990",
@@ -131,18 +113,21 @@ LABELS_CORES_FIXAS = {
 
 @receiver(pre_save, sender=Cliente)
 def registrar_valores_anteriores(sender, instance, **kwargs):
+    """Captura o estado atual do cliente para detectar mudanças relevantes após o save."""
     if instance.pk:
         try:
             cliente_existente = Cliente.objects.get(pk=instance.pk)
-            _clientes_servidor_anterior[instance.pk] = cliente_existente.servidor_id
-            _clientes_cancelado_anterior[instance.pk] = cliente_existente.cancelado
         except Cliente.DoesNotExist:
-            pass
+            return
+
+        _clientes_servidor_anterior[instance.pk] = cliente_existente.servidor_id
+        _clientes_cancelado_anterior[instance.pk] = cliente_existente.cancelado
+
 
 @receiver(post_save, sender=Cliente)
 def cliente_post_save(sender, instance, created, **kwargs):
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
+    """Sincroniza as labels do contato no WhatsApp após criação ou atualização do cliente."""
+    func_name = cliente_post_save.__name__
     servidor_foi_modificado = False
     cliente_foi_cancelado = False
     cliente_foi_reativado = False
@@ -159,59 +144,46 @@ def cliente_post_save(sender, instance, created, **kwargs):
             cliente_foi_cancelado = not cancelado_anterior and instance.cancelado
             cliente_foi_reativado = cancelado_anterior and not instance.cancelado
 
-    # Se for novo, ou mudou servidor, ou cancelado, ou reativado
-    if created or servidor_foi_modificado or cliente_foi_cancelado or cliente_foi_reativado:
-        telefone = str(instance.telefone)
+    if not (created or servidor_foi_modificado or cliente_foi_cancelado or cliente_foi_reativado):
+        return
 
-        # Obtém token da sessão
-        try:
-            token = SessaoWpp.objects.filter(usuario=instance.usuario, is_active=True).first()
-        except SessaoWpp.DoesNotExist:
-            print(f"[{timestamp}] [INFO] [{func_name}] [{instance.usuario}] Sessão do WhatsApp não encontrada para o usuário {instance.usuario}")
+    telefone = str(instance.telefone)
+
+    token = SessaoWpp.objects.filter(usuario=instance.usuario, is_active=True).first()
+    if not token:
+        _log_event(logging.INFO, instance, func_name, "Sessão do WhatsApp não encontrada para o usuário.")
+        return
+
+    # TODO: Reativar a verificação de número (`check_number_status`) caso volte a ser necessária.
+
+    try:
+        labels_atuais = get_label_contact(telefone, token.token, user=token)
+    except Exception as error:
+        _log_event(logging.ERROR, instance, func_name, "Erro ao obter labels atuais do contato.", exc_info=error)
+        labels_atuais = []
+
+    try:
+        label_desejada = "CANCELADOS" if cliente_foi_cancelado else instance.servidor.nome
+        hex_color = LABELS_CORES_FIXAS.get(label_desejada.upper())
+
+        nova_label_id = criar_label_se_nao_existir(label_desejada, token.token, user=token, hex_color=hex_color)
+        if not nova_label_id:
+            _log_event(
+                logging.INFO,
+                instance,
+                func_name,
+                f"Não foi possível obter ou criar a label '{label_desejada}'.",
+            )
             return
 
-        # Verifica se número existe no WhatsApp
-        """        try:
-                    numero_existe = check_number_status(telefone, token.token, user=token)
-                    if not numero_existe:
-                        print(f"[{timestamp}] [INFO] [{func_name}] [{instance.usuario}] Número {telefone} não é válido no WhatsApp.")
-                        return
-                except Exception as e:
-                    print(f"[{timestamp}] [ERROR] [{func_name}] [{instance.usuario}] Erro ao verificar número no WhatsApp: {e}")
-                    return"""
+        add_or_remove_label_contact(
+            label_id_1=nova_label_id,
+            label_id_2=labels_atuais,
+            label_name=label_desejada,
+            telefone=telefone,
+            token=token.token,
+            user=token,
+        )
 
-        # Obtém labels atuais
-        try:
-            labels_atuais = get_label_contact(telefone, token.token, user=token)
-        except Exception as e:
-            print(f"[{timestamp}] [ERROR] [{func_name}] [{instance.usuario}] Erro ao obter labels atuais do contato: {e}")
-            labels_atuais = []
-
-        # Define a nova label de acordo com o contexto
-        try:
-            if cliente_foi_cancelado:
-                label_desejada = "CANCELADOS"
-            else:
-                label_desejada = instance.servidor.nome
-
-            # Escolhe a cor fixa, se existir
-            hex_color = LABELS_CORES_FIXAS.get(label_desejada.upper())
-
-            # Cria label se necessário
-            nova_label_id = criar_label_se_nao_existir(label_desejada, token.token, user=token, hex_color=hex_color)
-            if not nova_label_id:
-                print(f"[{timestamp}] [INFO] [{func_name}] [{instance.usuario}] Não foi possível obter ou criar a label '{label_desejada}'")
-                return
-
-            # Altera labels do contato
-            add_or_remove_label_contact(
-                label_id_1=nova_label_id,
-                label_id_2=labels_atuais,
-                label_name=label_desejada,
-                telefone=telefone,
-                token=token.token,
-                user=token
-            )
-
-        except Exception as e:
-            print(f"[{timestamp}] [ERROR] [{func_name}] [{instance.usuario}] Erro ao alterar label do contato: {e}")
+    except Exception as error:
+        _log_event(logging.ERROR, instance, func_name, "Erro ao alterar label do contato.", exc_info=error)

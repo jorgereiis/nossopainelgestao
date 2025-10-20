@@ -4,7 +4,6 @@ import json
 import django
 import calendar
 import requests
-import requests
 import subprocess
 from pathlib import Path
 from django.db.models import Q
@@ -35,6 +34,11 @@ from django.shortcuts import get_object_or_404
 from cadastros.utils import (
     get_saudacao_por_hora,
     registrar_log,
+)
+from cadastros.services.wpp import (
+    LogTemplates,
+    MessageSendConfig,
+    send_message,
 )
 from wpp.api_connection import (
     check_number_status,
@@ -78,117 +82,39 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
     Envia uma mensagem via API WPP para um número validado.
     Registra logs de sucesso, falha e número inválido.
     """
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
     usuario_str = str(usuario)
 
-    if not telefone:
-        log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(
-            timestamp, tipo_envio.upper(), usuario, cliente
-        )
-        registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
-        print(log.strip())
-        registrar_log_auditoria({
-            "funcao": "enviar_mensagem_agendada",
-            "status": "cancelado_sem_telefone",
-            "usuario": usuario_str,
-            "cliente": cliente,
-            "telefone": telefone,
-            "tipo_envio": tipo_envio,
-            "mensagem": mensagem,
-        })
-        return
+    log_writer = lambda log: registrar_log(log, usuario_str, DIR_LOGS_AGENDADOS)
+    templates = LogTemplates(
+        success=TEMPLATE_LOG_MSG_SUCESSO,
+        failure=TEMPLATE_LOG_MSG_FALHOU,
+        invalid=TEMPLATE_LOG_TELEFONE_INVALIDO,
+    )
 
-    url = f"{URL_API_WPP}/{usuario}/send-message"
-    headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': f'Bearer {token}'
+    request_payload = {
+        "phone": telefone,
+        "message": mensagem,
+        "isGroup": False,
     }
 
-    for tentativa in range(1, 3):
-        body = {
-            'phone': telefone,
-            'message': mensagem,
-            'isGroup': False
-        }
-
-        response = None
-        response_payload = None
-        status_code = None
-        error_message = None
-        timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-
-        try:
-            response = requests.post(url, headers=headers, json=body)
-            status_code = response.status_code
-
-            try:
-                response_payload = response.json()
-            except json.JSONDecodeError:
-                response_payload = response.text
-
-            if status_code in (200, 201):
-                log = TEMPLATE_LOG_MSG_SUCESSO.format(
-                    timestamp, tipo_envio.upper(), usuario, telefone
-                )
-                registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
-                registrar_log_auditoria({
-                    "funcao": "enviar_mensagem_agendada",
-                    "status": "sucesso",
-                    "usuario": usuario_str,
-                    "cliente": cliente,
-                    "telefone": telefone,
-                    "tipo_envio": tipo_envio,
-                    "tentativa": tentativa,
-                    "http_status": status_code,
-                    "mensagem": mensagem,
-                    "payload": body,
-                    "response": response_payload,
-                })
-                break
-
-            error_message = (
-                response_payload.get('message', 'Erro desconhecido')
-                if isinstance(response_payload, dict)
-                else str(response_payload)
-            )
-
-        except requests.RequestException as e:
-            status_code = getattr(getattr(e, "response", None), "status_code", None)
-            if getattr(e, "response", None) is not None:
-                try:
-                    response_payload = e.response.json()
-                except (ValueError, AttributeError):
-                    response_payload = getattr(e.response, "text", None)
-            error_message = str(e)
-
-        if status_code in (200, 201):
-            continue
-
-        if error_message is None:
-            error_message = "Erro desconhecido"
-
-        log = TEMPLATE_LOG_MSG_FALHOU.format(
-            timestamp, tipo_envio.upper(), usuario, cliente,
-            status_code if status_code is not None else 'N/A',
-            tentativa, error_message
-        )
-        registrar_log(log, usuario, DIR_LOGS_AGENDADOS)
-        registrar_log_auditoria({
+    config = MessageSendConfig(
+        usuario=usuario_str,
+        token=token,
+        telefone=telefone,
+        mensagem=mensagem,
+        tipo_envio=tipo_envio,
+        cliente=cliente,
+        log_writer=log_writer,
+        log_templates=templates,
+        retry_wait=(20.0, 30.0),
+        audit_callback=registrar_log_auditoria,
+        audit_base_payload={
             "funcao": "enviar_mensagem_agendada",
-            "status": "falha",
-            "usuario": usuario_str,
-            "cliente": cliente,
-            "telefone": telefone,
-            "tipo_envio": tipo_envio,
-            "tentativa": tentativa,
-            "http_status": status_code,
-            "mensagem": mensagem,
-            "erro": error_message,
-            "payload": body,
-            "response": response_payload,
-        })
-        time.sleep(random.uniform(20, 30))
+            "payload": request_payload,
+        },
+    )
+
+    send_message(config)
 ##### FIM #####
 
 

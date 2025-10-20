@@ -1,8 +1,11 @@
+"""Integração com o ChatGPT para geração de respostas personalizadas."""
+
+import logging
 import os
 import sys
-import openai
+
 import django
-import inspect
+import openai
 from django.utils.timezone import localtime
 
 # --- Configuração do ambiente Django (executada apenas uma vez) ---
@@ -10,9 +13,20 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 django.setup()
 
-# --- Inicializa cliente da OpenAI apenas uma vez ---
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
+logger = logging.getLogger(__name__)
+
+_openai_client = None
+
+
+def _get_openai_client() -> openai.OpenAI:
+    """Inicializa e mantém uma instância global do cliente OpenAI."""
+    global _openai_client  # noqa: PLW0603
+    if _openai_client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY não encontrado nas variáveis de ambiente.")
+        _openai_client = openai.OpenAI(api_key=api_key)
+    return _openai_client
 
 
 def consultar_chatgpt(pergunta: str, user: str) -> str:
@@ -27,10 +41,9 @@ def consultar_chatgpt(pergunta: str, user: str) -> str:
         str: Resposta gerada pelo modelo.
     """
     timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
 
     try:
-        response = client.chat.completions.create(
+        response = _get_openai_client().chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": "Você é um redator profissional. Sempre responda com o texto pronto para envio, sem explicações ou introduções."},
@@ -39,6 +52,12 @@ def consultar_chatgpt(pergunta: str, user: str) -> str:
         )
         return response.choices[0].message.content.strip()
 
-    except Exception as e:
-        print(f"[{timestamp}] [ERROR] [{func_name}] [{user}] Erro ao consultar o ChatGPT: {str(e)}")
-        return f"❌ Erro ao consultar o ChatGPT: {str(e)}"
+    except Exception as exc:  # noqa: BLE001
+        logger.error(
+            "[%s] [ERROR] [%s] Erro ao consultar o ChatGPT: %s",
+            timestamp,
+            user,
+            exc,
+            exc_info=exc,
+        )
+        return f"❌ Erro ao consultar o ChatGPT: {exc}"

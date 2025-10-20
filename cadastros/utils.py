@@ -1,35 +1,36 @@
+"""Funções auxiliares utilizadas nas rotinas de cadastros e automações."""
+
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
+import logging
 import os
 import re
-import json
-import time
-import random
-import inspect
-import requests
-import pandas as pd
-from typing import Union
-from pprint import pprint
-from decimal import Decimal
-from django.utils import timezone
-from datetime import datetime, timedelta, date
-from django.utils.timezone import localtime, now
+
 from dateutil.relativedelta import relativedelta
 from django.db.models import Q
+from django.utils import timezone
+from django.utils.timezone import localtime, now
 from .models import (
-    Mensalidade, SessaoWpp,
-    PlanoIndicacao, Cliente,
-    Servidor, Dispositivo,
-    Aplicativo, Plano, Tipos_pgto,
-    ContaDoAplicativo, UserActionLog,
+    Cliente,
     ClientePlanoHistorico,
+    Mensalidade,
+    Plano,
+    PlanoIndicacao,
+    SessaoWpp,
+    UserActionLog,
+)
+from cadastros.services.logging import append_line
+from cadastros.services.wpp import (
+    LogTemplates,
+    MessageSendConfig,
+    send_message,
 )
 from wpp.api_connection import (
     check_number_status,
 )
 
-# Initialize logger
-import logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.ERROR)
 
 URL_API_WPP = os.getenv("URL_API_WPP")
 USER_SESSION_WPP = os.getenv("USER_SESSION_WPP")
@@ -41,14 +42,8 @@ TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
 TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
 
 
-###################################################################
-############## FUNÇÃO PARA RETORNAR MSG DE SAUDAÇÃO ###############
-###################################################################
-
 def get_saudacao_por_hora(hora_referencia=None):
-    """
-    Retorna uma saudação apropriada com base no horário.
-    """
+    """Retorna saudação contextual de acordo com a hora informada ou atual."""
     if not hora_referencia:
         hora_referencia = localtime(now()).time()
 
@@ -57,29 +52,17 @@ def get_saudacao_por_hora(hora_referencia=None):
     elif hora_referencia < datetime.strptime("18:00:00", "%H:%M:%S").time():
         return "Boa tarde"
     return "Boa noite"
-##### FIM #####
 
 
-##################################################################
-################ FUNÇÃO PARA REGISTRAR LOGS ######################
-##################################################################
-
-# Função para registrar mensagens no arquivo de log principal
 def registrar_log(mensagem: str, usuario: str, log_directory: str) -> None:
-    """
-    Registra uma mensagem no arquivo de log do usuário.
-    """
-    os.makedirs(log_directory, exist_ok=True)
-    log_filename = os.path.join(log_directory, f'{usuario}.log')
+    """Anexa ``mensagem`` ao arquivo de log associado ao ``usuario``."""
+    if not log_directory:
+        logger.warning("Log directory not configured for usuario=%s. Mensagem: %s", usuario, mensagem)
+        return
 
-    with open(log_filename, "a", encoding="utf-8") as log:
-        log.write(mensagem + "\n")
-#### FIM #####
+    log_filename = Path(log_directory) / f"{usuario}.log"
+    append_line(log_filename, mensagem)
 
-
-#############################################################
-########## HISTÓRICO DE PLANO DO CLIENTE (UTILS) ###########
-#############################################################
 
 def historico_obter_vigente(cliente: Cliente):
     """Retorna o registro de histórico vigente (sem fim) do cliente, se existir."""
@@ -92,21 +75,23 @@ def historico_obter_vigente(cliente: Cliente):
 
 
 def historico_encerrar_vigente(cliente: Cliente, fim: date) -> None:
-    """Encerra o histórico vigente do cliente na data informada, se houver.
-
-    Garante que não encerra antes do início do período.
-    """
+    """Fecha o histórico ativo do cliente na data fornecida, respeitando o início."""
     vigente = historico_obter_vigente(cliente)
     if not vigente:
         return
     if fim < vigente.inicio:
         fim = vigente.inicio
     vigente.fim = fim
-    vigente.save(update_fields=["fim"]) 
+    vigente.save(update_fields=["fim"])
 
 
-def historico_iniciar(cliente: Cliente, plano: Plano = None, inicio: date = None, motivo: str = ClientePlanoHistorico.MOTIVO_CREATE) -> ClientePlanoHistorico:
-    """Cria um novo registro de histórico para o cliente a partir da data informada."""
+def historico_iniciar(
+    cliente: Cliente,
+    plano: Plano = None,
+    inicio: date = None,
+    motivo: str = ClientePlanoHistorico.MOTIVO_CREATE,
+) -> ClientePlanoHistorico:
+    """Cria um novo registro de histórico ajustando valores padrão quando necessários."""
     if inicio is None:
         inicio = timezone.localdate()
     if plano is None:
@@ -125,9 +110,7 @@ def historico_iniciar(cliente: Cliente, plano: Plano = None, inicio: date = None
 
 
 def _prepare_extra_payload(value):
-    """
-    Normaliza dados suplementares para armazenamento em JSONField.
-    """
+    """Normaliza payloads extras para serem serializados em ``JSONField``."""
     if value is None:
         return None
 
@@ -159,9 +142,7 @@ def log_user_action(
     object_id=None,
     object_repr: str = None,
 ) -> None:
-    """
-    Registra uma ação realizada pelo usuário autenticado no sistema.
-    """
+    """Registra uma ação manual do usuário autenticado no ``UserActionLog``."""
     user = getattr(request, "user", None)
     if not user or not getattr(user, "is_authenticated", False):
         return
@@ -198,24 +179,16 @@ def log_user_action(
 
     except Exception as exc:
         logger.exception("Falha ao registrar log de ação do usuário: %s", exc)
-#### FIM #####
 
-
-##################################################################
-################ FUNÇÃO PARA VALIDAR NÚMEROS DE TELEFONE #########
-##################################################################
 
 def gerar_variacoes_telefone2(telefone: str) -> list:
-    """
-    Gera todas as variações possíveis de um telefone nacional para checagem no BD.
-    Ex: '81999998888' -> ['81999998888', '998888888', '99998888', '5581999998888', '558998888888']
-    """
+    """Retorna variações comuns de números nacionais para pesquisa em banco."""
     variacoes = set()
     tel = re.sub(r'\D+', '', telefone)
-    logger.info(f"[TEL_VARIACOES] Gerando variações para: {tel}")
+    logger.debug("[TEL_VARIACOES] Gerando variações para: %s", tel)
 
     if len(tel) < 8:
-        logger.info(f"[TEL_VARIACOES] Telefone muito curto, retornando: {tel}")
+        logger.debug("[TEL_VARIACOES] Telefone muito curto, retornando: %s", tel)
         return [tel]
     if len(tel) == 11 and tel[2] == '9':
         variacoes.add(tel)
@@ -223,35 +196,37 @@ def gerar_variacoes_telefone2(telefone: str) -> list:
         variacoes.add(tel[3:])
         variacoes.add('55' + tel)
         variacoes.add('55' + tel[:2] + tel[3:])
-        logger.info(f"[TEL_VARIACOES] Variações (celular atual): {variacoes}")
+        logger.debug("[TEL_VARIACOES] Variações (celular atual): %s", variacoes)
     elif len(tel) == 10:
         variacoes.add(tel)
         variacoes.add(tel[2:])
         variacoes.add('9' + tel[2:])
         variacoes.add('55' + tel)
         variacoes.add('55' + tel[:2] + '9' + tel[2:])
-        logger.info(f"[TEL_VARIACOES] Variações (fixo/cel sem 9): {variacoes}")
+        logger.debug("[TEL_VARIACOES] Variações (fixo/cel sem 9): %s", variacoes)
     elif len(tel) == 9 and tel[0] == '9':
         variacoes.add(tel)
         variacoes.add(tel[1:])
-        logger.info(f"[TEL_VARIACOES] Variações (9 + NNNNNNNN): {variacoes}")
+        logger.debug("[TEL_VARIACOES] Variações (9 + NNNNNNNN): %s", variacoes)
     elif len(tel) == 8:
         variacoes.add(tel)
-        logger.info(f"[TEL_VARIACOES] Variações (NNNNNNNN): {variacoes}")
+        logger.debug("[TEL_VARIACOES] Variações (NNNNNNNN): %s", variacoes)
     elif len(tel) == 13 and tel.startswith('55'):
         variacoes.add(tel)
         variacoes.add(tel[:4] + tel[5:])
-        logger.info(f"[TEL_VARIACOES] Variações (55DD9NNNNNNNN): {variacoes}")
+        logger.debug("[TEL_VARIACOES] Variações (55DD9NNNNNNNN): %s", variacoes)
     elif len(tel) == 12 and tel.startswith('55'):
         variacoes.add(tel)
         variacoes.add(tel[:4] + '9' + tel[4:])
-        logger.info(f"[TEL_VARIACOES] Variações (55DDNNNNNNNN): {variacoes}")
+        logger.debug("[TEL_VARIACOES] Variações (55DDNNNNNNNN): %s", variacoes)
     if len(tel) > 8:
         variacoes.add(tel)
-    logger.info(f"[TEL_VARIACOES] Variações finais: {variacoes}")
-    return list(variacoes)
+    logger.debug("[TEL_VARIACOES] Variações finais: %s", variacoes)
+    return sorted(variacoes)
+
 
 def gerar_variacoes_telefone(telefone: str) -> set:
+    """Gera variações básicas (com/sem DDI) utilizadas na busca de clientes existentes."""
     tel = re.sub(r'\D+', '', telefone)
     variacoes = set()
 
@@ -275,7 +250,9 @@ def gerar_variacoes_telefone(telefone: str) -> set:
 
     return variacoes
 
+
 def existe_cliente_variacoes(telefone_variacoes, user):
+    """Confere se alguma variação pertence a clientes cadastrados do usuário."""
     q = Q()
     for var in telefone_variacoes:
         telefone_formatado = var if str(var).startswith('+') else f'+{str(var)}'
@@ -289,51 +266,44 @@ def existe_cliente_variacoes(telefone_variacoes, user):
 
     return cliente_telefone
 
-def validar_tel_whatsapp(telefone: str, token: str, user=None) -> Union[str, None]:
+def validar_tel_whatsapp(telefone: str, token: str, user=None) -> dict:
     """
-    1. Valida se o número existe para algum Cliente previamente cadastrado;
-    2. Valida se o número existe no WhatsApp e pode receber mensagens;
-    Retorna:
-        - Telefone informado inicialmente;
-        - Se o telefone está cadastrado para cliente cadastrado;
-        - Se o telefone existe no WhatsApp;
-        - Telefone formatado para WhatsApp;
-    """
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    func_name = inspect.currentframe().f_code.co_name
+    Valida um telefone contra a base de clientes e a API do WhatsApp.
 
+    Retorna um dicionário contendo o telefone original, o telefone formatado
+    para WhatsApp (quando válido), a existência de cliente associado e se o
+    número está apto a receber mensagens.
+    """
+    func_name = validar_tel_whatsapp.__name__
     telefone_variacoes = gerar_variacoes_telefone(telefone)
     resultado = {
         "telefone_cadastro": telefone,
         "telefone_validado_wpp": None,
         "cliente_existe_telefone": None,
-        "wpp": False
+        "wpp": False,
     }
+    wpp_valido = False
 
     try:
         check = check_number_status(telefone, token, user)
-        if check['status']:
+        if check.get("status"):
             wpp_valido = True
-            telefone = str(check['user'])
-    except Exception as e:
-        logger.error(f"[VALIDAR][ERRO] Erro ao checar {telefone} no WhatsApp: {e}")
-        wpp_valido = False
+            telefone = str(check.get("user") or telefone)
+    except Exception as exc:
+        logger.error("[VALIDAR][ERRO] Erro ao checar %s no WhatsApp: %s", telefone, exc)
 
-    if wpp_valido:
-        num_formatado = telefone if str(telefone).startswith('+') else f'+{telefone}'
-        resultado["telefone_validado_wpp"] = num_formatado
-        resultado["wpp"] = True
-        resultado["cliente_existe_telefone"] = existe_cliente_variacoes(telefone_variacoes, user)
-        
-        print(f"[{timestamp}] [INFO] [{func_name}] [{user}] Resultado da validação: {resultado}")
+    if not wpp_valido:
         return resultado
 
-    return resultado
-##### FIM #####
-    
+    numero_formatado = telefone if str(telefone).startswith('+') else f'+{telefone}'
+    resultado["telefone_validado_wpp"] = numero_formatado
+    resultado["wpp"] = True
+    resultado["cliente_existe_telefone"] = existe_cliente_variacoes(telefone_variacoes, user)
 
-# ENVIO DE MENSAGEM APÓS CADASTRO DE NOVO CLIENTE
-# Envia mensagem de boas-vindas e verifica se o cliente foi indicado por outro cliente.
+    logger.info("[%s] [%s] Resultado da validação: %s", func_name, user, resultado)
+    return resultado
+
+
 def envio_apos_novo_cadastro(cliente):
     """
     Após cadastrar um novo cliente, envia mensagem de boas-vindas e, se houver indicação,
@@ -376,8 +346,6 @@ def envio_apos_novo_cadastro(cliente):
         envio_apos_nova_indicacao(usuario, cliente, cliente.indicado_por)
 
 
-# ENVIO DE MENSAGEM APÓS NOVA INDICAÇÃO
-# Envia mensagem de bonificação ao cliente que indicou um novo cliente.
 def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     """
     Avalia a quantidade de indicações feitas por um cliente e envia mensagem de bonificação com descontos ou prêmios.
@@ -517,67 +485,37 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
         enviar_mensagem(telefone_cliente, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
 
 
-# ENVIO DE MENSAGEM VIA API WPP
-# Envia mensagem para o número validado via API WPP.
 def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, cliente: str, tipo_envio: str) -> None:
     """
     Envia uma mensagem via API WPP para um número validado.
     Registra logs de sucesso, falha e número inválido.
     """
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+    log_writer = lambda mensagem_log: registrar_log(mensagem_log, usuario, DIR_LOGS_INDICACOES)
 
-    if not telefone:
-        log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(
-            timestamp, tipo_envio.upper(), usuario, cliente
-        )
-        registrar_log(log, usuario, DIR_LOGS_INDICACOES)
-        print(log.strip())
-        return
+    templates = LogTemplates(
+        success=TEMPLATE_LOG_MSG_SUCESSO,
+        failure=TEMPLATE_LOG_MSG_FALHOU,
+        invalid=TEMPLATE_LOG_TELEFONE_INVALIDO,
+    )
 
-    url = f"{URL_API_WPP}/{usuario}/send-message"
-    headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': f'Bearer {token}'
-    }
+    config = MessageSendConfig(
+        usuario=usuario,
+        token=token,
+        telefone=telefone,
+        mensagem=mensagem,
+        tipo_envio=tipo_envio,
+        cliente=cliente,
+        log_writer=log_writer,
+        log_templates=templates,
+        retry_wait=(5.0, 10.0),
+    )
+    resultado = send_message(config)
 
-    for tentativa in range(1, 3):
-        body = {
-            'phone': telefone,
-            'message': mensagem,
-            'isGroup': False
-        }
+    if not resultado.success and resultado.reason == "missing_phone":
+        timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
+        log_line = templates.invalid.format(timestamp, tipo_envio.upper(), usuario, cliente)
+        logger.warning(log_line.strip())
 
-        try:
-            response = requests.post(url, headers=headers, json=body)
-            timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-
-            if response.status_code in (200, 201):
-                log = TEMPLATE_LOG_MSG_SUCESSO.format(
-                    timestamp, tipo_envio.upper(), usuario, telefone
-                )
-                registrar_log(log, usuario, DIR_LOGS_INDICACOES)
-                break
-
-            # Tentativa com erro
-            response_data = response.json()
-            error_message = response_data.get('message', 'Erro desconhecido')
-
-        except (requests.RequestException, json.JSONDecodeError) as e:
-            error_message = str(e)
-
-        log = TEMPLATE_LOG_MSG_FALHOU.format(
-            timestamp, tipo_envio.upper(), usuario, cliente,
-            response.status_code if 'response' in locals() else 'N/A',
-            tentativa, error_message
-        )
-        registrar_log(log, usuario, DIR_LOGS_INDICACOES)
-        time.sleep(random.uniform(5, 10))  # Espera entre 5 a 10 segundos antes de tentar novamente
-##### FIM #####
-
-#############################################################################
-############## FUNÇÕES AUXILIARES PARA CRIAÇÃO DE NOVO CLIENTE ##############
-#############################################################################
 
 def definir_dia_pagamento(dia_adesao):
     """
