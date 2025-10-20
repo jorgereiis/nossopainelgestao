@@ -117,7 +117,14 @@ def get_label_contact(telefone, token, user):
 
 # --- Função para verificar se o número existe no WhatsApp ---
 def check_number_status(telefone, token, user):
-    """Verifica se o telefone informado está registrado no WhatsApp."""
+    """Verifica se o telefone informado está registrado no WhatsApp.
+
+    Returns
+    -------
+    dict
+        Estrutura com as chaves ``status`` (bool) e ``user`` (str ou ``None``).
+        Em caso de erro adiciona ``error`` com detalhe textual.
+    """
 
     url = f'{URL_API_WPP}/{user}/check-number-status/{telefone}'
     headers = {
@@ -140,17 +147,19 @@ def check_number_status(telefone, token, user):
             logger.info("[check_number_status] %s | Número válido: %s", user, telefone)
             return {'status': status, 'user': user_number}
 
+        error_message = (
+            f"{response.status_code} - {response.text}"
+        )
         logger.error(
-            "[check_number_status] %s | Erro ao verificar %s: %s - %s",
+            "[check_number_status] %s | Erro ao verificar %s: %s",
             user,
             telefone,
-            response.status_code,
-            response.text,
+            error_message,
         )
-        return False
+        return {'status': False, 'user': None, 'error': error_message}
     except requests.RequestException as exc:
         logger.exception("[check_number_status] %s | Falha de requisição: %s", user, exc)
-        return False
+        return {'status': False, 'user': None, 'error': str(exc)}
 
 
 # --- Função para obter todas as labels disponíveis para um contato ---

@@ -1,0 +1,133 @@
+                <div class="modal fade" id="edit-cliente-modal" tabindex="-1" role="dialog"
+                aria-labelledby="edit-cliente-label">
+                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+                    <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="edit-cliente-label">Editar Cliente</h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="POST" id="edit-cliente-form">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="edit-cliente-nome">Nome</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="edit-cliente-nome" name="nome" autocomplete="off" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit-cliente-telefone">Telefone</label>
+                            <div class="input-group">
+                                <input type="tel" class="form-control" id="edit-cliente-telefone" name="telefone" minlength="12" maxlength="15" autocomplete="off" required>
+                            </div>
+                        </div>
+
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-indicador_por">Indicado por</label>
+                            <div class="input-group">
+                                <select class="form-control" id="edit-cliente-indicado_por" name="indicado_por">
+                                <option value="">Selecione um cliente indicador</option>
+                                {% for indicador in indicadores %}
+                                <option value="{{ indicador.nome }}">{{ indicador.nome }}</option>
+                                {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-servidor">Servidor</label>
+                            <div class="input-group">
+                            <select class="form-control" id="edit-cliente-servidor" name="servidor" required>
+                                <option value="">Selecione um servidor</option>
+                                {% for servidor in servidores %}
+                                <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        </div>
+
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-forma_pgto">Forma de pagamento</label>
+                            <div class="input-group">
+                            <select class="form-control" id="edit-cliente-forma_pgto" name="forma_pgto" required>
+                                <option value="">Selecione uma forma de pagamento</option>
+                                {% for forma_pgto in formas_pgtos %}
+                                <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        </div>
+
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-plano">Plano</label>
+                            <div class="input-group">
+                            <select class="form-control" id="edit-cliente-plano" name="plano" required>
+                                <option value="">Selecione um plano de adesão</option>
+                                {% for plano in planos %}
+                                    {% if plano.telas > 1 %}
+                                <option value="{{ plano.nome }} - {{ plano.valor }}">{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }} telas</option>
+                                    {% else %}
+                                <option value="{{ plano.nome }} - {{ plano.valor }}">{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }} tela</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            </div>
+                        </div>
+
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-dt_pgto">Data de vencimento</label>
+                            <div class="input-group">
+                                <input type="date" class="form-control" id="edit-cliente-dt_pgto" name="dt_pgto" required>
+                            </div>
+                        </div>
+
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-dispositivo">Dispositivo</label>
+                            <div class="input-group">
+                            <select class="form-control" id="edit-cliente-dispositivo" name="dispositivo" required>
+                                <option value="">Selecione um dispositivo</option>
+                                {% for dispositivo in dispositivos %}
+                                <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        </div>
+
+                        <!-- row -->
+                        <div class="form-group">
+                            <label for="edit-cliente-aplicativo">Aplicativo</label>
+                            <div class="input-group">
+                            <select class="form-control" id="edit-cliente-aplicativo" name="aplicativo" required>
+                                <option value="">Selecione um aplicativo</option>
+                                {% for aplicativo in aplicativos %}
+                                <option value="{{ aplicativo.nome }}">{{ aplicativo.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit-cliente-notas">Anotações</label>
+                            <div class="input-group">
+                                <textarea type="text" class="form-control" id="edit-cliente-notas" name="notas" cols="5" rows="3" placeholder="Detalhes adicionais sobre o cliente..."></textarea>
+                            </div>
+                        </div>
+                        <input type="hidden" name="cliente_id" id="edit-cliente-id">
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" form="edit-cliente-form" class="btn btn-primary btn-confirmar-acao">
+                                Salvar
+                        </button>
+                    </div>
+                    </div>
+                </div>
+                </div>

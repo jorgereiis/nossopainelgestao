@@ -286,13 +286,24 @@ def validar_tel_whatsapp(telefone: str, token: str, user=None) -> dict:
 
     try:
         check = check_number_status(telefone, token, user)
-        if check.get("status"):
-            wpp_valido = True
-            telefone = str(check.get("user") or telefone)
+        if isinstance(check, dict):
+            if check.get("status"):
+                wpp_valido = True
+                telefone = str(check.get("user") or telefone)
+            elif check.get("error"):
+                logger.error(
+                    "[VALIDAR][ERRO] Falha ao checar %s no WhatsApp: %s",
+                    telefone,
+                    check["error"],
+                )
+        else:
+            logger.error("[VALIDAR][ERRO] Retorno inesperado ao checar %s: %s", telefone, check)
     except Exception as exc:
         logger.error("[VALIDAR][ERRO] Erro ao checar %s no WhatsApp: %s", telefone, exc)
 
     if not wpp_valido:
+        numero_formatado = telefone if str(telefone).startswith('+') else f'+{telefone}'
+        resultado["telefone_validado_wpp"] = numero_formatado
         return resultado
 
     numero_formatado = telefone if str(telefone).startswith('+') else f'+{telefone}'

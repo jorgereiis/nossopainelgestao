@@ -1,0 +1,29 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    {% include 'partials/head.html' %}
+    <title>{% block title %}Nosso Painel - Gestão IPTV{% endblock %}</title>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="{% block body_class %}bg-light{% endblock %}">
+    <div id="db-wrapper">
+        {% block navbar %}
+            {% include 'partials/navbar-vertical.html' %}
+        {% endblock %}
+        <div id="page-content">
+            {% block header %}
+                {% include 'partials/header.html' %}
+            {% endblock %}
+            {% block messages %}{% endblock %}
+            {% block modals %}{% endblock %}
+            {% block content %}{% endblock %}
+            {% block footer %}
+                {% include 'partials/footer.html' %}
+            {% endblock %}
+        </div>
+    </div>
+    {% include 'partials/scripts.html' %}
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
