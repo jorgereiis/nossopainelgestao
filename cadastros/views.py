@@ -1347,7 +1347,7 @@ def cache_page_by_user(timeout):
 
 
 @login_required
-@cache_page_by_user(60 * 60)
+@cache_page_by_user(60 * 5)
 def mapa_clientes_data(request):
     usuario = request.user
 
@@ -1429,7 +1429,7 @@ def mapa_clientes_data(request):
 
 
 @login_required
-@cache_page_by_user(60 * 30)
+@cache_page_by_user(60 * 5)
 def clientes_servidor_data(request):
     usuario = request.user
 
