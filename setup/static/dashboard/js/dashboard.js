@@ -175,7 +175,10 @@ if (eyeIcon) {
                             title: 'Cancelado!',
                             html: '<span style="font-size: 20px">😮</span><br>' + response.success_message_cancel + '<br>Caso queira reativar, basta acessar seus clientes cancelados.',
                         }).then(function() {
-                            atualizarTabelaClientes();
+                            // Usa novo gerenciador de tabela
+                            if (window.dashboardTableManager) {
+                                window.dashboardTableManager.refreshTable();
+                            }
                         });
                     }
 
@@ -250,7 +253,10 @@ if (eyeIcon) {
                             title: 'Pago!',
                             html: '<span style="font-size: 20px">🤑</span><br>' + response.success_message_invoice + '<br>Consulte as mensalidades desse cliente para mais detalhes.',
                         }).then(function() {
-                            atualizarTabelaClientes();
+                            // Usa novo gerenciador de tabela
+                            if (window.dashboardTableManager) {
+                                window.dashboardTableManager.refreshTable();
+                            }
                         });
                     }
 
@@ -1033,7 +1039,10 @@ $(document).ready(function() {
                             title: 'Cliente editado!',
                             html: response.success_message || "Os dados do cliente foram atualizados."
                         }).then(function() {
-                            atualizarTabelaClientes();
+                            // Usa novo gerenciador de tabela
+                            if (window.dashboardTableManager) {
+                                window.dashboardTableManager.refreshTable();
+                            }
                         });
                     } else if (response.error || response.error_message || response.error_message_edit) {
                         fireAlert({
@@ -1078,43 +1087,8 @@ $(document).ready(function() {
     safeAttachInputMirror('input[name="aplicativo"]');
     safeAttachInputMirror('input[name="cliente_id"]');
 
-// FUNÇÃO PARA BUSCAR CLIENTES NA DASHBOARD
-document.addEventListener("DOMContentLoaded", function () {
-const searchInput = document.getElementById("searchInput");
-const tabelaContainer = document.getElementById("tabela-container");
-let timeout = null;
-
-searchInput.addEventListener("input", function () {
-    const searchTerm = searchInput.value.trim();
-
-    if (timeout) clearTimeout(timeout);
-
-    timeout = setTimeout(() => {
-    showToast({
-        message: "Buscando clientes...",
-        icon: `<i class="bi bi-info-circle" style="color: #0078D7;"></i>`,
-        raw: true
-    });
-
-    fetch(`/dashboard/busca/?q=${encodeURIComponent(searchTerm)}`)
-        .then(response => {
-        if (!response.ok) throw new Error("Erro na resposta");
-        return response.text();
-        })
-        .then(html => {
-        tabelaContainer.innerHTML = html;
-        showToast({
-            message: "Tabela atualizada!",
-            icon: `<i class="bi bi-check-circle-fill" style="color: #624bff;"></i>`,
-            raw: true });
-        })
-        .catch(error => {
-        console.error("Erro ao buscar clientes:", error);
-        showToast({ message: "Erro ao buscar clientes!", icon: "❌" });
-        });
-    }, 400);
-});
-});
+// NOTA: A busca de clientes agora é gerenciada por DashboardTableManager
+// Ver: setup/static/dashboard/js/components/dashboard-table-manager.js
 
 // Função para exibir o toast
     function showToast({ message, icon = "ℹ️", duration = 3000, iconColor = "#624bff", raw = false}) {
@@ -1150,30 +1124,9 @@ searchInput.addEventListener("input", function () {
         }, duration);
     }
 
-// FUNÇÃO PARA ATUALIZAR CLIENTES DA TABELA APÓS PAGAMENTO OU CANCELAMENTO
-    function atualizarTabelaClientes() {
-        const searchInput = document.getElementById("searchInput");
-        const searchTerm = searchInput ? searchInput.value.trim() : "";
-
-        fetch(`/dashboard/busca/?q=${encodeURIComponent(searchTerm)}`)
-            .then(response => {
-                if (!response.ok) throw new Error("Erro na resposta");
-                return response.text();
-            })
-            .then(html => {
-                document.getElementById("tabela-container").innerHTML = html;
-                initializeTableDropdowns();
-                showToast({
-                    message: "Tabela atualizada!",
-                    icon: `<i class="bi bi-check-circle-fill" style="color: #624bff;"></i>`,
-                    raw: true
-                });
-            })
-            .catch(error => {
-                console.error("Erro ao atualizar clientes:", error);
-                showToast({ message: "Erro ao atualizar clientes!", icon: "❌" });
-            });
-    }
+// NOTA: atualizarTabelaClientes() foi substituída por window.dashboardTableManager.refreshTable()
+// A função antiga foi removida. Use o novo gerenciador:
+//   window.dashboardTableManager.refreshTable()
 
 let editClienteTelefoneIti = null;
 const allowedTelefoneCountries = ["br", "us", "pt"];

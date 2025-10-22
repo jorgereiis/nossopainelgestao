@@ -541,3 +541,33 @@
     position: absolute;
     z-index: 1050;
 }
+
+/* ========================================
+   Table Sortable Styles
+   ======================================== */
+
+/* Estilos para colunas ordenáveis */
+#myTable thead th[data-sort-type] {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+/* Indicador visual de ordenação ascendente */
+#myTable thead th.sorted-asc::after {
+    content: " \25B2";
+    font-size: 0.75rem;
+    color: #624bff;
+}
+
+/* Indicador visual de ordenação descendente */
+#myTable thead th.sorted-desc::after {
+    content: " \25BC";
+    font-size: 0.75rem;
+    color: #624bff;
+}
+
+/* Hover state para cabeçalhos ordenáveis */
+#myTable thead th[data-sort-type]:hover {
+    background-color: rgba(98, 75, 255, 0.05);
+}

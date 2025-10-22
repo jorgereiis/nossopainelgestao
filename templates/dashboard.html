@@ -444,5 +444,29 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Componentes reutilizáveis da tabela -->
+<script src="{% static 'dashboard/js/components/table-sortable.js' %}"></script>
+<script src="{% static 'dashboard/js/components/dashboard-table-manager.js' %}"></script>
+
+<!-- Dashboard principal -->
 <script src="{% static 'dashboard/js/dashboard.js' %}"></script>
+
+<!-- Inicialização do gerenciador da tabela -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('[Dashboard] Inicializando DashboardTableManager...');
+
+    // Cria e inicializa o gerenciador da tabela
+    const tableManager = new DashboardTableManager();
+    const initialized = tableManager.init();
+
+    if (initialized) {
+        // Expõe globalmente para uso em callbacks de modais
+        window.dashboardTableManager = tableManager;
+        console.log('[Dashboard] DashboardTableManager inicializado com sucesso');
+    } else {
+        console.error('[Dashboard] Falha ao inicializar DashboardTableManager');
+    }
+});
+</script>
 {% endblock %}

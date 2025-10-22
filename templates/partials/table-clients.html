@@ -142,127 +142,14 @@
     </table>
 </div>
 
-<style>
-    #myTable thead th[data-sort-type] {
-        cursor: pointer;
-        user-select: none;
-        white-space: nowrap;
-    }
+<!--
+    NOTA: A ordenação da tabela é gerenciada por:
+    - setup/static/dashboard/js/components/table-sortable.js
+    - setup/static/dashboard/js/components/dashboard-table-manager.js
 
-    #myTable thead th.sorted-asc::after {
-        content: " \25B2";
-        font-size: 0.75rem;
-    }
-
-    #myTable thead th.sorted-desc::after {
-        content: " \25BC";
-        font-size: 0.75rem;
-    }
-</style>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const table = document.getElementById('myTable');
-        if (!table || table.dataset.sortableInitialized === 'true') {
-            return;
-        }
-
-        table.dataset.sortableInitialized = 'true';
-
-        const headers = table.querySelectorAll('thead th[data-sort-type]');
-
-        headers.forEach((header, index) => {
-            header.addEventListener('click', () => handleSortClick(header, index));
-            header.setAttribute('title', 'Clique para ordenar');
-        });
-
-        function handleSortClick(header, columnIndex) {
-            const sortType = header.dataset.sortType || 'text';
-            const currentOrder = header.dataset.sortOrder || 'desc';
-            const nextOrder = currentOrder === 'asc' ? 'desc' : 'asc';
-
-            applySort(columnIndex, sortType, nextOrder);
-            updateHeaderStates(header, nextOrder);
-        }
-
-        function applySort(columnIndex, sortType, order) {
-            const tbody = table.tBodies[0];
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-
-            rows.sort((rowA, rowB) => {
-                const aValue = getComparableValue(rowA, columnIndex, sortType);
-                const bValue = getComparableValue(rowB, columnIndex, sortType);
-
-                if (aValue === bValue) {
-                    return 0;
-                }
-
-                if (aValue === null) {
-                    return order === 'asc' ? 1 : -1;
-                }
-
-                if (bValue === null) {
-                    return order === 'asc' ? -1 : 1;
-                }
-
-                if (sortType === 'date') {
-                    return order === 'asc' ? aValue - bValue : bValue - aValue;
-                }
-
-                return order === 'asc'
-                    ? aValue.localeCompare(bValue, 'pt-BR', { sensitivity: 'base' })
-                    : bValue.localeCompare(aValue, 'pt-BR', { sensitivity: 'base' });
-            });
-
-            rows.forEach(row => tbody.appendChild(row));
-        }
-
-        function getComparableValue(row, columnIndex, sortType) {
-            const cell = row.cells[columnIndex];
-            if (!cell) {
-                return null;
-            }
-
-            const rawValue = cell.getAttribute('data-sort-value') ?? cell.textContent.trim();
-
-            if (!rawValue) {
-                return null;
-            }
-
-            if (sortType === 'date') {
-                const parsed = Date.parse(rawValue);
-                if (!Number.isNaN(parsed)) {
-                    return parsed;
-                }
-
-                const parts = rawValue.split('/');
-                if (parts.length === 3) {
-                    const [day, month, year] = parts.map(Number);
-                    const date = new Date(year, month - 1, day);
-                    return date.getTime();
-                }
-
-                return null;
-            }
-
-            return rawValue.toString().toLowerCase();
-        }
-
-        function updateHeaderStates(activeHeader, order) {
-            headers.forEach(header => {
-                if (header === activeHeader) {
-                    header.dataset.sortOrder = order;
-                    header.classList.remove('sorted-asc', 'sorted-desc');
-                    header.classList.add(order === 'asc' ? 'sorted-asc' : 'sorted-desc');
-                    return;
-                }
-
-                header.removeAttribute('data-sort-order');
-                header.classList.remove('sorted-asc', 'sorted-desc');
-            });
-        }
-    });
-</script>
+    Os estilos CSS estão em:
+    - setup/static/dashboard/css/dashboard.css
+-->
 
 <!-- pagination -->
 <div class="card-footer bg-white text-center">
@@ -270,7 +157,7 @@
     <ul class="pagination justify-content-end mb-0">
         {% if page_obj.has_previous %}
         <li class="page-item">
-        <a class="page-link" href="?page=1" aria-label="Primeira">
+        <a class="page-link" href="?page=1" data-page="1" aria-label="Primeira">
             <span aria-hidden="true">&laquo;</span>
         </a>
         </li>
@@ -285,14 +172,14 @@
         {% for page in page_obj.paginator.page_range %}
         {% if page == page_obj.number %}
             <li class="page-item active">
-            <a class="page-link" href="#">
+            <a class="page-link" href="#" data-page="{{ page }}">
                 {{ page }}
                 <span class="sr-only"></span>
             </a>
             </li>
         {% elif page > page_obj.number|add:'-2' and page < page_obj.number|add:'2' %}
             <li class="page-item">
-            <a class="page-link" href="?page={{ page }}">
+            <a class="page-link" href="?page={{ page }}" data-page="{{ page }}">
                 {{ page }}
             </a>
             </li>
@@ -306,7 +193,7 @@
 
         {% if page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
         <li class="page-item">
-        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" data-page="{{ page_obj.paginator.num_pages }}">
             {{ page_obj.paginator.num_pages }}
         </a>
         </li>
@@ -314,7 +201,7 @@
 
         {% if page_obj.has_next %}
         <li class="page-item">
-        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Última">
+        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" data-page="{{ page_obj.paginator.num_pages }}" aria-label="Última">
             <span aria-hidden="true">&raquo;</span>
         </a>
         </li>
