@@ -16,6 +16,10 @@
                 {% include 'partials/header.html' %}
             {% endblock %}
             {% block messages %}{% endblock %}
+
+            <!-- Modais globais disponíveis em todo o sistema -->
+            {% include 'partials/modais_globais.html' %}
+
             {% block modals %}{% endblock %}
             {% block content %}{% endblock %}
             {% block footer %}

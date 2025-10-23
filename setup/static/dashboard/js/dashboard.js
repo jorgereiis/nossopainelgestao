@@ -440,11 +440,34 @@ if (eyeIcon) {
                 var tbody = document.querySelector('#table-indicados tbody');
                 tbody.innerHTML = ''; // Limpa o conteúdo atual da tabela
 
+                // Atualizar card de desconto progressivo
+                var descontoInfo = data.desconto_progressivo || {};
+                var cardDesconto = document.getElementById('card-desconto-progressivo');
+
+                if (descontoInfo.ativo && descontoInfo.valor_total > 0) {
+                    // Exibir card
+                    cardDesconto.style.display = 'block';
+
+                    // Atualizar valores
+                    document.getElementById('desconto-total-valor').textContent =
+                        'R$ ' + descontoInfo.valor_total.toFixed(2).replace('.', ',');
+
+                    var limiteText = descontoInfo.limite_indicacoes > 0
+                        ? descontoInfo.qtd_descontos_ativos + '/' + descontoInfo.limite_indicacoes
+                        : descontoInfo.qtd_descontos_ativos + ' (ilimitado)';
+                    document.getElementById('desconto-qtd-indicacoes').textContent = limiteText;
+
+                    document.getElementById('desconto-qtd-aplicados').textContent = descontoInfo.qtd_descontos_aplicados;
+                } else {
+                    // Ocultar card
+                    cardDesconto.style.display = 'none';
+                }
+
                 if (data.indicacoes.length === 0) {
                     // Se não há indicações, adiciona uma única linha com a mensagem
                     var tr = document.createElement('tr');
                     var tdMensagem = document.createElement('td');
-                    tdMensagem.setAttribute('colspan', '4');
+                    tdMensagem.setAttribute('colspan', '5');
                     tdMensagem.textContent = 'Não há indicações desse usuário!';
                     tdMensagem.style.textAlign = 'center';
                     tdMensagem.style.verticalAlign = 'middle';
@@ -480,6 +503,15 @@ if (eyeIcon) {
                         var tdAdesao = document.createElement('td');
                         tdAdesao.textContent = formatarData(indicado.data_adesao);
                         tr.appendChild(tdAdesao);
+
+                        // Coluna de desconto
+                        var tdDesconto = document.createElement('td');
+                        if (descontoInfo.ativo && indicado.tem_desconto_ativo) {
+                            tdDesconto.innerHTML = '<i class="fe fe-check-circle text-success" title="Gera desconto ativo"></i>';
+                        } else {
+                            tdDesconto.innerHTML = '<i class="fe fe-minus-circle text-muted" title="Sem desconto"></i>';
+                        }
+                        tr.appendChild(tdDesconto);
 
                         tbody.appendChild(tr);
                     });

@@ -285,21 +285,25 @@ class PlanoIndicacao(models.Model):
         ("desconto", "Desconto por Indicação"),
         ("dinheiro", "Bônus por Indicações"),
         ("anuidade", "Bônus por Anuidade"),
+        ("desconto_progressivo", "Desconto Progressivo Por Indicação"),
     ]
     DESCRICOES = {
         "desconto": "Permite que o sistema aplique desconto à mensalidade do cliente que fez indicação de um novo cliente no mês.",
         "dinheiro": "Permite que o sistema bonifique o cliente com um valor a receber após realizar indicações de pelo menos 2 novos clientes no mesmo mês.",
         "anuidade": "Permite que o sistema aplique desconto à mensalidade dos clientes que completarem 12 meses consecutivos como clientes.",
+        "desconto_progressivo": "Aplica desconto permanente e cumulativo na mensalidade do cliente indicador enquanto seus indicados permanecerem ativos. O desconto é aplicado automaticamente em todas as mensalidades futuras.",
     }
     EXEMPLOS = {
         "desconto": "Indicou 1 novo cliente neste mês, terá R$ 20.00 de desconto no próximo pagamento.",
         "dinheiro": "Indicou 2 novos clientes no mês de Janeiro, o sistema enviará uma mensagem por WhatsApp informando ao cliente que ele tem um valor a receber como bonificação e agradecimento pelas indicações feitas.",
         "anuidade": "Aderiu em Jan/23 e terá desconto do valor definido na mensalidade de Jan/24, desde que não tenha passado ao menos 30 dias com uma das suas mensalidades CANCELADAS. Uma mensagem será enviada por WhatsApp para informar o cliente sobre a bonificação.",
+        "desconto_progressivo": "Cliente indicou 3 novos clientes ativos. Com desconto de R$ 2.00 por indicação e limite de 5 indicações, terá R$ 6.00 de desconto permanente em todas as suas mensalidades. Se um indicado cancelar, o desconto será reduzido para R$ 4.00.",
     }
     nome = models.CharField(max_length=255, choices=TITULO)
     tipo_plano = models.CharField(max_length=255, choices=TITULO)
     valor = models.DecimalField('Valor para desconto ou bonificação', max_digits=6, decimal_places=2, validators=[MinValueValidator(0)], default=0)
     valor_minimo_mensalidade = models.DecimalField('Valor mínimo a ser mantido na mensalidade', max_digits=6, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    limite_indicacoes = models.IntegerField('Limite máximo de indicações com desconto', validators=[MinValueValidator(0)], default=0, help_text="Apenas para Desconto Progressivo. Define quantas indicações contam para desconto (0 = ilimitado).")
     status = models.BooleanField(default=False)
     ativo = models.BooleanField(default=True)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
@@ -320,6 +324,58 @@ class PlanoIndicacao(models.Model):
     def exemplo(self):
         """Fornece um cenário ilustrativo da bonificação."""
         return self.EXEMPLOS.get(self.tipo_plano, "")
+
+
+class DescontoProgressivoIndicacao(models.Model):
+    """
+    Rastreia descontos progressivos por indicação.
+
+    Cada registro representa um desconto individual gerado por uma indicação específica.
+    O desconto permanece ativo enquanto o cliente indicado estiver ativo no sistema.
+    """
+    cliente_indicador = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name="descontos_progressivos_recebidos",
+        verbose_name="Cliente Indicador"
+    )
+    cliente_indicado = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name="desconto_progressivo_gerado",
+        verbose_name="Cliente Indicado"
+    )
+    plano_indicacao = models.ForeignKey(
+        'PlanoIndicacao',
+        on_delete=models.CASCADE,
+        verbose_name="Plano de Indicação"
+    )
+    valor_desconto = models.DecimalField(
+        "Valor do Desconto",
+        max_digits=6,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    data_inicio = models.DateField("Data de Início", default=date.today)
+    data_fim = models.DateField("Data de Fim", null=True, blank=True)
+    ativo = models.BooleanField("Ativo", default=True)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Desconto Progressivo por Indicação"
+        verbose_name_plural = "Descontos Progressivos por Indicação"
+        ordering = ["-data_inicio", "-criado_em"]
+        indexes = [
+            models.Index(fields=["cliente_indicador", "ativo"], name="cadastros_d_cliente_idx"),
+            models.Index(fields=["cliente_indicado", "ativo"], name="cadastros_d_indicado_idx"),
+            models.Index(fields=["usuario", "ativo"], name="cadastros_d_usuario_idx"),
+        ]
+
+    def __str__(self):
+        status = "✓" if self.ativo else "✗"
+        return f"{status} {self.cliente_indicador.nome} ← {self.cliente_indicado.nome} (R$ {self.valor_desconto})"
 
 
 class ContaDoAplicativo(models.Model):

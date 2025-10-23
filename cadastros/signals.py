@@ -47,6 +47,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         - A data de vencimento anterior (caso tenha sido pagamento antecipado), ou
         - A data atual (caso tenha sido em atraso).
     - O novo vencimento será ajustado conforme o tipo do plano do cliente (mensal, trimestral, etc).
+    - Aplica desconto progressivo se houver descontos ativos.
     - Ao final, além de criar a nova mensalidade, o campo `data_vencimento` do cliente será atualizado.
 
     Parâmetros:
@@ -84,9 +85,26 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         elif "anual" in plano_nome:
             nova_data_vencimento += relativedelta(years=1)
 
+        # Calcular valor da mensalidade com desconto progressivo
+        from cadastros.utils import calcular_desconto_progressivo_total
+        from .models import PlanoIndicacao
+        from decimal import Decimal
+
+        valor_base = instance.cliente.plano.valor
+        desconto_info = calcular_desconto_progressivo_total(instance.cliente)
+
+        # Aplicar desconto se houver
+        if desconto_info["valor_total"] > Decimal("0.00") and desconto_info["plano"]:
+            valor_com_desconto = valor_base - desconto_info["valor_total"]
+            # Respeitar valor mínimo configurado
+            valor_minimo = desconto_info["plano"].valor_minimo_mensalidade
+            valor_final = max(valor_com_desconto, valor_minimo)
+        else:
+            valor_final = valor_base
+
         Mensalidade.objects.create(
             cliente=instance.cliente,
-            valor=instance.cliente.plano.valor,
+            valor=valor_final,
             dt_vencimento=nova_data_vencimento,
             usuario=instance.usuario,
         )
@@ -138,9 +156,9 @@ def cliente_post_save(sender, instance, created, **kwargs):
             servidor_anterior_id = _clientes_servidor_anterior.pop(instance.pk)
             servidor_foi_modificado = servidor_anterior_id != instance.servidor_id
 
-        # Detecta mudança de cancelamento
+        # Detecta mudança de cancelamento (usa .get() para não remover ainda)
         if instance.pk in _clientes_cancelado_anterior:
-            cancelado_anterior = _clientes_cancelado_anterior.pop(instance.pk)
+            cancelado_anterior = _clientes_cancelado_anterior.get(instance.pk)
             cliente_foi_cancelado = not cancelado_anterior and instance.cancelado
             cliente_foi_reativado = cancelado_anterior and not instance.cancelado
 
@@ -187,6 +205,160 @@ def cliente_post_save(sender, instance, created, **kwargs):
 
     except Exception as error:
         _log_event(logging.ERROR, instance, func_name, "Erro ao alterar label do contato.", exc_info=error)
+
+
+# ============================================================================
+# SIGNALS PARA DESCONTO PROGRESSIVO POR INDICAÇÃO
+# ============================================================================
+
+@receiver(post_save, sender=Cliente)
+def gerenciar_desconto_progressivo_indicacao(sender, instance, created, **kwargs):
+    """
+    Gerencia descontos progressivos quando um cliente é criado ou atualizado.
+
+    - Ao criar cliente com indicação: cria desconto progressivo e envia mensagem
+    - Ao cancelar cliente: desativa descontos onde ele é indicado
+    - Ao reativar cliente: reativa descontos onde ele é indicado
+    """
+    from .models import DescontoProgressivoIndicacao, PlanoIndicacao, Mensalidade
+    from cadastros.utils import calcular_desconto_progressivo_total
+    from decimal import Decimal
+
+    func_name = gerenciar_desconto_progressivo_indicacao.__name__
+
+    # Verificar se plano progressivo está ativo
+    plano_progressivo = PlanoIndicacao.objects.filter(
+        usuario=instance.usuario,
+        tipo_plano="desconto_progressivo",
+        ativo=True,
+        status=True
+    ).first()
+
+    if not plano_progressivo:
+        return
+
+    # CASO 1: Novo cliente com indicação - criar desconto progressivo
+    if created and instance.indicado_por and not instance.cancelado:
+        try:
+            # Criar desconto progressivo
+            desconto = DescontoProgressivoIndicacao.objects.create(
+                cliente_indicador=instance.indicado_por,
+                cliente_indicado=instance,
+                plano_indicacao=plano_progressivo,
+                valor_desconto=plano_progressivo.valor,
+                usuario=instance.usuario,
+                ativo=True
+            )
+
+            _log_event(
+                logging.INFO,
+                instance,
+                func_name,
+                f"Desconto progressivo criado: {desconto.cliente_indicador.nome} ← {instance.nome} (R$ {desconto.valor_desconto})"
+            )
+
+            # Atualizar mensalidade em aberto do indicador
+            atualizar_mensalidade_indicador_com_desconto(instance.indicado_por, plano_progressivo)
+
+            # Enviar mensagem WhatsApp (será implementado na próxima etapa)
+            from cadastros.utils import envio_desconto_progressivo_indicacao
+            try:
+                envio_desconto_progressivo_indicacao(instance.usuario, instance, instance.indicado_por)
+            except Exception as e:
+                _log_event(logging.WARNING, instance, func_name, f"Falha ao enviar mensagem WhatsApp: {e}")
+
+        except Exception as error:
+            _log_event(logging.ERROR, instance, func_name, "Erro ao criar desconto progressivo.", exc_info=error)
+
+    # CASO 2: Cliente cancelado - desativar desconto progressivo
+    if not created and instance.pk in _clientes_cancelado_anterior:
+        cancelado_anterior = _clientes_cancelado_anterior.get(instance.pk)
+        cliente_foi_cancelado = not cancelado_anterior and instance.cancelado
+        cliente_foi_reativado = cancelado_anterior and not instance.cancelado
+
+        if cliente_foi_cancelado:
+            # Desativar descontos onde este cliente é o indicado
+            descontos = DescontoProgressivoIndicacao.objects.filter(
+                cliente_indicado=instance,
+                ativo=True
+            )
+
+            for desconto in descontos:
+                desconto.ativo = False
+                desconto.data_fim = timezone.localdate()
+                desconto.save()
+
+                _log_event(
+                    logging.INFO,
+                    instance,
+                    func_name,
+                    f"Desconto progressivo desativado: {desconto.cliente_indicador.nome} ← {instance.nome}"
+                )
+
+                # Atualizar mensalidade em aberto do indicador
+                atualizar_mensalidade_indicador_com_desconto(desconto.cliente_indicador, plano_progressivo)
+
+        # CASO 3: Cliente reativado - reativar desconto progressivo
+        elif cliente_foi_reativado:
+            # Reativar descontos onde este cliente é o indicado
+            descontos = DescontoProgressivoIndicacao.objects.filter(
+                cliente_indicado=instance,
+                ativo=False,
+                data_fim__isnull=False
+            )
+
+            for desconto in descontos:
+                desconto.ativo = True
+                desconto.data_fim = None
+                desconto.save()
+
+                _log_event(
+                    logging.INFO,
+                    instance,
+                    func_name,
+                    f"Desconto progressivo reativado: {desconto.cliente_indicador.nome} ← {instance.nome}"
+                )
+
+                # Atualizar mensalidade em aberto do indicador
+                atualizar_mensalidade_indicador_com_desconto(desconto.cliente_indicador, plano_progressivo)
+
+    # Limpar cache do estado anterior após processar
+    if instance.pk in _clientes_cancelado_anterior:
+        _clientes_cancelado_anterior.pop(instance.pk, None)
+
+
+def atualizar_mensalidade_indicador_com_desconto(cliente_indicador, plano_progressivo):
+    """Atualiza o valor da mensalidade em aberto do indicador com desconto progressivo."""
+    from .models import Mensalidade
+    from cadastros.utils import calcular_desconto_progressivo_total
+    from decimal import Decimal
+
+    # Buscar mensalidade em aberto
+    mensalidade_aberta = Mensalidade.objects.filter(
+        cliente=cliente_indicador,
+        pgto=False,
+        cancelado=False,
+        dt_cancelamento=None
+    ).order_by('dt_vencimento').first()
+
+    if not mensalidade_aberta:
+        return
+
+    # Calcular desconto total
+    desconto_info = calcular_desconto_progressivo_total(cliente_indicador)
+    valor_base = cliente_indicador.plano.valor
+
+    if desconto_info["valor_total"] > Decimal("0.00"):
+        valor_com_desconto = valor_base - desconto_info["valor_total"]
+        valor_minimo = plano_progressivo.valor_minimo_mensalidade
+        valor_final = max(valor_com_desconto, valor_minimo)
+    else:
+        valor_final = valor_base
+
+    # Atualizar apenas se o valor mudou
+    if mensalidade_aberta.valor != valor_final:
+        mensalidade_aberta.valor = valor_final
+        mensalidade_aberta.save()
 
 
 @receiver(post_save, sender='auth.User')

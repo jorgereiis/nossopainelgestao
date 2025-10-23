@@ -156,11 +156,34 @@ function carregarIndicacoes(clienteId) {
             // Garante array
             var indicacoes = Array.isArray(data.indicacoes) ? data.indicacoes : [];
 
+            // Atualizar card de desconto progressivo
+            var descontoInfo = data.desconto_progressivo || {};
+            var cardDesconto = document.getElementById('card-desconto-progressivo');
+
+            if (descontoInfo.ativo && descontoInfo.valor_total > 0) {
+                // Exibir card
+                cardDesconto.style.display = 'block';
+
+                // Atualizar valores
+                document.getElementById('desconto-total-valor').textContent =
+                    'R$ ' + descontoInfo.valor_total.toFixed(2).replace('.', ',');
+
+                var limiteText = descontoInfo.limite_indicacoes > 0
+                    ? descontoInfo.qtd_descontos_ativos + '/' + descontoInfo.limite_indicacoes
+                    : descontoInfo.qtd_descontos_ativos + ' (ilimitado)';
+                document.getElementById('desconto-qtd-indicacoes').textContent = limiteText;
+
+                document.getElementById('desconto-qtd-aplicados').textContent = descontoInfo.qtd_descontos_aplicados;
+            } else {
+                // Ocultar card
+                cardDesconto.style.display = 'none';
+            }
+
             if (indicacoes.length === 0) {
                 // Não há indicações
                 var tr = document.createElement('tr');
                 var tdMensagem = document.createElement('td');
-                tdMensagem.setAttribute('colspan', '3');
+                tdMensagem.setAttribute('colspan', '5');
                 tdMensagem.textContent = 'Não há indicações desse usuário!';
                 tdMensagem.style.textAlign = 'center';
                 tdMensagem.style.verticalAlign = 'middle';
@@ -174,6 +197,15 @@ function carregarIndicacoes(clienteId) {
                     tdId.textContent = indicado.id ?? '--';
                     tr.appendChild(tdId);
 
+                    // Status (Ativo/Cancelado)
+                    var tdStatus = document.createElement('td');
+                    if (indicado.cancelado) {
+                        tdStatus.innerHTML = '<span class="badge bg-danger">Cancelado</span>';
+                    } else {
+                        tdStatus.innerHTML = '<span class="badge bg-success">Ativo</span>';
+                    }
+                    tr.appendChild(tdStatus);
+
                     var tdNome = document.createElement('td');
                     tdNome.textContent = indicado.nome ?? '--';
                     tr.appendChild(tdNome);
@@ -181,6 +213,15 @@ function carregarIndicacoes(clienteId) {
                     var tdAdesao = document.createElement('td');
                     tdAdesao.textContent = formatarData(indicado.data_adesao);
                     tr.appendChild(tdAdesao);
+
+                    // Coluna de desconto
+                    var tdDesconto = document.createElement('td');
+                    if (descontoInfo.ativo && indicado.tem_desconto_ativo) {
+                        tdDesconto.innerHTML = '<i class="fe fe-check-circle text-success" title="Gera desconto ativo"></i>';
+                    } else {
+                        tdDesconto.innerHTML = '<i class="fe fe-minus-circle text-muted" title="Sem desconto"></i>';
+                    }
+                    tr.appendChild(tdDesconto);
 
                     tbody.appendChild(tr);
                 });
@@ -193,7 +234,7 @@ function carregarIndicacoes(clienteId) {
                 tbody.innerHTML = '';
                 var tr = document.createElement('tr');
                 var tdErro = document.createElement('td');
-                tdErro.setAttribute('colspan', '3');
+                tdErro.setAttribute('colspan', '5');
                 tdErro.textContent = 'Erro ao carregar indicações!';
                 tdErro.style.textAlign = 'center';
                 tdErro.style.color = 'red';

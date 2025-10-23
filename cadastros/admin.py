@@ -13,6 +13,7 @@ from .models import (
     SecretTokenAPI,
     DadosBancarios,
     PlanoIndicacao,
+    DescontoProgressivoIndicacao,
     ContaDoAplicativo,
     MensagemEnviadaWpp,
     DominiosDNS,
@@ -88,10 +89,19 @@ class MensalidadeAdmin(admin.ModelAdmin):
 
 
 class PlanoIndicacaoAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "tipo_plano", "descricao", "exemplo", "valor", "valor_minimo_mensalidade", "usuario", "status", "ativo")
+    list_display = ("id", "nome", "tipo_plano", "descricao", "exemplo", "valor", "valor_minimo_mensalidade", "limite_indicacoes", "usuario", "status", "ativo")
     list_filter = ("usuario", "ativo")
     search_fields = ("nome", "tipo_plano")
     ordering = ("-id", "nome",)
+
+
+class DescontoProgressivoIndicacaoAdmin(admin.ModelAdmin):
+    list_display = ("id", "cliente_indicador", "cliente_indicado", "valor_desconto", "data_inicio", "data_fim", "ativo", "usuario", "criado_em")
+    list_filter = ("ativo", "usuario", "data_inicio")
+    search_fields = ("cliente_indicador__nome", "cliente_indicado__nome")
+    autocomplete_fields = ("cliente_indicador", "cliente_indicado", "plano_indicacao")
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("-criado_em",)
 
 
 class ContaDoAplicativoAdmin(admin.ModelAdmin):
@@ -225,6 +235,7 @@ admin.site.register(HorarioEnvios, HorarioEnviosAdmin)
 admin.site.register(SecretTokenAPI, SecretTokenAPIAdmin)
 admin.site.register(DadosBancarios, DadosBancariosAdmin)
 admin.site.register(PlanoIndicacao, PlanoIndicacaoAdmin)
+admin.site.register(DescontoProgressivoIndicacao, DescontoProgressivoIndicacaoAdmin)
 admin.site.register(ContaDoAplicativo, ContaDoAplicativoAdmin)
 admin.site.register(MensagemEnviadaWpp, MensagemEnviadaWppAdmin)
 admin.site.register(DominiosDNS, DominiosDNSAdmin)

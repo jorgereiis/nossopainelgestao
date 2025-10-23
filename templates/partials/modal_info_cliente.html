@@ -141,6 +141,43 @@
                                         </div>
                                     </div>
                                     <h4 class="fw-bold mb-2 mt-2">Histórico de indicações</h4>
+
+                                    <!-- Card de Desconto Progressivo -->
+                                    <div class="card border-0 bg-light p-4 mb-3" id="card-desconto-progressivo" style="display: none;">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                                                    <i class="fe fe-gift text-primary" style="font-size: 24px;"></i>
+                                                </div>
+                                            </div>
+                                            <div class="col">
+                                                <h5 class="mb-1 fw-bold">Desconto Progressivo Ativo</h5>
+                                                <p class="mb-0 text-muted small">Este cliente possui descontos por indicações ativas</p>
+                                            </div>
+                                        </div>
+                                        <hr class="my-3">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="d-flex flex-column">
+                                                    <span class="text-muted small mb-1">Desconto Total</span>
+                                                    <span class="fw-bold fs-5 text-success" id="desconto-total-valor">R$ 0,00</span>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="d-flex flex-column">
+                                                    <span class="text-muted small mb-1">Indicações Ativas</span>
+                                                    <span class="fw-bold fs-5" id="desconto-qtd-indicacoes">0/0</span>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="d-flex flex-column">
+                                                    <span class="text-muted small mb-1">Descontos Aplicados</span>
+                                                    <span class="fw-bold fs-5" id="desconto-qtd-aplicados">0</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div class="card p-5 border rounded me-4 mb-4">
                                         <div class="table-responsive custom-table-scroll mb-4">
                                             <table class="table text-nowrap mb-0 table-hover table-center" id="table-indicados">
@@ -157,6 +194,9 @@
                                                         </td>
                                                         <td>
                                                             <span>Data de adesão</span>
+                                                        </td>
+                                                        <td>
+                                                            <span>Desconto</span>
                                                         </td>
                                                     </tr>
                                                 </thead>

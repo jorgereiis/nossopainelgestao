@@ -442,15 +442,47 @@ class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
 class CarregarInidicacoes(LoginRequiredMixin, View):
 
     def get(self, request):
+        from cadastros.utils import calcular_desconto_progressivo_total
+        from .models import DescontoProgressivoIndicacao
+
         cliente_id = self.request.GET.get("cliente_id")
         cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
-        indicados = (
-            Cliente.objects.filter(indicado_por=cliente, usuario=self.request.user)
-            .order_by('-id')
-            .values()
-        )
+        indicados = Cliente.objects.filter(indicado_por=cliente, usuario=self.request.user).order_by('-id')
 
-        data = {'indicacoes': list(indicados),}
+        # Calcular informações sobre descontos progressivos
+        desconto_info = calcular_desconto_progressivo_total(cliente)
+
+        # Buscar quais indicados geram desconto ativo
+        descontos_ativos_ids = set()
+        if desconto_info["qtd_descontos_ativos"] > 0:
+            descontos_ativos = DescontoProgressivoIndicacao.objects.filter(
+                cliente_indicador=cliente,
+                ativo=True
+            ).values_list('cliente_indicado_id', flat=True)
+            descontos_ativos_ids = set(descontos_ativos)
+
+        # Converter indicados para dicionários e adicionar flag de desconto
+        indicados_list = []
+        for indicado in indicados:
+            indicado_dict = {
+                'id': indicado.id,
+                'nome': indicado.nome,
+                'data_adesao': indicado.data_adesao.strftime('%Y-%m-%d') if indicado.data_adesao else None,
+                'cancelado': indicado.cancelado,
+                'tem_desconto_ativo': indicado.id in descontos_ativos_ids,
+            }
+            indicados_list.append(indicado_dict)
+
+        data = {
+            'indicacoes': indicados_list,
+            'desconto_progressivo': {
+                'ativo': desconto_info["plano"] is not None and desconto_info["plano"].status,
+                'valor_total': float(desconto_info["valor_total"]),
+                'qtd_descontos_ativos': desconto_info["qtd_descontos_ativos"],
+                'qtd_descontos_aplicados': desconto_info["qtd_descontos_aplicados"],
+                'limite_indicacoes': desconto_info["limite_indicacoes"],
+            }
+        }
 
         return JsonResponse(data)
 
@@ -2027,14 +2059,30 @@ def reactivate_customer(request, cliente_id):
         pass
 
     try:
+        # Calcula desconto progressivo total do cliente
+        from cadastros.utils import calcular_desconto_progressivo_total
+        from decimal import Decimal
+
+        desconto_info = calcular_desconto_progressivo_total(cliente)
+        valor_base = cliente.plano.valor
+
+        # Aplica desconto progressivo se houver
+        if desconto_info["valor_total"] > Decimal("0.00") and desconto_info["plano"]:
+            valor_com_desconto = valor_base - desconto_info["valor_total"]
+            valor_minimo = desconto_info["plano"].valor_minimo_mensalidade
+            valor_mensalidade = max(valor_com_desconto, valor_minimo)
+        else:
+            valor_mensalidade = valor_base
+
         # Obtém a última mensalidade do cliente
         ultima_mensalidade = Mensalidade.objects.filter(cliente=cliente).order_by('-dt_vencimento').first()
 
         if ultima_mensalidade:
             if sete_dias_atras <= ultima_mensalidade.dt_vencimento <= data_hoje:
-                # Apenas remove o cancelamento da mensalidade
+                # Remove o cancelamento da mensalidade e ajusta o valor
                 ultima_mensalidade.cancelado = False
                 ultima_mensalidade.dt_cancelamento = None
+                ultima_mensalidade.valor = valor_mensalidade
                 ultima_mensalidade.save()
                 mensalidade_reativada = True
             else:
@@ -2043,19 +2091,19 @@ def reactivate_customer(request, cliente_id):
                 ultima_mensalidade.dt_cancelamento = data_hoje
                 ultima_mensalidade.save()
 
-                # Cria nova mensalidade
+                # Cria nova mensalidade com desconto progressivo aplicado
                 Mensalidade.objects.create(
                     cliente=cliente,
-                    valor=cliente.plano.valor,
+                    valor=valor_mensalidade,
                     dt_vencimento=data_hoje,
                     usuario=cliente.usuario
                 )
                 nova_mensalidade_criada = True
         else:
-            # Caso não exista mensalidade anterior, cria uma nova
+            # Caso não exista mensalidade anterior, cria uma nova com desconto progressivo
             Mensalidade.objects.create(
                 cliente=cliente,
-                valor=cliente.plano.valor,
+                valor=valor_mensalidade,
                 dt_vencimento=data_hoje,
                 usuario=cliente.usuario
             )
@@ -3547,9 +3595,10 @@ def edit_horario_envios(request):
 @require_http_methods(["GET", "POST"])
 def edit_referral_plan(request):
     PLANOS_OBRIGATORIOS = [
-        {"tipo_plano": "desconto", "valor": 0.00, "valor_minimo_mensalidade": 5.00},
-        {"tipo_plano": "dinheiro", "valor": 0.00, "valor_minimo_mensalidade": 5.00},
-        {"tipo_plano": "anuidade", "valor": 0.00, "valor_minimo_mensalidade": 5.00},
+        {"tipo_plano": "desconto", "valor": 0.00, "valor_minimo_mensalidade": 5.00, "limite_indicacoes": 0},
+        {"tipo_plano": "dinheiro", "valor": 0.00, "valor_minimo_mensalidade": 5.00, "limite_indicacoes": 0},
+        {"tipo_plano": "anuidade", "valor": 0.00, "valor_minimo_mensalidade": 5.00, "limite_indicacoes": 0},
+        {"tipo_plano": "desconto_progressivo", "valor": 0.00, "valor_minimo_mensalidade": 5.00, "limite_indicacoes": 0},
     ]
     usuario = request.user
     sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
@@ -3557,11 +3606,11 @@ def edit_referral_plan(request):
 
     if request.method == "GET":
         # Criação automática dos planos se não existirem
-        ativo = True
         with transaction.atomic():
             for plano_data in PLANOS_OBRIGATORIOS:
-                if plano_data["tipo_plano"] == "anuidade":
-                    ativo = False
+                # Define se o plano é ativo por padrão (anuidade é inativo)
+                ativo = True if plano_data["tipo_plano"] != "anuidade" else False
+
                 if not PlanoIndicacao.objects.filter(usuario=usuario, tipo_plano=plano_data["tipo_plano"]).exists():
                     novo_plano = PlanoIndicacao.objects.create(
                         usuario=usuario,
@@ -3569,6 +3618,7 @@ def edit_referral_plan(request):
                         tipo_plano=plano_data["tipo_plano"],
                         valor=Decimal(str(plano_data["valor"])),
                         valor_minimo_mensalidade=Decimal(str(plano_data["valor_minimo_mensalidade"])),
+                        limite_indicacoes=plano_data.get("limite_indicacoes", 0),
                         status=False,
                         ativo=ativo,
                     )
@@ -3598,6 +3648,7 @@ def edit_referral_plan(request):
                 "exemplo": plano.exemplo,
                 "valor": float(plano.valor),
                 "valor_minimo_mensalidade": float(plano.valor_minimo_mensalidade),
+                "limite_indicacoes": plano.limite_indicacoes,
                 "status": plano.status,
             })
 
@@ -3638,6 +3689,7 @@ def edit_referral_plan(request):
         original_plano = {
             "valor": str(plano.valor),
             "status": plano.status,
+            "limite_indicacoes": plano.limite_indicacoes,
         }
 
         # Atualiza os campos permitidos
@@ -3659,6 +3711,66 @@ def edit_referral_plan(request):
                 plano.status = status.lower() in ("1", "true", "on")
             else:
                 plano.status = bool(status)
+        if "limite_indicacoes" in data:
+            try:
+                plano.limite_indicacoes = int(data["limite_indicacoes"])
+                if plano.limite_indicacoes < 0:
+                    plano.limite_indicacoes = 0
+            except (ValueError, TypeError):
+                logger.warning(
+                    "Limite de indicações inválido recebido para plano %s do usuário %s (ip=%s): %s",
+                    plano_id,
+                    request.user,
+                    ip_address,
+                    data.get("limite_indicacoes"),
+                )
+                return JsonResponse({"error": "Limite de indicações inválido."}, status=400)
+
+        # Validação de modalidades conflitantes
+        if plano.status:  # Se está sendo ativado
+            modalidades_conflitantes = []
+
+            # Se está ativando "Desconto Progressivo", verificar se "Desconto" ou "Bônus" estão ativos
+            if plano.tipo_plano == "desconto_progressivo":
+                conflitos = PlanoIndicacao.objects.filter(
+                    usuario=usuario,
+                    tipo_plano__in=["desconto", "dinheiro"],
+                    ativo=True,
+                    status=True
+                ).exclude(id=plano.id)
+
+                if conflitos.exists():
+                    for conflito in conflitos:
+                        nome_display = conflito.get_nome_display()
+                        modalidades_conflitantes.append(nome_display)
+
+            # Se está ativando "Desconto" ou "Bônus", verificar se "Desconto Progressivo" está ativo
+            elif plano.tipo_plano in ["desconto", "dinheiro"]:
+                conflito = PlanoIndicacao.objects.filter(
+                    usuario=usuario,
+                    tipo_plano="desconto_progressivo",
+                    ativo=True,
+                    status=True
+                ).exclude(id=plano.id).first()
+
+                if conflito:
+                    modalidades_conflitantes.append(conflito.get_nome_display())
+
+            # Se há conflitos, retornar erro
+            if modalidades_conflitantes:
+                modalidades_str = ", ".join(modalidades_conflitantes)
+                mensagem_erro = (
+                    f"Não é possível ativar '{plano.get_nome_display()}' enquanto "
+                    f"'{modalidades_str}' estiver(em) ativo(s). "
+                    f"Desative a(s) modalidade(s) conflitante(s) primeiro."
+                )
+                logger.warning(
+                    "Tentativa de ativar planos conflitantes (user=%s, ip=%s): %s",
+                    request.user,
+                    ip_address,
+                    mensagem_erro,
+                )
+                return JsonResponse({"error": mensagem_erro}, status=400)
 
         try:
             plano.save()
@@ -3685,6 +3797,8 @@ def edit_referral_plan(request):
             changes["valor"] = (original_plano["valor"], str(plano.valor))
         if original_plano["status"] != plano.status:
             changes["status"] = (original_plano["status"], plano.status)
+        if original_plano["limite_indicacoes"] != plano.limite_indicacoes:
+            changes["limite_indicacoes"] = (original_plano["limite_indicacoes"], plano.limite_indicacoes)
 
         log_user_action(
             request=request,
@@ -3706,6 +3820,7 @@ def edit_referral_plan(request):
                 "exemplo": plano.exemplo,
                 "valor": float(plano.valor),
                 "valor_minimo_mensalidade": float(plano.valor_minimo_mensalidade),
+                "limite_indicacoes": plano.limite_indicacoes,
                 "status": plano.status,
                 "ativo": plano.ativo,
                 "sessao_wpp": sessao_wpp,
