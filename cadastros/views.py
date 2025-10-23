@@ -1,6 +1,12 @@
 """Views responsáveis por dashboards, cadastros e integrações do painel."""
 
 import base64
+from .email_utils import (
+    send_profile_change_notification,
+    send_password_change_notification,
+    send_login_notification,
+    send_2fa_enabled_notification
+)
 import codecs
 import io
 import json
@@ -79,6 +85,7 @@ from .utils import (
     log_user_action,
     historico_iniciar,
     historico_encerrar_vigente,
+    get_client_ip,
 )
 from .wpp_views import (
     cancelar_sessao_wpp,
@@ -122,6 +129,245 @@ class Login(LoginView):
     form_class = LoginForm
     redirect_authenticated_user = True
     success_url = 'dashboard/'
+
+    def form_valid(self, form):
+        """Override to check for 2FA before logging in."""
+        from .models import UserProfile
+        from django.contrib.auth import authenticate
+
+        username = form.cleaned_data.get('username')
+        password = form.cleaned_data.get('password')
+
+        logger.info(f'[LOGIN] Attempting login for user: {username}')
+
+        # Authenticate user (but don't log in yet)
+        user = authenticate(self.request, username=username, password=password)
+
+        if user is None:
+            logger.warning(f'[LOGIN] Authentication failed for user: {username}')
+            return super().form_invalid(form)
+
+        logger.info(f'[LOGIN] Authentication successful for user: {username} (ID: {user.id})')
+
+        # Check if user has 2FA enabled
+        try:
+            profile = UserProfile.objects.get(user=user)
+            logger.info(f'[LOGIN] UserProfile found. 2FA enabled: {profile.two_factor_enabled}, Secret exists: {bool(profile.two_factor_secret)}')
+
+            if profile.two_factor_enabled and profile.two_factor_secret:
+                # Store user_id in session for 2FA verification
+                self.request.session['pending_2fa_user_id'] = user.id
+                self.request.session['pending_2fa_username'] = user.username
+
+                # ✅ SEGURANÇA: Armazenar dados de validação para prevenir session fixation
+                from django.utils import timezone
+                self.request.session['pending_2fa_timestamp'] = timezone.now().isoformat()
+                self.request.session['pending_2fa_ip'] = self.request.META.get('REMOTE_ADDR', '')
+                self.request.session['pending_2fa_user_agent'] = self.request.META.get('HTTP_USER_AGENT', '')[:200]
+
+                # Force session save to ensure data persists
+                self.request.session.modified = True
+                self.request.session.save()
+
+                logger.info(f'[LOGIN] 2FA required for user {user.id}. Session data saved. Redirecting to verify-2fa')
+                logger.info(f'[LOGIN] Session key: {self.request.session.session_key}')
+                logger.info(f'[LOGIN] Session data: pending_2fa_user_id={user.id}, pending_2fa_username={user.username}')
+
+                return redirect('verify-2fa')
+        except UserProfile.DoesNotExist:
+            logger.warning(f'[LOGIN] UserProfile not found for user {user.id}. Proceeding without 2FA check.')
+            pass
+
+        # No 2FA or not enabled, proceed with normal login
+        logger.info(f'[LOGIN] No 2FA required. Proceeding with normal login for user {user.id}')
+        return super().form_valid(form)
+
+
+from django_ratelimit.decorators import ratelimit
+
+@ratelimit(key='ip', rate='5/m', method='POST', block=True)
+@require_http_methods(["GET", "POST"])
+def verify_2fa_code(request):
+    """Verify 2FA code and complete login.
+
+    Rate limiting: 5 tentativas por minuto por IP.
+    Após 5 tentativas falhadas, o IP é bloqueado por 1 minuto.
+    """
+    from .models import UserProfile
+    from django.contrib.auth import login, get_user_model
+    from django_ratelimit.exceptions import Ratelimited
+
+    # Verificar se foi bloqueado por rate limiting
+    was_limited = getattr(request, 'limited', False)
+    if was_limited:
+        ip = request.META.get('REMOTE_ADDR', 'unknown')
+        logger.warning(f'[2FA_RATELIMIT] Rate limit exceeded for IP {ip}')
+        messages.error(request, 'Muitas tentativas de verificação. Aguarde 1 minuto e tente novamente.')
+        return render(request, 'login_2fa.html', {'rate_limited': True})
+
+    logger.info(f'[2FA_VERIFY] Accessed verify_2fa_code view. Method: {request.method}')
+    logger.info(f'[2FA_VERIFY] Session key: {request.session.session_key}')
+    logger.info(f'[2FA_VERIFY] Session data: {dict(request.session.items())}')
+
+    # Check if there's a pending 2FA verification
+    user_id = request.session.get('pending_2fa_user_id')
+    username = request.session.get('pending_2fa_username')
+    timestamp_str = request.session.get('pending_2fa_timestamp')
+    stored_ip = request.session.get('pending_2fa_ip')
+    stored_ua = request.session.get('pending_2fa_user_agent')
+
+    logger.info(f'[2FA_VERIFY] Retrieved from session - user_id: {user_id}, username: {username}')
+
+    # ✅ SEGURANÇA: Validação 1 - Dados existem
+    if not all([user_id, username, timestamp_str]):
+        logger.warning('[2FA_SECURITY] Missing session data (user_id, username, or timestamp)')
+        messages.error(request, 'Sessão inválida. Faça login novamente.')
+        request.session.flush()
+        return redirect('login')
+
+    # ✅ SEGURANÇA: Validação 2 - Timeout de 5 minutos
+    from django.utils import timezone
+    from datetime import timedelta, datetime
+    try:
+        timestamp = datetime.fromisoformat(timestamp_str)
+        if timezone.now() - timestamp > timedelta(minutes=5):
+            logger.warning(f'[2FA_SECURITY] Session expired for user {user_id} (timeout > 5 min)')
+            # ✅ SEGURANÇA: Mensagem genérica para não revelar motivo específico
+            messages.error(request, 'Sessão inválida. Faça login novamente.')
+            request.session.flush()
+            return redirect('login')
+    except (ValueError, TypeError) as e:
+        logger.error(f'[2FA_SECURITY] Invalid timestamp format: {timestamp_str} - {e}')
+        messages.error(request, 'Sessão inválida. Faça login novamente.')
+        request.session.flush()
+        return redirect('login')
+
+    # ✅ SEGURANÇA: Validação 3 - IP não mudou
+    current_ip = request.META.get('REMOTE_ADDR', '')
+    if stored_ip and current_ip != stored_ip:
+        logger.warning(f'[2FA_SECURITY] IP mismatch for user {user_id}: {stored_ip} != {current_ip}')
+        # ✅ SEGURANÇA: Mensagem genérica para não revelar motivo específico
+        messages.error(request, 'Sessão inválida. Faça login novamente.')
+        request.session.flush()
+        return redirect('login')
+
+    # ✅ SEGURANÇA: Validação 4 - User-Agent não mudou (warning only)
+    current_ua = request.META.get('HTTP_USER_AGENT', '')[:200]
+    if stored_ua and current_ua != stored_ua:
+        logger.warning(f'[2FA_SECURITY] User-Agent mismatch for user {user_id}')
+        # Não bloqueia, apenas registra (pode ser legítimo)
+
+    User = get_user_model()
+
+    try:
+        user = User.objects.get(id=user_id)
+        profile = UserProfile.objects.get(user=user)
+        logger.info(f'[2FA_VERIFY] User found: {user.username} (ID: {user.id})')
+    except (User.DoesNotExist, UserProfile.DoesNotExist) as e:
+        logger.error(f'[2FA_VERIFY] User or profile not found for user_id {user_id}: {str(e)}')
+        # ✅ SEGURANÇA: Mensagem genérica para não revelar existência do usuário
+        messages.error(request, 'Sessão inválida. Faça login novamente.')
+        request.session.flush()
+        return redirect('login')
+
+    if request.method == 'POST':
+        logger.info(f'[2FA_VERIFY] POST request - processing 2FA code verification')
+        code = request.POST.get('code', '').strip()
+
+        if not code:
+            messages.error(request, 'Digite o código de verificação.')
+            return render(request, 'login_2fa.html')
+
+        # Verify code
+        if profile.verify_2fa_code(code):
+            # Code is valid, complete login
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+
+            # ✅ SEGURANÇA: Regenerar session ID para prevenir session fixation
+            request.session.cycle_key()
+
+            # ✅ SEGURANÇA: Limpar dados temporários de 2FA
+            request.session.pop('pending_2fa_user_id', None)
+            request.session.pop('pending_2fa_username', None)
+            request.session.pop('pending_2fa_timestamp', None)
+            request.session.pop('pending_2fa_ip', None)
+            request.session.pop('pending_2fa_user_agent', None)
+
+            # Log de segurança para login bem-sucedido
+            ip = request.META.get('REMOTE_ADDR', 'unknown')
+            security_logger = logging.getLogger('security')
+            security_logger.info(
+                f'[2FA_SUCCESS] Successful 2FA login | '
+                f'User: {user.username} (ID: {user.id}) | '
+                f'IP: {ip}'
+            )
+
+            # Send login notification if enabled
+            try:
+                if profile.email_on_login:
+                    ip_address = get_client_ip(request) or 'Desconhecido'
+                    send_login_notification(user, ip_address=ip_address, user_agent=request.META.get('HTTP_USER_AGENT', 'Desconhecido'))
+            except Exception as e:
+                logger.warning(f'[2FA_LOGIN] Email notification failed for user {user.id}: {str(e)}')
+
+            messages.success(request, f'Bem-vindo, {user.first_name or user.username}!')
+            return redirect('dashboard')
+        else:
+            # Check if it's a backup code
+            if profile.use_backup_code(code):
+                # Backup code is valid, complete login
+                login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+
+                # ✅ SEGURANÇA: Regenerar session ID para prevenir session fixation
+                request.session.cycle_key()
+
+                # Set flag for LoginLog signal to detect backup code usage
+                request.session['backup_code_used'] = True
+
+                # ✅ SEGURANÇA: Limpar dados temporários de 2FA
+                request.session.pop('pending_2fa_user_id', None)
+                request.session.pop('pending_2fa_username', None)
+                request.session.pop('pending_2fa_timestamp', None)
+                request.session.pop('pending_2fa_ip', None)
+                request.session.pop('pending_2fa_user_agent', None)
+
+                # Log de segurança para uso de backup code (importante para auditoria)
+                ip = request.META.get('REMOTE_ADDR', 'unknown')
+                security_logger = logging.getLogger('security')
+                security_logger.warning(
+                    f'[2FA_BACKUP_CODE] Backup code used for login | '
+                    f'User: {user.username} (ID: {user.id}) | '
+                    f'IP: {ip} | '
+                    f'Remaining backup codes: {len(profile.two_factor_backup_codes)}'
+                )
+
+                # Send login notification if enabled
+                try:
+                    if profile.email_on_login:
+                        ip_address = get_client_ip(request) or 'Desconhecido'
+                        send_login_notification(user, ip_address=ip_address, user_agent=request.META.get('HTTP_USER_AGENT', 'Desconhecido'))
+                except Exception as e:
+                    logger.warning(f'[2FA_LOGIN] Email notification failed for user {user.id}: {str(e)}')
+
+                messages.warning(request, 'Login realizado com código de backup. Considere regenerar seus códigos.')
+                return redirect('dashboard')
+            else:
+                # Log de segurança para tentativa falhada
+                ip = request.META.get('REMOTE_ADDR', 'unknown')
+                user_agent = request.META.get('HTTP_USER_AGENT', 'unknown')
+                security_logger = logging.getLogger('security')
+                security_logger.warning(
+                    f'[2FA_FAILED] Invalid 2FA code attempt | '
+                    f'User: {user.username} (ID: {user.id}) | '
+                    f'IP: {ip} | '
+                    f'User-Agent: {user_agent}'
+                )
+                messages.error(request, 'Código inválido. Tente novamente.')
+                return render(request, 'login_2fa.html')
+
+    # GET request, show 2FA form
+    logger.info(f'[2FA_VERIFY] GET request - rendering 2FA form for user: {username}')
+    return render(request, 'login_2fa.html')
 
 # PÁGINA DE ERRO 404
 def not_found(request, exception):
@@ -811,8 +1057,13 @@ def get_logs_wpp(request):
 
 @login_required
 def profile_page(request):
+    from .models import UserProfile, UserActionLog
+
     user = request.user
     dados_bancarios = DadosBancarios.objects.filter(usuario=user).first()
+
+    # Obter ou criar perfil do usuário
+    profile, created = UserProfile.objects.get_or_create(user=user)
 
     dt_inicio = user.date_joined.strftime('%d/%m/%Y') if user.date_joined else '--'
     f_name = user.first_name or '--'
@@ -827,6 +1078,51 @@ def profile_page(request):
 
     ip = get_client_ip(request)
     localizacao = get_location_from_ip(ip)
+
+    # ========== ESTATÍSTICAS DO USUÁRIO ==========
+    # Total de clientes ativos
+    total_clientes = Cliente.objects.filter(usuario=user, cancelado=False).count()
+
+    # Receita mensal estimada (soma dos valores dos planos dos clientes ativos)
+    receita_mensal = Cliente.objects.filter(
+        usuario=user,
+        cancelado=False
+    ).aggregate(
+        total=Sum('plano__valor')
+    )['total'] or 0
+
+    # Dias no sistema
+    dias_sistema = (timezone.now().date() - user.date_joined.date()).days if user.date_joined else 0
+
+    # Última atividade registrada
+    ultima_acao = UserActionLog.objects.filter(usuario=user).order_by('-criado_em').first()
+    if ultima_acao:
+        diff = timezone.now() - ultima_acao.criado_em
+        if diff.days > 0:
+            ultima_atividade = f"Há {diff.days} dia{'s' if diff.days > 1 else ''}"
+        elif diff.seconds // 3600 > 0:
+            horas = diff.seconds // 3600
+            ultima_atividade = f"Há {horas} hora{'s' if horas > 1 else ''}"
+        elif diff.seconds // 60 > 0:
+            minutos = diff.seconds // 60
+            ultima_atividade = f"Há {minutos} minuto{'s' if minutos > 1 else ''}"
+        else:
+            ultima_atividade = "Agora mesmo"
+    else:
+        ultima_atividade = "Nunca"
+
+    # Total de clientes cancelados
+    total_cancelados = Cliente.objects.filter(usuario=user, cancelado=True).count()
+
+    # Total de mensalidades recebidas este mês
+    mes_atual = timezone.now().month
+    ano_atual = timezone.now().year
+    mensalidades_mes = Mensalidade.objects.filter(
+        usuario=user,
+        pgto=True,
+        dt_pagamento__month=mes_atual,
+        dt_pagamento__year=ano_atual
+    ).count()
 
     return render(
         request,
@@ -843,6 +1139,26 @@ def profile_page(request):
             'email': email,
             'chave': chave,
             'wpp': wpp,
+            'avatar_url': profile.get_avatar_url(),
+            # Estatísticas
+            'total_clientes': total_clientes,
+            'receita_mensal': receita_mensal,
+            'dias_sistema': dias_sistema,
+            'ultima_atividade': ultima_atividade,
+            'total_cancelados': total_cancelados,
+            'mensalidades_mes': mensalidades_mes,
+            # Preferências
+            'theme_preference': profile.theme_preference,
+            'email_on_profile_change': profile.email_on_profile_change,
+            'email_on_password_change': profile.email_on_password_change,
+            'email_on_login': profile.email_on_login,
+            'profile_public': profile.profile_public,
+            'show_email': profile.show_email,
+            'show_phone': profile.show_phone,
+            'show_statistics': profile.show_statistics,
+            # 2FA
+            'two_factor_enabled': profile.two_factor_enabled,
+            'has_backup_codes': bool(profile.two_factor_backup_codes),
         },
     )
 
@@ -1748,7 +2064,7 @@ def reactivate_customer(request, cliente_id):
     except Exception as erro:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
                      timezone.localtime(), request.user,
-                     request.META.get('REMOTE_ADDR', ''), erro,
+                     get_client_ip(request) or 'N/A', erro,
                      exc_info=True)
         return JsonResponse({"error_message": "Erro ao processar mensalidade na reativação."}, status=500)
 
@@ -1796,7 +2112,7 @@ def pay_monthly_fee(request, mensalidade_id):
         )
 
     except Exception as erro:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro, exc_info=True)
         return JsonResponse({"error_message": "Ocorreu um erro ao tentar pagar essa mensalidade."}, status=500)
 
     # Retorna uma resposta JSON indicando que a mensalidade foi paga com sucesso
@@ -1815,7 +2131,7 @@ def cancel_customer(request, cliente_id):
         try:
             cliente.save()
         except Exception as erro:
-            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro, exc_info=True)
+            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro, exc_info=True)
             return JsonResponse({"error_message": "Ocorreu um erro ao tentar cancelar esse cliente."}, status=500)
 
         # Cancelar todas as mensalidades relacionadas ao cliente
@@ -2074,7 +2390,7 @@ def edit_customer(request, cliente_id):
     except Exception as e:
         logger.error('[%s] [ERROR][EDITAR CLIENTE] [USER][%s] [IP][%s] [%s]',
                      timezone.localtime(), request.user,
-                     request.META.get('REMOTE_ADDR'), e, exc_info=True)
+                     get_client_ip(request) or 'N/A', e, exc_info=True)
         return JsonResponse({
             "error": True,
             "error_message": "Ocorreu um erro ao tentar atualizar esse cliente."
@@ -2128,7 +2444,7 @@ def edit_payment_plan(request, plano_id):
 
 
             except ValidationError as erro1:
-                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+                logger.error('[%s][USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro1, exc_info=True)
                 # Capturando a exceção ValidationError e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -2140,7 +2456,7 @@ def edit_payment_plan(request, plano_id):
                 )
 
             except Exception as erro2:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o plano e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -2201,7 +2517,7 @@ def edit_server(request, servidor_id):
 
 
             except ValidationError as erro1:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro1, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -2213,7 +2529,7 @@ def edit_server(request, servidor_id):
                 )
 
             except Exception as erro2:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o servidor
                 return render(
                     request,
@@ -2262,7 +2578,7 @@ def edit_device(request, dispositivo_id):
 
 
             except ValidationError as erro1:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro1, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -2274,7 +2590,7 @@ def edit_device(request, dispositivo_id):
                 )
 
             except Exception as erro2:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o dispositivo
                 return render(
                     request,
@@ -2313,7 +2629,7 @@ def editar_app(request, aplicativo_id):
                 aplicativo.save()
 
             except ValidationError as erro1:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro1, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -2325,7 +2641,7 @@ def editar_app(request, aplicativo_id):
                 )
 
             except Exception as erro2:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro2, exc_info=True)
                 # Capturando outros possíveis erros ao tentar salvar o aplicativo
                 return render(
                     request,
@@ -2429,16 +2745,624 @@ def edit_profile(request):
                     extra=changes if changes else None,
                 )
 
+                # Enviar email de notificação (se habilitado e houve alterações)
+                if changes:
+                    try:
+                        ip_address = get_client_ip(request) or 'Desconhecido'
+                        # Formatar mudanças para o email
+                        formatted_changes = {}
+                        for key, value in changes.items():
+                            if isinstance(value, tuple) and len(value) == 2:
+                                formatted_changes[key] = {'old': value[0], 'new': value[1]}
+                            else:
+                                formatted_changes[key] = {'old': '', 'new': str(value)}
+
+                        send_profile_change_notification(
+                            request.user,
+                            change_type='profile',
+                            changes_detail=formatted_changes,
+                            ip_address=ip_address
+                        )
+                    except Exception as e:
+                        logger.warning(f'[EDIT_PROFILE] Email notification failed for user {request.user.id}: {str(e)}')
+
                 messages.success(request, 'Perfil editado com sucesso!')
             except Exception as e:
                 messages.error(request, 'Ocorreu um erro ao editar o perfil. Verifique o log!')
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
         else:
             messages.error(request, 'Usuário da requisição não identificado!')
     else:
         messages.error(request, 'Método da requisição não permitido!')
 
     return redirect('perfil')
+
+
+@login_required
+@require_http_methods(["POST"])
+def upload_avatar(request):
+    """Processa upload de avatar do usuário com validação e otimização."""
+    from .models import UserProfile
+    from django.core.files.base import ContentFile
+    from django.http import JsonResponse
+
+    try:
+        if 'avatar' not in request.FILES:
+            return JsonResponse({'error': 'Nenhum arquivo enviado'}, status=400)
+
+        avatar_file = request.FILES['avatar']
+
+        # Validar tamanho (5MB)
+        if avatar_file.size > 5 * 1024 * 1024:
+            return JsonResponse({'error': 'Arquivo muito grande. Máximo: 5MB'}, status=400)
+
+        # Validar tipo
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if avatar_file.content_type not in allowed_types:
+            return JsonResponse({'error': 'Formato inválido. Use JPG, PNG, GIF ou WEBP'}, status=400)
+
+        try:
+            from PIL import Image
+
+            # Processar imagem
+            img = Image.open(avatar_file)
+
+            # Converter RGBA para RGB se necessário
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = background
+
+            # Crop para quadrado (se necessário)
+            width, height = img.size
+            if width != height:
+                size = min(width, height)
+                left = (width - size) / 2
+                top = (height - size) / 2
+                right = (width + size) / 2
+                bottom = (height + size) / 2
+                img = img.crop((left, top, right, bottom))
+
+            # Redimensionar para 500x500
+            img = img.resize((500, 500), Image.Resampling.LANCZOS)
+
+            # Salvar em buffer
+            buffer = io.BytesIO()
+            img.save(buffer, format='JPEG', quality=85, optimize=True)
+            buffer.seek(0)
+
+        except ImportError:
+            return JsonResponse({'error': 'Biblioteca Pillow não instalada'}, status=500)
+        except Exception as e:
+            logger.error(f'[AVATAR_UPLOAD] Erro ao processar imagem: {str(e)}', exc_info=True)
+            return JsonResponse({'error': 'Erro ao processar imagem'}, status=500)
+
+        # Obter ou criar perfil
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+
+        # Deletar avatar antigo
+        if profile.avatar:
+            profile.delete_old_avatar()
+
+        # Salvar novo avatar
+        filename = f'avatar_{request.user.id}_{timezone.now().timestamp()}.jpg'
+        profile.avatar.save(filename, ContentFile(buffer.read()), save=True)
+
+        # Log da ação
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=request.user,
+            message='Avatar atualizado',
+            extra={'avatar_url': profile.avatar.url}
+        )
+
+        # Enviar email de notificação (se habilitado)
+        try:
+            ip_address = get_client_ip(request) or 'Desconhecido'
+            send_profile_change_notification(
+                request.user,
+                change_type='avatar',
+                changes_detail={'avatar': 'Imagem de perfil atualizada'},
+                ip_address=ip_address
+            )
+        except Exception as e:
+            logger.warning(f'[UPLOAD_AVATAR] Email notification failed for user {request.user.id}: {str(e)}')
+
+        return JsonResponse({
+            'success': True,
+            'avatar_url': profile.avatar.url,
+            'message': 'Avatar atualizado com sucesso!'
+        })
+
+    except Exception as e:
+        logger.error(f'[AVATAR_UPLOAD] User: {request.user.id}, Error: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Erro ao processar avatar'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def remove_avatar(request):
+    """Remove avatar do usuário e restaura para padrão."""
+    from .models import UserProfile
+    from django.http import JsonResponse
+
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+
+        if profile.avatar:
+            profile.delete_old_avatar()
+            profile.avatar = None
+            profile.save()
+
+            log_user_action(
+                request=request,
+                action=UserActionLog.ACTION_UPDATE,
+                instance=request.user,
+                message='Avatar removido'
+            )
+
+            return JsonResponse({
+                'success': True,
+                'avatar_url': '/static/assets/images/avatar/default-avatar.svg',
+                'message': 'Avatar removido com sucesso!'
+            })
+
+        return JsonResponse({'error': 'Nenhum avatar para remover'}, status=400)
+
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'error': 'Perfil não encontrado'}, status=404)
+    except Exception as e:
+        logger.error(f'[AVATAR_REMOVE] User: {request.user.id}, Error: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Erro ao remover avatar'}, status=500)
+
+
+@login_required
+def profile_activity_history(request):
+    """Retorna histórico de alterações do perfil do usuário."""
+    from .models import UserActionLog
+    from django.http import JsonResponse
+    from django.db.models import Q
+
+    # Buscar logs onde:
+    # 1. O usuário fez a ação (usuario=request.user)
+    # 2. E a ação foi sobre o próprio perfil (entidade='User' e objeto_id=user.id)
+    logs = UserActionLog.objects.filter(
+        Q(usuario=request.user) &
+        Q(entidade='User') &
+        Q(objeto_id=str(request.user.id))
+    ).order_by('-criado_em')[:10]
+
+    history = []
+    for log in logs:
+        history.append({
+            'timestamp': log.criado_em.strftime('%d/%m/%Y %H:%M'),
+            'action': log.get_acao_display(),
+            'message': log.mensagem,
+            'ip': log.ip or '--',
+        })
+
+    return JsonResponse({'history': history})
+
+
+@login_required
+@require_http_methods(["POST"])
+def change_password(request):
+    """Processa alteração de senha do usuário com validações."""
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from django.contrib.auth import update_session_auth_hash
+    from django.http import JsonResponse
+
+    try:
+        current_password = request.POST.get('current_password', '').strip()
+        new_password = request.POST.get('new_password', '').strip()
+        confirm_password = request.POST.get('confirm_password', '').strip()
+
+        # Validar senha atual
+        if not request.user.check_password(current_password):
+            return JsonResponse({
+                'error': 'Senha atual incorreta',
+                'field': 'current_password'
+            }, status=400)
+
+        # Validar senhas novas coincidem
+        if new_password != confirm_password:
+            return JsonResponse({
+                'error': 'As senhas não coincidem',
+                'field': 'confirm_password'
+            }, status=400)
+
+        # Validar que nova senha é diferente da atual
+        if current_password == new_password:
+            return JsonResponse({
+                'error': 'A nova senha deve ser diferente da atual',
+                'field': 'new_password'
+            }, status=400)
+
+        # Validar força da senha (Django validators)
+        try:
+            validate_password(new_password, request.user)
+        except DjangoValidationError as e:
+            return JsonResponse({
+                'error': ' '.join(e.messages),
+                'field': 'new_password'
+            }, status=400)
+
+        # Atualizar senha
+        request.user.set_password(new_password)
+        request.user.save()
+
+        # Log da ação
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=request.user,
+            message='Senha alterada com sucesso',
+            extra={'ip': get_client_ip(request) or 'N/A'}
+        )
+
+        # Re-autenticar usuário para manter sessão
+        update_session_auth_hash(request, request.user)
+
+        # Enviar email de notificação (se habilitado)
+        try:
+            ip_address = get_client_ip(request) or 'Desconhecido'
+            send_password_change_notification(request.user, ip_address=ip_address)
+        except Exception as e:
+            logger.warning(f'[CHANGE_PASSWORD] Email notification failed for user {request.user.id}: {str(e)}')
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Senha alterada com sucesso!'
+        })
+
+    except Exception as e:
+        logger.error(f'[CHANGE_PASSWORD] User: {request.user.id}, Error: {str(e)}', exc_info=True)
+        return JsonResponse({
+            'error': 'Erro ao alterar senha. Tente novamente.'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def change_theme(request):
+    """Altera tema do usuário (light/dark/auto)."""
+    from .models import UserProfile
+    from django.http import JsonResponse
+
+    try:
+        theme = request.POST.get('theme', '').strip()
+
+        # Validar tema
+        valid_themes = ['light', 'dark', 'auto']
+        if theme not in valid_themes:
+            return JsonResponse({'error': 'Tema inválido'}, status=400)
+
+        profile = UserProfile.objects.get(user=request.user)
+        profile.theme_preference = theme
+        profile.save()
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=request.user,
+            message=f'Tema alterado para {theme}',
+            extra={'theme': theme}
+        )
+
+        return JsonResponse({
+            'success': True,
+            'theme': theme,
+            'message': 'Tema alterado com sucesso!'
+        })
+
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'error': 'Perfil não encontrado'}, status=404)
+    except Exception as e:
+        logger.error(f'[CHANGE_THEME] User: {request.user.id}, Error: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Erro ao alterar tema'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_notification_preferences(request):
+    """Atualiza preferências de notificação por email."""
+    from .models import UserProfile
+    from django.http import JsonResponse
+
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+
+        # Atualizar preferências
+        profile.email_on_profile_change = request.POST.get('email_on_profile_change') == 'true'
+        profile.email_on_password_change = request.POST.get('email_on_password_change') == 'true'
+        profile.email_on_login = request.POST.get('email_on_login') == 'true'
+        profile.save()
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=request.user,
+            message='Preferências de notificação atualizadas'
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Preferências atualizadas com sucesso!'
+        })
+
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'error': 'Perfil não encontrado'}, status=404)
+    except Exception as e:
+        logger.error(f'[UPDATE_NOTIF_PREFS] User: {request.user.id}, Error: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Erro ao atualizar preferências'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_privacy_settings(request):
+    """Atualiza configurações de privacidade."""
+    from .models import UserProfile
+    from django.http import JsonResponse
+
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+
+        # Atualizar configurações
+        profile.profile_public = request.POST.get('profile_public') == 'true'
+        profile.show_email = request.POST.get('show_email') == 'true'
+        profile.show_phone = request.POST.get('show_phone') == 'true'
+        profile.show_statistics = request.POST.get('show_statistics') == 'true'
+        profile.save()
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=request.user,
+            message='Configurações de privacidade atualizadas'
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Configurações atualizadas com sucesso!'
+        })
+
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'error': 'Perfil não encontrado'}, status=404)
+    except Exception as e:
+        logger.error(f'[UPDATE_PRIVACY] User: {request.user.id}, Error: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Erro ao atualizar configurações'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def setup_2fa(request):
+    """Inicia configuração de 2FA gerando secret e retornando URL do QR code."""
+    from .models import UserProfile
+    from django.http import JsonResponse
+
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+
+        # Gerar nova chave secreta
+        secret = profile.generate_2fa_secret()
+        profile.save()
+
+        # Obter URL para QR code
+        qr_uri = profile.get_2fa_qr_code()
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=request.user,
+            message='Iniciou configuração de 2FA'
+        )
+
+        return JsonResponse({
+            'success': True,
+            'secret': secret,
+            'qr_uri': qr_uri,
+            'message': 'QR Code gerado com sucesso!'
+        })
+
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'error': 'Perfil não encontrado'}, status=404)
+    except Exception as e:
+        logger.error(f'[SETUP_2FA] User: {request.user.id}, Error: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Erro ao configurar 2FA'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def enable_2fa(request):
+    """Ativa 2FA após validar código de verificação."""
+    from .models import UserProfile
+    from django.http import JsonResponse
+
+    try:
+        code = request.POST.get('code', '').strip()
+
+        if not code:
+            return JsonResponse({'error': 'Código não fornecido'}, status=400)
+
+        profile = UserProfile.objects.get(user=request.user)
+
+        if not profile.two_factor_secret:
+            return JsonResponse({'error': '2FA não foi configurado'}, status=400)
+
+        # Verificar código
+        import pyotp
+        totp = pyotp.TOTP(profile.two_factor_secret)
+        if not totp.verify(code, valid_window=1):
+            return JsonResponse({'error': 'Código inválido'}, status=400)
+
+        # Ativar 2FA
+        profile.two_factor_enabled = True
+
+        # Gerar códigos de backup
+        backup_codes = profile.generate_backup_codes()
+        profile.save()
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=request.user,
+            message='2FA ativado com sucesso'
+        )
+
+        # Enviar email de notificação
+        try:
+            send_2fa_enabled_notification(request.user)
+        except Exception as e:
+            logger.warning(f'[ENABLE_2FA] Email notification failed for user {request.user.id}: {str(e)}')
+
+        return JsonResponse({
+            'success': True,
+            'backup_codes': backup_codes,
+            'message': '2FA ativado com sucesso!'
+        })
+
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'error': 'Perfil não encontrado'}, status=404)
+    except Exception as e:
+        logger.error(f'[ENABLE_2FA] User: {request.user.id}, Error: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Erro ao ativar 2FA'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def disable_2fa(request):
+    """Desativa 2FA após validar senha do usuário."""
+    from .models import UserProfile
+    from django.http import JsonResponse
+    from django.contrib.auth import authenticate
+
+    try:
+        password = request.POST.get('password', '').strip()
+
+        if not password:
+            return JsonResponse({'error': 'Senha não fornecida'}, status=400)
+
+        # Verificar senha
+        user = authenticate(username=request.user.username, password=password)
+        if not user:
+            return JsonResponse({'error': 'Senha incorreta'}, status=400)
+
+        profile = UserProfile.objects.get(user=request.user)
+
+        # Desativar 2FA
+        profile.two_factor_enabled = False
+        profile.two_factor_secret = None
+        profile.two_factor_backup_codes = None
+        profile.save()
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=request.user,
+            message='2FA desativado'
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': '2FA desativado com sucesso!'
+        })
+
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'error': 'Perfil não encontrado'}, status=404)
+    except Exception as e:
+        logger.error(f'[DISABLE_2FA] User: {request.user.id}, Error: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Erro ao desativar 2FA'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def regenerate_backup_codes(request):
+    """Gera novos códigos de backup para 2FA."""
+    from .models import UserProfile
+    from django.http import JsonResponse
+
+    try:
+        password = request.POST.get('password', '').strip()
+
+        if not password:
+            return JsonResponse({'error': 'Senha não fornecida'}, status=400)
+
+        # Verificar senha
+        from django.contrib.auth import authenticate
+        user = authenticate(username=request.user.username, password=password)
+        if not user:
+            return JsonResponse({'error': 'Senha incorreta'}, status=400)
+
+        profile = UserProfile.objects.get(user=request.user)
+
+        if not profile.two_factor_enabled:
+            return JsonResponse({'error': '2FA não está ativado'}, status=400)
+
+        # Gerar novos códigos
+        backup_codes = profile.generate_backup_codes()
+        profile.save()
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=request.user,
+            message='Códigos de backup regenerados'
+        )
+
+        return JsonResponse({
+            'success': True,
+            'backup_codes': backup_codes,
+            'message': 'Novos códigos de backup gerados!'
+        })
+
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'error': 'Perfil não encontrado'}, status=404)
+    except Exception as e:
+        logger.error(f'[REGEN_BACKUP] User: {request.user.id}, Error: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Erro ao gerar códigos'}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def get_2fa_qr_code(request):
+    """Retorna imagem do QR code para configuração de 2FA."""
+    from .models import UserProfile
+    from django.http import HttpResponse
+    import qrcode
+    from io import BytesIO
+
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+
+        if not profile.two_factor_secret:
+            return HttpResponse('2FA não configurado', status=400)
+
+        # Obter URL do QR code
+        qr_uri = profile.get_2fa_qr_code()
+
+        # Gerar QR code
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(qr_uri)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        # Salvar em buffer
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+
+        return HttpResponse(buffer, content_type='image/png')
+
+    except UserProfile.DoesNotExist:
+        return HttpResponse('Perfil não encontrado', status=404)
+    except Exception as e:
+        logger.error(f'[GET_QR_CODE] User: {request.user.id}, Error: {str(e)}', exc_info=True)
+        return HttpResponse('Erro ao gerar QR code', status=500)
 
 
 @login_required
@@ -2505,7 +3429,7 @@ def edit_horario_envios(request):
         return JsonResponse({"horarios": horarios_json, "sessao_wpp": sessao_wpp}, status=200)
 
     elif request.method == "POST":
-        ip_address = request.META.get("REMOTE_ADDR")
+        ip_address = get_client_ip(request)
         try:
             data = json.loads(request.body)
         except Exception as e:
@@ -2680,7 +3604,7 @@ def edit_referral_plan(request):
         return JsonResponse({"planos": planos_json, "sessao_wpp": sessao_wpp}, status=200)
 
     elif request.method == "POST":
-        ip_address = request.META.get("REMOTE_ADDR")
+        ip_address = get_client_ip(request)
         try:
             data = json.loads(request.body)
         except Exception as e:
@@ -2842,7 +3766,7 @@ def create_app_account(request):
         )
         return JsonResponse({'success_message_cancel': 'Conta do aplicativo cadastrada com sucesso!'}, status=200)
     except Exception as erro:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META.get('REMOTE_ADDR'), erro, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro, exc_info=True)
         return JsonResponse({'error_message': 'Ocorreu um erro ao tentar realizar o cadastro.'}, status=500)
 
 
@@ -3334,7 +4258,7 @@ def create_customer(request):
 
         except Exception as e:
             logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
-                        timezone.localtime(), usuario, request.META.get('REMOTE_ADDR', 'IP não identificado'), e, exc_info=True)
+                        timezone.localtime(), usuario, get_client_ip(request) or 'IP não identificado', e, exc_info=True)
             return render(request, "pages/cadastro-cliente.html", {
                 "error_message": str(e),
             })
@@ -3401,7 +4325,7 @@ def create_payment_plan(request):
                     )
                 
             except Exception as e:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -3463,7 +4387,7 @@ def create_server(request):
                     )
                 
             except Exception as e:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -3526,7 +4450,7 @@ def create_payment_method(request):
                     )
                 
             except Exception as e:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -3589,7 +4513,7 @@ def create_device(request):
                     )
                 
             except Exception as e:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -3659,7 +4583,7 @@ def create_app(request):
                     )
                 
             except Exception as e:
-                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], e, exc_info=True)
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
                 # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
@@ -3701,13 +4625,13 @@ def delete_app_account(request, pk):
             return JsonResponse({'success_message': 'deu bom'}, status=200)
         
         except Aplicativo.DoesNotExist as erro1:
-            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro1, exc_info=True)
             error_msg = 'Você tentou excluir uma conta de aplicativo que não existe.'
             
             return JsonResponse({'error_message': 'erro'}, status=500)
         
         except ProtectedError as erro2:
-            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+            logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro2, exc_info=True)
             error_msg = 'Essa conta de aplicativo não pôde ser excluída.'
 
             return JsonResponse(status=500)
@@ -3729,12 +4653,12 @@ def delete_app(request, pk):
             extra=log_extra,
         )
     except Aplicativo.DoesNotExist as erro1:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     except ProtectedError as erro2:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro2, exc_info=True)
         error_msg = 'Este Aplicativo não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
@@ -3757,12 +4681,12 @@ def delete_device(request, pk):
             extra=log_extra,
         )
     except Dispositivo.DoesNotExist as erro1:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     except ProtectedError as erro2:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro2, exc_info=True)
         error_msg = 'Este Dispositivo não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
@@ -3785,12 +4709,12 @@ def delete_payment_method(request, pk):
             extra=log_extra,
         )
     except Tipos_pgto.DoesNotExist as erro1:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     except ProtectedError as erro2:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro2, exc_info=True)
         error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
@@ -3813,12 +4737,12 @@ def delete_server(request, pk):
             extra=log_extra,
         )
     except Servidor.DoesNotExist as erro1:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     except ProtectedError as erro2:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro2, exc_info=True)
         error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
@@ -3841,12 +4765,12 @@ def delete_payment_plan(request, pk):
             extra=log_extra,
         )
     except Plano.DoesNotExist as erro1:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro1, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro1, exc_info=True)
         return HttpResponseNotFound(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
         )
     except ProtectedError as erro2:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, request.META['REMOTE_ADDR'], erro2, exc_info=True)
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro2, exc_info=True)
         error_msg = 'Este Plano não pode ser excluído porque está relacionado com algum cliente.'
         return HttpResponseBadRequest(
             json.dumps({'error_delete': error_msg}), content_type='application/json'
@@ -3858,14 +4782,6 @@ def delete_payment_plan(request, pk):
 ######################################
 ############## OUTROS ################
 ######################################
-
-def get_client_ip(request):
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
-    else:
-        ip = request.META.get('REMOTE_ADDR')
-    return ip
 
 def get_location_from_ip(ip):
     try:
@@ -3975,10 +4891,4 @@ def evolucao_patrimonio(request):
             {'name': 'Evolução', 'data': evol},
         ],
     })
-
-
-
-
-
-
 

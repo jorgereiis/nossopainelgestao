@@ -42,6 +42,58 @@ TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
 TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
 
 
+def get_client_ip(request):
+    """
+    Extrai o endereço IPv4 do cliente a partir do request.
+
+    Prioriza HTTP_X_FORWARDED_FOR (quando atrás de proxy/load balancer),
+    depois tenta REMOTE_ADDR. Garante que sempre retorna IPv4.
+
+    Se o cliente estiver usando IPv6, tenta converter ou retorna None.
+    """
+    # 1. Tentar HTTP_X_FORWARDED_FOR (proxy/load balancer)
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        # Pode ter múltiplos IPs separados por vírgula (client, proxy1, proxy2, ...)
+        # O primeiro é o IP real do cliente
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        # 2. Usar REMOTE_ADDR
+        ip = request.META.get('REMOTE_ADDR', '')
+
+    if not ip:
+        return None
+
+    # 3. Verificar se é IPv6 e tentar converter para IPv4
+    import ipaddress
+
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+
+        # Se for IPv6
+        if isinstance(ip_obj, ipaddress.IPv6Address):
+            # Verificar se é IPv4 mapeado em IPv6 (::ffff:192.168.1.1)
+            if ip_obj.ipv4_mapped:
+                return str(ip_obj.ipv4_mapped)
+
+            # Verificar se é IPv6 loopback (::1)
+            if ip_obj.is_loopback:
+                return '127.0.0.1'
+
+            # IPv6 puro - não podemos converter, retornar None
+            # (o campo GenericIPAddressField aceita IPv6, mas queremos apenas IPv4)
+            logger.warning(f'Cliente usando IPv6 puro: {ip}. Não será registrado no log.')
+            return None
+
+        # Se for IPv4, retornar como string
+        return str(ip_obj)
+
+    except ValueError:
+        # IP inválido
+        logger.warning(f'IP inválido detectado: {ip}')
+        return None
+
+
 def get_saudacao_por_hora(hora_referencia=None):
     """Retorna saudação contextual de acordo com a hora informada ou atual."""
     if not hora_referencia:
@@ -157,11 +209,8 @@ def log_user_action(
         if object_repr is None and instance is not None:
             object_repr = str(instance)
 
-        ip_address = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        if ip_address:
-            ip_address = ip_address.split(",")[0].strip()
-        else:
-            ip_address = request.META.get("REMOTE_ADDR", "")
+        # Obter IPv4 do cliente
+        ip_address = get_client_ip(request)
 
         payload = {
             "usuario": user,
@@ -171,7 +220,7 @@ def log_user_action(
             "objeto_repr": (object_repr or "")[:255],
             "mensagem": message or "",
             "extras": _prepare_extra_payload(extra),
-            "ip": ip_address or None,
+            "ip": ip_address,
             "request_path": (getattr(request, "path", "") or "")[:255],
         }
 

@@ -1,0 +1,36 @@
+{{ site_name }}
+================================================================================
+
+🔐 AUTENTICAÇÃO EM DOIS FATORES ATIVADA!
+
+Olá, {{ user.first_name|default:user.username }}!
+
+Parabéns! Sua conta está mais segura agora.
+A autenticação em dois fatores (2FA) foi ativada com sucesso na sua conta.
+
+O QUE É 2FA?
+--------------------------------------------------------------------------------
+A autenticação em dois fatores adiciona uma camada extra de segurança à sua
+conta. Agora, além da sua senha, você precisará de um código temporário gerado
+pelo seu aplicativo autenticador para fazer login.
+
+COMO FUNCIONA:
+--------------------------------------------------------------------------------
+1. Ao fazer login, você será solicitado a inserir sua senha normalmente
+2. Em seguida, será pedido um código de 6 dígitos
+3. Abra seu aplicativo autenticador (Google Authenticator, Authy, etc.)
+4. Insira o código exibido para {{ site_name }}
+5. Pronto! Você estará conectado com segurança adicional
+
+⚠ IMPORTANTE: GUARDE SEUS CÓDIGOS DE BACKUP!
+Você recebeu códigos de backup quando ativou o 2FA. Guarde-os em um local seguro.
+Eles permitem que você acesse sua conta caso perca acesso ao seu aplicativo
+autenticador.
+
+Acesse seu perfil: {{ site_url }}/perfil/
+
+================================================================================
+Este é um email automático de confirmação de segurança.
+Se você não ativou o 2FA, entre em contato com nosso suporte imediatamente.
+
+© {{ timestamp|date:"Y" }} {{ site_name }}. Todos os direitos reservados.

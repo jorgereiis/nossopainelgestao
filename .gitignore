@@ -16,6 +16,9 @@ logs/**/*.log
 backup.log
 teste*
 *.session
+*.md
+**/*.md
+docker
 
 ### Django ###
 *.pot

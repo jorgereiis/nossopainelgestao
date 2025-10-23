@@ -1,0 +1,213 @@
+  <!-- Modal de edição dos dados pessoais COM ABAS -->
+  <div class="modal fade" id="edit-dp-modal" tabindex="-1" role="dialog" aria-labelledby="edit-dp-label">
+    <div class="modal-dialog modal-xl" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="edit-dp-label">
+            <i class="fe fe-edit me-2"></i>Editar Perfil
+          </h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Navegação por Abas -->
+          <ul class="nav nav-tabs mb-4" id="editProfileTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="pessoal-tab" data-bs-toggle="tab"
+                      data-bs-target="#tab-pessoal" type="button" role="tab">
+                <i class="fe fe-user me-1"></i>Dados Pessoais
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="bancario-tab" data-bs-toggle="tab"
+                      data-bs-target="#tab-bancario" type="button" role="tab">
+                <i class="fe fe-credit-card me-1"></i>Dados Bancários
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="seguranca-tab" data-bs-toggle="tab"
+                      data-bs-target="#tab-seguranca" type="button" role="tab">
+                <i class="fe fe-lock me-1"></i>Segurança
+              </button>
+            </li>
+          </ul>
+
+          <!-- Conteúdo das Abas -->
+          <div class="tab-content" id="editProfileTabsContent">
+            <!-- ABA: Dados Pessoais -->
+            <div class="tab-pane fade show active" id="tab-pessoal" role="tabpanel">
+              <form id="edit-dp-form" action="/editar-perfil/" method="post">
+                {% csrf_token %}
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label for="nome" class="form-label">Nome *</label>
+                    <input type="text" class="form-control" placeholder="Primeiro nome"
+                           id="nome" name="nome" required>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label for="sobrenome" class="form-label">Sobrenome *</label>
+                    <input type="text" class="form-control" placeholder="Último nome"
+                           id="sobrenome" name="sobrenome" required>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="email" class="form-label">E-mail *</label>
+                  <input type="email" class="form-control" placeholder="seu@email.com"
+                         id="email" name="email" required>
+                  <small class="text-muted">Usado para login e notificações</small>
+                </div>
+
+                <div class="mb-3">
+                  <label for="wpp" class="form-label">WhatsApp *</label>
+                  <input type="text" class="form-control" placeholder="(00) 00000-0000"
+                         id="wpp" name="wpp" required>
+                  <small class="text-muted">Número de contato</small>
+                </div>
+              </form>
+            </div>
+
+            <!-- ABA: Dados Bancários -->
+            <div class="tab-pane fade" id="tab-bancario" role="tabpanel">
+              <form id="edit-bancario-form">
+                <div class="alert alert-info">
+                  <i class="fe fe-info me-2"></i>
+                  <strong>Dados para recebimento:</strong> Estas informações serão usadas para pagamentos dos seus clientes.
+                </div>
+
+                <div class="mb-3">
+                  <label for="instituicao" class="form-label">Instituição Bancária *</label>
+                  <input type="text" class="form-control"
+                         placeholder="Ex: Banco do Brasil, Nubank, Caixa..."
+                         id="instituicao" name="instituicao" required>
+                </div>
+
+                <div class="mb-3">
+                  <label for="beneficiario" class="form-label">Nome do Beneficiário *</label>
+                  <input type="text" class="form-control"
+                         placeholder="Nome completo do titular da conta"
+                         id="beneficiario" name="beneficiario" required>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label for="tipo_chave" class="form-label">Tipo de Chave PIX *</label>
+                    <select class="form-select" id="tipo_chave" name="tipo_chave" required>
+                      <option value="">Selecione...</option>
+                      <option value="Celular">Celular</option>
+                      <option value="CPF">CPF</option>
+                      <option value="E-mail">E-mail</option>
+                      <option value="Aleatória">Chave Aleatória</option>
+                    </select>
+                  </div>
+                  <div class="col-md-8 mb-3">
+                    <label for="chave" class="form-label">Chave PIX *</label>
+                    <input type="text" class="form-control"
+                           placeholder="Digite sua chave PIX"
+                           id="chave" name="chave" required>
+                    <div class="invalid-feedback">Chave PIX inválida para o tipo selecionado</div>
+                  </div>
+                </div>
+
+                <div class="alert alert-warning">
+                  <i class="fe fe-alert-triangle me-2"></i>
+                  <strong>Atenção:</strong> Certifique-se de que a chave PIX está correta para evitar problemas com pagamentos.
+                </div>
+              </form>
+            </div>
+
+            <!-- ABA: Segurança -->
+            <div class="tab-pane fade" id="tab-seguranca" role="tabpanel">
+              <div class="mb-4">
+                <h5>Alterar Senha</h5>
+                <p class="text-muted">Mantenha sua conta segura usando uma senha forte.</p>
+              </div>
+
+              <form id="change-password-inline-form">
+                {% csrf_token %}
+
+                <!-- Senha Atual -->
+                <div class="mb-3">
+                  <label for="current_password_inline" class="form-label">Senha Atual *</label>
+                  <div class="password-input-wrapper">
+                    <input type="password" class="form-control password-input"
+                           id="current_password_inline" name="current_password" required>
+                    <button class="password-toggle-btn" type="button"
+                            onclick="togglePasswordVisibility('current_password_inline')"
+                            title="Mostrar senha">
+                      <i class="fe fe-eye" id="current_password_inline_icon"></i>
+                    </button>
+                  </div>
+                  <div class="invalid-feedback"></div>
+                </div>
+
+                <!-- Nova Senha -->
+                <div class="mb-3">
+                  <label for="new_password_inline" class="form-label">Nova Senha *</label>
+                  <div class="password-input-wrapper">
+                    <input type="password" class="form-control password-input"
+                           id="new_password_inline" name="new_password" required minlength="8">
+                    <button class="password-toggle-btn" type="button"
+                            onclick="togglePasswordVisibility('new_password_inline')"
+                            title="Mostrar senha">
+                      <i class="fe fe-eye" id="new_password_inline_icon"></i>
+                    </button>
+                  </div>
+                  <div class="invalid-feedback"></div>
+
+                  <!-- Indicador de força da senha -->
+                  <div class="password-strength mt-2" style="display: none;">
+                    <div class="progress" style="height: 5px;">
+                      <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <small class="text-muted strength-text"></small>
+                  </div>
+                </div>
+
+                <!-- Confirmar Senha -->
+                <div class="mb-3">
+                  <label for="confirm_password_inline" class="form-label">Confirmar Nova Senha *</label>
+                  <div class="password-input-wrapper">
+                    <input type="password" class="form-control password-input"
+                           id="confirm_password_inline" name="confirm_password" required minlength="8">
+                    <button class="password-toggle-btn" type="button"
+                            onclick="togglePasswordVisibility('confirm_password_inline')"
+                            title="Mostrar senha">
+                      <i class="fe fe-eye" id="confirm_password_inline_icon"></i>
+                    </button>
+                  </div>
+                  <div class="invalid-feedback"></div>
+                </div>
+
+                <!-- Requisitos -->
+                <div class="alert alert-info">
+                  <small>
+                    <strong>Requisitos de Senha:</strong>
+                    <ul class="mb-0">
+                      <li>Mínimo de 8 caracteres</li>
+                      <li>Não pode ser muito similar às suas informações pessoais</li>
+                      <li>Não pode ser uma senha comum</li>
+                      <li>Não pode ser totalmente numérica</li>
+                    </ul>
+                  </small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                  <i class="fe fe-shield me-1"></i>Alterar Senha
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fe fe-x me-1"></i>Cancelar
+          </button>
+          <button type="button" class="btn btn-primary" id="save-profile-btn">
+            <i class="fe fe-save me-1"></i>Salvar Alterações
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>

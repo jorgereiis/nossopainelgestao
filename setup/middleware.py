@@ -29,7 +29,7 @@ class CheckUserLoggedInMiddleware:
             return self._public_paths
 
         paths = {"/", "/admin/login/"}
-        for name in ("login", "logout"):
+        for name in ("login", "logout", "verify-2fa"):
             try:
                 paths.add(reverse(name))
             except NoReverseMatch:

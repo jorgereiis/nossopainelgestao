@@ -21,6 +21,7 @@ from .models import (
     MensagensLeads,
     UserActionLog,
     NotificationRead,
+    LoginLog,
 )
 
 # --- ADMINISTRADORES ---
@@ -188,6 +189,27 @@ class UserActionLogAdmin(admin.ModelAdmin):
     list_per_page = 50
 
 
+class LoginLogAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "usuario", "username_tentado", "ip", "login_method", "success", "failure_reason")
+    list_filter = ("success", "login_method", "created_at", "usuario")
+    search_fields = ("username_tentado", "ip", "usuario__username", "user_agent")
+    readonly_fields = (
+        "usuario", "username_tentado", "ip", "user_agent", "login_method",
+        "success", "failure_reason", "location_country", "location_city", "created_at"
+    )
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+    list_per_page = 50
+
+    def has_add_permission(self, request):
+        """Não permite adicionar logs manualmente - só via signals."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Não permite editar logs - são apenas leitura."""
+        return False
+
+
 # --- REGISTRO NO ADMIN ---
 
 admin.site.register(Plano, PlanoAdmin)
@@ -211,6 +233,7 @@ admin.site.register(EnviosLeads, EnviosLeadsAdmin)
 admin.site.register(MensagensLeads, MensagensLeadsAdmin)
 admin.site.register(NotificationRead, NotificationReadAdmin)
 admin.site.register(UserActionLog, UserActionLogAdmin)
+admin.site.register(LoginLog, LoginLogAdmin)
 
 # Configurações adicionais do admin
 admin.site.site_header = "Administração do Sistema"

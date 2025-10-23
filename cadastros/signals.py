@@ -12,7 +12,7 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-from .models import Cliente, Mensalidade, SessaoWpp
+from .models import Cliente, Mensalidade, SessaoWpp, UserProfile
 from wpp.api_connection import add_or_remove_label_contact, criar_label_se_nao_existir, get_label_contact
 
 logger = logging.getLogger(__name__)
@@ -187,3 +187,116 @@ def cliente_post_save(sender, instance, created, **kwargs):
 
     except Exception as error:
         _log_event(logging.ERROR, instance, func_name, "Erro ao alterar label do contato.", exc_info=error)
+
+
+@receiver(post_save, sender='auth.User')
+def create_user_profile(sender, instance, created, **kwargs):
+    """Cria UserProfile automaticamente ao criar novo User."""
+    if created:
+        UserProfile.objects.get_or_create(user=instance)
+
+
+@receiver(post_save, sender='auth.User')
+def save_user_profile(sender, instance, **kwargs):
+    """Garante que o UserProfile seja salvo junto com o User."""
+    if hasattr(instance, 'profile'):
+        instance.profile.save()
+    else:
+        # Cria profile se não existir (para usuários antigos)
+        UserProfile.objects.get_or_create(user=instance)
+
+
+# ============================================================================
+# SIGNALS PARA REGISTRO DE LOGIN
+# ============================================================================
+
+from django.contrib.auth.signals import user_logged_in, user_login_failed
+from .models import LoginLog
+
+
+@receiver(user_logged_in)
+def log_user_login_success(sender, request, user, **kwargs):
+    """
+    Registra login bem-sucedido no LoginLog.
+
+    Este signal é disparado automaticamente pelo Django após um login bem-sucedido.
+    Captura informações importantes como IP, User-Agent, e método de login.
+    """
+    from cadastros.utils import get_client_ip
+
+    # Determinar método de login
+    # Se há pending_2fa_user_id na sessão, significa que acabou de fazer 2FA
+    if 'pending_2fa_user_id' in request.session:
+        login_method = LoginLog.METHOD_2FA
+    # Se há backup_code_used
+    elif request.session.get('backup_code_used'):
+        login_method = LoginLog.METHOD_BACKUP_CODE
+    else:
+        login_method = LoginLog.METHOD_PASSWORD
+
+    try:
+        LoginLog.objects.create(
+            usuario=user,
+            username_tentado=user.username,
+            ip=get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+            login_method=login_method,
+            success=True
+        )
+        logger.info(f'[LOGIN_LOG] Login bem-sucedido registrado para usuário {user.username} (ID: {user.id})')
+
+        # Limpar flags de sessão
+        request.session.pop('backup_code_used', None)
+
+    except Exception as e:
+        logger.error(f'[LOGIN_LOG] Erro ao registrar login bem-sucedido: {str(e)}', exc_info=True)
+
+
+@receiver(user_login_failed)
+def log_user_login_failure(sender, credentials, request, **kwargs):
+    """
+    Registra tentativa de login falhada no LoginLog.
+
+    Este signal é disparado quando uma tentativa de login falha.
+    Útil para detectar:
+    - Tentativas de brute force
+    - Acessos não autorizados
+    - Usuários esquecendo senhas
+    """
+    from cadastros.utils import get_client_ip
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+
+    username = credentials.get('username', '')
+
+    # Tentar encontrar o usuário
+    user = None
+    if username:
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            pass
+
+    # Determinar razão da falha
+    if not username:
+        failure_reason = 'Username não fornecido'
+    elif not user:
+        failure_reason = 'Usuário não encontrado'
+    else:
+        failure_reason = 'Senha incorreta'
+
+    try:
+        LoginLog.objects.create(
+            usuario=user,
+            username_tentado=username[:150],
+            ip=get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+            login_method=LoginLog.METHOD_PASSWORD,
+            success=False,
+            failure_reason=failure_reason
+        )
+        logger.warning(f'[LOGIN_LOG] Login falhado registrado para username "{username}". Razão: {failure_reason}')
+
+    except Exception as e:
+        logger.error(f'[LOGIN_LOG] Erro ao registrar login falhado: {str(e)}', exc_info=True)

@@ -1,0 +1,356 @@
+{% load static %}
+
+<!-- Modal de Envios WhatsApp -->
+<div class="modal fade" id="modalEnviosWhatsapp" tabindex="-1" aria-labelledby="modalEnviosWhatsappLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-shape icon-lg bg-success-soft rounded-circle">
+                        <i class="bi bi-whatsapp fs-4 text-success"></i>
+                    </div>
+                    <div>
+                        <h4 class="modal-title mb-0" id="modalEnviosWhatsappLabel">Envios WhatsApp</h4>
+                        <p class="text-muted small mb-0">Envie mensagens através da API WPPConnect</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Alert de Informação -->
+                <div class="alert alert-warning d-flex align-items-start gap-2 mb-4" role="alert">
+                    <i class="bi bi-info-circle-fill"></i>
+                    <div>
+                        <strong>Atenção:</strong> Esta é uma API não-oficial. Use com moderação para evitar possíveis bloqueios.
+                        <a href="#" class="alert-link">Saiba mais</a>
+                    </div>
+                </div>
+
+                <!-- Formulário de Envio -->
+                <form method="post" action="" id="form-wpp-modal">
+                    <!-- Mensagem de Status Desativado -->
+                    <div class="text-center py-3 mb-3 bg-light rounded" id="status-desativado">
+                        <i class="bi bi-exclamation-triangle text-warning fs-3 mb-2"></i>
+                        <p class="text-danger mb-0 fw-semibold">Desativado temporariamente.</p>
+                    </div>
+
+                    <!-- Tipo de Envio -->
+                    <div class="mb-4" id="select-tipo-envio" style="display: none;">
+                        <label for="options-modal" class="form-label fw-semibold">
+                            <i class="bi bi-send me-2"></i>Tipo de Envio
+                            <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" name="options" id="options-modal" required>
+                            <option value="">Selecione um tipo de envio</option>
+                            <option value="ativos">
+                                <i class="bi bi-people"></i> Para todos os meus clientes ativos
+                            </option>
+                            <option value="cancelados">
+                                <i class="bi bi-person-x"></i> Apenas para clientes cancelados
+                            </option>
+                            <option value="avulso">
+                                <i class="bi bi-pencil"></i> Avulso
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Campos de Envio -->
+                    <div id="form-envio-modal">
+                        <!-- Upload de Telefones -->
+                        <div class="mb-4">
+                            <label for="telefones-modal" class="form-label fw-semibold">
+                                <i class="bi bi-telephone me-2"></i>Telefones
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </span>
+                                <input type="file" class="form-control" id="telefones-modal" name="telefones"
+                                       accept=".txt" capture=".txt" required>
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Arquivo .txt com um número por linha (formato: +55DDDNUMBER)
+                            </small>
+                        </div>
+
+                        <!-- Upload de Imagem (Opcional) -->
+                        <div class="mb-4">
+                            <label for="imagem-modal" class="form-label fw-semibold">
+                                <i class="bi bi-image me-2"></i>Imagem
+                                <span class="text-muted fw-normal">(opcional)</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">
+                                    <i class="bi bi-card-image"></i>
+                                </span>
+                                <input type="file" class="form-control" id="imagem-modal" name="imagem" accept="image/*">
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Formatos suportados: JPG, PNG, GIF
+                            </small>
+                        </div>
+
+                        <!-- Mensagem -->
+                        <div class="mb-4">
+                            <label for="mensagem-modal" class="form-label fw-semibold">
+                                <i class="bi bi-chat-text me-2"></i>Mensagem
+                                <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="mensagem-modal" name="mensagem" rows="5"
+                                      placeholder="Digite sua mensagem aqui..." required></textarea>
+                            <div class="d-flex justify-content-between mt-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Use emojis e quebras de linha normalmente
+                                </small>
+                                <small class="text-muted" id="char-count-modal">0 caracteres</small>
+                            </div>
+                        </div>
+
+                        <!-- Botão de Enviar -->
+                        <div class="d-grid">
+                            <button class="btn btn-success btn-lg" type="button" id="botao-enviar-modal">
+                                <i class="bi bi-send me-2"></i>Enviar Mensagens
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Console de Logs -->
+                <div class="card border-0 shadow-sm mt-4" id="console-modal" style="display: none;">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-terminal"></i>
+                            <span class="fw-semibold">Log de Envios</span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-light" id="limpar-console-modal">
+                            <i class="bi bi-trash me-1"></i>Limpar
+                        </button>
+                    </div>
+                    <div class="card-body bg-dark text-light font-monospace small" id="console-body-modal"
+                         style="max-height: 320px; overflow-y: auto; min-height: 120px;">
+                        <div class="text-muted">Aguardando envios...</div>
+                    </div>
+                    <div class="card-footer bg-dark border-0">
+                        <button class="btn btn-outline-light w-100" type="button" id="botao-voltar-modal">
+                            <i class="bi bi-arrow-left me-2"></i>Voltar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Estilos customizados para o modal de envios WhatsApp */
+#modalEnviosWhatsapp .modal-content {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+#modalEnviosWhatsapp .modal-header {
+    padding: 1.5rem 2rem;
+}
+
+#modalEnviosWhatsapp .modal-body {
+    padding: 0 2rem 2rem;
+}
+
+#modalEnviosWhatsapp .icon-shape {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#modalEnviosWhatsapp .bg-success-soft {
+    background-color: rgba(37, 211, 102, 0.1);
+}
+
+#modalEnviosWhatsapp .form-label {
+    color: #1e293b;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+
+#modalEnviosWhatsapp .form-control,
+#modalEnviosWhatsapp .form-select {
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+}
+
+#modalEnviosWhatsapp .form-control:focus,
+#modalEnviosWhatsapp .form-select:focus {
+    border-color: #25d366;
+    box-shadow: 0 0 0 0.25rem rgba(37, 211, 102, 0.1);
+}
+
+#modalEnviosWhatsapp .input-group-text {
+    border-radius: 8px 0 0 8px;
+    border: 1.5px solid #e2e8f0;
+    border-right: none;
+}
+
+#modalEnviosWhatsapp .input-group .form-control {
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+}
+
+#modalEnviosWhatsapp textarea.form-control {
+    resize: vertical;
+    min-height: 120px;
+}
+
+#modalEnviosWhatsapp .btn-success {
+    background: linear-gradient(135deg, #25d366 0%, #20ba5a 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 0.875rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+#modalEnviosWhatsapp .btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4);
+    background: linear-gradient(135deg, #20ba5a 0%, #1da851 100%);
+}
+
+#modalEnviosWhatsapp .btn-success:active {
+    transform: translateY(0);
+}
+
+#modalEnviosWhatsapp .alert {
+    border-radius: 8px;
+    border: none;
+    background-color: #fff3cd;
+}
+
+#modalEnviosWhatsapp .card {
+    border-radius: 12px;
+}
+
+#modalEnviosWhatsapp .card-header {
+    border-radius: 12px 12px 0 0;
+}
+
+#modalEnviosWhatsapp .card-footer {
+    border-radius: 0 0 12px 12px;
+}
+
+#modalEnviosWhatsapp #console-body-modal {
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+#modalEnviosWhatsapp #console-body-modal::-webkit-scrollbar {
+    width: 8px;
+}
+
+#modalEnviosWhatsapp #console-body-modal::-webkit-scrollbar-track {
+    background: #1e293b;
+}
+
+#modalEnviosWhatsapp #console-body-modal::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
+}
+
+#modalEnviosWhatsapp #console-body-modal::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* Animação de entrada do modal */
+#modalEnviosWhatsapp.fade .modal-dialog {
+    transition: transform 0.3s ease-out;
+}
+
+#modalEnviosWhatsapp.show .modal-dialog {
+    transform: none;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    #modalEnviosWhatsapp .modal-dialog {
+        margin: 0.5rem;
+    }
+
+    #modalEnviosWhatsapp .modal-header,
+    #modalEnviosWhatsapp .modal-body {
+        padding: 1rem 1.25rem;
+    }
+
+    #modalEnviosWhatsapp .icon-shape {
+        width: 48px;
+        height: 48px;
+    }
+}
+</style>
+
+<script>
+// Script para contador de caracteres
+document.addEventListener('DOMContentLoaded', function() {
+    const mensagemTextarea = document.getElementById('mensagem-modal');
+    const charCount = document.getElementById('char-count-modal');
+
+    if (mensagemTextarea && charCount) {
+        mensagemTextarea.addEventListener('input', function() {
+            const count = this.value.length;
+            charCount.textContent = `${count} caractere${count !== 1 ? 's' : ''}`;
+        });
+    }
+
+    // Botão para limpar console
+    const limparConsoleBtn = document.getElementById('limpar-console-modal');
+    if (limparConsoleBtn) {
+        limparConsoleBtn.addEventListener('click', function() {
+            const consoleBody = document.getElementById('console-body-modal');
+            if (consoleBody) {
+                consoleBody.innerHTML = '<div class="text-muted">Aguardando envios...</div>';
+            }
+        });
+    }
+
+    // Botão voltar do console
+    const voltarBtn = document.getElementById('botao-voltar-modal');
+    if (voltarBtn) {
+        voltarBtn.addEventListener('click', function() {
+            document.getElementById('console-modal').style.display = 'none';
+            document.getElementById('form-wpp-modal').style.display = 'block';
+        });
+    }
+
+    // Reset do formulário ao fechar modal
+    const modal = document.getElementById('modalEnviosWhatsapp');
+    if (modal) {
+        modal.addEventListener('hidden.bs.modal', function() {
+            const form = document.getElementById('form-wpp-modal');
+            if (form) {
+                form.reset();
+                if (charCount) {
+                    charCount.textContent = '0 caracteres';
+                }
+            }
+            // Esconder console e mostrar form
+            document.getElementById('console-modal').style.display = 'none';
+            document.getElementById('form-wpp-modal').style.display = 'block';
+        });
+    }
+});
+
+// Função para abrir o modal de envios WhatsApp
+function modalEnviosWhatsapp() {
+    const modal = new bootstrap.Modal(document.getElementById('modalEnviosWhatsapp'));
+    modal.show();
+}
+</script>

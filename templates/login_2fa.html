@@ -1,0 +1,162 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Verificação 2FA | Nosso Painel</title>
+</head>
+
+<body class="bg-light">
+  <!-- container -->
+  <div class="container d-flex flex-column">
+    <div class="row align-items-center justify-content-center g-0 min-vh-100">
+      <div class="col-12 col-md-8 col-lg-6 col-xxl-4 py-8 py-xl-0">
+        <!-- Card -->
+        <div class="card smooth-shadow-md">
+          <!-- Card body -->
+          <div class="card-body p-6">
+            <div class="mb-4 text-center">
+              <img src="{% static '/assets/images/svg/logo-brand-login.svg' %}" alt="Logo" class="img-fluid mb-3">
+              <i class="fe fe-shield text-primary" style="font-size: 48px;"></i>
+              <h3 class="mb-2 mt-3">Autenticação em Dois Fatores</h3>
+              <p class="text-muted">
+                Digite o código de 6 dígitos do seu app autenticador para continuar.
+              </p>
+              <!-- ✅ SEGURANÇA: Username removido para prevenir user enumeration -->
+            </div>
+
+            <!-- Messages -->
+            {% if messages %}
+              <div class="mb-3">
+                {% for message in messages %}
+                  <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <!-- Form -->
+            <form method="POST" action="{% url 'verify-2fa' %}" id="2fa-form">
+              {% csrf_token %}
+
+              <div class="mb-4">
+                <label for="code" class="form-label fw-bold">Código de Verificação</label>
+                <input
+                  type="text"
+                  class="form-control form-control-lg text-center"
+                  id="code"
+                  name="code"
+                  placeholder="000000"
+                  maxlength="6"
+                  pattern="[0-9]*"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  autofocus
+                  required
+                  style="letter-spacing: 0.5em; font-size: 1.8rem; font-weight: bold;">
+                <small class="text-muted">Digite o código do seu aplicativo autenticador</small>
+              </div>
+
+              <div class="mb-3">
+                <div class="alert alert-info small">
+                  <i class="fe fe-info me-1"></i>
+                  <strong>Dica:</strong> Se você perdeu acesso ao seu autenticador, pode usar um dos códigos de backup fornecidos quando ativou o 2FA.
+                </div>
+              </div>
+
+              <div>
+                <!-- Button -->
+                <div class="d-grid gap-2">
+                  <button id="verifyButton" type="submit" class="btn btn-primary btn-lg">
+                    <i class="fe fe-check-circle me-1"></i>Verificar e Entrar
+                  </button>
+                  <button id="loadingButton" class="btn btn-primary btn-lg d-none" type="button" disabled>
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Verificando...
+                  </button>
+
+                  <a href="{% url 'login' %}" class="btn btn-outline-secondary">
+                    <i class="fe fe-arrow-left me-1"></i>Voltar ao Login
+                  </a>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Help section -->
+        <div class="text-center mt-4">
+          <p class="text-muted small">
+            <i class="fe fe-help-circle me-1"></i>
+            Problemas para acessar? Entre em contato com o suporte.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  {% include 'partials/scripts.html' %}
+
+  <script>
+    // Auto-submit form when 6 digits are entered
+    document.getElementById('code').addEventListener('input', function(e) {
+      // Remove non-numeric characters
+      this.value = this.value.replace(/[^0-9]/g, '');
+
+      // Auto-submit when 6 digits are entered
+      if (this.value.length === 6) {
+        // Optional: small delay for better UX
+        setTimeout(() => {
+          document.getElementById('2fa-form').submit();
+        }, 300);
+      }
+    });
+
+    // Show loading state on form submit
+    document.getElementById('2fa-form').addEventListener('submit', function() {
+      document.getElementById('verifyButton').classList.add('d-none');
+      document.getElementById('loadingButton').classList.remove('d-none');
+    });
+
+    // Focus on input on page load
+    window.addEventListener('load', function() {
+      document.getElementById('code').focus();
+    });
+  </script>
+
+  <style>
+    .card {
+      border: none;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    }
+
+    #code {
+      transition: all 0.3s ease;
+    }
+
+    #code:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .btn-primary {
+      background-color: #667eea;
+      border-color: #667eea;
+    }
+
+    .btn-primary:hover {
+      background-color: #5568d3;
+      border-color: #5568d3;
+    }
+
+    .smooth-shadow-md {
+      box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1) !important;
+    }
+  </style>
+</body>
+</html>

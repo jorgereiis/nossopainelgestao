@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2FA Ativado</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #28a745;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #28a745;
+            margin: 0;
+            font-size: 24px;
+        }
+        .success-icon {
+            text-align: center;
+            font-size: 48px;
+            color: #28a745;
+            margin: 20px 0;
+        }
+        .success-box {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .info-section h3 {
+            margin-top: 0;
+            color: #28a745;
+            font-size: 16px;
+        }
+        .info-section ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .warning-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e9ecef;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .btn-primary {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #28a745;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>{{ site_name }}</h1>
+        </div>
+
+        <div class="success-icon">🔐</div>
+
+        <p style="text-align: center; font-size: 18px; font-weight: 600;">
+            Autenticação em Dois Fatores Ativada!
+        </p>
+
+        <p>Olá, <strong>{{ user.first_name|default:user.username }}</strong>!</p>
+
+        <div class="success-box">
+            <strong>Parabéns! Sua conta está mais segura agora.</strong>
+            <p style="margin: 10px 0 0 0;">
+                A autenticação em dois fatores (2FA) foi ativada com sucesso na sua conta.
+            </p>
+        </div>
+
+        <div class="info-section">
+            <h3>O que é 2FA?</h3>
+            <p>
+                A autenticação em dois fatores adiciona uma camada extra de segurança à sua conta.
+                Agora, além da sua senha, você precisará de um código temporário gerado pelo
+                seu aplicativo autenticador para fazer login.
+            </p>
+        </div>
+
+        <div class="info-section">
+            <h3>Como funciona:</h3>
+            <ul>
+                <li>Ao fazer login, você será solicitado a inserir sua senha normalmente</li>
+                <li>Em seguida, será pedido um código de 6 dígitos</li>
+                <li>Abra seu aplicativo autenticador (Google Authenticator, Authy, etc.)</li>
+                <li>Insira o código exibido para {{ site_name }}</li>
+                <li>Pronto! Você estará conectado com segurança adicional</li>
+            </ul>
+        </div>
+
+        <div class="warning-box">
+            <strong>Importante: Guarde seus códigos de backup!</strong>
+            <p style="margin: 10px 0 0 0;">
+                Você recebeu códigos de backup quando ativou o 2FA. Guarde-os em um local seguro.
+                Eles permitem que você acesse sua conta caso perca acesso ao seu aplicativo autenticador.
+            </p>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="{{ site_url }}/perfil/" class="btn-primary">Acessar Meu Perfil</a>
+        </div>
+
+        <div class="footer">
+            <p>Este é um email automático de confirmação de segurança.</p>
+            <p>Se você não ativou o 2FA, entre em contato com nosso suporte imediatamente.</p>
+            <p>&copy; {{ timestamp|date:"Y" }} {{ site_name }}. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

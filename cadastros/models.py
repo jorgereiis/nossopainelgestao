@@ -5,9 +5,11 @@ Inclui entidades como Cliente, Plano, Mensalidade, Aplicativo, Sessão WhatsApp,
 
 from datetime import date, timedelta
 import re
+import os
+import uuid
 
 from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
@@ -413,6 +415,215 @@ class DadosBancarios(models.Model):
         return f'{self.usuario.first_name} {self.usuario.last_name}'
 
 
+def avatar_upload_path(instance, filename):
+    """
+    Gera caminho de upload com UUID para avatares.
+
+    SEGURANÇA: UUID previne information disclosure via filenames.
+    Preserva extensão do arquivo para correto MIME type.
+
+    Formato: avatars/<uuid>.<ext>
+    Exemplo: avatars/a1b2c3d4-e5f6-7890-abcd-ef1234567890.jpg
+    """
+    ext = filename.split('.')[-1].lower()
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('avatars', filename)
+
+
+def cover_upload_path(instance, filename):
+    """
+    Gera caminho de upload com UUID para imagens de capa.
+
+    SEGURANÇA: UUID previne information disclosure via filenames.
+    Preserva extensão do arquivo para correto MIME type.
+
+    Formato: covers/<uuid>.<ext>
+    Exemplo: covers/b2c3d4e5-f6a7-8901-bcde-f12345678901.jpg
+    """
+    ext = filename.split('.')[-1].lower()
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('covers', filename)
+
+
+class UserProfile(models.Model):
+    """Estende o modelo User com informações adicionais de perfil (avatar, bio, etc)."""
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    avatar = models.ImageField(
+        upload_to=avatar_upload_path,
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+        help_text='Tamanho máximo: 5MB. Formatos: JPG, PNG, GIF, WEBP'
+    )
+    bio = models.TextField(max_length=500, blank=True, null=True)
+    cover_image = models.ImageField(
+        upload_to=cover_upload_path,
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])]
+    )
+
+    # Preferências de Notificação
+    email_on_profile_change = models.BooleanField(default=True, verbose_name='Notificar por email alterações no perfil')
+    email_on_password_change = models.BooleanField(default=True, verbose_name='Notificar por email alterações de senha')
+    email_on_login = models.BooleanField(default=False, verbose_name='Notificar por email em novos logins')
+
+    # Preferências de Tema
+    THEME_LIGHT = 'light'
+    THEME_DARK = 'dark'
+    THEME_AUTO = 'auto'
+    THEME_CHOICES = [
+        (THEME_LIGHT, 'Claro'),
+        (THEME_DARK, 'Escuro'),
+        (THEME_AUTO, 'Automático'),
+    ]
+    theme_preference = models.CharField(max_length=10, choices=THEME_CHOICES, default=THEME_LIGHT, verbose_name='Tema preferido')
+
+    # Configurações de Privacidade
+    profile_public = models.BooleanField(default=False, verbose_name='Perfil público')
+    show_email = models.BooleanField(default=False, verbose_name='Mostrar email publicamente')
+    show_phone = models.BooleanField(default=False, verbose_name='Mostrar telefone publicamente')
+    show_statistics = models.BooleanField(default=True, verbose_name='Mostrar estatísticas')
+
+    # Autenticação em Dois Fatores
+    two_factor_enabled = models.BooleanField(default=False, verbose_name='2FA ativado')
+    two_factor_secret = models.CharField(max_length=32, blank=True, null=True, verbose_name='Chave secreta 2FA')
+    two_factor_backup_codes = models.JSONField(blank=True, null=True, verbose_name='Códigos de backup 2FA')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        """Otimiza a imagem antes de salvar."""
+        super().save(*args, **kwargs)
+
+        if self.avatar and os.path.isfile(self.avatar.path):
+            try:
+                from PIL import Image
+                img = Image.open(self.avatar.path)
+
+                # Redimensionar se muito grande
+                if img.height > 500 or img.width > 500:
+                    output_size = (500, 500)
+                    img.thumbnail(output_size, Image.Resampling.LANCZOS)
+                    img.save(self.avatar.path, quality=85, optimize=True)
+            except ImportError:
+                pass
+
+    def get_avatar_url(self):
+        """Retorna URL do avatar ou imagem padrão."""
+        if self.avatar:
+            return self.avatar.url
+        return '/static/assets/images/avatar/default-avatar.svg'
+
+    def delete_old_avatar(self):
+        """Remove avatar antigo do sistema de arquivos."""
+        if self.avatar and os.path.isfile(self.avatar.path):
+            try:
+                os.remove(self.avatar.path)
+            except OSError:
+                pass
+
+    def generate_2fa_secret(self):
+        """Gera uma nova chave secreta para 2FA."""
+        import pyotp
+        self.two_factor_secret = pyotp.random_base32()
+        return self.two_factor_secret
+
+    def get_2fa_qr_code(self):
+        """Retorna a URL para gerar o QR Code do 2FA."""
+        if not self.two_factor_secret:
+            self.generate_2fa_secret()
+        import pyotp
+        totp = pyotp.TOTP(self.two_factor_secret)
+        return totp.provisioning_uri(
+            name=self.user.email,
+            issuer_name='Nosso Painel'
+        )
+
+    def verify_2fa_code(self, code):
+        """Verifica se o código 2FA fornecido é válido.
+
+        SEGURANÇA: Proteção contra timing attacks com delay fixo.
+        """
+        import time
+
+        # Executar validação
+        if not self.two_factor_enabled or not self.two_factor_secret:
+            time.sleep(0.1)
+            return False
+
+        import pyotp
+        totp = pyotp.TOTP(self.two_factor_secret)
+        result = totp.verify(code, valid_window=1)
+
+        # Delay fixo de 100ms para normalizar tempo de resposta
+        # Previne que atacante descubra diferenças entre TOTP e backup code
+        time.sleep(0.1)
+
+        return result
+
+    def generate_backup_codes(self):
+        """Gera códigos de backup para 2FA e retorna códigos em plaintext.
+
+        SEGURANÇA: Os códigos são hasheados antes de serem salvos no banco.
+        Os códigos em plaintext são retornados APENAS uma vez para o usuário salvar.
+        """
+        import secrets
+        from django.contrib.auth.hashers import make_password
+
+        # Gerar códigos em plaintext
+        codes = [secrets.token_hex(4).upper() for _ in range(10)]
+
+        # Armazenar HASHES, não plaintext
+        self.two_factor_backup_codes = [make_password(code) for code in codes]
+
+        # Retornar codes em plaintext APENAS uma vez
+        return codes
+
+    def use_backup_code(self, code):
+        """Usa um código de backup e o remove da lista.
+
+        SEGURANÇA: Verifica o código contra hashes usando constant-time comparison.
+        Proteção contra timing attacks com delay fixo.
+        """
+        import time
+
+        if not self.two_factor_backup_codes:
+            time.sleep(0.1)
+            return False
+
+        from django.contrib.auth.hashers import check_password
+
+        code = code.upper().strip()
+
+        # Verificar contra hashes usando constant-time comparison
+        # check_password já usa constant-time internamente
+        found_code = None
+        for hashed_code in self.two_factor_backup_codes:
+            if check_password(code, hashed_code):
+                found_code = hashed_code
+                break
+
+        if found_code:
+            # Código válido encontrado, remover do banco
+            self.two_factor_backup_codes.remove(found_code)
+            self.save()
+            time.sleep(0.1)
+            return True
+
+        time.sleep(0.1)
+        return False
+
+    class Meta:
+        verbose_name = "Perfil de Usuário"
+        verbose_name_plural = "Perfis de Usuários"
+
+    def __str__(self):
+        return f'Perfil de {self.user.username}'
+
+
 class MensagemEnviadaWpp(models.Model):
     """Registra o histórico de mensagens enviadas ao WhatsApp."""
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -572,5 +783,147 @@ class UserActionLog(models.Model):
     def __str__(self):
         entidade = self.entidade or "Objeto"
         return f"{self.usuario} - {entidade} - {self.get_acao_display()} em {self.criado_em:%d/%m/%Y %H:%M}"
+
+
+class LoginLog(models.Model):
+    """
+    Registra todos os logins (bem-sucedidos e falhados) dos usuários no sistema.
+
+    Útil para:
+    - Auditoria de acessos
+    - Detecção de acessos suspeitos
+    - Análise de padrões de uso
+    - Compliance com LGPD/GDPR
+    - Identificação de tentativas de brute force
+    """
+
+    # Tipos de método de login
+    METHOD_PASSWORD = 'password'
+    METHOD_2FA = '2fa'
+    METHOD_BACKUP_CODE = 'backup_code'
+
+    METHOD_CHOICES = [
+        (METHOD_PASSWORD, 'Senha'),
+        (METHOD_2FA, '2FA'),
+        (METHOD_BACKUP_CODE, 'Código de Backup'),
+    ]
+
+    # Campos principais
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='login_logs',
+        null=True,
+        blank=True,
+        help_text='Usuário que tentou fazer login (null se usuário não encontrado)'
+    )
+    username_tentado = models.CharField(
+        max_length=150,
+        blank=True,
+        help_text='Username que foi tentado no login (útil para logins falhados)'
+    )
+
+    # Informações de rede
+    ip = models.GenericIPAddressField(
+        protocol='IPv4',
+        null=True,
+        blank=True,
+        help_text='Endereço IPv4 do cliente'
+    )
+    user_agent = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text='User-Agent do navegador/dispositivo'
+    )
+
+    # Detalhes do login
+    login_method = models.CharField(
+        max_length=20,
+        choices=METHOD_CHOICES,
+        default=METHOD_PASSWORD,
+        help_text='Método usado para fazer login'
+    )
+    success = models.BooleanField(
+        default=True,
+        help_text='Se o login foi bem-sucedido'
+    )
+    failure_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text='Motivo da falha (se success=False)'
+    )
+
+    # Informações geográficas
+    location_country = models.CharField(max_length=100, blank=True)
+    location_city = models.CharField(max_length=100, blank=True)
+
+    # Metadados
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Log de Login'
+        verbose_name_plural = 'Logs de Login'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['usuario', '-created_at'], name='loginlog_user_created_idx'),
+            models.Index(fields=['-created_at'], name='loginlog_created_idx'),
+            models.Index(fields=['success', '-created_at'], name='loginlog_success_idx'),
+            models.Index(fields=['ip', '-created_at'], name='loginlog_ip_idx'),
+        ]
+
+    def __str__(self):
+        status = '✓' if self.success else '✗'
+        user_display = self.usuario.username if self.usuario else self.username_tentado
+        return f"{status} {user_display} - {self.get_login_method_display()} - {self.created_at:%d/%m/%Y %H:%M}"
+
+    def get_browser_info(self):
+        """Extrai informações do navegador do user_agent."""
+        if not self.user_agent:
+            return {'browser': 'Desconhecido', 'os': 'Desconhecido', 'device': 'Desconhecido'}
+
+        import re
+        ua = self.user_agent.lower()
+
+        # Detectar navegador
+        if 'firefox' in ua:
+            browser = 'Firefox'
+        elif 'chrome' in ua and 'edg' not in ua:
+            browser = 'Chrome'
+        elif 'edg' in ua:
+            browser = 'Edge'
+        elif 'safari' in ua and 'chrome' not in ua:
+            browser = 'Safari'
+        elif 'opera' in ua or 'opr' in ua:
+            browser = 'Opera'
+        else:
+            browser = 'Outro'
+
+        # Detectar OS
+        if 'windows' in ua:
+            os_name = 'Windows'
+        elif 'mac' in ua and 'iphone' not in ua and 'ipad' not in ua:
+            os_name = 'macOS'
+        elif 'linux' in ua:
+            os_name = 'Linux'
+        elif 'android' in ua:
+            os_name = 'Android'
+        elif 'iphone' in ua or 'ipad' in ua:
+            os_name = 'iOS'
+        else:
+            os_name = 'Outro'
+
+        # Detectar tipo de dispositivo
+        if 'mobile' in ua or 'android' in ua or 'iphone' in ua:
+            device = 'Mobile'
+        elif 'tablet' in ua or 'ipad' in ua:
+            device = 'Tablet'
+        else:
+            device = 'Desktop'
+
+        return {
+            'browser': browser,
+            'os': os_name,
+            'device': device
+        }
 
 

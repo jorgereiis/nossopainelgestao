@@ -1,0 +1,29 @@
+{{ site_name }}
+================================================================================
+
+Olá, {{ user.first_name|default:user.username }}!
+
+NOTIFICAÇÃO DE ACESSO
+Detectamos um novo login na sua conta.
+
+DETALHES DO ACESSO
+--------------------------------------------------------------------------------
+Data e hora: {{ timestamp|date:"d/m/Y H:i" }}
+Endereço IP: {{ ip_address }}
+Localização: {{ location }}
+Dispositivo: {{ user_agent }}
+
+Foi você? Então está tudo certo!
+
+⚠ NÃO RECONHECE ESTE ACESSO?
+Se você não realizou este login, sua conta pode estar comprometida.
+Altere sua senha imediatamente e ative a autenticação em dois fatores.
+
+Alterar senha: {{ site_url }}/alterar-senha/
+Acessar perfil: {{ site_url }}/perfil/
+
+================================================================================
+Este é um email automático de notificação de segurança.
+Para desativar notificações de login, acesse as configurações do seu perfil.
+
+© {{ timestamp|date:"Y" }} {{ site_name }}. Todos os direitos reservados.

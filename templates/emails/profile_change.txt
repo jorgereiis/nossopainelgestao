@@ -1,0 +1,33 @@
+{{ site_name }}
+================================================================================
+
+Olá, {{ user.first_name|default:user.username }}!
+
+NOTIFICAÇÃO DE SEGURANÇA
+Detectamos uma alteração no seu perfil.
+
+DETALHES DA ALTERAÇÃO
+--------------------------------------------------------------------------------
+Tipo de alteração: {% if change_type == 'profile' %}Dados Pessoais{% elif change_type == 'password' %}Senha{% elif change_type == 'avatar' %}Avatar{% elif change_type == 'security' %}Configurações de Segurança{% else %}{{ change_type }}{% endif %}
+Data e hora: {{ timestamp|date:"d/m/Y H:i" }}
+Endereço IP: {{ ip_address }}
+
+{% if changes %}
+ALTERAÇÕES REALIZADAS
+--------------------------------------------------------------------------------
+{% for field, values in changes.items %}
+{{ field }}: {{ values.old }} → {{ values.new }}
+{% endfor %}
+{% endif %}
+
+⚠ NÃO FOI VOCÊ?
+Se você não realizou esta alteração, sua conta pode estar comprometida.
+Altere sua senha imediatamente e entre em contato com nosso suporte.
+
+Acesse seu perfil: {{ site_url }}/perfil/
+
+================================================================================
+Este é um email automático de notificação de segurança.
+Para alterar suas preferências de notificação, acesse seu perfil.
+
+© {{ timestamp|date:"Y" }} {{ site_name }}. Todos os direitos reservados.
