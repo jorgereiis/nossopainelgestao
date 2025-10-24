@@ -350,7 +350,16 @@
         stroke-width: 0.75;
         filter: drop-shadow(0 12px 24px rgba(57, 39, 114, 0.08));
     }
-    .mapa-clientes-svg path.is-hover {
+    .mapa-clientes-svg path.mapa-estado-inativo {
+        cursor: default !important;
+        transition: none;
+    }
+    .mapa-clientes-svg path.mapa-estado-inativo:hover {
+        transform: none !important;
+        filter: none !important;
+        fill: #f3f1ff !important;
+    }
+    .mapa-clientes-svg path.mapa-estado-ativo.is-hover {
         transform: translateY(-6px) scale(1.035);
         filter: drop-shadow(0 18px 28px rgba(98, 75, 255, 0.28));
         fill: #6f58ff !important;

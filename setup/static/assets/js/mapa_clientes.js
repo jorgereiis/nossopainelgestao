@@ -115,14 +115,27 @@
       .attr("fill", (d) =>
         d.properties.clientes ? colorScale(d.properties.clientes) : "#f3f1ff"
       )
+      .attr("class", (d) =>
+        d.properties.clientes ? "mapa-estado-ativo" : "mapa-estado-inativo"
+      )
+      .style("cursor", (d) => d.properties.clientes ? "pointer" : "default")
       .on("mouseenter", function (event, d) {
-        highlightState(this, tooltip, event, d, container);
+        // Só ativar hover se houver clientes
+        if (d.properties.clientes > 0) {
+          highlightState(this, tooltip, event, d, container);
+        }
       })
-      .on("mousemove", function (event) {
-        moveTooltip(event, container, tooltip);
+      .on("mousemove", function (event, d) {
+        // Só mover tooltip se houver clientes
+        if (d.properties.clientes > 0) {
+          moveTooltip(event, container, tooltip);
+        }
       })
-      .on("mouseleave", function () {
-        resetState(this, tooltip);
+      .on("mouseleave", function (event, d) {
+        // Só resetar se houver clientes
+        if (d.properties.clientes > 0) {
+          resetState(this, tooltip);
+        }
       });
   }
   function highlightState(element, tooltip, event, feature, container) {
@@ -143,9 +156,9 @@
       return;
     }
 
-    // Usar coordenadas da página (absolutas)
-    const mouseX = event.pageX;
-    const mouseY = event.pageY;
+    // Usar coordenadas da viewport (clientX/clientY para position: fixed)
+    const mouseX = event.clientX;
+    const mouseY = event.clientY;
 
     const tooltipWidth = tooltipEl.offsetWidth || 160;
     const tooltipHeight = tooltipEl.offsetHeight || 80;
@@ -153,38 +166,36 @@
     // Dimensões da janela do navegador
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
     // Margem de segurança das bordas
     const margin = 12;
-    const offset = 10; // Distância pequena do cursor
+    const offset = 8; // Distância muito próxima do cursor
 
-    // Posicionamento padrão: à direita e acima do cursor
+    // Posicionamento padrão: à direita e ligeiramente abaixo do cursor
     let left = mouseX + offset;
-    let top = mouseY - tooltipHeight - offset;
+    let top = mouseY + offset;
 
     // Verificar se ultrapassa a borda direita da viewport
-    if (left + tooltipWidth > scrollX + viewportWidth - margin) {
+    if (left + tooltipWidth > viewportWidth - margin) {
       // Posicionar à esquerda do cursor
       left = mouseX - tooltipWidth - offset;
     }
 
     // Garantir que não ultrapasse a borda esquerda
-    if (left < scrollX + margin) {
-      left = scrollX + margin;
-    }
-
-    // Verificar se ultrapassa a borda superior
-    if (top < scrollY + margin) {
-      // Posicionar abaixo do cursor
-      top = mouseY + offset;
+    if (left < margin) {
+      left = margin;
     }
 
     // Verificar se ultrapassa a borda inferior da viewport
-    if (top + tooltipHeight > scrollY + viewportHeight - margin) {
-      // Ajustar para caber dentro da viewport
-      top = scrollY + viewportHeight - tooltipHeight - margin;
+    if (top + tooltipHeight > viewportHeight - margin) {
+      // Posicionar acima do cursor
+      top = mouseY - tooltipHeight - offset;
+    }
+
+    // Verificar se ultrapassa a borda superior
+    if (top < margin) {
+      // Forçar a ficar dentro da viewport
+      top = margin;
     }
 
     tooltip.style("left", `${left}px`).style("top", `${top}px`);
