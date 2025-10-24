@@ -94,50 +94,69 @@
   function buildSummary(summary, meta) {
     const summaryBox = $summary();
     if (!summaryBox) return;
-
-    if (!summary) {
-      summaryBox.textContent = '';
-      return;
-    }
-
-    const adesoes = summary.total_adesoes || 0;
-    const cancelamentos = summary.total_cancelamentos || 0;
-    const saldo = summary.saldo || 0;
-    const prefix = saldo > 0 ? '+' : '';
-
-    const headerPieces = [];
-    if (meta?.title) headerPieces.push(meta.title);
-    if (meta?.range_label) headerPieces.push(meta.range_label);
-
-    const headerText = headerPieces.filter(Boolean).join(' \u00b7 ');
-    summaryBox.innerHTML = [
-      headerText,
-      `Ades&otilde;es: <strong>${adesoes}</strong>`,
-      `Cancelamentos: <strong>${cancelamentos}</strong>`,
-      `Saldo: <strong>${prefix}${saldo}</strong>`,
-    ].filter(Boolean).join(' &middot; ');
+    // Removido conforme solicitado - os totais agora aparecem nas legendas
+    summaryBox.textContent = '';
   }
 
-  function composeDatasets(series) {
-    const palette = {
-      adesoes: {
+  function composeDatasets(series, summary) {
+    // Extrair totais do summary
+    const totals = {
+      adesoes: summary?.total_adesoes || 0,
+      cancelamentos: summary?.total_cancelamentos || 0,
+      saldo: summary?.saldo || 0,
+    };
+
+    const datasets = [];
+
+    // Encontrar as séries
+    const saldoSerie = (series || []).find(s => s.key === 'saldo');
+    const adesoesSerie = (series || []).find(s => s.key === 'adesoes');
+    const cancelamentosSerie = (series || []).find(s => s.key === 'cancelamentos');
+
+    // 1. Barra de Adesões (verde) - lado esquerdo
+    if (adesoesSerie) {
+      const total = totals.adesoes || 0;
+      const adesoesData = (adesoesSerie.data || []).map((value) => Number(value || 0));
+      datasets.push({
         type: 'bar',
+        label: `${adesoesSerie.name || 'Adesões'}: ${total}`,
+        data: adesoesData,
         backgroundColor: '#10b981',
-        stack: 'stacked',
         borderRadius: 6,
         borderSkipped: false,
-        valueLabelColor: '#ffffff',
-      },
-      cancelamentos: {
+        barPercentage: 0.7,
+        categoryPercentage: 0.6,
+        order: 2,
+      });
+    }
+
+    // 2. Barra de Cancelamentos (vermelho) - lado direito
+    if (cancelamentosSerie) {
+      const total = totals.cancelamentos || 0;
+      const cancelamentosData = (cancelamentosSerie.data || []).map((value) => Number(value || 0));
+      datasets.push({
         type: 'bar',
+        label: `${cancelamentosSerie.name || 'Cancelamentos'}: ${total}`,
+        data: cancelamentosData,
         backgroundColor: '#f43f5e',
-        stack: 'stacked',
         borderRadius: 6,
         borderSkipped: false,
-        valueLabelColor: '#ffffff',
-      },
-      saldo: {
+        barPercentage: 0.7,
+        categoryPercentage: 0.6,
+        order: 3,
+      });
+    }
+
+    // 3. Linha de Saldo (azul/roxo) - eixo Y secundário
+    if (saldoSerie) {
+      const saldoData = (saldoSerie.data || []).map((value) => Number(value || 0));
+      const total = totals.saldo || 0;
+      const prefix = total > 0 ? '+' : '';
+
+      datasets.push({
         type: 'line',
+        label: `${saldoSerie.name || 'Saldo'}: ${prefix}${total}`,
+        data: saldoData,
         borderColor: '#6366f1',
         backgroundColor: 'rgba(99, 102, 241, 0.15)',
         tension: 0.35,
@@ -145,20 +164,11 @@
         yAxisID: 'y1',
         pointRadius: 3,
         pointHoverRadius: 4,
-      },
-    };
+        order: 1,
+      });
+    }
 
-    return (series || []).map((serie) => {
-      const look = palette[serie.key] || {};
-      return Object.assign(
-        {
-          type: serie.type || look.type || 'bar',
-          label: serie.name || serie.key || '',
-          data: (serie.data || []).map((value) => Number(value || 0)),
-        },
-        look,
-      );
-    });
+    return datasets;
   }
 
   const stackedValueLabels = {
@@ -194,7 +204,7 @@
     if (!canvas) return;
 
     const categories = payload?.categories || [];
-    const datasets = composeDatasets(payload?.series || []);
+    const datasets = composeDatasets(payload?.series || [], payload?.summary);
 
     if (!categories.length || !datasets.some((d) => d.data && d.data.some((value) => Number(value) !== 0))) {
       showEmpty('Nenhum dado encontrado para o filtro selecionado.');
@@ -216,8 +226,8 @@
       plugins: {
         legend: { position: 'top' },
         title: {
-          display: Boolean(payload?.meta?.title),
-          text: payload?.meta?.title || '',
+          display: Boolean(payload?.meta?.range_label),
+          text: payload?.meta?.range_label || '',
           font: { size: 16, weight: '600' },
           color: '#0f172a',
           padding: { bottom: 16 },
@@ -226,17 +236,20 @@
           callbacks: {
             label(context) {
               const value = context.parsed.y;
-              return `${context.dataset.label}: ${value}`;
+              // Extrair apenas o nome base sem o total (ex: "Adesões: 3" -> "Adesões")
+              const labelBase = context.dataset.label.split(':')[0].trim();
+              return `${labelBase}: ${value}`;
             },
           },
         },
       },
       scales: {
         x: {
-          stacked: true,
+          stacked: false,
+          grid: { display: false },
         },
         y: {
-          stacked: true,
+          stacked: false,
           beginAtZero: true,
           ticks: {
             precision: 0,
@@ -250,6 +263,7 @@
           grid: { drawOnChartArea: false },
           ticks: {
             precision: 0,
+            stepSize: 1,
           },
         },
       },

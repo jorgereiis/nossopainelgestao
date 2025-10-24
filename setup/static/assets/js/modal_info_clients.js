@@ -2,6 +2,13 @@
 // MODAL DE INFORMAÇÕES
 // ----------------------
 
+// CSRF Token para requisições AJAX - cria versão global se não existir
+if (typeof window.csrfToken === 'undefined') {
+    var csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+    window.csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
+}
+var csrfToken = window.csrfToken;
+
 function exibirModalDetalhes(botao) {
     // Dados do cliente vindos do botão/data-attributes
     const clienteId = botao.dataset.id;
@@ -61,8 +68,7 @@ function exibirModalDetalhes(botao) {
 // Fecha modal de informações quando necessário
 $('#info-cliente-modal').on('click', '.btn-close, .btn-secondary, #add-apps-info', function () {
     $('#info-cliente-modal').modal('hide');
-});
-window.exibirModalDetalhes = exibirModalDetalhes; 
+}); 
 
 // Carregar informações de quantidade de mensalidades pagas
 function carregarQuantidadeMensalidadesPagas(clienteId) {
@@ -71,9 +77,13 @@ function carregarQuantidadeMensalidadesPagas(clienteId) {
         type: 'GET',
         data: { cliente_id: clienteId },
         success: function(data) {
-            document.getElementById('qtd_mensalidades_pagas')?.textContent = data.qtd_mensalidades_pagas;
-            document.getElementById('qtd_mensalidades_pendentes')?.textContent = data.qtd_mensalidades_pendentes;
-            document.getElementById('qtd_mensalidades_canceladas')?.textContent = data.qtd_mensalidades_canceladas;
+            var elemPagas = document.getElementById('qtd_mensalidades_pagas');
+            var elemPendentes = document.getElementById('qtd_mensalidades_pendentes');
+            var elemCanceladas = document.getElementById('qtd_mensalidades_canceladas');
+
+            if (elemPagas) elemPagas.textContent = data.qtd_mensalidades_pagas;
+            if (elemPendentes) elemPendentes.textContent = data.qtd_mensalidades_pendentes;
+            if (elemCanceladas) elemCanceladas.textContent = data.qtd_mensalidades_canceladas;
 
             var tbody = document.querySelector('#table-invoice tbody');
             tbody.innerHTML = '';
@@ -194,7 +204,7 @@ function carregarIndicacoes(clienteId) {
                     var tr = document.createElement('tr');
 
                     var tdId = document.createElement('td');
-                    tdId.textContent = indicado.id ?? '--';
+                    tdId.textContent = indicado.id != null ? indicado.id : '--';
                     tr.appendChild(tdId);
 
                     // Status (Ativo/Cancelado)
@@ -207,19 +217,33 @@ function carregarIndicacoes(clienteId) {
                     tr.appendChild(tdStatus);
 
                     var tdNome = document.createElement('td');
-                    tdNome.textContent = indicado.nome ?? '--';
+                    tdNome.textContent = indicado.nome != null ? indicado.nome : '--';
                     tr.appendChild(tdNome);
 
                     var tdAdesao = document.createElement('td');
                     tdAdesao.textContent = formatarData(indicado.data_adesao);
                     tr.appendChild(tdAdesao);
 
-                    // Coluna de desconto
+                    // Coluna de desconto - ícones para indicar se gera desconto ativo
                     var tdDesconto = document.createElement('td');
+                    tdDesconto.className = 'text-center';
+
                     if (descontoInfo.ativo && indicado.tem_desconto_ativo) {
-                        tdDesconto.innerHTML = '<i class="fe fe-check-circle text-success" title="Gera desconto ativo"></i>';
+                        // Ícone verde - gera desconto ativo
+                        var iconGreen = document.createElement('i');
+                        iconGreen.className = 'bi bi-check-circle-fill text-success';
+                        iconGreen.style.fontSize = '1.25rem';
+                        iconGreen.style.display = 'inline-block';
+                        iconGreen.title = 'Gera desconto ativo';
+                        tdDesconto.appendChild(iconGreen);
                     } else {
-                        tdDesconto.innerHTML = '<i class="fe fe-minus-circle text-muted" title="Sem desconto"></i>';
+                        // Ícone cinza - sem desconto
+                        var iconGray = document.createElement('i');
+                        iconGray.className = 'bi bi-dash-circle text-muted';
+                        iconGray.style.fontSize = '1.25rem';
+                        iconGray.style.display = 'inline-block';
+                        iconGray.title = 'Sem desconto';
+                        tdDesconto.appendChild(iconGray);
                     }
                     tr.appendChild(tdDesconto);
 
@@ -270,10 +294,10 @@ function carregarContasApps(clienteId) {
             }
 
             contas.forEach(function(conta) {
-                let card = $('<div class="card rounded py-4 px-5 d-flex flex-column align-items-center justify-content-center border mb-3" data-app-id="' + (conta.id ?? '') + '"></div>');
-                let badge = $('<span class="badge rounded-pill bg-secondary mb-3">' + (conta.nome_aplicativo ?? '--') + '</span>');
+                let card = $('<div class="card rounded py-4 px-5 d-flex flex-column align-items-center justify-content-center border mb-3" data-app-id="' + (conta.id != null ? conta.id : '') + '"></div>');
+                let badge = $('<span class="badge rounded-pill bg-secondary mb-3">' + (conta.nome_aplicativo != null ? conta.nome_aplicativo : '--') + '</span>');
                 let infoDiv = $('<div class="my-0 text-center"></div>');
-                let btn_exclude = $('<div class="mt-2 mb-0" style="cursor: pointer;" data-app-id="' + (conta.id ?? '') + '"><iconify-icon icon="feather:trash-2" style="color: #dc3545;" width="15" height="15"></iconify-icon></div>');
+                let btn_exclude = $('<div class="mt-2 mb-0" style="cursor: pointer;" data-app-id="' + (conta.id != null ? conta.id : '') + '"><iconify-icon icon="feather:trash-2" style="color: #dc3545;" width="15" height="15"></iconify-icon></div>');
                 btn_exclude.on('click', function() { exibirModalConfirmacaoExclusao(this); });
 
                 // Device ID ou E-mail
@@ -327,6 +351,68 @@ function exibirModalCriarApp() {
 }
 
 $(function () {
+    // Lógica para exibir/esconder campos do formulário conforme o app selecionado
+    var appNomeSelect = document.getElementById('app-nome');
+    if (appNomeSelect) {
+        appNomeSelect.addEventListener('change', function () {
+            var selectedOption = this.options[this.selectedIndex];
+            var deviceHasMac = selectedOption.dataset.deviceHasMac === 'true';
+            var appName = selectedOption.textContent.trim().toLowerCase();
+
+            var divDeviceId = document.getElementById('div-device-id');
+            var divDeviceKey = document.getElementById('div-device-key');
+            var divAppEmail = document.getElementById('div-app-email');
+            var avisoSemConta = document.getElementById('app-sem-conta');
+            var btnSalvar = document.getElementById('btn-salvar-app');
+
+            var deviceId = document.getElementById('device-id');
+            var deviceKey = document.getElementById('device-key');
+            var email = document.getElementById('app-email');
+
+            // Resetar visibilidade e requisitos
+            if (divDeviceId) divDeviceId.style.display = 'none';
+            if (divDeviceKey) divDeviceKey.style.display = 'none';
+            if (divAppEmail) divAppEmail.style.display = 'none';
+            if (avisoSemConta) avisoSemConta.style.display = 'none';
+            if (btnSalvar) btnSalvar.disabled = false;
+
+            if (deviceId) deviceId.removeAttribute('required');
+            if (deviceKey) deviceKey.removeAttribute('required');
+            if (email) email.removeAttribute('required');
+
+            if (deviceHasMac) {
+                if (appName === 'clouddy') {
+                    if (divDeviceKey) divDeviceKey.style.display = 'block';
+                    if (divAppEmail) divAppEmail.style.display = 'block';
+                    if (deviceKey) deviceKey.setAttribute('required', 'required');
+                    if (email) email.setAttribute('required', 'required');
+                } else {
+                    if (divDeviceId) divDeviceId.style.display = 'block';
+                    if (divDeviceKey) divDeviceKey.style.display = 'block';
+                    if (deviceId) deviceId.setAttribute('required', 'required');
+                }
+            } else {
+                if (avisoSemConta) avisoSemConta.style.display = 'block';
+                if (btnSalvar) btnSalvar.disabled = true;
+            }
+        });
+    }
+
+    // Validação de tamanho mínimo dos campos
+    var deviceIdInput = document.getElementById('device-id');
+    if (deviceIdInput) {
+        deviceIdInput.addEventListener('input', function () {
+            this.setCustomValidity(this.value.length >= 6 ? '' : 'O mínimo esperado é de 6 caracteres.');
+        });
+    }
+
+    var deviceKeyInput = document.getElementById('device-key');
+    if (deviceKeyInput) {
+        deviceKeyInput.addEventListener('input', function () {
+            this.setCustomValidity(this.value.length >= 5 ? '' : 'O mínimo esperado é de 5 caracteres.');
+        });
+    }
+
     // Submissão AJAX do cadastro do app
     $('#create-app-info-form').off('submit').on('submit', function (event) {
         event.preventDefault();
@@ -340,9 +426,13 @@ $(function () {
         var formData = new FormData(form);
         var clienteId = $('#app-info-cliente-id').val();
 
-        fetch(url, { method: 'POST', body: formData })
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
+        })
             .then(response => {
-                if (response.status === 200) {
+                if (response.status === 200 || response.ok) {
                     // Fecha o modal de criação
                     $('#create-app-info-modal').modal('hide');
                     // Quando o modal de criação terminar de fechar, atualiza contas e reabre info
@@ -351,16 +441,22 @@ $(function () {
                         $('#info-cliente-modal').modal('show');
                     });
                 } else {
-                    // Exiba erro (pode adaptar conforme retorno do seu backend)
-                    response.json().then(data => {
-                        if (data && data.error) {
-                            $('#erro-criar-app').text(data.error);
-                        }
-                    });
+                    // Tenta fazer parse do JSON apenas se houver conteúdo
+                    var contentType = response.headers.get("content-type");
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                        response.json().then(data => {
+                            var errorMsg = (data && data.error) ? data.error : 'Erro ao cadastrar conta do app.';
+                            $('#create-app-error-message').text(errorMsg);
+                        }).catch(function() {
+                            $('#create-app-error-message').text('Erro ao cadastrar conta do app.');
+                        });
+                    } else {
+                        $('#create-app-error-message').text('Erro ao cadastrar conta do app. Status: ' + response.status);
+                    }
                 }
             })
             .catch(error => {
-                $('#erro-criar-app').text("Erro ao cadastrar conta do app.");
+                $('#create-app-error-message').text("Erro ao cadastrar conta do app.");
                 console.error(error);
             });
     });
@@ -389,7 +485,9 @@ $(function() {
             url: '/deletar-app-conta/' + app_id + '/',
             method: 'DELETE',
             beforeSend: function(xhr) {
-                xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+                if (csrfToken) {
+                    xhr.setRequestHeader("X-CSRFToken", csrfToken);
+                }
             },
             success: function(response) {
                 abrirInfoClienteAposExcluir = true;
@@ -397,7 +495,7 @@ $(function() {
                 $('#confirm-delete-app-conta-modal').modal('hide');
             },
             error: function(response) {
-                var mensagem_erro = response.responseJSON?.error_delete || "Erro ao excluir.";
+                var mensagem_erro = (response.responseJSON && response.responseJSON.error_delete) ? response.responseJSON.error_delete : "Erro ao excluir.";
                 $('#mensagem-erro').text(mensagem_erro);
             }
         });
@@ -431,3 +529,14 @@ function exibirModalConfirmacaoExclusao(botao) {
     $('#info-cliente-modal').modal('hide');
     $('#confirm-delete-app-conta-modal').modal('show');
 }
+
+// ----------------------
+// EXPORTAÇÕES GLOBAIS
+// ----------------------
+// Exporta todas as funções para o escopo global para que possam ser chamadas via onclick no HTML
+window.exibirModalDetalhes = exibirModalDetalhes;
+window.exibirModalCriarApp = exibirModalCriarApp;
+window.exibirModalConfirmacaoExclusao = exibirModalConfirmacaoExclusao;
+window.carregarContasApps = carregarContasApps;
+window.carregarQuantidadeMensalidadesPagas = carregarQuantidadeMensalidadesPagas;
+window.carregarIndicacoes = carregarIndicacoes;
