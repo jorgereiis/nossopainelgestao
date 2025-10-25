@@ -654,30 +654,8 @@
     z-index: 10000 !important;
 }
 
-/* Garantir que a tabela não corte o dropdown */
-.table-responsive {
-    overflow: visible !important;
-}
-
-.table-responsive .table {
-    overflow: visible !important;
-}
-
-/* Garantir que o card container também não corte o dropdown */
-.table-actions-visible {
-    overflow: visible !important;
-}
-
-.card {
-    overflow: visible !important;
-}
-
-/* Garantir que tbody e tr também não cortem o dropdown */
-#myTable tbody,
-#myTable tbody tr,
-#myTable tbody td {
-    overflow: visible !important;
-}
+/* Removidas regras globais de overflow: visible que causavam scroll no navbar */
+/* Os dropdowns funcionam corretamente apenas com z-index alto (10000) */
 
 /* Posicionamento correto do dropdown */
 #myTable .dropdown {
@@ -995,4 +973,16 @@
 #planosTable tbody tr:hover .badge {
     transform: translateY(-1px);
     box-shadow: 0 2px 6px rgba(13, 110, 253, 0.3);
+}
+
+/* ===== NAVBAR VERTICAL - REMOVER SCROLLS ===== */
+
+.navbar-vertical .nav-scroller {
+    overflow-y: visible !important;
+    overflow-x: visible !important;
+}
+
+.navbar-vertical .slimScrollDiv {
+    overflow-y: visible !important;
+    overflow-x: visible !important;
 }
