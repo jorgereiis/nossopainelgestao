@@ -14,6 +14,7 @@ from django.utils.timezone import localtime, now
 from .models import (
     Cliente,
     ClientePlanoHistorico,
+    DescontoProgressivoIndicacao,
     Mensalidade,
     Plano,
     PlanoIndicacao,
@@ -42,6 +43,58 @@ TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
 TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
 
 
+def get_client_ip(request):
+    """
+    Extrai o endereço IPv4 do cliente a partir do request.
+
+    Prioriza HTTP_X_FORWARDED_FOR (quando atrás de proxy/load balancer),
+    depois tenta REMOTE_ADDR. Garante que sempre retorna IPv4.
+
+    Se o cliente estiver usando IPv6, tenta converter ou retorna None.
+    """
+    # 1. Tentar HTTP_X_FORWARDED_FOR (proxy/load balancer)
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        # Pode ter múltiplos IPs separados por vírgula (client, proxy1, proxy2, ...)
+        # O primeiro é o IP real do cliente
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        # 2. Usar REMOTE_ADDR
+        ip = request.META.get('REMOTE_ADDR', '')
+
+    if not ip:
+        return None
+
+    # 3. Verificar se é IPv6 e tentar converter para IPv4
+    import ipaddress
+
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+
+        # Se for IPv6
+        if isinstance(ip_obj, ipaddress.IPv6Address):
+            # Verificar se é IPv4 mapeado em IPv6 (::ffff:192.168.1.1)
+            if ip_obj.ipv4_mapped:
+                return str(ip_obj.ipv4_mapped)
+
+            # Verificar se é IPv6 loopback (::1)
+            if ip_obj.is_loopback:
+                return '127.0.0.1'
+
+            # IPv6 puro - não podemos converter, retornar None
+            # (o campo GenericIPAddressField aceita IPv6, mas queremos apenas IPv4)
+            logger.warning(f'Cliente usando IPv6 puro: {ip}. Não será registrado no log.')
+            return None
+
+        # Se for IPv4, retornar como string
+        return str(ip_obj)
+
+    except ValueError:
+        # IP inválido
+        logger.warning(f'IP inválido detectado: {ip}')
+        return None
+
+
 def get_saudacao_por_hora(hora_referencia=None):
     """Retorna saudação contextual de acordo com a hora informada ou atual."""
     if not hora_referencia:
@@ -52,6 +105,77 @@ def get_saudacao_por_hora(hora_referencia=None):
     elif hora_referencia < datetime.strptime("18:00:00", "%H:%M:%S").time():
         return "Boa tarde"
     return "Boa noite"
+
+
+def calcular_desconto_progressivo_total(cliente):
+    """
+    Calcula o valor total de desconto progressivo ativo para um cliente.
+
+    Retorna um dicionário com:
+    - valor_total: Decimal - Valor total do desconto aplicável
+    - qtd_descontos_ativos: int - Quantidade de descontos ativos
+    - qtd_descontos_aplicados: int - Quantidade de descontos realmente aplicados (respeitando limite)
+    - limite_indicacoes: int - Limite configurado no plano (0 = ilimitado)
+    - descontos: QuerySet - Lista dos descontos ativos
+
+    Regras:
+    - Só considera descontos ativos (ativo=True)
+    - Respeita o limite de indicações configurado no plano
+    - Ordena por data_inicio (descontos mais antigos primeiro)
+    """
+    from django.db.models import Sum
+
+    # Buscar plano progressivo ativo do usuário
+    plano_progressivo = PlanoIndicacao.objects.filter(
+        usuario=cliente.usuario,
+        tipo_plano="desconto_progressivo",
+        ativo=True,
+        status=True
+    ).first()
+
+    # Se não há plano ativo, retorna zero
+    if not plano_progressivo:
+        return {
+            "valor_total": Decimal("0.00"),
+            "qtd_descontos_ativos": 0,
+            "qtd_descontos_aplicados": 0,
+            "limite_indicacoes": 0,
+            "descontos": DescontoProgressivoIndicacao.objects.none(),
+            "plano": None,
+        }
+
+    # Buscar todos os descontos ativos deste cliente como indicador
+    descontos_ativos = DescontoProgressivoIndicacao.objects.filter(
+        cliente_indicador=cliente,
+        ativo=True,
+        plano_indicacao__tipo_plano="desconto_progressivo"
+    ).order_by("data_inicio", "criado_em")
+
+    qtd_descontos_ativos = descontos_ativos.count()
+    limite = plano_progressivo.limite_indicacoes
+
+    # Se limite = 0, significa ilimitado
+    if limite == 0 or limite >= qtd_descontos_ativos:
+        descontos_aplicados = descontos_ativos
+        qtd_descontos_aplicados = qtd_descontos_ativos
+    else:
+        # Aplicar apenas até o limite (os mais antigos primeiro)
+        descontos_aplicados = descontos_ativos[:limite]
+        qtd_descontos_aplicados = limite
+
+    # Calcular valor total
+    valor_total = descontos_aplicados.aggregate(
+        total=Sum("valor_desconto")
+    )["total"] or Decimal("0.00")
+
+    return {
+        "valor_total": valor_total,
+        "qtd_descontos_ativos": qtd_descontos_ativos,
+        "qtd_descontos_aplicados": qtd_descontos_aplicados,
+        "limite_indicacoes": limite,
+        "descontos": descontos_ativos,
+        "plano": plano_progressivo,
+    }
 
 
 def registrar_log(mensagem: str, usuario: str, log_directory: str) -> None:
@@ -157,11 +281,8 @@ def log_user_action(
         if object_repr is None and instance is not None:
             object_repr = str(instance)
 
-        ip_address = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        if ip_address:
-            ip_address = ip_address.split(",")[0].strip()
-        else:
-            ip_address = request.META.get("REMOTE_ADDR", "")
+        # Obter IPv4 do cliente
+        ip_address = get_client_ip(request)
 
         payload = {
             "usuario": user,
@@ -171,7 +292,7 @@ def log_user_action(
             "objeto_repr": (object_repr or "")[:255],
             "mensagem": message or "",
             "extras": _prepare_extra_payload(extra),
-            "ip": ip_address or None,
+            "ip": ip_address,
             "request_path": (getattr(request, "path", "") or "")[:255],
         }
 
@@ -352,8 +473,15 @@ def envio_apos_novo_cadastro(cliente):
     except Exception as e:
         logger.error(f"[WPP] Falha ao enviar mensagem para {telefone}: {e}", exc_info=True)
 
-    plano_indicacao_ativo = PlanoIndicacao.objects.filter(usuario=usuario, ativo=True).first()
-    if cliente.indicado_por and plano_indicacao_ativo:
+    # Verifica se há planos do tipo 'desconto' ou 'dinheiro' ativos e habilitados
+    planos_desconto_dinheiro = PlanoIndicacao.objects.filter(
+        usuario=usuario,
+        tipo_plano__in=["desconto", "dinheiro"],
+        ativo=True,
+        status=True
+    ).exists()
+
+    if cliente.indicado_por and planos_desconto_dinheiro:
         envio_apos_nova_indicacao(usuario, cliente, cliente.indicado_por)
 
 
@@ -384,12 +512,22 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     if not telefone_cliente:
         return
 
-    # Planos ativos
-    plano_desconto = PlanoIndicacao.objects.filter(tipo_plano="desconto", usuario=usuario, ativo=True).first()
-    plano_dinheiro = PlanoIndicacao.objects.filter(tipo_plano="dinheiro", usuario=usuario, ativo=True).first()
+    # Planos ativos e habilitados
+    plano_desconto = PlanoIndicacao.objects.filter(
+        tipo_plano="desconto",
+        usuario=usuario,
+        ativo=True,
+        status=True
+    ).first()
+    plano_dinheiro = PlanoIndicacao.objects.filter(
+        tipo_plano="dinheiro",
+        usuario=usuario,
+        ativo=True,
+        status=True
+    ).first()
 
     if not plano_desconto and not plano_dinheiro:
-        return # Nenhum plano ativo, então não há benefício
+        return # Nenhum plano ativo e habilitado, então não há benefício
 
     # Mensalidades
     mensalidades_em_aberto = Mensalidade.objects.filter(
@@ -494,6 +632,88 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
         )
 
         enviar_mensagem(telefone_cliente, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
+
+
+def envio_desconto_progressivo_indicacao(usuario, novo_cliente, cliente_indicador):
+    """
+    Envia mensagem WhatsApp informando sobre desconto progressivo ativo.
+
+    Informa ao cliente indicador:
+    - Novo desconto recebido
+    - Valor total de desconto acumulado
+    - Quantidade de indicações ativas
+    - Valor da próxima mensalidade com desconto
+    """
+    nome_cliente = str(cliente_indicador)
+    telefone_cliente = str(cliente_indicador.telefone)
+    primeiro_nome = nome_cliente.split(' ')[0]
+    tipo_envio = "Desconto Progressivo"
+
+    try:
+        token_user = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
+    except SessaoWpp.DoesNotExist:
+        return
+
+    if not telefone_cliente:
+        return
+
+    # Calcular desconto total atual
+    desconto_info = calcular_desconto_progressivo_total(cliente_indicador)
+
+    if desconto_info["valor_total"] <= Decimal("0.00"):
+        return
+
+    saudacao = get_saudacao_por_hora()
+    valor_desconto_total = desconto_info["valor_total"]
+    qtd_indicacoes_ativas = desconto_info["qtd_descontos_ativos"]
+    qtd_aplicadas = desconto_info["qtd_descontos_aplicados"]
+    limite = desconto_info["limite_indicacoes"]
+
+    # Calcular valor da próxima mensalidade
+    valor_plano = cliente_indicador.plano.valor
+    valor_mensalidade = valor_plano - valor_desconto_total
+    if desconto_info["plano"]:
+        valor_minimo = desconto_info["plano"].valor_minimo_mensalidade
+        valor_mensalidade = max(valor_mensalidade, valor_minimo)
+
+    # Montar informação sobre limite
+    if limite > 0:
+        info_limite = f"Limite de indicações com desconto: *{qtd_aplicadas}/{limite}*"
+        if qtd_indicacoes_ativas > limite:
+            info_limite += f" (você tem {qtd_indicacoes_ativas} indicações ativas, mantendo margem de segurança)"
+    else:
+        info_limite = f"Total de indicações ativas: *{qtd_indicacoes_ativas}*"
+
+    # Buscar mensalidade em aberto para informar vencimento
+    mensalidade_aberta = Mensalidade.objects.filter(
+        cliente=cliente_indicador,
+        pgto=False,
+        cancelado=False,
+        dt_cancelamento=None
+    ).order_by('dt_vencimento').first()
+
+    if mensalidade_aberta:
+        vencimento_info = f"📅 *Próximo vencimento:* {mensalidade_aberta.dt_vencimento.strftime('%d/%m/%Y')}"
+        valor_info = f"💰 *Valor com desconto:* R$ {mensalidade_aberta.valor:.2f}"
+    else:
+        vencimento_info = ""
+        valor_info = f"💰 *Próximas mensalidades:* R$ {valor_mensalidade:.2f}"
+
+    mensagem = (
+        f"✨ *NOVO DESCONTO PROGRESSIVO!* ✨\n\n"
+        f"Olá, {primeiro_nome}. {saudacao}!\n\n"
+        f"Parabéns! Você acaba de receber um novo desconto permanente por ter indicado *{novo_cliente.nome}*.\n\n"
+        f"📊 *Resumo dos seus descontos:*\n"
+        f"• Desconto total acumulado: *R$ {valor_desconto_total:.2f}*\n"
+        f"• {info_limite}\n\n"
+        f"{vencimento_info}\n"
+        f"{valor_info}\n\n"
+        f"💡 *Como funciona:*\n"
+        f"Enquanto seus indicados permanecerem ativos, você mantém esse desconto em TODAS as suas mensalidades!\n\n"
+        f"Obrigado pela confiança! 🙏"
+    )
+
+    enviar_mensagem(telefone_cliente, mensagem, usuario, token_user.token, nome_cliente, tipo_envio)
 
 
 def enviar_mensagem(telefone: str, mensagem: str, usuario: str, token: str, cliente: str, tipo_envio: str) -> None:

@@ -12,7 +12,7 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-from .models import Cliente, Mensalidade, SessaoWpp
+from .models import Cliente, Mensalidade, SessaoWpp, UserProfile
 from wpp.api_connection import add_or_remove_label_contact, criar_label_se_nao_existir, get_label_contact
 
 logger = logging.getLogger(__name__)
@@ -47,6 +47,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         - A data de vencimento anterior (caso tenha sido pagamento antecipado), ou
         - A data atual (caso tenha sido em atraso).
     - O novo vencimento será ajustado conforme o tipo do plano do cliente (mensal, trimestral, etc).
+    - Aplica desconto progressivo se houver descontos ativos.
     - Ao final, além de criar a nova mensalidade, o campo `data_vencimento` do cliente será atualizado.
 
     Parâmetros:
@@ -84,9 +85,26 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         elif "anual" in plano_nome:
             nova_data_vencimento += relativedelta(years=1)
 
+        # Calcular valor da mensalidade com desconto progressivo
+        from cadastros.utils import calcular_desconto_progressivo_total
+        from .models import PlanoIndicacao
+        from decimal import Decimal
+
+        valor_base = instance.cliente.plano.valor
+        desconto_info = calcular_desconto_progressivo_total(instance.cliente)
+
+        # Aplicar desconto se houver
+        if desconto_info["valor_total"] > Decimal("0.00") and desconto_info["plano"]:
+            valor_com_desconto = valor_base - desconto_info["valor_total"]
+            # Respeitar valor mínimo configurado
+            valor_minimo = desconto_info["plano"].valor_minimo_mensalidade
+            valor_final = max(valor_com_desconto, valor_minimo)
+        else:
+            valor_final = valor_base
+
         Mensalidade.objects.create(
             cliente=instance.cliente,
-            valor=instance.cliente.plano.valor,
+            valor=valor_final,
             dt_vencimento=nova_data_vencimento,
             usuario=instance.usuario,
         )
@@ -138,9 +156,9 @@ def cliente_post_save(sender, instance, created, **kwargs):
             servidor_anterior_id = _clientes_servidor_anterior.pop(instance.pk)
             servidor_foi_modificado = servidor_anterior_id != instance.servidor_id
 
-        # Detecta mudança de cancelamento
+        # Detecta mudança de cancelamento (usa .get() para não remover ainda)
         if instance.pk in _clientes_cancelado_anterior:
-            cancelado_anterior = _clientes_cancelado_anterior.pop(instance.pk)
+            cancelado_anterior = _clientes_cancelado_anterior.get(instance.pk)
             cliente_foi_cancelado = not cancelado_anterior and instance.cancelado
             cliente_foi_reativado = cancelado_anterior and not instance.cancelado
 
@@ -187,3 +205,270 @@ def cliente_post_save(sender, instance, created, **kwargs):
 
     except Exception as error:
         _log_event(logging.ERROR, instance, func_name, "Erro ao alterar label do contato.", exc_info=error)
+
+
+# ============================================================================
+# SIGNALS PARA DESCONTO PROGRESSIVO POR INDICAÇÃO
+# ============================================================================
+
+@receiver(post_save, sender=Cliente)
+def gerenciar_desconto_progressivo_indicacao(sender, instance, created, **kwargs):
+    """
+    Gerencia descontos progressivos quando um cliente é criado ou atualizado.
+
+    - Ao criar cliente com indicação: cria desconto progressivo e envia mensagem
+    - Ao cancelar cliente: desativa descontos onde ele é indicado
+    - Ao reativar cliente: reativa descontos onde ele é indicado
+    """
+    from .models import DescontoProgressivoIndicacao, PlanoIndicacao, Mensalidade
+    from cadastros.utils import calcular_desconto_progressivo_total
+    from decimal import Decimal
+
+    func_name = gerenciar_desconto_progressivo_indicacao.__name__
+
+    # Verificar se plano progressivo está ativo
+    plano_progressivo = PlanoIndicacao.objects.filter(
+        usuario=instance.usuario,
+        tipo_plano="desconto_progressivo",
+        ativo=True,
+        status=True
+    ).first()
+
+    if not plano_progressivo:
+        return
+
+    # CASO 1: Novo cliente com indicação - criar desconto progressivo
+    if created and instance.indicado_por and not instance.cancelado:
+        try:
+            # Criar desconto progressivo
+            desconto = DescontoProgressivoIndicacao.objects.create(
+                cliente_indicador=instance.indicado_por,
+                cliente_indicado=instance,
+                plano_indicacao=plano_progressivo,
+                valor_desconto=plano_progressivo.valor,
+                usuario=instance.usuario,
+                ativo=True
+            )
+
+            _log_event(
+                logging.INFO,
+                instance,
+                func_name,
+                f"Desconto progressivo criado: {desconto.cliente_indicador.nome} ← {instance.nome} (R$ {desconto.valor_desconto})"
+            )
+
+            # Atualizar mensalidade em aberto do indicador
+            atualizar_mensalidade_indicador_com_desconto(instance.indicado_por, plano_progressivo)
+
+            # Enviar mensagem WhatsApp (será implementado na próxima etapa)
+            from cadastros.utils import envio_desconto_progressivo_indicacao
+            try:
+                envio_desconto_progressivo_indicacao(instance.usuario, instance, instance.indicado_por)
+            except Exception as e:
+                _log_event(logging.WARNING, instance, func_name, f"Falha ao enviar mensagem WhatsApp: {e}")
+
+        except Exception as error:
+            _log_event(logging.ERROR, instance, func_name, "Erro ao criar desconto progressivo.", exc_info=error)
+
+    # CASO 2: Cliente cancelado - desativar desconto progressivo
+    if not created and instance.pk in _clientes_cancelado_anterior:
+        cancelado_anterior = _clientes_cancelado_anterior.get(instance.pk)
+        cliente_foi_cancelado = not cancelado_anterior and instance.cancelado
+        cliente_foi_reativado = cancelado_anterior and not instance.cancelado
+
+        if cliente_foi_cancelado:
+            # Desativar descontos onde este cliente é o indicado
+            descontos = DescontoProgressivoIndicacao.objects.filter(
+                cliente_indicado=instance,
+                ativo=True
+            )
+
+            for desconto in descontos:
+                desconto.ativo = False
+                desconto.data_fim = timezone.localdate()
+                desconto.save()
+
+                _log_event(
+                    logging.INFO,
+                    instance,
+                    func_name,
+                    f"Desconto progressivo desativado: {desconto.cliente_indicador.nome} ← {instance.nome}"
+                )
+
+                # Atualizar mensalidade em aberto do indicador
+                atualizar_mensalidade_indicador_com_desconto(desconto.cliente_indicador, plano_progressivo)
+
+        # CASO 3: Cliente reativado - reativar desconto progressivo
+        elif cliente_foi_reativado:
+            # Reativar descontos onde este cliente é o indicado
+            descontos = DescontoProgressivoIndicacao.objects.filter(
+                cliente_indicado=instance,
+                ativo=False,
+                data_fim__isnull=False
+            )
+
+            for desconto in descontos:
+                desconto.ativo = True
+                desconto.data_fim = None
+                desconto.save()
+
+                _log_event(
+                    logging.INFO,
+                    instance,
+                    func_name,
+                    f"Desconto progressivo reativado: {desconto.cliente_indicador.nome} ← {instance.nome}"
+                )
+
+                # Atualizar mensalidade em aberto do indicador
+                atualizar_mensalidade_indicador_com_desconto(desconto.cliente_indicador, plano_progressivo)
+
+    # Limpar cache do estado anterior após processar
+    if instance.pk in _clientes_cancelado_anterior:
+        _clientes_cancelado_anterior.pop(instance.pk, None)
+
+
+def atualizar_mensalidade_indicador_com_desconto(cliente_indicador, plano_progressivo):
+    """Atualiza o valor da mensalidade em aberto do indicador com desconto progressivo."""
+    from .models import Mensalidade
+    from cadastros.utils import calcular_desconto_progressivo_total
+    from decimal import Decimal
+
+    # Buscar mensalidade em aberto
+    mensalidade_aberta = Mensalidade.objects.filter(
+        cliente=cliente_indicador,
+        pgto=False,
+        cancelado=False,
+        dt_cancelamento=None
+    ).order_by('dt_vencimento').first()
+
+    if not mensalidade_aberta:
+        return
+
+    # Calcular desconto total
+    desconto_info = calcular_desconto_progressivo_total(cliente_indicador)
+    valor_base = cliente_indicador.plano.valor
+
+    if desconto_info["valor_total"] > Decimal("0.00"):
+        valor_com_desconto = valor_base - desconto_info["valor_total"]
+        valor_minimo = plano_progressivo.valor_minimo_mensalidade
+        valor_final = max(valor_com_desconto, valor_minimo)
+    else:
+        valor_final = valor_base
+
+    # Atualizar apenas se o valor mudou
+    if mensalidade_aberta.valor != valor_final:
+        mensalidade_aberta.valor = valor_final
+        mensalidade_aberta.save()
+
+
+@receiver(post_save, sender='auth.User')
+def create_user_profile(sender, instance, created, **kwargs):
+    """Cria UserProfile automaticamente ao criar novo User."""
+    if created:
+        UserProfile.objects.get_or_create(user=instance)
+
+
+@receiver(post_save, sender='auth.User')
+def save_user_profile(sender, instance, **kwargs):
+    """Garante que o UserProfile seja salvo junto com o User."""
+    if hasattr(instance, 'profile'):
+        instance.profile.save()
+    else:
+        # Cria profile se não existir (para usuários antigos)
+        UserProfile.objects.get_or_create(user=instance)
+
+
+# ============================================================================
+# SIGNALS PARA REGISTRO DE LOGIN
+# ============================================================================
+
+from django.contrib.auth.signals import user_logged_in, user_login_failed
+from .models import LoginLog
+
+
+@receiver(user_logged_in)
+def log_user_login_success(sender, request, user, **kwargs):
+    """
+    Registra login bem-sucedido no LoginLog.
+
+    Este signal é disparado automaticamente pelo Django após um login bem-sucedido.
+    Captura informações importantes como IP, User-Agent, e método de login.
+    """
+    from cadastros.utils import get_client_ip
+
+    # Determinar método de login
+    # Se há pending_2fa_user_id na sessão, significa que acabou de fazer 2FA
+    if 'pending_2fa_user_id' in request.session:
+        login_method = LoginLog.METHOD_2FA
+    # Se há backup_code_used
+    elif request.session.get('backup_code_used'):
+        login_method = LoginLog.METHOD_BACKUP_CODE
+    else:
+        login_method = LoginLog.METHOD_PASSWORD
+
+    try:
+        LoginLog.objects.create(
+            usuario=user,
+            username_tentado=user.username,
+            ip=get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+            login_method=login_method,
+            success=True
+        )
+        logger.info(f'[LOGIN_LOG] Login bem-sucedido registrado para usuário {user.username} (ID: {user.id})')
+
+        # Limpar flags de sessão
+        request.session.pop('backup_code_used', None)
+
+    except Exception as e:
+        logger.error(f'[LOGIN_LOG] Erro ao registrar login bem-sucedido: {str(e)}', exc_info=True)
+
+
+@receiver(user_login_failed)
+def log_user_login_failure(sender, credentials, request, **kwargs):
+    """
+    Registra tentativa de login falhada no LoginLog.
+
+    Este signal é disparado quando uma tentativa de login falha.
+    Útil para detectar:
+    - Tentativas de brute force
+    - Acessos não autorizados
+    - Usuários esquecendo senhas
+    """
+    from cadastros.utils import get_client_ip
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+
+    username = credentials.get('username', '')
+
+    # Tentar encontrar o usuário
+    user = None
+    if username:
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            pass
+
+    # Determinar razão da falha
+    if not username:
+        failure_reason = 'Username não fornecido'
+    elif not user:
+        failure_reason = 'Usuário não encontrado'
+    else:
+        failure_reason = 'Senha incorreta'
+
+    try:
+        LoginLog.objects.create(
+            usuario=user,
+            username_tentado=username[:150],
+            ip=get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+            login_method=LoginLog.METHOD_PASSWORD,
+            success=False,
+            failure_reason=failure_reason
+        )
+        logger.warning(f'[LOGIN_LOG] Login falhado registrado para username "{username}". Razão: {failure_reason}')
+
+    except Exception as e:
+        logger.error(f'[LOGIN_LOG] Erro ao registrar login falhado: {str(e)}', exc_info=True)

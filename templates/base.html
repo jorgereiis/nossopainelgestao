@@ -16,6 +16,13 @@
                 {% include 'partials/header.html' %}
             {% endblock %}
             {% block messages %}{% endblock %}
+
+            <!-- Modais globais disponíveis em todo o sistema -->
+            {% include 'partials/modais_globais.html' %}
+
+            <!-- Offcanvas de Configurações disponível em todo o sistema -->
+            {% include 'partials/offcanvas_configuracoes.html' %}
+
             {% block modals %}{% endblock %}
             {% block content %}{% endblock %}
             {% block footer %}

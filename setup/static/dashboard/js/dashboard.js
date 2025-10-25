@@ -1,6 +1,11 @@
 // FUNÇÕES PARA TRATAR EXIBIÇÃO DE INFORMAÇÕES NO DASHBOARD
-const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
-const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
+// CSRF Token - usa a versão global se já existir, senão cria uma nova
+if (typeof window.csrfToken === 'undefined') {
+    var csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+    window.csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
+}
+var csrfToken = window.csrfToken;
+
 const fireAlert = (options) => {
     if (window.Swal && typeof window.Swal.fire === 'function') {
         return window.Swal.fire(options);
@@ -29,44 +34,97 @@ const eyeStorageKey = "dashboard-eye-state";
 
 
 const initializeTableDropdowns = () => {
-    const dropdowns = document.querySelectorAll('.table-actions-visible .dropdown');
+    console.log('[Dashboard] Inicializando dropdowns da tabela');
+
+    const dropdowns = document.querySelectorAll('.table-actions-visible .table-dropdown-actions');
+
     dropdowns.forEach((dropdown) => {
-        if (dropdown.dataset.dropdownEnhanced === 'true') {
+        // Evita reinicializar
+        if (dropdown.dataset.initialized === 'true') {
             return;
         }
-        const toggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
+
+        const button = dropdown.querySelector('[data-bs-toggle="dropdown"]');
         const menu = dropdown.querySelector('.dropdown-menu');
-        if (!toggle || !menu) {
+
+        if (!button || !menu) {
             return;
         }
-        const resetPosition = () => {
-            menu.style.marginTop = '';
-            menu.style.marginBottom = '';
-            menu.style.marginLeft = '';
+
+        // Função para aplicar position: fixed e calcular posição
+        const applyFixedPosition = () => {
+            const buttonRect = button.getBoundingClientRect();
+            const menuRect = menu.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            // Aplica position: fixed
+            menu.style.position = 'fixed';
+            menu.style.margin = '0';
+
+            // Posição vertical: abaixo do botão por padrão
+            let top = buttonRect.bottom + 4;
+
+            // Se não couber abaixo, posiciona acima
+            if (top + menuRect.height > viewportHeight - 10 && buttonRect.top > menuRect.height) {
+                top = buttonRect.top - menuRect.height - 4;
+            }
+
+            // Posição horizontal: alinha à direita do botão (dropdown-menu-end)
+            let left = buttonRect.right - menuRect.width;
+
+            // Ajusta se sair da tela pela esquerda
+            if (left < 10) {
+                left = 10;
+            }
+
+            // Ajusta se sair da tela pela direita
+            if (left + menuRect.width > viewportWidth - 10) {
+                left = viewportWidth - menuRect.width - 10;
+            }
+
+            // Aplica as posições
+            menu.style.top = `${top}px`;
+            menu.style.left = `${left}px`;
+            menu.style.right = 'auto';
+            menu.style.bottom = 'auto';
+            menu.style.transform = 'none';
         };
-        toggle.addEventListener('shown.bs.dropdown', () => {
-            requestAnimationFrame(() => {
-                resetPosition();
-                const menuRect = menu.getBoundingClientRect();
-                const toggleRect = toggle.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
-                const viewportWidth = window.innerWidth;
-                const spaceBelow = viewportHeight - menuRect.bottom;
-                const spaceAbove = toggleRect.top;
-                if (spaceBelow < 12 && spaceAbove > spaceBelow) {
-                    const offset = menuRect.height - toggleRect.height;
-                    menu.style.marginTop = `-${offset}px`;
-                    menu.style.marginBottom = `${toggleRect.height}px`;
-                }
-                const menuRectAfter = menu.getBoundingClientRect();
-                const spaceRight = viewportWidth - menuRectAfter.right;
-                if (spaceRight < 0) {
-                    menu.style.marginLeft = `${spaceRight - 8}px`;
-                }
-            });
+
+        // Função para resetar posição ao fechar
+        const resetPosition = () => {
+            menu.style.position = '';
+            menu.style.top = '';
+            menu.style.left = '';
+            menu.style.right = '';
+            menu.style.bottom = '';
+            menu.style.transform = '';
+            menu.style.margin = '';
+        };
+
+        // Quando o dropdown abre (DEPOIS que o Bootstrap terminou)
+        button.addEventListener('shown.bs.dropdown', () => {
+            requestAnimationFrame(applyFixedPosition);
         });
-        toggle.addEventListener('hidden.bs.dropdown', resetPosition);
-        dropdown.dataset.dropdownEnhanced = 'true';
+
+        // Quando o dropdown fecha
+        button.addEventListener('hidden.bs.dropdown', resetPosition);
+
+        // Atualiza posição ao rolar ou redimensionar (apenas se aberto)
+        let scrollTimeout;
+        const handleScroll = () => {
+            if (button.getAttribute('aria-expanded') === 'true') {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    requestAnimationFrame(applyFixedPosition);
+                }, 10);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, true);
+        window.addEventListener('resize', handleScroll);
+
+        dropdown.dataset.initialized = 'true';
     });
 };
 
@@ -175,7 +233,10 @@ if (eyeIcon) {
                             title: 'Cancelado!',
                             html: '<span style="font-size: 20px">😮</span><br>' + response.success_message_cancel + '<br>Caso queira reativar, basta acessar seus clientes cancelados.',
                         }).then(function() {
-                            atualizarTabelaClientes();
+                            // Usa novo gerenciador de tabela
+                            if (window.dashboardTableManager) {
+                                window.dashboardTableManager.refreshTable();
+                            }
                         });
                     }
 
@@ -250,7 +311,10 @@ if (eyeIcon) {
                             title: 'Pago!',
                             html: '<span style="font-size: 20px">🤑</span><br>' + response.success_message_invoice + '<br>Consulte as mensalidades desse cliente para mais detalhes.',
                         }).then(function() {
-                            atualizarTabelaClientes();
+                            // Usa novo gerenciador de tabela
+                            if (window.dashboardTableManager) {
+                                window.dashboardTableManager.refreshTable();
+                            }
                         });
                     }
 
@@ -285,476 +349,9 @@ if (eyeIcon) {
         $('#confirm-pagamento-modal').modal('hide');
     });
 
-// FUNÇÃO PARA TRATAR EXIBIÇÃO DO MODAL DE INFORMAÇÕES DO CLIENTE
-
-    function exibirModalDetalhes(botao) {
-        const clienteId = botao.dataset.id;
-        const clienteNome = botao.dataset.nome;
-        const clientePlano = botao.dataset.plano;
-        const clienteTelas = botao.dataset.telas;
-        const clienteTelefone = botao.dataset.telefone;
-        const clienteServidor = botao.dataset.servidor;
-        const clienteFormaPgto = botao.dataset.forma_pgto;
-        const clienteAplicativo = botao.dataset.aplicativo;
-        const clienteDataAdesao = botao.dataset.data_adesao;
-        const clienteDispositivo = botao.dataset.dispositivo;
-        const clienteDataVencimento = botao.dataset.data_vencimento;
-        const clienteContaAplicativo = botao.dataset.conta_aplicativo;
-
-        let clienteUltimoPagamento = botao.dataset.ultimo_pagamento;
-        if (clienteUltimoPagamento == 'None' || clienteUltimoPagamento == '' || clienteUltimoPagamento == null){
-            clienteUltimoPagamento = '--';
-        }
-        
-        let clienteIndicadoPor = botao.dataset.indicado_por;
-        if (clienteIndicadoPor == 'None' || clienteIndicadoPor == '' || clienteIndicadoPor == null){
-            clienteIndicadoPor = '--';
-        }
-        
-        let clienteNotas = botao.dataset.notas;
-        if (clienteNotas == 'None' || clienteNotas == '' || clienteNotas == null){
-            clienteNotas = '--';
-        }
-        
-        const table = document.querySelector("#info-cliente-table");
-
-        document.getElementById('info-cliente-id').textContent = clienteId;
-        document.getElementById('info-cliente-tela').textContent = clienteTelas;
-        document.getElementById('info-cliente-nome').textContent = clienteNome;
-        document.getElementById('info-cliente-notas').textContent =  clienteNotas;
-        document.getElementById('info-cliente-plano').textContent =  clientePlano;
-        document.getElementById('info-cliente-servidor').textContent =  clienteServidor;
-        document.getElementById('info-cliente-forma_pgto').textContent =  clienteFormaPgto;
-        document.getElementById('info-cliente-aplicativo').textContent =  clienteAplicativo;
-        document.getElementById('info-cliente-dispositivo').textContent =  clienteDispositivo;
-        document.getElementById('info-cliente-indicado_por').textContent =  clienteIndicadoPor;
-        document.getElementById('info-cliente-ultimo_pgto').textContent =  clienteUltimoPagamento;
-        document.getElementById('info-cliente-data_vencimento').textContent =  clienteDataVencimento;
-        document.getElementById('info-cliente-telefone').textContent = clienteTelefone;
-        document.getElementById('info-cliente-data_adesao').textContent = 'Cliente desde ' + clienteDataAdesao;
-
-        const modal = new bootstrap.Modal(document.querySelector("#info-cliente-modal"));
-        modal.show();
-
-        // chamar a função para carregar e inserir as informações das contas dos aplicativos no modal
-        carregarContasApps(clienteId);
-
-        // chamar a função para carregar as quantidades das mensalidades para o Resumo das Cobranças
-        carregarQuantidadeMensalidadesPagas(clienteId);
-
-        // chamar a função para carregar os dados das indicações do cliente
-        carregarIndicacoes(clienteId);
-    }
-
-    $('#info-cliente-modal').on('click', '.btn-close, .btn-secondary, #add-apps-info, #btn_exclude', function () {
-      $('#info-cliente-modal').modal('hide');
-    });
-
-    function formatarTelefone(telefone) {
-        const numeros = telefone.replace(/\D/g, '');
-      
-        if (numeros.length === 12) {
-            return `(${numeros.substr(2, 2)}) ${numeros.substr(4, 4)}-${numeros.substr(8)}`;
-        } else if (numeros.length === 13) {
-            return `(${numeros.substr(2, 2)}) ${numeros.substr(4, 5)}-${numeros.substr(9)}`;
-        } else {
-            return telefone;
-        }
-    }
-
-    function carregarQuantidadeMensalidadesPagas(clienteId) {
-        $.ajax({
-            url: '/qtds-mensalidades/',
-            type: 'GET',
-            data: { cliente_id: clienteId },
-            success: function(data) {
-                document.getElementById('qtd_mensalidades_pagas').textContent = data.qtd_mensalidades_pagas;
-                document.getElementById('qtd_mensalidades_pendentes').textContent = data.qtd_mensalidades_pendentes;
-                document.getElementById('qtd_mensalidades_canceladas').textContent = data.qtd_mensalidades_canceladas;
-
-                var tbody = document.querySelector('#table-invoice tbody');
-                tbody.innerHTML = ''; // Limpa o conteúdo atual da tabela
-
-                data.mensalidades_totais.forEach(function(mensalidade) {
-                    var tr = document.createElement('tr');
-                    var tdId = document.createElement('td');
-                    tdId.textContent = mensalidade.id;
-                    tr.appendChild(tdId);
-                    const hoje = new Date();
-                    hoje.setHours(0, 0, 0, 0);
-                    const dataVencimento = mensalidade.dt_vencimento.replace(/(\d{4})-(\d{2})-(\d{2})/, '$2/$3/$1');
-
-                    function formatarData(data) {
-                        var partes = data.split('-');
-                        var dataFormatada = partes[2] + '/' + partes[1] + '/' + partes[0];
-                        return dataFormatada;
-                    }
-
-                    var tdStatus = document.createElement('td');
-                    if (mensalidade.pgto) {
-                        tdStatus.innerHTML = '<span class="badge rounded-pill bg-success pill-invoice"><i class="bi bi-check-circle"></i>  Pago</span>';
-                    } else if (mensalidade.cancelado) {
-                        tdStatus.innerHTML = '<span class="badge rounded-pill bg-warning pill-invoice"><i class="bi bi-x-square"></i>  Cancelado</span>';
-                    } else if (new Date(dataVencimento) < hoje) {
-                        tdStatus.innerHTML = '<span class="badge rounded-pill bg-danger pill-invoice"><i class="bi bi-exclamation-triangle"></i>  Inadimplente</span>';
-                    } else if (new Date(dataVencimento) >= hoje) {
-                        tdStatus.innerHTML = '<span class="badge rounded-pill bg-secondary pill-invoice"><i class="bi bi-clock"></i>  Em aberto</span>';
-                    }
-                    tr.appendChild(tdStatus);
-
-                    var tdVencimento = document.createElement('td');
-                    tdVencimento.textContent = formatarData(mensalidade.dt_vencimento);
-                    tr.appendChild(tdVencimento);
-
-                    var tdValor = document.createElement('td');
-                    tdValor.textContent = 'R$ ' + mensalidade.valor;
-                    tr.appendChild(tdValor);
-
-                    var tdPagamento = document.createElement('td');
-                    tdPagamento.textContent = mensalidade.dt_pagamento ? formatarData(mensalidade.dt_pagamento) : '-';
-                    tr.appendChild(tdPagamento);
-
-                    tbody.appendChild(tr);
-                });
-            },
-            error: function(error) {
-                console.log(error);
-            }
-        });
-    }
-
-    function carregarIndicacoes(clienteId) {
-        $.ajax({
-            url: '/indicacoes/',
-            type: 'GET',
-            data: { cliente_id: clienteId },
-            success: function(data) {
-                console.log('Indicacoes: ', data.indicacoes);
-
-                var tbody = document.querySelector('#table-indicados tbody');
-                tbody.innerHTML = ''; // Limpa o conteúdo atual da tabela
-
-                if (data.indicacoes.length === 0) {
-                    // Se não há indicações, adiciona uma única linha com a mensagem
-                    var tr = document.createElement('tr');
-                    var tdMensagem = document.createElement('td');
-                    tdMensagem.setAttribute('colspan', '4');
-                    tdMensagem.textContent = 'Não há indicações desse usuário!';
-                    tdMensagem.style.textAlign = 'center';
-                    tdMensagem.style.verticalAlign = 'middle';
-                    tr.appendChild(tdMensagem);
-                    tbody.appendChild(tr);
-                } else {
-                    // Se houver indicações, adiciona as linhas com informações dos usuários indicados
-                    data.indicacoes.forEach(function(indicado) {
-                        var tr = document.createElement('tr');
-                        var tdId = document.createElement('td');
-                        tdId.textContent = indicado.id;
-                        tr.appendChild(tdId);
-
-                        const dataAdesao = indicado.data_adesao.replace(/(\d{4})-(\d{2})-(\d{2})/, '$2/$3/$1');
-                        function formatarData(data) {
-                            var partes = data.split('-');
-                            var dataFormatada = partes[2] + '/' + partes[1] + '/' + partes[0];
-                            return dataFormatada;
-                        }
-
-                        var tdStatus = document.createElement('td');
-                        if (indicado.cancelado) {
-                            tdStatus.innerHTML = '<span class="badge rounded-pill bg-warning pill-invoice">Cancelado</span>';
-                        } else {
-                            tdStatus.innerHTML = '<span class="badge rounded-pill bg-info pill-invoice">Ativo</span>';
-                        }
-                        tr.appendChild(tdStatus);
-
-                        var tdNome = document.createElement('td');
-                        tdNome.textContent = indicado.nome;
-                        tr.appendChild(tdNome);
-
-                        var tdAdesao = document.createElement('td');
-                        tdAdesao.textContent = formatarData(indicado.data_adesao);
-                        tr.appendChild(tdAdesao);
-
-                        tbody.appendChild(tr);
-                    });
-                }
-            },
-            error: function(error) {
-                console.log('Indicacoes: ', error);
-            }
-        });
-    }
-
-    function carregarContasApps(clienteId) {
-    $.ajax({
-        url: '/contas-apps/',
-        type: 'GET',
-        data: { cliente_id: clienteId },
-        success: function(data) {
-            var contas = data.conta_app; // Obtém os dados das contas de aplicativo
-
-            var container = $('.dados-apps');
-            var container2 = $('.texto-aqui');
-
-            container.empty(); // Limpa o container antes de adicionar os novos elementos
-            container2.empty();
-
-            for (var i = 0; i < contas.length; i++) {
-                var conta = contas[i];
-
-                var card = $('<div class="card rounded py-4 px-5 d-flex flex-column align-items-center justify-content-center border" data-app-id="' + conta.id + '"></div>');
-                var badge = $('<span class="badge rounded-pill bg-secondary mb-3">' + conta.nome_aplicativo + '</span>');
-                var infoDiv = $('<div class="my-0 text-center"></div>');
-                var btn_exclude = $('<div class="mt-2 mb-0 btn_exclude" style="cursor: pointer;" data-app-id="' + conta.id + '" onclick="exibirModalConfirmacaoExclusao(this)"><iconify-icon icon="feather:trash-2" style="color: #dc3545;" width="15" height="15"></iconify-icon></div>');
-                var AppId = $('<input class="AppId" type="hidden" value="' + conta.id + '">');
-
-                if (conta.device_id) {
-                    infoDiv.append('<span>Device ID: </span><span>' + conta.device_id + '</span><br>');
-                    if (conta.device_key) {
-                        infoDiv.append('<span>Device Key: </span><span>' + conta.device_key + '</span>');
-                    }
-                }
-                else if (conta.email) {
-                    infoDiv.append('<span>E-mail: </span><span>' + conta.email + '</span><br>');
-                    if (conta.device_key) {
-                        infoDiv.append('<span>Device Key: </span><span>' + conta.device_key + '</span>');
-                    }
-                }
-
-                card.append(badge);
-                card.append(infoDiv);
-                card.append(btn_exclude);
-                card.append(AppId);
-                container.append(card);
-            }
-
-            // Verificar se não há contas de aplicativo e exibir a mensagem correspondente
-            if (contas.length === 0) {
-                var message = $('<p class="text-muted text-center">Ainda não há contas de aplicativo para esse cliente.</p>');
-                container2.append(message);
-            }
-        },
-        error: function(error) {
-            console.log(error);
-        }
-    });
-}
-
-// FUNÇÃO PARA EXIBIR MODAL DE CRIAÇÃO DE CONTA DO APLICATIVO DO CLIENTE
-    // Controle global para saber se deve reabrir o modal de informações após criar conta do app
-    var abrirInfoClienteAposCriarApp = false;
-    var clienteIdCriadoApp = null; // Armazena o id do cliente usado no processo
-
-    // Função para exibir o modal de criação de conta do app
-    function exibirModalCriarApp(botao) {
-        const clienteId = document.getElementById('info-cliente-id').textContent;
-        clienteIdCriadoApp = clienteId;
-        document.getElementById('app-info-cliente-id').value = clienteId;
-
-        const form = document.querySelector("#create-app-info-form");
-        form.action = "/cadastro-app-conta/";
-
-        // Limpa os campos
-        document.getElementById('device-id').value = '';
-        document.getElementById('device-key').value = '';
-        document.getElementById('app-email').value = '';
-        form.classList.remove('was-validated');
-        document.getElementById('create-app-error-message').textContent = '';
-
-        // Fecha modal info e abre o de criação
-        $('#info-cliente-modal').modal('hide');
-        $('#create-app-info-modal').modal('show');
-
-        // Dispara change para atualizar campos conforme app selecionado
-        document.getElementById('app-nome').dispatchEvent(new Event('change'));
-    }
-
-    $(function () {
-        // Lógica para exibir/esconder campos do formulário conforme o app selecionado
-        const appNomeSelect = document.getElementById('app-nome');
-        appNomeSelect.addEventListener('change', function () {
-            const selectedOption = this.options[this.selectedIndex];
-            const deviceHasMac = selectedOption.dataset.deviceHasMac === 'true';
-            const appName = selectedOption.textContent.trim().toLowerCase();
-
-            const divDeviceId = document.getElementById('div-device-id');
-            const divDeviceKey = document.getElementById('div-device-key');
-            const divAppEmail = document.getElementById('div-app-email');
-            const avisoSemConta = document.getElementById('app-sem-conta');
-            const btnSalvar = document.getElementById('btn-salvar-app');
-
-            const deviceId = document.getElementById('device-id');
-            const deviceKey = document.getElementById('device-key');
-            const email = document.getElementById('app-email');
-
-            // Resetar visibilidade e requisitos
-            divDeviceId.style.display = 'none';
-            divDeviceKey.style.display = 'none';
-            divAppEmail.style.display = 'none';
-            avisoSemConta.style.display = 'none';
-            btnSalvar.disabled = false;
-
-            deviceId.removeAttribute('required');
-            deviceKey.removeAttribute('required');
-            email.removeAttribute('required');
-
-            if (deviceHasMac) {
-                if (appName === 'clouddy') {
-                    divDeviceKey.style.display = 'block';
-                    divAppEmail.style.display = 'block';
-                    deviceKey.setAttribute('required', 'required');
-                    email.setAttribute('required', 'required');
-                } else {
-                    divDeviceId.style.display = 'block';
-                    divDeviceKey.style.display = 'block';
-                    deviceId.setAttribute('required', 'required');
-                }
-            } else {
-                avisoSemConta.style.display = 'block';
-                btnSalvar.disabled = true;
-            }
-        });
-
-        // Validação do formulário antes de enviar
-        const form = document.getElementById('create-app-info-form');
-        form.addEventListener('submit', function (event) {
-            if (!form.checkValidity()) {
-                event.preventDefault();
-                event.stopPropagation();
-                form.classList.add('was-validated');
-            }
-        }, false);
-
-        // Validação de tamanho mínimo dos campos
-        document.getElementById('device-id').addEventListener('input', function () {
-            this.setCustomValidity(this.value.length >= 6 ? '' : 'O mínimo esperado é de 6 caracteres.');
-        });
-        document.getElementById('device-key').addEventListener('input', function () {
-            this.setCustomValidity(this.value.length >= 5 ? '' : 'O mínimo esperado é de 5 caracteres.');
-        });
-
-        // Submissão AJAX/fetch para criar a conta do app
-        form.addEventListener('submit', function (event) {
-            event.preventDefault();
-            if (!form.checkValidity()) return;
-
-            var $btn = $('.btn-confirmar-acao');
-            $btn.prop('disabled', true);
-
-            const url = form.action;
-            const formData = new FormData(form);
-
-            fetch(url, {
-                method: 'POST',
-                body: formData,
-                credentials: 'same-origin',
-                headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
-            })
-                .then(response => {
-                    if (response.status === 200) {
-                        $btn.prop('disabled', false);
-
-                        abrirInfoClienteAposCriarApp = true;
-                        clienteIdCriadoApp = document.getElementById('app-info-cliente-id').value;
-                        $('#create-app-info-modal').modal('hide');
-                    } else {
-                        // Exiba erro (pode adaptar conforme retorno do seu backend)
-                        response.json().then(data => {
-                            document.getElementById('create-app-error-message').textContent = data?.error || "Erro ao cadastrar conta do app.";
-                        });
-                    }
-                })
-                .catch(error => {
-                    $btn.prop('disabled', false);
-
-                    document.getElementById('create-app-error-message').textContent = "Erro ao cadastrar conta do app.";
-                    console.error(error);
-                });
-        });
-
-        // Ao fechar o modal de criação de app, recarrega cards e reabre modal info se houve criação
-        $('#create-app-info-modal').on('hidden.bs.modal', function () {
-            if (abrirInfoClienteAposCriarApp && clienteIdCriadoApp) {
-                abrirInfoClienteAposCriarApp = false;
-                carregarContasApps(clienteIdCriadoApp);
-                setTimeout(function () {
-                    $('#info-cliente-modal').modal('show');
-                }, 250); // Pequeno delay garante atualização dos cards antes do modal abrir
-            }
-        });
-
-        // Ao cancelar criação, volta para o modal info normalmente
-        $('#create-app-info-modal').on('click', '.btn-close, .btn-secondary', function () {
-            abrirInfoClienteAposCriarApp = false;
-            $('#create-app-info-modal').modal('hide');
-            $('#info-cliente-modal').modal('show');
-        });
-    });
-
-// FUNÇÃO PARA EXIBIR O MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DA CONTA DO APP DO CLIENTE
-    var abrirInfoClienteAposExcluir = false;
-    var ultimoAppIdExcluido = null; // Controla qual foi excluído
-
-    $(function() {
-      $('#confirm-delete-app-conta-form').on('submit', function(event) {
-        event.preventDefault();
-        var $btn = $('.btn-confirmar-acao');
-        $btn.prop('disabled', true);
-
-        var app_id = $('#app-conta-id').val();
-        $.ajax({
-          url: '/deletar-app-conta/' + app_id + '/',
-          method: 'DELETE',
-          beforeSend: function(xhr) {
-            if (csrfToken) {
-                xhr.setRequestHeader("X-CSRFToken", csrfToken);
-            }
-          },
-          success: function(response) {
-            $btn.prop('disabled', false);
-
-            abrirInfoClienteAposExcluir = true;
-            ultimoAppIdExcluido = app_id;
-            $('#confirm-delete-app-conta-modal').modal('hide');
-            // Não recarrega a página!
-          },
-          error: function(response) {
-            $btn.prop('disabled', false);
-
-            var mensagem_erro = response.responseJSON?.error_delete || "Erro ao excluir.";
-            $('#delete-app-error-message').text(mensagem_erro);
-          }
-        });
-      });
-
-      // Fecha modal de confirmação e reabre o modal anterior se for cancelado
-      $('#confirm-delete-app-conta-modal').on('click', '.btn-close, .btn-secondary', function() {
-        abrirInfoClienteAposExcluir = false;
-        $('#confirm-delete-app-conta-modal').modal('hide');
-        $('#info-cliente-modal').modal('show');
-      });
-
-      // Após fechar totalmente o modal de confirmação, reabre o info e remove o card excluído
-      $('#confirm-delete-app-conta-modal').on('hidden.bs.modal', function () {
-        if (abrirInfoClienteAposExcluir) {
-          abrirInfoClienteAposExcluir = false;
-          // Remove o card visualmente
-          if (ultimoAppIdExcluido) {
-            $('.card[data-app-id="' + ultimoAppIdExcluido + '"]').remove();
-            ultimoAppIdExcluido = null;
-          }
-          $('#info-cliente-modal').modal('show');
-        }
-      });
-    });
-
-    // Função para abrir o modal de confirmação
-    function exibirModalConfirmacaoExclusao(botao) {
-      var app_id = $(botao).data('app-id');
-      $('#app-conta-id').val(app_id);
-      $('#info-cliente-modal').modal('hide');
-      $('#confirm-delete-app-conta-modal').modal('show');
-    }
+// NOTA: Funções relacionadas ao modal de informações do cliente (exibirModalDetalhes, carregarContasApps,
+// carregarQuantidadeMensalidadesPagas, carregarIndicacoes, exibirModalCriarApp, exibirModalConfirmacaoExclusao)
+// foram movidas para setup/static/assets/js/modal_info_clients.js para evitar duplicação
 
 // FUNÇÃO PARA EXIBIR/OCULTAR OS CAMPOS DO FORMULÁRIO DE ENVIO DE MENSAGENS DO WHATSAPP
 $(document).ready(function () {
@@ -1033,7 +630,10 @@ $(document).ready(function() {
                             title: 'Cliente editado!',
                             html: response.success_message || "Os dados do cliente foram atualizados."
                         }).then(function() {
-                            atualizarTabelaClientes();
+                            // Usa novo gerenciador de tabela
+                            if (window.dashboardTableManager) {
+                                window.dashboardTableManager.refreshTable();
+                            }
                         });
                     } else if (response.error || response.error_message || response.error_message_edit) {
                         fireAlert({
@@ -1078,43 +678,8 @@ $(document).ready(function() {
     safeAttachInputMirror('input[name="aplicativo"]');
     safeAttachInputMirror('input[name="cliente_id"]');
 
-// FUNÇÃO PARA BUSCAR CLIENTES NA DASHBOARD
-document.addEventListener("DOMContentLoaded", function () {
-const searchInput = document.getElementById("searchInput");
-const tabelaContainer = document.getElementById("tabela-container");
-let timeout = null;
-
-searchInput.addEventListener("input", function () {
-    const searchTerm = searchInput.value.trim();
-
-    if (timeout) clearTimeout(timeout);
-
-    timeout = setTimeout(() => {
-    showToast({
-        message: "Buscando clientes...",
-        icon: `<i class="bi bi-info-circle" style="color: #0078D7;"></i>`,
-        raw: true
-    });
-
-    fetch(`/dashboard/busca/?q=${encodeURIComponent(searchTerm)}`)
-        .then(response => {
-        if (!response.ok) throw new Error("Erro na resposta");
-        return response.text();
-        })
-        .then(html => {
-        tabelaContainer.innerHTML = html;
-        showToast({
-            message: "Tabela atualizada!",
-            icon: `<i class="bi bi-check-circle-fill" style="color: #624bff;"></i>`,
-            raw: true });
-        })
-        .catch(error => {
-        console.error("Erro ao buscar clientes:", error);
-        showToast({ message: "Erro ao buscar clientes!", icon: "❌" });
-        });
-    }, 400);
-});
-});
+// NOTA: A busca de clientes agora é gerenciada por DashboardTableManager
+// Ver: setup/static/dashboard/js/components/dashboard-table-manager.js
 
 // Função para exibir o toast
     function showToast({ message, icon = "ℹ️", duration = 3000, iconColor = "#624bff", raw = false}) {
@@ -1150,30 +715,9 @@ searchInput.addEventListener("input", function () {
         }, duration);
     }
 
-// FUNÇÃO PARA ATUALIZAR CLIENTES DA TABELA APÓS PAGAMENTO OU CANCELAMENTO
-    function atualizarTabelaClientes() {
-        const searchInput = document.getElementById("searchInput");
-        const searchTerm = searchInput ? searchInput.value.trim() : "";
-
-        fetch(`/dashboard/busca/?q=${encodeURIComponent(searchTerm)}`)
-            .then(response => {
-                if (!response.ok) throw new Error("Erro na resposta");
-                return response.text();
-            })
-            .then(html => {
-                document.getElementById("tabela-container").innerHTML = html;
-                initializeTableDropdowns();
-                showToast({
-                    message: "Tabela atualizada!",
-                    icon: `<i class="bi bi-check-circle-fill" style="color: #624bff;"></i>`,
-                    raw: true
-                });
-            })
-            .catch(error => {
-                console.error("Erro ao atualizar clientes:", error);
-                showToast({ message: "Erro ao atualizar clientes!", icon: "❌" });
-            });
-    }
+// NOTA: atualizarTabelaClientes() foi substituída por window.dashboardTableManager.refreshTable()
+// A função antiga foi removida. Use o novo gerenciador:
+//   window.dashboardTableManager.refreshTable()
 
 let editClienteTelefoneIti = null;
 const allowedTelefoneCountries = ["br", "us", "pt"];
@@ -1357,3 +901,14 @@ if (editClienteModal) {
         selectMes.addEventListener("change", atualizarGrafico);
         selectAno.addEventListener("change", atualizarGrafico);
     }
+
+// ----------------------
+// EXPORTAÇÕES GLOBAIS
+// ----------------------
+// Exporta funções para o escopo global para que possam ser chamadas via onclick no HTML
+window.exibirModalEdicao = exibirModalEdicao;
+window.exibirModalConfirmacaoPagamento = exibirModalConfirmacaoPagamento;
+window.exibirModalConfirmacaoCancelamento = exibirModalConfirmacaoCancelamento;
+window.fireAlert = fireAlert;
+window.showToast = showToast;
+window.initializeTableDropdowns = initializeTableDropdowns;

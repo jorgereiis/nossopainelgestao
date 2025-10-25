@@ -98,10 +98,14 @@
       .scaleLinear()
       .domain([0, maxClientes || 1])
       .range(["#edeaff", "#624bff"]);
-    const tooltip = d3
-      .select(container)
-      .append("div")
-      .attr("class", "mapa-clientes-tooltip");
+    // Criar tooltip no body para que possa sobrepor qualquer elemento
+    let tooltip = d3.select("body").select(".mapa-clientes-tooltip");
+    if (tooltip.empty()) {
+      tooltip = d3
+        .select("body")
+        .append("div")
+        .attr("class", "mapa-clientes-tooltip");
+    }
     svg
       .append("g")
       .selectAll("path")
@@ -111,14 +115,27 @@
       .attr("fill", (d) =>
         d.properties.clientes ? colorScale(d.properties.clientes) : "#f3f1ff"
       )
+      .attr("class", (d) =>
+        d.properties.clientes ? "mapa-estado-ativo" : "mapa-estado-inativo"
+      )
+      .style("cursor", (d) => d.properties.clientes ? "pointer" : "default")
       .on("mouseenter", function (event, d) {
-        highlightState(this, tooltip, event, d, container);
+        // Só ativar hover se houver clientes
+        if (d.properties.clientes > 0) {
+          highlightState(this, tooltip, event, d, container);
+        }
       })
-      .on("mousemove", function (event) {
-        moveTooltip(event, container, tooltip);
+      .on("mousemove", function (event, d) {
+        // Só mover tooltip se houver clientes
+        if (d.properties.clientes > 0) {
+          moveTooltip(event, container, tooltip);
+        }
       })
-      .on("mouseleave", function () {
-        resetState(this, tooltip);
+      .on("mouseleave", function (event, d) {
+        // Só resetar se houver clientes
+        if (d.properties.clientes > 0) {
+          resetState(this, tooltip);
+        }
       });
   }
   function highlightState(element, tooltip, event, feature, container) {
@@ -134,29 +151,53 @@
     tooltip.style("opacity", 0);
   }
   function moveTooltip(event, container, tooltip) {
-    const [x, y] = d3.pointer(event, container);
     const tooltipEl = tooltip.node();
     if (!tooltipEl) {
       return;
     }
+
+    // Usar coordenadas da viewport (clientX/clientY para position: fixed)
+    const mouseX = event.clientX;
+    const mouseY = event.clientY;
+
     const tooltipWidth = tooltipEl.offsetWidth || 160;
     const tooltipHeight = tooltipEl.offsetHeight || 80;
-    let left = x + 18;
-    let top = y - tooltipHeight - 12;
-    const boundsWidth = container.clientWidth || tooltipWidth;
-    const boundsHeight = container.clientHeight || tooltipHeight;
-    if (left + tooltipWidth > boundsWidth - 12) {
-      left = boundsWidth - tooltipWidth - 12;
+
+    // Dimensões da janela do navegador
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Margem de segurança das bordas
+    const margin = 12;
+    const offset = 8; // Distância muito próxima do cursor
+
+    // Posicionamento padrão: à direita e ligeiramente abaixo do cursor
+    let left = mouseX + offset;
+    let top = mouseY + offset;
+
+    // Verificar se ultrapassa a borda direita da viewport
+    if (left + tooltipWidth > viewportWidth - margin) {
+      // Posicionar à esquerda do cursor
+      left = mouseX - tooltipWidth - offset;
     }
-    if (left < 12) {
-      left = 12;
+
+    // Garantir que não ultrapasse a borda esquerda
+    if (left < margin) {
+      left = margin;
     }
-    if (top < 12) {
-      top = y + 20;
-      if (top + tooltipHeight > boundsHeight - 12) {
-        top = boundsHeight - tooltipHeight - 12;
-      }
+
+    // Verificar se ultrapassa a borda inferior da viewport
+    if (top + tooltipHeight > viewportHeight - margin) {
+      // Posicionar acima do cursor
+      top = mouseY - tooltipHeight - offset;
     }
+
+    // Verificar se ultrapassa a borda superior
+    if (top < margin) {
+      // Forçar a ficar dentro da viewport
+      top = margin;
+    }
+
     tooltip.style("left", `${left}px`).style("top", `${top}px`);
   }
   function buildTooltipContent(props) {

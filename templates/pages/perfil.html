@@ -7,6 +7,9 @@
 <head>
   {% include 'partials/head.html' %}
   <title>Meu Perfil | Nosso Painel - Gestão IPTV</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/css/intlTelInput.css">
+  <!-- Cropper.js para crop de imagem -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 </head>
 
 <body class="bg-light">
@@ -37,41 +40,58 @@
                   pt-4 pb-6 px-4">
                 <div class="d-flex align-items-center">
                   <!-- avatar -->
-                  <div class="avatar-xxl avatar-indicators avatar-online me-2
-                      position-relative d-flex justify-content-end
-                      align-items-end mt-n10">
-                    <img src="{% static 'assets/images/avatar/user-avatar.jpg' %}"
-                      class=" avatar-xxl rounded-circle border border-4 border-white-color-40" alt="">
-                    <a href="#!" class="position-absolute top-0 right-0 me-2" data-bs-toggle="tooltip"
-                      data-placement="top" title="" data-original-title="Verified">
-                      <img src="{% static 'assets/images/svg/checked-mark.svg' %}" alt="" height=" 30" width="30">
-                    </a>
+                  <div class="avatar-xxl me-2 position-relative d-flex justify-content-end align-items-end mt-n10">
+                    <img src="{{ avatar_url }}" id="profile-avatar-img"
+                      class="avatar-xxl rounded-circle border border-4 border-white-color-40" alt=""
+                      onerror="console.error('[AVATAR] Erro ao carregar imagem:', this.src); this.src='/static/assets/images/avatar/default-avatar.svg';">
+
+                    <!-- Overlay escuro ao passar o mouse -->
+                    <div class="avatar-overlay" id="avatar-overlay">
+                      <label for="avatar-upload" class="avatar-change-btn">
+                        <i class="fe fe-camera"></i>
+                        <span>Alterar</span>
+                      </label>
+                    </div>
+
+                    <input type="file" id="avatar-upload" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
                   </div>
                   <!-- text -->
                   <div class="lh-1">
                     <h2 class="mb-0">{{nome_user}} {{sobrenome_user}}
                       <a href="#!" class="text-decoration-none" data-bs-toggle="tooltip" data-placement="top" title=""
-                        data-original-title="Beginner">
-
+                        data-original-title="Verificado">
                       </a>
                     </h2>
                     <p class="mb-0 d-block">@{{username}}</p>
                   </div>
                 </div>
                 <div class="d-flex">
-                  <a href="#" class="btn btn-outline-primary d-none d-md-block">Alterar Senha</a>
+                  <button class="btn btn-outline-primary d-none d-md-block" onclick="openChangePasswordModal()">
+                    <i class="fe fe-lock me-1"></i>Alterar Senha
+                  </button>
                   <div class="ms-2"></div>
-                  <a href="#" class="btn btn-outline-primary d-none d-md-block" data-instituicao="{{instituicao}}"
-                  data-beneficiario="{{beneficiario}}" data-tipo_chave="{{tipo_chave}}" data-chave="{{chave}}" data-nome="{{nome_user}}" data-sobrenome="{{sobrenome_user}}" data-email="{{email}}" data-wpp="{{wpp|formatar_telefone}}" onclick="exibirModalEdicaoDp(this)">Editar Dados</a>
+                  <a href="#" class="btn btn-primary d-none d-md-block" data-instituicao="{{instituicao}}"
+                  data-beneficiario="{{beneficiario}}" data-tipo_chave="{{tipo_chave}}" data-chave="{{chave}}" data-nome="{{nome_user}}" data-sobrenome="{{sobrenome_user}}" data-email="{{email}}" data-wpp="{{wpp|formatar_telefone}}" onclick="exibirModalEdicaoDp(this)">
+                    <i class="fe fe-edit me-1"></i>Editar Dados
+                  </a>
                 </div>
               </div>
               <!-- nav -->
               <ul class="nav nav-lt-tab px-4" id="pills-tab" role="tablist">
                 <li class="nav-item">
-                  <a class="nav-link active" href="#">Visão Geral</a>
+                  <a class="nav-link active" id="visao-geral-tab" data-bs-toggle="tab" href="#visao-geral" role="tab">
+                    Visão Geral
+                  </a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link" href="#">Outros</a>
+                  <a class="nav-link" id="historico-tab" data-bs-toggle="tab" href="#historico" role="tab">
+                    Histórico de Atividades
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" id="configuracoes-tab" data-bs-toggle="tab" href="#configuracoes" role="tab">
+                    <i class="fe fe-settings me-1"></i>Configurações
+                  </a>
                 </li>
               </ul>
             </div>
@@ -79,22 +99,104 @@
         </div>
         <!-- content -->
         <div class="py-6">
+          <div class="tab-content" id="pills-tabContent">
+            <!-- Aba Visão Geral -->
+            <div class="tab-pane fade show active" id="visao-geral" role="tabpanel">
+          <!-- Estatísticas do Usuário -->
+          <div class="row mb-4">
+            <div class="col-12">
+              <div class="card">
+                <div class="card-body">
+                  <h4 class="card-title mb-4">Estatísticas</h4>
+                  <div class="row text-center">
+                    <div class="col-6 col-md-3 mb-4 mb-md-0">
+                      <div class="p-3">
+                        <div class="mb-2">
+                          <i class="fe fe-users text-primary" style="font-size: 32px;"></i>
+                        </div>
+                        <h3 class="mb-1 fw-bold">{{ total_clientes }}</h3>
+                        <p class="text-muted mb-0 small">Clientes Ativos</p>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3 mb-4 mb-md-0">
+                      <div class="p-3">
+                        <div class="mb-2">
+                          <i class="fe fe-dollar-sign text-success" style="font-size: 32px;"></i>
+                        </div>
+                        <h3 class="mb-1 fw-bold">R$ {{ receita_mensal|floatformat:2 }}</h3>
+                        <p class="text-muted mb-0 small">Receita Mensal</p>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="p-3">
+                        <div class="mb-2">
+                          <i class="fe fe-calendar text-info" style="font-size: 32px;"></i>
+                        </div>
+                        <h3 class="mb-1 fw-bold">{{ dias_sistema }}</h3>
+                        <p class="text-muted mb-0 small">Dias no Sistema</p>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="p-3">
+                        <div class="mb-2">
+                          <i class="fe fe-activity text-warning" style="font-size: 32px;"></i>
+                        </div>
+                        <h3 class="mb-1 fw-bold small" style="font-size: 1.2rem;">{{ ultima_atividade }}</h3>
+                        <p class="text-muted mb-0 small">Última Atividade</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Estatísticas adicionais -->
+                  <hr class="my-4">
+                  <div class="row text-center">
+                    <div class="col-6 col-md-4">
+                      <div class="p-2">
+                        <p class="text-muted mb-1 small">Clientes Cancelados</p>
+                        <h5 class="mb-0 fw-bold">{{ total_cancelados }}</h5>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-4">
+                      <div class="p-2">
+                        <p class="text-muted mb-1 small">Pagamentos Este Mês</p>
+                        <h5 class="mb-0 fw-bold">{{ mensalidades_mes }}</h5>
+                      </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                      <div class="p-2">
+                        <p class="text-muted mb-1 small">Taxa de Retenção</p>
+                        <h5 class="mb-0 fw-bold">
+                          {% if total_clientes > 0 or total_cancelados > 0 %}
+                            {{ total_clientes|add:total_cancelados|floatformat:0|add:0 }}
+                            {% widthratio total_clientes total_clientes|add:total_cancelados 100 %}%
+                          {% else %}
+                            0%
+                          {% endif %}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- row -->
           <div class="row">
             <div class="col-xl-6 col-lg-12 col-md-12 col-12 mb-6">
               <!-- card -->
-              <div class="card">
+              <div class="card h-100">
                 <!-- card body -->
                 <div class="card-body">
                   <!-- card title -->
-                  <h4 class="card-title">Dados pessoais</h4>
+                  <h4 class="card-title mb-4">Dados pessoais</h4>
                   <!-- row -->
                   <div class="row">
                     <div class="col-6 mb-5">
                       <h6 class="text-uppercase fs-5 ls-2">WhatsApp </h6>
                       <p class="mb-0">{{ wpp|formatar_telefone }}</p>
                     </div>
-                    <div class="col-6">
+                    <div class="col-6 mb-5">
                       <h6 class="text-uppercase fs-5 ls-2">Email </h6>
                       <p class="mb-0">{{ email }}</p>
                     </div>
@@ -114,11 +216,11 @@
 
             <div class="col-xl-6 col-lg-12 col-md-12 col-12 mb-6">
               <!-- card -->
-              <div class="card">
+              <div class="card h-100">
                 <!-- card body -->
                 <div class="card-body">
                   <!-- card title -->
-                  <h4 class="card-title">Dados bancários</h4>
+                  <h4 class="card-title mb-4">Dados bancários</h4>
                   <!-- row -->
                   <div class="row">
                     <div class="col-6 mb-5">
@@ -143,6 +245,260 @@
             </div>
           </div>
         </div>
+            </div>
+            <!-- Fim Aba Visão Geral -->
+
+            <!-- Aba Histórico de Atividades -->
+            <div class="tab-pane fade" id="historico" role="tabpanel">
+              <div class="row">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header">
+                      <h4 class="mb-0">Histórico de Atividades do Perfil</h4>
+                      <p class="text-muted mb-0 small">Últimas 10 alterações realizadas no seu perfil</p>
+                    </div>
+                    <div class="card-body">
+                      <div id="historico-loading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                          <span class="visually-hidden">Carregando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Carregando histórico...</p>
+                      </div>
+                      <div id="historico-content" style="display: none;">
+                        <div class="table-responsive">
+                          <table class="table table-hover">
+                            <thead>
+                              <tr>
+                                <th>Data/Hora</th>
+                                <th>Ação</th>
+                                <th>Descrição</th>
+                                <th>IP</th>
+                              </tr>
+                            </thead>
+                            <tbody id="historico-tbody">
+                              <!-- Conteúdo carregado via JavaScript -->
+                            </tbody>
+                          </table>
+                        </div>
+                        <div id="historico-vazio" style="display: none;" class="text-center py-5">
+                          <i class="fe fe-inbox" style="font-size: 48px; color: #ccc;"></i>
+                          <p class="text-muted mt-3">Nenhuma atividade registrada ainda</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Fim Aba Histórico -->
+
+            <!-- Aba Configurações -->
+            <div class="tab-pane fade" id="configuracoes" role="tabpanel">
+              <div class="row">
+                <!-- Tema -->
+                <div class="col-xl-6 col-lg-12 col-md-12 col-12 mb-4">
+                  <div class="card h-100">
+                    <div class="card-header">
+                      <h4 class="mb-0"><i class="fe fe-sun me-2"></i>Aparência</h4>
+                      <p class="text-muted mb-0 small">Escolha o tema de sua preferência</p>
+                    </div>
+                    <div class="card-body">
+                      <div class="theme-selector">
+                        <div class="row g-3">
+                          <div class="col-4">
+                            <input type="radio" class="btn-check" name="theme" id="theme-light" value="light"
+                                   {% if theme_preference == 'light' %}checked{% endif %}>
+                            <label class="theme-option" for="theme-light">
+                              <div class="theme-preview theme-light-preview">
+                                <div class="theme-preview-header"></div>
+                                <div class="theme-preview-body"></div>
+                              </div>
+                              <i class="fe fe-sun theme-icon"></i>
+                              <span class="theme-label">Claro</span>
+                            </label>
+                          </div>
+                          <div class="col-4">
+                            <input type="radio" class="btn-check" name="theme" id="theme-dark" value="dark"
+                                   {% if theme_preference == 'dark' %}checked{% endif %}>
+                            <label class="theme-option" for="theme-dark">
+                              <div class="theme-preview theme-dark-preview">
+                                <div class="theme-preview-header"></div>
+                                <div class="theme-preview-body"></div>
+                              </div>
+                              <i class="fe fe-moon theme-icon"></i>
+                              <span class="theme-label">Escuro</span>
+                            </label>
+                          </div>
+                          <div class="col-4">
+                            <input type="radio" class="btn-check" name="theme" id="theme-auto" value="auto"
+                                   {% if theme_preference == 'auto' %}checked{% endif %}>
+                            <label class="theme-option" for="theme-auto">
+                              <div class="theme-preview theme-auto-preview">
+                                <div class="theme-preview-header"></div>
+                                <div class="theme-preview-body"></div>
+                              </div>
+                              <i class="fe fe-monitor theme-icon"></i>
+                              <span class="theme-label">Automático</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div class="alert alert-info mt-3 small mb-0">
+                          <i class="fe fe-info me-1"></i>
+                          <strong>Automático:</strong> Segue as configurações do sistema
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Notificações por Email -->
+                <div class="col-xl-6 col-lg-12 col-md-12 col-12 mb-4">
+                  <div class="card h-100">
+                    <div class="card-header">
+                      <h4 class="mb-0"><i class="fe fe-bell me-2"></i>Notificações por Email</h4>
+                      <p class="text-muted mb-0 small">Escolha quando receber emails</p>
+                    </div>
+                    <div class="card-body">
+                      <div class="notification-preferences">
+                        <div class="form-check form-switch mb-3">
+                          <input class="form-check-input" type="checkbox" id="email_on_profile_change"
+                                 name="email_on_profile_change" {% if email_on_profile_change %}checked{% endif %}>
+                          <label class="form-check-label" for="email_on_profile_change">
+                            <strong>Alterações no perfil</strong>
+                            <p class="text-muted small mb-0">Receber email quando dados do perfil forem alterados</p>
+                          </label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                          <input class="form-check-input" type="checkbox" id="email_on_password_change"
+                                 name="email_on_password_change" {% if email_on_password_change %}checked{% endif %}>
+                          <label class="form-check-label" for="email_on_password_change">
+                            <strong>Alterações de senha</strong>
+                            <p class="text-muted small mb-0">Receber email quando a senha for alterada</p>
+                          </label>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                          <input class="form-check-input" type="checkbox" id="email_on_login"
+                                 name="email_on_login" {% if email_on_login %}checked{% endif %}>
+                          <label class="form-check-label" for="email_on_login">
+                            <strong>Novos acessos</strong>
+                            <p class="text-muted small mb-0">Receber email quando houver um novo login na conta</p>
+                          </label>
+                        </div>
+                        <button type="button" class="btn btn-primary mt-3 w-100" id="save-notifications-btn">
+                          <i class="fe fe-save me-1"></i>Salvar Preferências
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Privacidade -->
+                <div class="col-xl-6 col-lg-12 col-md-12 col-12 mb-4">
+                  <div class="card h-100">
+                    <div class="card-header">
+                      <h4 class="mb-0"><i class="fe fe-shield me-2"></i>Privacidade</h4>
+                      <p class="text-muted mb-0 small">Controle a visibilidade das suas informações</p>
+                    </div>
+                    <div class="card-body">
+                      <div class="privacy-settings">
+                        <div class="form-check form-switch mb-3">
+                          <input class="form-check-input" type="checkbox" id="profile_public"
+                                 name="profile_public" {% if profile_public %}checked{% endif %}>
+                          <label class="form-check-label" for="profile_public">
+                            <strong>Perfil público</strong>
+                            <p class="text-muted small mb-0">Permitir que outros usuários vejam seu perfil</p>
+                          </label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                          <input class="form-check-input" type="checkbox" id="show_email"
+                                 name="show_email" {% if show_email %}checked{% endif %}>
+                          <label class="form-check-label" for="show_email">
+                            <strong>Mostrar email</strong>
+                            <p class="text-muted small mb-0">Exibir email no perfil público</p>
+                          </label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                          <input class="form-check-input" type="checkbox" id="show_phone"
+                                 name="show_phone" {% if show_phone %}checked{% endif %}>
+                          <label class="form-check-label" for="show_phone">
+                            <strong>Mostrar telefone</strong>
+                            <p class="text-muted small mb-0">Exibir telefone no perfil público</p>
+                          </label>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                          <input class="form-check-input" type="checkbox" id="show_statistics"
+                                 name="show_statistics" {% if show_statistics %}checked{% endif %}>
+                          <label class="form-check-label" for="show_statistics">
+                            <strong>Mostrar estatísticas</strong>
+                            <p class="text-muted small mb-0">Exibir estatísticas no perfil público</p>
+                          </label>
+                        </div>
+                        <button type="button" class="btn btn-primary mt-3 w-100" id="save-privacy-btn">
+                          <i class="fe fe-save me-1"></i>Salvar Configurações
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Segurança - 2FA -->
+                <div class="col-xl-6 col-lg-12 col-md-12 col-12 mb-4">
+                  <div class="card h-100">
+                    <div class="card-header">
+                      <h4 class="mb-0"><i class="fe fe-lock me-2"></i>Segurança</h4>
+                      <p class="text-muted mb-0 small">Proteja sua conta com autenticação em dois fatores</p>
+                    </div>
+                    <div class="card-body">
+                      {% if two_factor_enabled %}
+                        <!-- 2FA Ativado -->
+                        <div class="alert alert-success d-flex align-items-center">
+                          <i class="fe fe-shield text-success me-3" style="font-size: 24px;"></i>
+                          <div>
+                            <strong>2FA Ativado</strong>
+                            <p class="mb-0 small">Sua conta está protegida com autenticação em dois fatores.</p>
+                          </div>
+                        </div>
+
+                        <div class="d-flex flex-column gap-2">
+                          <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#regenerateCodesModal">
+                            <i class="fe fe-refresh-cw me-1"></i>Regenerar Códigos de Backup
+                          </button>
+                          <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#disable2faModal">
+                            <i class="fe fe-x-circle me-1"></i>Desativar 2FA
+                          </button>
+                        </div>
+                      {% else %}
+                        <!-- 2FA Desativado -->
+                        <div class="alert alert-info d-flex align-items-center">
+                          <i class="fe fe-info text-info me-3" style="font-size: 24px;"></i>
+                          <div>
+                            <strong>2FA Desativado</strong>
+                            <p class="mb-0 small">Ative a autenticação em dois fatores para maior segurança.</p>
+                          </div>
+                        </div>
+
+                        <div class="mb-3">
+                          <h6 class="text-muted small mb-2">Benefícios do 2FA:</h6>
+                          <ul class="small text-muted mb-0">
+                            <li>Proteção extra contra acesso não autorizado</li>
+                            <li>Segurança mesmo se sua senha for comprometida</li>
+                            <li>Códigos de backup para emergências</li>
+                          </ul>
+                        </div>
+
+                        <div class="d-grid">
+                          <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#setup2faModal">
+                            <i class="fe fe-shield me-1"></i>Ativar 2FA
+                          </button>
+                        </div>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Fim Aba Configurações -->
+          </div>
       </div>
     </div>
   </div>
@@ -154,33 +510,9 @@
       <div class="modal-content">
         <div class="modal-header">
           <h4 class="modal-title" id="edit-dp-label">Editar Meus Dados</h4>
-          <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
         </div>
         <div class="modal-body">
-          <div class="row align-items-center mb-2">
-            <div class="col-md-3 mb-3 mb-md-0">
-              <h4 class="mb-6">Avatar</h4>
-            </div>
-            <div class="col-md-9">
-              <div class="d-flex align-items-center">
-                <div class="me-3">
-                  <img src="{% static 'assets/images/avatar/user-avatar.jpg' %}" class="rounded-circle avatar avatar-lg" alt="">
-                </div>
-                <div>
-                  <button type="submit" class="btn btn-outline-white me-1">Alterar</button>
-                  <button type="submit" class="btn btn-outline-white">Remover</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div>
-            <form id="form-avatar-modal" action="#" method="post" class="dropzone mb-3 border-dashed">
-              {% csrf_token %}
-              <div class="fallback">
-                <input name="file" type="file" multiple />
-              </div>
-            </form>
-          </div>
           <div class="mb-6">
             <h4 class="mb-1">Dados Pessoais</h4>
           </div>
@@ -242,74 +574,811 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
             <button type="submit" form="edit-dp-form" class="btn btn-primary">Salvar</button>
           </div>
         </form>
       </div>
     </div>
   </div>
+
+  <!-- Modal de Alteração de Senha -->
+  <div class="modal fade" id="change-password-modal" tabindex="-1" aria-labelledby="change-password-label">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="change-password-label">
+            <i class="fe fe-lock me-2"></i>Alterar Senha
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form id="change-password-form">
+          <div class="modal-body">
+            {% csrf_token %}
+
+            <!-- Senha Atual -->
+            <div class="mb-3">
+              <label for="current_password" class="form-label">Senha Atual *</label>
+              <div class="password-input-wrapper">
+                <input type="password" class="form-control password-input" id="current_password"
+                       name="current_password" required>
+                <button class="password-toggle-btn" type="button"
+                        onclick="togglePasswordVisibility('current_password')"
+                        title="Mostrar senha">
+                  <i class="fe fe-eye" id="current_password_icon"></i>
+                </button>
+              </div>
+              <div class="invalid-feedback"></div>
+            </div>
+
+            <!-- Nova Senha -->
+            <div class="mb-3">
+              <label for="new_password" class="form-label">Nova Senha *</label>
+              <div class="password-input-wrapper">
+                <input type="password" class="form-control password-input" id="new_password"
+                       name="new_password" required minlength="8">
+                <button class="password-toggle-btn" type="button"
+                        onclick="togglePasswordVisibility('new_password')"
+                        title="Mostrar senha">
+                  <i class="fe fe-eye" id="new_password_icon"></i>
+                </button>
+              </div>
+              <div class="invalid-feedback"></div>
+
+              <!-- Indicador de força da senha -->
+              <div class="password-strength mt-2" style="display: none;">
+                <div class="progress" style="height: 5px;">
+                  <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <small class="text-muted strength-text"></small>
+              </div>
+            </div>
+
+            <!-- Confirmar Senha -->
+            <div class="mb-3">
+              <label for="confirm_password" class="form-label">Confirmar Nova Senha *</label>
+              <div class="password-input-wrapper">
+                <input type="password" class="form-control password-input" id="confirm_password"
+                       name="confirm_password" required minlength="8">
+                <button class="password-toggle-btn" type="button"
+                        onclick="togglePasswordVisibility('confirm_password')"
+                        title="Mostrar senha">
+                  <i class="fe fe-eye" id="confirm_password_icon"></i>
+                </button>
+              </div>
+              <div class="invalid-feedback"></div>
+            </div>
+
+            <!-- Requisitos de Senha -->
+            <div class="alert alert-info">
+              <small>
+                <strong>Requisitos:</strong>
+                <ul class="mb-0 ps-3">
+                  <li>Mínimo de 8 caracteres</li>
+                  <li>Não pode ser muito similar às suas informações pessoais</li>
+                  <li>Não pode ser uma senha comum</li>
+                  <li>Não pode ser totalmente numérica</li>
+                </ul>
+              </small>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fe fe-check me-1"></i>Alterar Senha
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Crop do Avatar -->
+  <div class="modal fade" id="cropAvatarModal" tabindex="-1" aria-labelledby="cropAvatarModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="cropAvatarModalLabel">
+            <i class="fe fe-crop me-2"></i>Ajustar Imagem do Avatar
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center mb-3">
+            <p class="text-muted small mb-2">
+              <i class="fe fe-info"></i>
+              Arraste e redimensione a área de seleção para ajustar sua foto
+            </p>
+          </div>
+
+          <!-- Container para o Cropper -->
+          <div class="crop-container" style="max-height: 500px; overflow: hidden;">
+            <img id="crop-image" src="" alt="Preview" style="max-width: 100%; display: block;">
+          </div>
+
+          <!-- Preview do resultado -->
+          <div class="row mt-4">
+            <div class="col-12">
+              <label class="form-label fw-bold">Preview do Avatar:</label>
+              <div class="d-flex gap-3 align-items-center">
+                <div class="preview-circle" style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 3px solid #667eea;">
+                  <div id="avatar-preview-100" style="width: 100px; height: 100px; overflow: hidden;"></div>
+                </div>
+                <div class="preview-circle" style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 2px solid #667eea;">
+                  <div id="avatar-preview-60" style="width: 60px; height: 60px; overflow: hidden;"></div>
+                </div>
+                <div class="preview-circle" style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; border: 2px solid #667eea;">
+                  <div id="avatar-preview-40" style="width: 40px; height: 40px; overflow: hidden;"></div>
+                </div>
+              </div>
+              <small class="text-muted d-block mt-2">
+                <i class="fe fe-eye me-1"></i>
+                Visualize como seu avatar ficará em diferentes tamanhos
+              </small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fe fe-x me-1"></i>Cancelar
+          </button>
+          <button type="button" class="btn btn-primary" id="crop-and-upload-btn">
+            <i class="fe fe-check me-1"></i>Recortar e Enviar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Setup/Enable 2FA -->
+  <div class="modal fade" id="setup2faModal" tabindex="-1" aria-labelledby="setup2faModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="setup2faModalLabel">
+            <i class="fe fe-shield me-2"></i>Configurar Autenticação em Dois Fatores
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Step 1: QR Code -->
+          <div id="setup-step-1">
+            <div class="alert alert-info">
+              <i class="fe fe-info me-2"></i>
+              <strong>Como configurar:</strong>
+              <ol class="mb-0 mt-2 small">
+                <li>Instale um app autenticador (Google Authenticator, Authy, Microsoft Authenticator)</li>
+                <li>Escaneie o QR code abaixo com o app</li>
+                <li>Digite o código de 6 dígitos gerado pelo app</li>
+              </ol>
+            </div>
+
+            <div class="text-center mb-3">
+              <div id="qr-code-container" class="d-inline-block p-3 bg-white border rounded">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Gerando QR Code...</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="alert alert-warning small">
+              <i class="fe fe-alert-triangle me-1"></i>
+              <strong>Importante:</strong> Guarde o código secreto em local seguro caso não consiga escanear o QR code.
+              <div class="mt-2">
+                <code id="secret-key-display" class="user-select-all"></code>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="verification-code-input" class="form-label fw-bold">Código de Verificação</label>
+              <input type="text" class="form-control form-control-lg text-center" id="verification-code-input"
+                     placeholder="000000" maxlength="6" pattern="[0-9]*" inputmode="numeric"
+                     style="letter-spacing: 0.5em; font-size: 1.5rem;">
+              <small class="text-muted">Digite o código de 6 dígitos do seu app autenticador</small>
+            </div>
+          </div>
+
+          <!-- Step 2: Backup Codes (hidden initially) -->
+          <div id="setup-step-2" style="display: none;">
+            <div class="alert alert-success">
+              <i class="fe fe-check-circle me-2"></i>
+              <strong>2FA Ativado com Sucesso!</strong>
+              <p class="mb-0 small mt-2">Sua conta agora está protegida com autenticação em dois fatores.</p>
+            </div>
+
+            <div class="alert alert-warning">
+              <i class="fe fe-alert-triangle me-2"></i>
+              <strong>Códigos de Backup</strong>
+              <p class="mb-2 small">Guarde estes códigos em local seguro. Use-os para acessar sua conta se perder acesso ao app autenticador.</p>
+              <div class="p-3 bg-light rounded" id="backup-codes-display" style="font-family: monospace;">
+                <!-- Códigos serão inseridos aqui -->
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="copyBackupCodes()">
+                <i class="fe fe-copy me-1"></i>Copiar Códigos
+              </button>
+            </div>
+
+            <div class="alert alert-danger small">
+              <i class="fe fe-alert-octagon me-1"></i>
+              <strong>Atenção:</strong> Cada código de backup pode ser usado apenas uma vez. Após fechar esta janela,
+              você só poderá ver novos códigos regenerando-os nas configurações.
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="setup-cancel-btn">
+            <i class="fe fe-x me-1"></i>Cancelar
+          </button>
+          <button type="button" class="btn btn-primary" id="verify-and-enable-btn">
+            <i class="fe fe-check me-1"></i>Verificar e Ativar
+          </button>
+          <button type="button" class="btn btn-success" id="finish-setup-btn" style="display: none;" data-bs-dismiss="modal">
+            <i class="fe fe-check me-1"></i>Concluir
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Disable 2FA -->
+  <div class="modal fade" id="disable2faModal" tabindex="-1" aria-labelledby="disable2faModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title" id="disable2faModalLabel">
+            <i class="fe fe-alert-triangle me-2"></i>Desativar 2FA
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="fe fe-alert-triangle me-2"></i>
+            <strong>Atenção!</strong>
+            <p class="mb-0 small">Desativar o 2FA reduzirá a segurança da sua conta. Você precisará configurá-lo novamente se quiser reativá-lo.</p>
+          </div>
+
+          <div class="mb-3">
+            <label for="disable-password-input" class="form-label fw-bold">Digite sua senha para confirmar:</label>
+            <input type="password" class="form-control" id="disable-password-input" placeholder="Sua senha atual">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fe fe-x me-1"></i>Cancelar
+          </button>
+          <button type="button" class="btn btn-danger" id="confirm-disable-btn">
+            <i class="fe fe-x-circle me-1"></i>Desativar 2FA
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Regenerate Backup Codes -->
+  <div class="modal fade" id="regenerateCodesModal" tabindex="-1" aria-labelledby="regenerateCodesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="regenerateCodesModalLabel">
+            <i class="fe fe-refresh-cw me-2"></i>Regenerar Códigos de Backup
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Step 1: Password confirmation -->
+          <div id="regen-step-1">
+            <div class="alert alert-warning">
+              <i class="fe fe-alert-triangle me-2"></i>
+              <strong>Atenção!</strong>
+              <p class="mb-0 small">Os códigos de backup antigos serão invalidados e substituídos por novos códigos.</p>
+            </div>
+
+            <div class="mb-3">
+              <label for="regen-password-input" class="form-label fw-bold">Digite sua senha para confirmar:</label>
+              <input type="password" class="form-control" id="regen-password-input" placeholder="Sua senha atual">
+            </div>
+          </div>
+
+          <!-- Step 2: New backup codes (hidden initially) -->
+          <div id="regen-step-2" style="display: none;">
+            <div class="alert alert-success">
+              <i class="fe fe-check-circle me-2"></i>
+              <strong>Códigos Regenerados!</strong>
+              <p class="mb-0 small mt-2">Seus novos códigos de backup foram gerados com sucesso.</p>
+            </div>
+
+            <div class="alert alert-warning">
+              <i class="fe fe-key me-2"></i>
+              <strong>Novos Códigos de Backup</strong>
+              <p class="mb-2 small">Guarde estes códigos em local seguro. Os códigos antigos não funcionarão mais.</p>
+              <div class="p-3 bg-light rounded" id="new-backup-codes-display" style="font-family: monospace;">
+                <!-- Novos códigos serão inseridos aqui -->
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="copyNewBackupCodes()">
+                <i class="fe fe-copy me-1"></i>Copiar Códigos
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="regen-cancel-btn">
+            <i class="fe fe-x me-1"></i>Cancelar
+          </button>
+          <button type="button" class="btn btn-primary" id="confirm-regen-btn">
+            <i class="fe fe-refresh-cw me-1"></i>Regenerar Códigos
+          </button>
+          <button type="button" class="btn btn-success" id="finish-regen-btn" style="display: none;" data-bs-dismiss="modal">
+            <i class="fe fe-check me-1"></i>Concluir
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container Moderno -->
+  <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index: 11000"></div>
+
   <!-- Scripts -->
   {% include 'partials/modal_whatsapp.html' %}
   {% include 'partials/modal_dns.html' %}
   {% include 'partials/modal_adminlogs.html' %}
   {% include 'partials/modal_userlogs.html' %}
+
+  <!-- Modais Globais -->
+  {% include 'partials/modais_globais.html' %}
+
+  <!-- Offcanvas de Configurações -->
+  {% include 'partials/offcanvas_configuracoes.html' %}
+
   {% include 'partials/footer.html' %}
   {% include 'partials/scripts.html' %}
+
+  <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/intlTelInput.min.js"></script>
+  <!-- Cropper.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 </body>
 </html>
 
 <script>
-  function exibirModalEdicaoDp(botao) {
-    let wpp = botao.dataset.wpp;
-    let nome = botao.dataset.nome;
-    let email = botao.dataset.email;
-    let chave = botao.dataset.chave;
-    let sobrenome = botao.dataset.sobrenome;
-    let tipo_chave = botao.dataset.tipo_chave;
-    let instituicao = botao.dataset.instituicao;
-    let beneficiario = botao.dataset.beneficiario;
-    
+// ==================== FUNÇÕES AUXILIARES ====================
 
-    // Verificar se o valor é igual a '--' e alterar para uma variável vazia
-    wpp = wpp === '--' ? '' : wpp;
-    nome = nome === '--' ? '' : nome;
-    email = email === '--' ? '' : email;
-    chave = chave === '--' ? '' : chave;
-    sobrenome = sobrenome === '--' ? '' : sobrenome;
-    instituicao = instituicao === '--' ? '' : instituicao;
-    beneficiario = beneficiario === '--' ? '' : beneficiario;
+/**
+ * Obtém o CSRF token do Django de múltiplas fontes
+ * Tenta em ordem: cookie, meta tag, input hidden
+ */
+function getCsrfToken() {
+  console.log('[CSRF] Tentando obter token...');
 
-    const form = document.querySelector("#edit-dp-form");
-    form.action = '/editar-perfil/';
-    form.querySelector("#beneficiario").value = beneficiario;
-    form.querySelector("#instituicao").value = instituicao;
-    form.querySelector("#sobrenome").value = sobrenome;
-    form.querySelector("#email").value = email;
-    form.querySelector("#chave").value = chave;
-    form.querySelector("#nome").value = nome;
-    form.querySelector("#wpp").value = wpp;
+  // 1. Tentar obter do cookie
+  let token = getCookie('csrftoken');
+  if (token) {
+    console.log('[CSRF] ✓ Token obtido do cookie:', token.substring(0, 10) + '...');
+    return token;
+  }
+  console.log('[CSRF] ✗ Cookie csrftoken não encontrado');
 
-    const tipoChaveSelect = form.querySelector("#tipo_chave");
-    if (tipo_chave === '--') {
-      tipoChaveSelect.selectedIndex = 0;
-    } else {
-      tipoChaveSelect.value = tipo_chave;
+  // 2. Tentar obter do meta tag
+  const metaTag = document.querySelector('meta[name="csrf-token"]');
+  if (metaTag) {
+    token = metaTag.getAttribute('content');
+    console.log('[CSRF] ✓ Token obtido do meta tag:', token.substring(0, 10) + '...');
+    return token;
+  }
+  console.log('[CSRF] ✗ Meta tag csrf-token não encontrada');
+
+  // 3. Tentar obter de input hidden
+  const inputToken = document.querySelector('input[name="csrfmiddlewaretoken"]');
+  if (inputToken) {
+    token = inputToken.value;
+    console.log('[CSRF] ✓ Token obtido do input hidden:', token.substring(0, 10) + '...');
+    return token;
+  }
+  console.log('[CSRF] ✗ Input csrfmiddlewaretoken não encontrado');
+
+  // Debug: mostrar todos os cookies
+  console.log('[CSRF] Todos os cookies:', document.cookie);
+
+  console.error('[CSRF] ❌ ERRO: Nenhum token CSRF encontrado!');
+  return null;
+}
+
+/**
+ * Função auxiliar para obter cookies
+ */
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
     }
+  }
+  return cookieValue;
+}
 
-    const modal = new bootstrap.Modal(document.querySelector("#edit-dp-modal"));
-    modal.show();
+/**
+ * Exibe um toast moderno com animações e ícones
+ * @param {string} type - Tipo do toast: 'success', 'error', 'warning', 'info'
+ * @param {string} message - Mensagem a ser exibida
+ * @param {number} duration - Duração em ms (padrão: 3500)
+ */
+function showToast(type, message, duration = 3500) {
+  const container = document.getElementById('toast-container');
+
+  // Limpar toasts anteriores
+  container.innerHTML = '';
+
+  // Definir ícone e cor baseado no tipo
+  let icon, iconColor, bgColor, borderColor;
+
+  switch(type) {
+    case 'success':
+      icon = '✓';
+      iconColor = '#28a745';
+      bgColor = '#d4edda';
+      borderColor = '#28a745';
+      break;
+    case 'error':
+      icon = '✕';
+      iconColor = '#dc3545';
+      bgColor = '#f8d7da';
+      borderColor = '#dc3545';
+      break;
+    case 'warning':
+      icon = '⚠';
+      iconColor = '#ffc107';
+      bgColor = '#fff3cd';
+      borderColor = '#ffc107';
+      break;
+    case 'info':
+      icon = 'ℹ';
+      iconColor = '#17a2b8';
+      bgColor = '#d1ecf1';
+      borderColor = '#17a2b8';
+      break;
+    default:
+      icon = 'ℹ';
+      iconColor = '#6c757d';
+      bgColor = '#ffffff';
+      borderColor = '#dee2e6';
   }
 
-  $('#edit-dp-modal').on('click', '.btn-close, .btn-secondary', function () {
-    $('#edit-dp-modal').modal('hide');
+  // Criar elemento do toast
+  const toast = document.createElement('div');
+  toast.className = 'toast-message-modern';
+  toast.style.backgroundColor = bgColor;
+  toast.style.borderLeft = `4px solid ${borderColor}`;
+
+  toast.innerHTML = `
+    <div class="toast-icon-modern" style="color: ${iconColor}; font-weight: bold; font-size: 22px;">
+      ${icon}
+    </div>
+    <div class="toast-content-modern">
+      <strong style="color: ${iconColor};">
+        ${type === 'success' ? 'Sucesso!' : type === 'error' ? 'Erro!' : type === 'warning' ? 'Atenção!' : 'Informação'}
+      </strong>
+      <div style="color: #333; margin-top: 2px;">${message}</div>
+    </div>
+    <button class="toast-close-modern" onclick="this.parentElement.remove()" aria-label="Fechar">
+      <i class="fe fe-x"></i>
+    </button>
+  `;
+
+  container.appendChild(toast);
+
+  // Fade-in
+  setTimeout(() => toast.classList.add('show'), 50);
+
+  // Auto-fechar após duração
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      if (toast.parentNode) toast.remove();
+    }, 400);
+  }, duration);
+}
+
+// ==================== VERIFICAÇÃO INICIAL ====================
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Testar CSRF token ao carregar
+  console.log('=== VERIFICAÇÃO INICIAL DO CSRF TOKEN ===');
+  const token = getCsrfToken();
+  if (token) {
+    console.log('✅ CSRF token disponível e pronto para uso');
+  } else {
+    console.error('❌ CSRF token NÃO ENCONTRADO! As configurações não poderão ser salvas.');
+    console.error('Solução: Recarregue a página (Ctrl+F5)');
+  }
+  console.log('=========================================');
+});
+
+// ==================== UPLOAD DE AVATAR COM CROP ====================
+
+let cropperInstance = null;
+let selectedFile = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  const avatarInput = document.getElementById('avatar-upload');
+  const cropModal = new bootstrap.Modal(document.getElementById('cropAvatarModal'));
+  const cropImage = document.getElementById('crop-image');
+  const cropAndUploadBtn = document.getElementById('crop-and-upload-btn');
+
+  // Quando seleciona um arquivo
+  if (avatarInput) {
+    avatarInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Validações no frontend
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('error', 'Arquivo muito grande. Máximo: 5MB');
+        avatarInput.value = '';
+        return;
+      }
+
+      if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+        showToast('error', 'Formato inválido. Use JPG, PNG, GIF ou WEBP');
+        avatarInput.value = '';
+        return;
+      }
+
+      // Armazenar arquivo selecionado
+      selectedFile = file;
+
+      // Ler arquivo e mostrar no modal
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        cropImage.src = e.target.result;
+
+        // Abrir modal
+        cropModal.show();
+
+        // Inicializar cropper quando modal estiver visível
+        document.getElementById('cropAvatarModal').addEventListener('shown.bs.modal', function initCropper() {
+          // Destruir instância anterior se existir
+          if (cropperInstance) {
+            cropperInstance.destroy();
+          }
+
+          // Criar novo cropper
+          cropperInstance = new Cropper(cropImage, {
+            aspectRatio: 1,
+            viewMode: 2,
+            dragMode: 'move',
+            autoCropArea: 1,
+            restore: false,
+            guides: true,
+            center: true,
+            highlight: false,
+            cropBoxMovable: true,
+            cropBoxResizable: true,
+            toggleDragModeOnDblclick: false,
+            minCropBoxWidth: 100,
+            minCropBoxHeight: 100,
+            crop(event) {
+              // Atualizar previews em tempo real
+              const canvas = cropperInstance.getCroppedCanvas({
+                width: 500,
+                height: 500,
+                imageSmoothingQuality: 'high'
+              });
+
+              // Converter canvas para data URL
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+              // Preview 100px
+              const preview100 = document.getElementById('avatar-preview-100');
+              preview100.innerHTML = '';
+              const img100 = document.createElement('img');
+              img100.src = dataUrl;
+              img100.style.width = '100px';
+              img100.style.height = '100px';
+              img100.style.objectFit = 'cover';
+              preview100.appendChild(img100);
+
+              // Preview 60px
+              const preview60 = document.getElementById('avatar-preview-60');
+              preview60.innerHTML = '';
+              const img60 = document.createElement('img');
+              img60.src = dataUrl;
+              img60.style.width = '60px';
+              img60.style.height = '60px';
+              img60.style.objectFit = 'cover';
+              preview60.appendChild(img60);
+
+              // Preview 40px
+              const preview40 = document.getElementById('avatar-preview-40');
+              preview40.innerHTML = '';
+              const img40 = document.createElement('img');
+              img40.src = dataUrl;
+              img40.style.width = '40px';
+              img40.style.height = '40px';
+              img40.style.objectFit = 'cover';
+              preview40.appendChild(img40);
+            }
+          });
+
+          // Remover listener após inicialização
+          this.removeEventListener('shown.bs.modal', initCropper);
+        });
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Quando clica em "Recortar e Enviar"
+  if (cropAndUploadBtn) {
+    cropAndUploadBtn.addEventListener('click', async function() {
+      if (!cropperInstance) {
+        showToast('error', 'Nenhuma imagem foi selecionada');
+        return;
+      }
+
+      // Obter CSRF token
+      const csrfToken = getCsrfToken();
+      if (!csrfToken) {
+        showToast('error', 'Erro: Token CSRF não encontrado. Recarregue a página.');
+        return;
+      }
+
+      // Desabilitar botão durante upload
+      const originalHTML = cropAndUploadBtn.innerHTML;
+      cropAndUploadBtn.disabled = true;
+      cropAndUploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
+
+      try {
+        // Obter imagem recortada como blob
+        const canvas = cropperInstance.getCroppedCanvas({
+          width: 500,
+          height: 500,
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: 'high'
+        });
+
+        // Converter canvas para blob
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+
+        // Criar FormData
+        const formData = new FormData();
+        formData.append('avatar', blob, selectedFile.name);
+        formData.append('csrfmiddlewaretoken', csrfToken);
+
+        console.log('[AVATAR] Enviando avatar recortado...');
+
+        // Enviar para servidor
+        const response = await fetch('/perfil/avatar/upload/', {
+          method: 'POST',
+          body: formData
+        });
+
+        console.log('[AVATAR] Status:', response.status);
+
+        // Verificar se a resposta é JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const responseText = await response.text();
+          console.error('[AVATAR] Resposta não é JSON:', responseText);
+          throw new Error(`Resposta não é JSON. Content-Type: ${contentType}`);
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('[AVATAR] Resposta:', data);
+
+        if (data.success) {
+          // Atualizar avatar na página
+          const avatarImg = document.getElementById('profile-avatar-img');
+          const newAvatarUrl = data.avatar_url + '?t=' + new Date().getTime();
+
+          console.log('[AVATAR] Atualizando imagem para:', newAvatarUrl);
+
+          avatarImg.src = newAvatarUrl;
+
+          // Atualizar avatar no header também (se existir)
+          document.querySelectorAll('.user-avatar').forEach(img => {
+            img.src = newAvatarUrl;
+          });
+
+          // Fechar modal
+          cropModal.hide();
+
+          // Destruir cropper
+          if (cropperInstance) {
+            cropperInstance.destroy();
+            cropperInstance = null;
+          }
+
+          // Limpar input
+          avatarInput.value = '';
+
+          // Sucesso
+          showToast('success', data.message);
+        } else {
+          showToast('error', data.error || 'Erro ao atualizar avatar');
+        }
+      } catch (error) {
+        console.error('[AVATAR] Erro:', error);
+        showToast('error', 'Erro ao enviar avatar: ' + error.message);
+      } finally {
+        // Restaurar botão
+        cropAndUploadBtn.disabled = false;
+        cropAndUploadBtn.innerHTML = originalHTML;
+      }
+    });
+  }
+
+  // Limpar cropper ao fechar modal
+  document.getElementById('cropAvatarModal').addEventListener('hidden.bs.modal', function() {
+    if (cropperInstance) {
+      cropperInstance.destroy();
+      cropperInstance = null;
+    }
+    avatarInput.value = '';
   });
-</script>
+});
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const telefoneInput = document.getElementById('wpp');
+// ==================== MODAL DE EDIÇÃO DE PERFIL ====================
 
+function exibirModalEdicaoDp(botao) {
+  let wpp = botao.dataset.wpp;
+  let nome = botao.dataset.nome;
+  let email = botao.dataset.email;
+  let chave = botao.dataset.chave;
+  let sobrenome = botao.dataset.sobrenome;
+  let tipo_chave = botao.dataset.tipo_chave;
+  let instituicao = botao.dataset.instituicao;
+  let beneficiario = botao.dataset.beneficiario;
+
+  // Verificar se o valor é igual a '--' e alterar para uma variável vazia
+  wpp = wpp === '--' ? '' : wpp;
+  nome = nome === '--' ? '' : nome;
+  email = email === '--' ? '' : email;
+  chave = chave === '--' ? '' : chave;
+  sobrenome = sobrenome === '--' ? '' : sobrenome;
+  instituicao = instituicao === '--' ? '' : instituicao;
+  beneficiario = beneficiario === '--' ? '' : beneficiario;
+
+  const form = document.querySelector("#edit-dp-form");
+  form.action = '/editar-perfil/';
+  form.querySelector("#beneficiario").value = beneficiario;
+  form.querySelector("#instituicao").value = instituicao;
+  form.querySelector("#sobrenome").value = sobrenome;
+  form.querySelector("#email").value = email;
+  form.querySelector("#chave").value = chave;
+  form.querySelector("#nome").value = nome;
+  form.querySelector("#wpp").value = wpp;
+
+  const tipoChaveSelect = form.querySelector("#tipo_chave");
+  if (tipo_chave === '--') {
+    tipoChaveSelect.selectedIndex = 0;
+  } else {
+    tipoChaveSelect.value = tipo_chave;
+  }
+
+  const modal = new bootstrap.Modal(document.querySelector("#edit-dp-modal"));
+  modal.show();
+}
+
+$('#edit-dp-modal').on('click', '.btn-close, .btn-secondary', function () {
+  $('#edit-dp-modal').modal('hide');
+});
+
+// ==================== FORMATAÇÃO DE TELEFONE ====================
+
+document.addEventListener('DOMContentLoaded', function () {
+  const telefoneInput = document.getElementById('wpp');
+
+  if (telefoneInput) {
     const iti = window.intlTelInput(telefoneInput, {
       preferredCountries: ["br", "us", "pt"],
       initialCountry: "br",
@@ -328,18 +1397,16 @@
 
       // --- Brasil ---
       if (countryCode === "br") {
-        numero = numero.substring(0, 11); // 2 DDD + até 9 dígitos locais
+        numero = numero.substring(0, 11);
         let formatted = '';
 
         if (numero.length >= 2) {
           formatted += '(' + numero.substring(0, 2) + ') ';
 
-          const local = numero.substring(2); // Parte após o DDD
+          const local = numero.substring(2);
           if (local.length === 9) {
-            // Celular: 5+4
             formatted += local.substring(0, 5) + '-' + local.substring(5);
           } else if (local.length >= 5) {
-            // Fixo: 4+4 ou incompleto
             formatted += local.substring(0, 4) + '-' + local.substring(4);
           } else {
             formatted += local;
@@ -385,7 +1452,252 @@
         this.value = formatted;
       }
     });
-  });
+  }
+});
+
+// ==================== ALTERAÇÃO DE SENHA ====================
+
+function openChangePasswordModal() {
+  const modal = new bootstrap.Modal(document.getElementById('change-password-modal'));
+  modal.show();
+}
+
+// Mostrar/ocultar senha
+function togglePasswordVisibility(fieldId) {
+  const field = document.getElementById(fieldId);
+  const icon = document.getElementById(fieldId + '_icon');
+
+  if (field.type === 'password') {
+    field.type = 'text';
+    icon.classList.remove('fe-eye');
+    icon.classList.add('fe-eye-off');
+  } else {
+    field.type = 'password';
+    icon.classList.remove('fe-eye-off');
+    icon.classList.add('fe-eye');
+  }
+}
+
+// Indicador de força da senha
+document.addEventListener('DOMContentLoaded', function() {
+  const newPasswordInput = document.getElementById('new_password');
+
+  if (newPasswordInput) {
+    newPasswordInput.addEventListener('input', function(e) {
+      const password = e.target.value;
+      const strengthDiv = e.target.parentElement.nextElementSibling.nextElementSibling;
+      const progressBar = strengthDiv.querySelector('.progress-bar');
+      const strengthText = strengthDiv.querySelector('.strength-text');
+
+      if (password.length === 0) {
+        strengthDiv.style.display = 'none';
+        return;
+      }
+
+      strengthDiv.style.display = 'block';
+
+      // Calcular força
+      let strength = 0;
+      if (password.length >= 8) strength += 20;
+      if (password.length >= 12) strength += 10;
+      if (/[a-z]/.test(password)) strength += 20;
+      if (/[A-Z]/.test(password)) strength += 20;
+      if (/[0-9]/.test(password)) strength += 15;
+      if (/[@$!%*?&]/.test(password)) strength += 15;
+
+      // Atualizar visual
+      progressBar.style.width = strength + '%';
+
+      if (strength < 40) {
+        progressBar.className = 'progress-bar bg-danger';
+        strengthText.textContent = 'Fraca';
+      } else if (strength < 70) {
+        progressBar.className = 'progress-bar bg-warning';
+        strengthText.textContent = 'Média';
+      } else {
+        progressBar.className = 'progress-bar bg-success';
+        strengthText.textContent = 'Forte';
+      }
+    });
+  }
+
+  // Validar senhas coincidem
+  const confirmPasswordInput = document.getElementById('confirm_password');
+  if (confirmPasswordInput) {
+    confirmPasswordInput.addEventListener('input', function(e) {
+      const newPassword = document.getElementById('new_password').value;
+      const confirmPassword = e.target.value;
+
+      // Buscar o elemento de feedback correto (próximo sibling do wrapper)
+      const feedbackElement = e.target.parentElement.nextElementSibling;
+
+      if (confirmPassword && newPassword !== confirmPassword) {
+        e.target.classList.add('is-invalid');
+        if (feedbackElement && feedbackElement.classList.contains('invalid-feedback')) {
+          feedbackElement.textContent = 'As senhas não correspondem';
+          feedbackElement.style.display = 'block';
+        }
+      } else {
+        e.target.classList.remove('is-invalid');
+        if (feedbackElement && feedbackElement.classList.contains('invalid-feedback')) {
+          feedbackElement.textContent = '';
+          feedbackElement.style.display = 'none';
+        }
+      }
+    });
+
+    // Validar também quando a nova senha mudar
+    const newPasswordInput = document.getElementById('new_password');
+    if (newPasswordInput) {
+      newPasswordInput.addEventListener('input', function() {
+        const confirmPassword = confirmPasswordInput.value;
+        const newPassword = this.value;
+        const feedbackElement = confirmPasswordInput.parentElement.nextElementSibling;
+
+        if (confirmPassword && newPassword !== confirmPassword) {
+          confirmPasswordInput.classList.add('is-invalid');
+          if (feedbackElement && feedbackElement.classList.contains('invalid-feedback')) {
+            feedbackElement.textContent = 'As senhas não correspondem';
+            feedbackElement.style.display = 'block';
+          }
+        } else if (confirmPassword && newPassword === confirmPassword) {
+          confirmPasswordInput.classList.remove('is-invalid');
+          if (feedbackElement && feedbackElement.classList.contains('invalid-feedback')) {
+            feedbackElement.textContent = '';
+            feedbackElement.style.display = 'none';
+          }
+        }
+      });
+    }
+  }
+});
+
+// Submit do formulário de alteração de senha
+document.addEventListener('DOMContentLoaded', function() {
+  const changePasswordForm = document.getElementById('change-password-form');
+
+  if (changePasswordForm) {
+    changePasswordForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const form = e.target;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalBtnText = submitBtn.innerHTML;
+
+      // Limpar erros anteriores
+      form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+      // Loading state
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Alterando...';
+
+      try {
+        const formData = new FormData(form);
+
+        const response = await fetch('/perfil/alterar-senha/', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Sucesso
+          showToast('success', data.message);
+
+          // Fechar modal e limpar form
+          bootstrap.Modal.getInstance(document.getElementById('change-password-modal')).hide();
+          form.reset();
+
+          // Ocultar indicador de força
+          document.querySelector('.password-strength').style.display = 'none';
+
+        } else {
+          // Erro - mostrar no campo específico
+          if (data.field) {
+            const field = form.querySelector(`#${data.field}`);
+            if (field) {
+              field.classList.add('is-invalid');
+              field.nextElementSibling.nextElementSibling.textContent = data.error;
+            }
+          }
+          showToast('error', data.error);
+        }
+
+      } catch (error) {
+        console.error('Erro:', error);
+        showToast('error', 'Erro ao alterar senha. Tente novamente.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+      }
+    });
+  }
+});
+
+// ==================== HISTÓRICO DE ATIVIDADES ====================
+
+// Carregar histórico quando a aba é ativada
+document.addEventListener('DOMContentLoaded', function() {
+  const historicoTab = document.getElementById('historico-tab');
+  let historicoCarregado = false;
+
+  if (historicoTab) {
+    historicoTab.addEventListener('shown.bs.tab', async function (event) {
+      if (!historicoCarregado) {
+        await carregarHistorico();
+        historicoCarregado = true;
+      }
+    });
+  }
+});
+
+async function carregarHistorico() {
+  const loading = document.getElementById('historico-loading');
+  const content = document.getElementById('historico-content');
+  const tbody = document.getElementById('historico-tbody');
+  const vazio = document.getElementById('historico-vazio');
+
+  try {
+    const response = await fetch('/perfil/historico/');
+    const data = await response.json();
+
+    loading.style.display = 'none';
+
+    if (data.history && data.history.length > 0) {
+      tbody.innerHTML = '';
+
+      data.history.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><small>${item.timestamp}</small></td>
+          <td>
+            <span class="badge bg-primary">${item.action}</span>
+          </td>
+          <td>${item.message}</td>
+          <td><small class="text-muted">${item.ip}</small></td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      content.style.display = 'block';
+      vazio.style.display = 'none';
+    } else {
+      content.style.display = 'block';
+      vazio.style.display = 'block';
+      document.querySelector('.table-responsive').style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Erro ao carregar histórico:', error);
+    loading.style.display = 'none';
+    content.style.display = 'block';
+    vazio.style.display = 'block';
+    vazio.innerHTML = `
+      <i class="fe fe-alert-circle" style="font-size: 48px; color: #dc3545;"></i>
+      <p class="text-danger mt-3">Erro ao carregar histórico</p>
+    `;
+  }
+}
 </script>
 
 <style>
@@ -397,4 +1709,1001 @@
   .iti__country-list {
     z-index: 10000;
   }
+
+  /* Estilo para o avatar e botão de upload */
+  .avatar-xxl {
+    position: relative;
+  }
+
+  .avatar-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .avatar-xxl:hover .avatar-overlay {
+    background: rgba(0, 0, 0, 0.6);
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .avatar-change-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    text-align: center;
+    padding: 10px;
+    margin: 0;
+    transition: transform 0.2s ease;
+  }
+
+  .avatar-change-btn:hover {
+    transform: scale(1.1);
+  }
+
+  .avatar-change-btn i {
+    font-size: 32px;
+    margin-bottom: 5px;
+  }
+
+  .avatar-change-btn span {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Estilo para campos de senha com botão de toggle */
+  .password-input-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  .password-input-wrapper .password-input {
+    padding-right: 48px !important;
+    width: 100%;
+  }
+
+  .password-toggle-btn {
+    position: absolute;
+    right: 1px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: calc(100% - 2px);
+    width: 42px;
+    border: none;
+    background: linear-gradient(to left, rgba(248, 249, 250, 0.95), transparent);
+    color: #495057;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    border-radius: 0 0.375rem 0.375rem 0;
+    padding: 0;
+    margin: 0;
+    opacity: 1;
+    z-index: 5;
+  }
+
+  .password-toggle-btn:hover {
+    background: linear-gradient(to left, rgba(233, 236, 239, 1), transparent);
+    color: #212529;
+  }
+
+  .password-toggle-btn:active {
+    background: linear-gradient(to left, rgba(206, 212, 218, 1), transparent);
+    transform: translateY(-50%) scale(0.95);
+  }
+
+  .password-toggle-btn:focus {
+    outline: 2px solid rgba(13, 110, 253, 0.25);
+    outline-offset: -2px;
+    box-shadow: none;
+  }
+
+  .password-toggle-btn i {
+    font-size: 18px;
+    pointer-events: none;
+    line-height: 1;
+    display: inline-block;
+  }
+
+  /* Garantir que ícones Feather sejam visíveis */
+  .password-toggle-btn .fe {
+    display: inline-block !important;
+    width: 18px;
+    height: 18px;
+  }
+
+  .password-toggle-btn .fe-eye,
+  .password-toggle-btn .fe-eye-off {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  /* Ajuste para campos com erro */
+  .password-input-wrapper .is-invalid {
+    border-color: #dc3545 !important;
+    padding-right: 48px !important;
+  }
+
+  .password-input-wrapper .is-invalid:focus {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25) !important;
+  }
+
+  /* Garantir que o wrapper não quebre o layout */
+  .password-input-wrapper + .invalid-feedback {
+    display: block;
+  }
+
+  /* ============================================
+     THEME SWITCHER STYLES
+     ============================================ */
+  .theme-selector {
+    width: 100%;
+  }
+
+  .theme-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 10px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+    width: 100%;
+  }
+
+  .theme-option:hover {
+    border-color: #667eea;
+    background: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.1);
+  }
+
+  .btn-check:checked + .theme-option {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  }
+
+  .theme-preview {
+    width: 60px;
+    height: 45px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .theme-preview-header {
+    height: 12px;
+    width: 100%;
+  }
+
+  .theme-preview-body {
+    flex: 1;
+    width: 100%;
+  }
+
+  .theme-light-preview .theme-preview-header {
+    background: #667eea;
+  }
+
+  .theme-light-preview .theme-preview-body {
+    background: #ffffff;
+  }
+
+  .theme-dark-preview .theme-preview-header {
+    background: #4a5568;
+  }
+
+  .theme-dark-preview .theme-preview-body {
+    background: #1a202c;
+  }
+
+  .theme-auto-preview .theme-preview-header {
+    background: linear-gradient(90deg, #667eea 50%, #4a5568 50%);
+  }
+
+  .theme-auto-preview .theme-preview-body {
+    background: linear-gradient(90deg, #ffffff 50%, #1a202c 50%);
+  }
+
+  .theme-icon {
+    font-size: 20px;
+    color: #495057;
+  }
+
+  .theme-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-check:checked + .theme-option .theme-icon,
+  .btn-check:checked + .theme-option .theme-label {
+    color: #667eea;
+  }
+
+  /* ============================================
+     DARK THEME STYLES
+     ============================================ */
+  [data-theme="dark"] {
+    --bs-body-bg: #1a202c;
+    --bs-body-color: #e2e8f0;
+    --bs-card-bg: #2d3748;
+    --bs-card-border-color: #4a5568;
+    --bs-border-color: #4a5568;
+    --bs-secondary-bg: #2d3748;
+    --bs-tertiary-bg: #1a202c;
+  }
+
+  [data-theme="dark"] body {
+    background-color: #1a202c;
+    color: #e2e8f0;
+  }
+
+  [data-theme="dark"] .card {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #e2e8f0;
+  }
+
+  [data-theme="dark"] .card-header {
+    background-color: #2d3748;
+    border-bottom-color: #4a5568;
+  }
+
+  [data-theme="dark"] .navbar,
+  [data-theme="dark"] .sidebar {
+    background-color: #2d3748 !important;
+    border-color: #4a5568;
+  }
+
+  [data-theme="dark"] .text-muted {
+    color: #a0aec0 !important;
+  }
+
+  [data-theme="dark"] .btn-outline-primary {
+    color: #667eea;
+    border-color: #667eea;
+  }
+
+  [data-theme="dark"] .btn-outline-primary:hover {
+    background-color: #667eea;
+    color: #ffffff;
+  }
+
+  [data-theme="dark"] .table {
+    color: #e2e8f0;
+  }
+
+  [data-theme="dark"] .table-hover tbody tr:hover {
+    background-color: #4a5568;
+  }
+
+  [data-theme="dark"] .modal-content {
+    background-color: #2d3748;
+    color: #e2e8f0;
+  }
+
+  [data-theme="dark"] .modal-header {
+    border-bottom-color: #4a5568;
+  }
+
+  [data-theme="dark"] .modal-footer {
+    border-top-color: #4a5568;
+  }
+
+  [data-theme="dark"] .form-control,
+  [data-theme="dark"] .form-select {
+    background-color: #1a202c;
+    border-color: #4a5568;
+    color: #e2e8f0;
+  }
+
+  [data-theme="dark"] .form-control:focus,
+  [data-theme="dark"] .form-select:focus {
+    background-color: #1a202c;
+    border-color: #667eea;
+    color: #e2e8f0;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+  }
+
+  [data-theme="dark"] .alert-info {
+    background-color: rgba(23, 162, 184, 0.2);
+    border-color: #17a2b8;
+    color: #cfe2ff;
+  }
+
+  [data-theme="dark"] .alert-warning {
+    background-color: rgba(255, 193, 7, 0.2);
+    border-color: #ffc107;
+    color: #ffe69c;
+  }
+
+  [data-theme="dark"] .nav-lt-tab .nav-link {
+    color: #a0aec0;
+  }
+
+  [data-theme="dark"] .nav-lt-tab .nav-link.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+  }
+
+  /* ============================================
+     TOAST MODERNO STYLES
+     ============================================ */
+  .toast-message-modern {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: #ffffff;
+    color: #333;
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 12px;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 320px;
+    max-width: 450px;
+    position: relative;
+    border-left: 4px solid #dee2e6;
+  }
+
+  .toast-message-modern.show {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .toast-icon-modern {
+    font-size: 22px;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .toast-content-modern {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .toast-content-modern strong {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .toast-content-modern div {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .toast-close-modern {
+    background: transparent;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 4px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .toast-close-modern:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #333;
+  }
+
+  .toast-close-modern i {
+    font-size: 16px;
+  }
+
+  /* Animação de entrada alternativa (bounce) */
+  @keyframes toastBounceIn {
+    0% {
+      opacity: 0;
+      transform: translateX(100%) scale(0.9);
+    }
+    50% {
+      transform: translateX(-10px) scale(1.02);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+
+  /* Dark theme support para toasts */
+  [data-theme="dark"] .toast-message-modern {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  [data-theme="dark"] .toast-close-modern {
+    color: #a0aec0;
+  }
+
+  [data-theme="dark"] .toast-close-modern:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+  }
 </style>
+
+<script>
+// ============================================
+// THEME MANAGEMENT
+// ============================================
+(function() {
+  'use strict';
+
+  // Aplicar tema ao carregar a página
+  function applyTheme(theme) {
+    const html = document.documentElement;
+
+    if (theme === 'auto') {
+      // Detectar preferência do sistema
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      html.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+      html.setAttribute('data-theme', theme);
+    }
+
+    // Salvar em localStorage para persistência
+    localStorage.setItem('theme', theme);
+  }
+
+  // Aplicar tema inicial do servidor
+  const serverTheme = '{{ theme_preference }}';
+  applyTheme(serverTheme);
+
+  // Listener para mudanças no tema do sistema (quando auto)
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    const currentTheme = localStorage.getItem('theme');
+    if (currentTheme === 'auto') {
+      applyTheme('auto');
+    }
+  });
+
+  // Listener para mudanças nos radio buttons de tema
+  document.addEventListener('DOMContentLoaded', function() {
+    const themeRadios = document.querySelectorAll('input[name="theme"]');
+
+    themeRadios.forEach(radio => {
+      radio.addEventListener('change', function() {
+        if (this.checked) {
+          const selectedTheme = this.value;
+
+          // Aplicar tema imediatamente
+          applyTheme(selectedTheme);
+
+          // Enviar para o servidor
+          const csrfToken = getCsrfToken();
+          if (!csrfToken) {
+            showToast('error', 'Erro: Token CSRF não encontrado. Recarregue a página.');
+            return;
+          }
+
+          console.log('[THEME] Enviando tema:', selectedTheme);
+          fetch('/perfil/tema/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-CSRFToken': csrfToken
+            },
+            body: `theme=${selectedTheme}`
+          })
+          .then(response => {
+            console.log('[THEME] Status:', response.status);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('[THEME] Resposta:', data);
+            if (data.success) {
+              showToast('success', 'Tema alterado com sucesso!');
+            } else {
+              showToast('error', data.error || 'Erro ao alterar tema');
+            }
+          })
+          .catch(error => {
+            console.error('[THEME] Erro:', error);
+            showToast('error', 'Erro ao salvar tema: ' + error.message);
+          });
+        }
+      });
+    });
+  });
+})();
+
+// ============================================
+// NOTIFICATION PREFERENCES
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+  const saveNotificationsBtn = document.getElementById('save-notifications-btn');
+
+  if (saveNotificationsBtn) {
+    saveNotificationsBtn.addEventListener('click', function() {
+      const btn = this;
+      const originalHTML = btn.innerHTML;
+
+      // Loading state
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+
+      // Coletar preferências
+      const preferences = {
+        email_on_profile_change: document.getElementById('email_on_profile_change').checked,
+        email_on_password_change: document.getElementById('email_on_password_change').checked,
+        email_on_login: document.getElementById('email_on_login').checked
+      };
+
+      // Obter CSRF token
+      const csrfToken = getCsrfToken();
+      if (!csrfToken) {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        showToast('error', 'Erro: Token CSRF não encontrado. Recarregue a página.');
+        return;
+      }
+
+      // Enviar para o servidor
+      console.log('[NOTIFICATIONS] Enviando preferências:', preferences);
+      fetch('/perfil/notificacoes/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': csrfToken
+        },
+        body: Object.keys(preferences).map(key =>
+          `${key}=${preferences[key]}`
+        ).join('&')
+      })
+      .then(response => {
+        console.log('[NOTIFICATIONS] Status:', response.status);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('[NOTIFICATIONS] Resposta:', data);
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+
+        if (data.success) {
+          showToast('success', data.message);
+        } else {
+          showToast('error', data.error || 'Erro ao salvar preferências');
+        }
+      })
+      .catch(error => {
+        console.error('[NOTIFICATIONS] Erro:', error);
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        showToast('error', 'Erro ao salvar preferências: ' + error.message);
+      });
+    });
+  }
+});
+
+// ============================================
+// PRIVACY SETTINGS
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+  const savePrivacyBtn = document.getElementById('save-privacy-btn');
+
+  if (savePrivacyBtn) {
+    savePrivacyBtn.addEventListener('click', function() {
+      const btn = this;
+      const originalHTML = btn.innerHTML;
+
+      // Loading state
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+
+      // Coletar configurações
+      const settings = {
+        profile_public: document.getElementById('profile_public').checked,
+        show_email: document.getElementById('show_email').checked,
+        show_phone: document.getElementById('show_phone').checked,
+        show_statistics: document.getElementById('show_statistics').checked
+      };
+
+      // Obter CSRF token
+      const csrfToken = getCsrfToken();
+      if (!csrfToken) {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        showToast('error', 'Erro: Token CSRF não encontrado. Recarregue a página.');
+        return;
+      }
+
+      // Enviar para o servidor
+      console.log('[PRIVACY] Enviando configurações:', settings);
+      fetch('/perfil/privacidade/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': csrfToken
+        },
+        body: Object.keys(settings).map(key =>
+          `${key}=${settings[key]}`
+        ).join('&')
+      })
+      .then(response => {
+        console.log('[PRIVACY] Status:', response.status);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('[PRIVACY] Resposta:', data);
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+
+        if (data.success) {
+          showToast('success', data.message);
+        } else {
+          showToast('error', data.error || 'Erro ao salvar configurações');
+        }
+      })
+      .catch(error => {
+        console.error('[PRIVACY] Erro:', error);
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        showToast('error', 'Erro ao salvar configurações: ' + error.message);
+      });
+    });
+  }
+});
+
+// ==================== 2FA FUNCTIONS ====================
+
+// Setup 2FA Modal
+document.addEventListener('DOMContentLoaded', function() {
+  const setupModal = document.getElementById('setup2faModal');
+  if (!setupModal) return;
+
+  const bsSetupModal = new bootstrap.Modal(setupModal);
+
+  // When modal opens, generate QR code
+  setupModal.addEventListener('shown.bs.modal', async function() {
+    console.log('[2FA] Setup modal opened, generating QR code...');
+
+    const qrContainer = document.getElementById('qr-code-container');
+    const secretDisplay = document.getElementById('secret-key-display');
+    const csrfToken = getCsrfToken();
+
+    if (!csrfToken) {
+      showToast('error', 'Erro: Token CSRF não encontrado');
+      return;
+    }
+
+    try {
+      // Call setup endpoint
+      const response = await fetch('/perfil/2fa/setup/', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrfToken
+        }
+      });
+
+      const data = await response.json();
+      console.log('[2FA] Setup response:', data);
+
+      if (data.success) {
+        // Show secret key
+        secretDisplay.textContent = data.secret;
+
+        // Load QR code image
+        qrContainer.innerHTML = `<img src="/perfil/2fa/qr-code/" alt="QR Code" class="img-fluid" style="max-width: 250px;">`;
+      } else {
+        throw new Error(data.error || 'Erro ao gerar QR code');
+      }
+    } catch (error) {
+      console.error('[2FA] Setup error:', error);
+      qrContainer.innerHTML = '<p class="text-danger">Erro ao gerar QR code</p>';
+      showToast('error', error.message);
+    }
+  });
+
+  // Reset modal when closed
+  setupModal.addEventListener('hidden.bs.modal', function() {
+    document.getElementById('setup-step-1').style.display = '';
+    document.getElementById('setup-step-2').style.display = 'none';
+    document.getElementById('verify-and-enable-btn').style.display = '';
+    document.getElementById('finish-setup-btn').style.display = 'none';
+    document.getElementById('setup-cancel-btn').style.display = '';
+    document.getElementById('verification-code-input').value = '';
+    document.getElementById('qr-code-container').innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Gerando QR Code...</span></div>';
+  });
+});
+
+// Verify and Enable 2FA
+document.addEventListener('DOMContentLoaded', function() {
+  const verifyBtn = document.getElementById('verify-and-enable-btn');
+  if (!verifyBtn) return;
+
+  verifyBtn.addEventListener('click', async function() {
+    const code = document.getElementById('verification-code-input').value.trim();
+    const csrfToken = getCsrfToken();
+
+    if (!code) {
+      showToast('error', 'Digite o código de verificação');
+      return;
+    }
+
+    if (code.length !== 6 || !/^\d+$/.test(code)) {
+      showToast('error', 'Código inválido. Digite 6 dígitos');
+      return;
+    }
+
+    if (!csrfToken) {
+      showToast('error', 'Erro: Token CSRF não encontrado');
+      return;
+    }
+
+    const originalHTML = verifyBtn.innerHTML;
+    verifyBtn.disabled = true;
+    verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verificando...';
+
+    try {
+      const formData = new FormData();
+      formData.append('code', code);
+      formData.append('csrfmiddlewaretoken', csrfToken);
+
+      const response = await fetch('/perfil/2fa/enable/', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      console.log('[2FA] Enable response:', data);
+
+      if (data.success) {
+        // Show backup codes
+        displayBackupCodes(data.backup_codes);
+
+        // Switch to step 2
+        document.getElementById('setup-step-1').style.display = 'none';
+        document.getElementById('setup-step-2').style.display = '';
+        document.getElementById('verify-and-enable-btn').style.display = 'none';
+        document.getElementById('finish-setup-btn').style.display = '';
+        document.getElementById('setup-cancel-btn').style.display = 'none';
+
+        showToast('success', data.message);
+      } else {
+        throw new Error(data.error || 'Erro ao ativar 2FA');
+      }
+    } catch (error) {
+      console.error('[2FA] Enable error:', error);
+      showToast('error', error.message);
+    } finally {
+      verifyBtn.disabled = false;
+      verifyBtn.innerHTML = originalHTML;
+    }
+  });
+});
+
+// Finish Setup (reload page to show updated status)
+document.addEventListener('DOMContentLoaded', function() {
+  const finishBtn = document.getElementById('finish-setup-btn');
+  if (!finishBtn) return;
+
+  finishBtn.addEventListener('click', function() {
+    location.reload();
+  });
+});
+
+// Disable 2FA
+document.addEventListener('DOMContentLoaded', function() {
+  const confirmDisableBtn = document.getElementById('confirm-disable-btn');
+  if (!confirmDisableBtn) return;
+
+  confirmDisableBtn.addEventListener('click', async function() {
+    const password = document.getElementById('disable-password-input').value.trim();
+    const csrfToken = getCsrfToken();
+
+    if (!password) {
+      showToast('error', 'Digite sua senha');
+      return;
+    }
+
+    if (!csrfToken) {
+      showToast('error', 'Erro: Token CSRF não encontrado');
+      return;
+    }
+
+    const originalHTML = confirmDisableBtn.innerHTML;
+    confirmDisableBtn.disabled = true;
+    confirmDisableBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Desativando...';
+
+    try {
+      const formData = new FormData();
+      formData.append('password', password);
+      formData.append('csrfmiddlewaretoken', csrfToken);
+
+      const response = await fetch('/perfil/2fa/disable/', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      console.log('[2FA] Disable response:', data);
+
+      if (data.success) {
+        showToast('success', data.message);
+
+        // Close modal and reload page
+        const modal = bootstrap.Modal.getInstance(document.getElementById('disable2faModal'));
+        modal.hide();
+
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        throw new Error(data.error || 'Erro ao desativar 2FA');
+      }
+    } catch (error) {
+      console.error('[2FA] Disable error:', error);
+      showToast('error', error.message);
+    } finally {
+      confirmDisableBtn.disabled = false;
+      confirmDisableBtn.innerHTML = originalHTML;
+    }
+  });
+});
+
+// Regenerate Backup Codes
+document.addEventListener('DOMContentLoaded', function() {
+  const confirmRegenBtn = document.getElementById('confirm-regen-btn');
+  if (!confirmRegenBtn) return;
+
+  confirmRegenBtn.addEventListener('click', async function() {
+    const password = document.getElementById('regen-password-input').value.trim();
+    const csrfToken = getCsrfToken();
+
+    if (!password) {
+      showToast('error', 'Digite sua senha');
+      return;
+    }
+
+    if (!csrfToken) {
+      showToast('error', 'Erro: Token CSRF não encontrado');
+      return;
+    }
+
+    const originalHTML = confirmRegenBtn.innerHTML;
+    confirmRegenBtn.disabled = true;
+    confirmRegenBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Gerando...';
+
+    try {
+      const formData = new FormData();
+      formData.append('password', password);
+      formData.append('csrfmiddlewaretoken', csrfToken);
+
+      const response = await fetch('/perfil/2fa/regenerate-codes/', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      console.log('[2FA] Regenerate response:', data);
+
+      if (data.success) {
+        // Display new backup codes
+        displayNewBackupCodes(data.backup_codes);
+
+        // Switch to step 2
+        document.getElementById('regen-step-1').style.display = 'none';
+        document.getElementById('regen-step-2').style.display = '';
+        document.getElementById('confirm-regen-btn').style.display = 'none';
+        document.getElementById('finish-regen-btn').style.display = '';
+        document.getElementById('regen-cancel-btn').style.display = 'none';
+
+        showToast('success', data.message);
+      } else {
+        throw new Error(data.error || 'Erro ao gerar códigos');
+      }
+    } catch (error) {
+      console.error('[2FA] Regenerate error:', error);
+      showToast('error', error.message);
+    } finally {
+      confirmRegenBtn.disabled = false;
+      confirmRegenBtn.innerHTML = originalHTML;
+    }
+  });
+});
+
+// Reset regenerate modal when closed
+document.addEventListener('DOMContentLoaded', function() {
+  const regenModal = document.getElementById('regenerateCodesModal');
+  if (!regenModal) return;
+
+  regenModal.addEventListener('hidden.bs.modal', function() {
+    document.getElementById('regen-step-1').style.display = '';
+    document.getElementById('regen-step-2').style.display = 'none';
+    document.getElementById('confirm-regen-btn').style.display = '';
+    document.getElementById('finish-regen-btn').style.display = 'none';
+    document.getElementById('regen-cancel-btn').style.display = '';
+    document.getElementById('regen-password-input').value = '';
+  });
+});
+
+// Helper: Display backup codes
+function displayBackupCodes(codes) {
+  const container = document.getElementById('backup-codes-display');
+  container.innerHTML = codes.map((code, index) =>
+    `<div>${index + 1}. ${code}</div>`
+  ).join('');
+}
+
+// Helper: Display new backup codes
+function displayNewBackupCodes(codes) {
+  const container = document.getElementById('new-backup-codes-display');
+  container.innerHTML = codes.map((code, index) =>
+    `<div>${index + 1}. ${code}</div>`
+  ).join('');
+}
+
+// Helper: Copy backup codes to clipboard
+function copyBackupCodes() {
+  const codes = Array.from(document.querySelectorAll('#backup-codes-display div'))
+    .map(div => div.textContent)
+    .join('\n');
+
+  navigator.clipboard.writeText(codes).then(() => {
+    showToast('success', 'Códigos copiados para a área de transferência!');
+  }).catch(err => {
+    console.error('Erro ao copiar:', err);
+    showToast('error', 'Erro ao copiar códigos');
+  });
+}
+
+// Helper: Copy new backup codes to clipboard
+function copyNewBackupCodes() {
+  const codes = Array.from(document.querySelectorAll('#new-backup-codes-display div'))
+    .map(div => div.textContent)
+    .join('\n');
+
+  navigator.clipboard.writeText(codes).then(() => {
+    showToast('success', 'Códigos copiados para a área de transferência!');
+  }).catch(err => {
+    console.error('Erro ao copiar:', err);
+    showToast('error', 'Erro ao copiar códigos');
+  });
+}
+</script>

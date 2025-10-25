@@ -1,4 +1,5 @@
 {% load static %}
+{% load format_filters %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -36,26 +37,41 @@
 
             <div class="col-xl-4 col-lg-8 col-md-12 col-12">
               <!-- card -->
-              <div class="card">
+              <div class="card shadow-sm border-0 cadastro-form-card">
                 <!-- card body -->
-                <div class="card-body">
-                  <div class=" mb-5">
-                    <h4 class="mb-1">Formulário de cadastro</h4>
+                <div class="card-body p-4">
+                  <div class="mb-4 pb-3 border-bottom">
+                    <h4 class="mb-1 fw-bold d-flex align-items-center">
+                      <i class="bi bi-plus-circle-fill text-primary me-2"></i>
+                      Formulário de cadastro
+                    </h4>
+                    <small class="text-muted">Preencha os campos abaixo</small>
                   </div>
 
-                  <form method="POST">
+                  <form method="POST" enctype="multipart/form-data">
                     <!-- row -->
                     {% csrf_token %}
-                    <div class="mb-3 row">
-                      <label for="fullName" class="col-sm-3 col-form-label
-                          form-label">Descrição</label>
-                      <div class="col-sm-7 mb-3 mb-lg-0">
-                        <input type="text" class="form-control" placeholder="Nome do servidor/painel..." id="nome"
-                          name="nome" required>
-                      </div>
+                    <div class="mb-4">
+                      <label for="nome" class="form-label fw-semibold">
+                        <i class="bi bi-hdd-network-fill text-primary me-2"></i>Descrição
+                      </label>
+                      <input type="text" class="form-control form-control-lg" placeholder="Ex: CLUB, PLAY, ALPHA..." id="nome"
+                        name="nome" required>
+                      <small class="text-muted">Nome identificador do servidor/painel</small>
                     </div>
-                    <div class="offset-md-3 col-md-8 mt-4">
-                      <button type="submit" class="btn btn-primary" name="cadastrar"> Cadastrar</button>
+
+                    <div class="mb-4">
+                      <label for="imagem" class="form-label fw-semibold">
+                        <i class="bi bi-image-fill text-info me-2"></i>Imagem <span class="badge bg-light text-muted">Opcional</span>
+                      </label>
+                      <input type="file" class="form-control form-control-lg" id="imagem" name="imagem" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+                      <small class="text-muted">JPG, PNG, GIF, WEBP • Máx 5MB</small>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                      <button type="submit" class="btn btn-primary btn-lg" name="cadastrar">
+                        <i class="bi bi-check-circle me-2"></i>Cadastrar Servidor
+                      </button>
                     </div>
                 </div>
                 </form>
@@ -107,13 +123,18 @@
                     <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
                   </div>
                   <div class="modal-body">
-                    <form method="POST" id="edit-servidor-form">
+                    <form method="POST" id="edit-servidor-form" enctype="multipart/form-data">
                       {% csrf_token %}
-                      <div class="form-group">
-                        <label for="servidor-nome">Nome do servidor</label>
-                        <input type="text" class="form-control" id="servidor-nome" name="nome">
+                      <div class="form-group mb-3">
+                        <label for="edit-servidor-nome" class="form-label">Nome do servidor</label>
+                        <input type="text" class="form-control" id="edit-servidor-nome" name="nome">
                       </div>
-                      <input type="hidden" name="servidor_id" id="servidor-id">
+                      <div class="form-group mb-3">
+                        <label for="edit-servidor-imagem" class="form-label">Imagem <span class="text-muted small">(opcional)</span></label>
+                        <input type="file" class="form-control" id="edit-servidor-imagem" name="imagem" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+                        <small class="text-muted">Formatos aceitos: JPG, PNG, GIF, WEBP. Tamanho máximo: 5MB</small>
+                      </div>
+                      <input type="hidden" name="servidor_id" id="edit-servidor-id">
                     </form>
                   </div>
                   <div class="modal-footer">
@@ -128,41 +149,69 @@
               <!-- card -->
               <div class="card">
                 <div class="table-responsive">
-                  <table class="table table-sm text-nowrap mb-0 table-hover text-center" id="myTable">
+                  <table class="table table-sm text-nowrap mb-0 table-hover align-middle" id="servidoresTable">
                     <thead class="table-light">
                       <tr>
-                        <th class="fw-bold text-center">Servidores</th>
-                        <th class="fw-bold text-center">Ação</th>
+                        <th class="fw-bold text-start ps-4" style="min-width: 200px;">Servidor</th>
+                        <th class="fw-bold text-center" style="width: 80px;">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for servidor in servidores %}
                       <!-- COMEÇO DA LINHA -->
                       <tr>
-                        <td class="align-middle">
-                          <div class="">
-                            <div class="">
-                              <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
-                                onmouseout="this.style.color=''">{{servidor.nome}}</h5>
+                        <td class="ps-4">
+                          <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 position-relative">
+                              <img src="{{ servidor|servidor_imagem_url:user }}"
+                                   class="rounded-circle border border-2"
+                                   alt="{{ servidor.nome }}"
+                                   title="{{ servidor.nome }}"
+                                   style="width: 48px; height: 48px; object-fit: cover;"
+                                   onerror="this.src='{% static 'assets/images/logo-apps/default.png' %}'">
+                            </div>
+                            <div class="ms-3 lh-sm">
+                              <h6 class="mb-0 fw-semibold text-capitalize text-dark"
+                                  style="font-size: 1rem; transition: color 0.2s ease;">
+                                {{servidor.nome}}
+                              </h6>
+                              <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                <i class="bi bi-server me-1"></i>Painel de streaming
+                              </small>
                             </div>
                           </div>
                         </td>
                         <!-- Dropdown da tabela -->
-                        <td>
-                          <div class="dropdown dropstart">
-                            <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button"
-                              id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                              <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                        <td class="text-center">
+                          <div class="dropdown">
+                            <button
+                              class="btn btn-sm btn-light rounded-circle d-inline-flex align-items-center justify-content-center border"
+                              type="button"
+                              id="dropdownMenuButton-{{ servidor.id }}"
+                              data-bs-toggle="dropdown"
+                              aria-expanded="false"
+                              style="width: 36px; height: 36px; padding: 0;">
+                              <i class="bi bi-three-dots-vertical text-muted"></i>
                             </button>
-                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ servidor.id }}">
                               <li>
-                                <button class="dropdown-item" data-servidor="{{servidor.id}}"
-                                  data-nome="{{servidor.nome}}" onclick="exibirModalEdicao(this)">Editar</button>
-                              </li>
-                              <li>
-                                <button class="dropdown-item" data-servidor="{{servidor.id}}"
+                                <button class="dropdown-item d-flex align-items-center py-2"
+                                  data-servidor="{{servidor.id}}"
                                   data-nome="{{servidor.nome}}"
-                                  onclick="exibirModalConfirmacaoExclusao(this)">Excluir</button>
+                                  onclick="exibirModalEdicao(this)">
+                                  <i class="bi bi-pencil me-2 text-warning"></i>
+                                  <span>Editar Servidor</span>
+                                </button>
+                              </li>
+                              <li><hr class="dropdown-divider"></li>
+                              <li>
+                                <button class="dropdown-item d-flex align-items-center py-2 text-danger"
+                                  data-servidor="{{servidor.id}}"
+                                  data-nome="{{servidor.nome}}"
+                                  onclick="exibirModalConfirmacaoExclusao(this)">
+                                  <i class="bi bi-trash me-2"></i>
+                                  <span>Excluir Servidor</span>
+                                </button>
                               </li>
                             </ul>
                           </div>
@@ -184,6 +233,12 @@
       {% include 'partials/modal_dns.html' %}
       {% include 'partials/modal_adminlogs.html' %}
       {% include 'partials/modal_userlogs.html' %}
+      <!-- Modais Globais -->
+      {% include 'partials/modais_globais.html' %}
+
+      <!-- Offcanvas de Configurações -->
+      {% include 'partials/offcanvas_configuracoes.html' %}
+
       {% include 'partials/footer.html' %}
       {% include 'partials/scripts.html' %}
 
@@ -296,8 +351,8 @@
 
     const form = document.querySelector("#edit-servidor-form");
     form.action = `/editar-servidor/${servidorId}/`;
-    form.querySelector("#servidor-nome").value = servidorNome;
-    form.querySelector("#servidor-id").value = servidorId;
+    form.querySelector("#edit-servidor-nome").value = servidorNome;
+    form.querySelector("#edit-servidor-id").value = servidorId;
 
     const modal = new bootstrap.Modal(document.querySelector("#edit-servidor-modal"));
     modal.show();

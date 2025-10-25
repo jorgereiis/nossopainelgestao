@@ -7,7 +7,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                     </div>
                     <div class="modal-body">
-                        <form method="POST" id="create-app-info-form">
+                        <form method="POST" id="create-app-info-form" action="{% url 'cadastro-app-conta' %}">
                         {% csrf_token %}
                         <!-- row -->
                         <div class="form-group">

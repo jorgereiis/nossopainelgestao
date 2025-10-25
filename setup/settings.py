@@ -39,7 +39,8 @@ SILENCED_SYSTEM_CHECKS = ['captcha.recaptcha_test_key_error']
 RECAPTCHA_REQUIRED_SCORE = 0.85
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+# SEGURANÇA: Default é False. Para desenvolvimento, configure DEBUG=True no .env
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 _allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS")
 if _allowed_hosts_env:
@@ -65,6 +66,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     'whitenoise.runserver_nostatic', # whitenoise para servir arquivos estáticos
     "django.contrib.staticfiles",
+    "axes",  # django-axes para rate limiting e bloqueio de tentativas de login
     "cadastros.apps.CadastrosConfig",
     "crispy_forms",
     "crispy_bootstrap5",
@@ -79,6 +81,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "axes.middleware.AxesMiddleware",  # django-axes deve vir após AuthenticationMiddleware
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'setup.middleware.CheckUserLoggedInMiddleware',
@@ -127,6 +130,7 @@ TEMPLATES = [
 
 TEMPLATES[0]["OPTIONS"]["context_processors"] += [
     "setup.context_processors.notifications",
+    "setup.context_processors.user_profile",
 ]
 
 WSGI_APPLICATION = "setup.wsgi.application"
@@ -193,6 +197,10 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "setup/static")]
 
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
+# Media files (uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
@@ -219,6 +227,11 @@ LOGGING = {
             'filename': 'logs/error.log',
             'formatter': 'verbose',
         },
+        'security_file': {
+            'class': 'logging.FileHandler',
+            'filename': 'logs/security.log',
+            'formatter': 'verbose',
+        },
     },
     'formatters': {
         'verbose': {
@@ -237,9 +250,82 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        'axes': {
+            'handlers': ['security_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'security': {
+            'handlers': ['security_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
     'root': {
         'handlers': ['file'],
         'level': 'WARNING',
     },
 }
+
+# Authentication Backends
+# O AxesBackend deve vir ANTES do ModelBackend
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesBackend',  # django-axes backend
+    'django.contrib.auth.backends.ModelBackend',  # Django default backend
+]
+
+# ========================================
+# Django-Axes Configuration
+# Rate Limiting e Bloqueio de Tentativas de Login
+# ========================================
+
+# Número de tentativas de login falhadas antes de bloquear
+AXES_FAILURE_LIMIT = 5
+
+# Tempo de bloqueio em horas (1 hora = timedelta(hours=1))
+# Usando horas diretas pois o django-axes aceita inteiro como horas
+from datetime import timedelta
+AXES_COOLOFF_TIME = timedelta(hours=1)
+
+# Bloquear por combinação de IP + Username (mais seguro)
+# Parâmetros aceitos:
+# - username: bloqueia apenas por username
+# - ip_address: bloqueia apenas por IP
+# - user_agent: bloqueia por user agent
+# Combinação: ["ip_address", "username"] bloqueia quando IP E username coincidem
+AXES_LOCKOUT_PARAMETERS = ["ip_address", "username"]  # Bloqueia por combinação de IP + username
+
+# Resetar contador de falhas após login bem-sucedido
+AXES_RESET_ON_SUCCESS = True
+
+# Usar username como identificador de usuário
+AXES_USERNAME_FORM_FIELD = "username"
+
+# Bloquear apenas no login (não em outras views)
+AXES_ONLY_ADMIN_SITE = False
+
+# Verbose: logs mais detalhados
+AXES_VERBOSE = True
+
+# Habilitar admin para visualizar tentativas de acesso
+AXES_ENABLE_ADMIN = True
+
+# Lockout template (template customizado para conta bloqueada)
+AXES_LOCKOUT_TEMPLATE = 'account_locked.html'
+
+# Usar cache para melhor performance (opcional, mas recomendado)
+# Se não tiver cache configurado, axes usa o banco de dados
+# AXES_CACHE = 'default'
+
+# Lockout response: pode ser 403 ou redirect para template customizado
+# Por padrão retorna 403 Forbidden
+# AXES_LOCKOUT_URL = '/conta-bloqueada/'
+
+# IP meta precedence (ordem de verificação de IP)
+# Útil se estiver atrás de proxy/load balancer
+AXES_IPWARE_PROXY_COUNT = 1
+AXES_IPWARE_META_PRECEDENCE_ORDER = [
+    'HTTP_X_FORWARDED_FOR',
+    'HTTP_X_REAL_IP',
+    'REMOTE_ADDR',
+]

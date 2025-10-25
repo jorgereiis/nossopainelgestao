@@ -38,3 +38,7 @@ jiter==0.9.1
 wheel
 pyaes
 telethon
+pyotp==2.9.0
+qrcode==7.4.2
+django-axes==7.0.2
+django-ratelimit==4.1.0

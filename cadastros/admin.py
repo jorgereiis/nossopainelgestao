@@ -3,6 +3,7 @@ from .models import (
     Plano,
     Cliente,
     Servidor,
+    ServidorImagem,
     SessaoWpp,
     Aplicativo,
     Tipos_pgto,
@@ -13,6 +14,7 @@ from .models import (
     SecretTokenAPI,
     DadosBancarios,
     PlanoIndicacao,
+    DescontoProgressivoIndicacao,
     ContaDoAplicativo,
     MensagemEnviadaWpp,
     DominiosDNS,
@@ -21,15 +23,25 @@ from .models import (
     MensagensLeads,
     UserActionLog,
     NotificationRead,
+    LoginLog,
 )
 
 # --- ADMINISTRADORES ---
 
 class ServidorAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "usuario")
+    list_display = ("id", "nome", "usuario", "imagem_admin")
     list_filter = ("usuario",)
     search_fields = ("nome", "usuario")
     ordering = ("-id", "nome",)
+
+
+class ServidorImagemAdmin(admin.ModelAdmin):
+    list_display = ("id", "servidor", "usuario", "imagem", "criado_em", "atualizado_em")
+    list_filter = ("servidor", "usuario", "criado_em")
+    search_fields = ("servidor__nome", "usuario__username")
+    autocomplete_fields = ("servidor",)
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("-criado_em",)
 
 
 class Tipos_pgtoAdmin(admin.ModelAdmin):
@@ -87,10 +99,19 @@ class MensalidadeAdmin(admin.ModelAdmin):
 
 
 class PlanoIndicacaoAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "tipo_plano", "descricao", "exemplo", "valor", "valor_minimo_mensalidade", "usuario", "status", "ativo")
+    list_display = ("id", "nome", "tipo_plano", "descricao", "exemplo", "valor", "valor_minimo_mensalidade", "limite_indicacoes", "usuario", "status", "ativo")
     list_filter = ("usuario", "ativo")
     search_fields = ("nome", "tipo_plano")
     ordering = ("-id", "nome",)
+
+
+class DescontoProgressivoIndicacaoAdmin(admin.ModelAdmin):
+    list_display = ("id", "cliente_indicador", "cliente_indicado", "valor_desconto", "data_inicio", "data_fim", "ativo", "usuario", "criado_em")
+    list_filter = ("ativo", "usuario", "data_inicio")
+    search_fields = ("cliente_indicador__nome", "cliente_indicado__nome")
+    autocomplete_fields = ("cliente_indicador", "cliente_indicado", "plano_indicacao")
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("-criado_em",)
 
 
 class ContaDoAplicativoAdmin(admin.ModelAdmin):
@@ -188,11 +209,33 @@ class UserActionLogAdmin(admin.ModelAdmin):
     list_per_page = 50
 
 
+class LoginLogAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "usuario", "username_tentado", "ip", "login_method", "success", "failure_reason")
+    list_filter = ("success", "login_method", "created_at", "usuario")
+    search_fields = ("username_tentado", "ip", "usuario__username", "user_agent")
+    readonly_fields = (
+        "usuario", "username_tentado", "ip", "user_agent", "login_method",
+        "success", "failure_reason", "location_country", "location_city", "created_at"
+    )
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+    list_per_page = 50
+
+    def has_add_permission(self, request):
+        """Não permite adicionar logs manualmente - só via signals."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Não permite editar logs - são apenas leitura."""
+        return False
+
+
 # --- REGISTRO NO ADMIN ---
 
 admin.site.register(Plano, PlanoAdmin)
 admin.site.register(Cliente, ClienteAdmin)
 admin.site.register(Servidor, ServidorAdmin)
+admin.site.register(ServidorImagem, ServidorImagemAdmin)
 admin.site.register(SessaoWpp, SessaoWppAdmin)
 admin.site.register(Tipos_pgto, Tipos_pgtoAdmin)
 admin.site.register(Aplicativo, AplicativoAdmin)
@@ -203,6 +246,7 @@ admin.site.register(HorarioEnvios, HorarioEnviosAdmin)
 admin.site.register(SecretTokenAPI, SecretTokenAPIAdmin)
 admin.site.register(DadosBancarios, DadosBancariosAdmin)
 admin.site.register(PlanoIndicacao, PlanoIndicacaoAdmin)
+admin.site.register(DescontoProgressivoIndicacao, DescontoProgressivoIndicacaoAdmin)
 admin.site.register(ContaDoAplicativo, ContaDoAplicativoAdmin)
 admin.site.register(MensagemEnviadaWpp, MensagemEnviadaWppAdmin)
 admin.site.register(DominiosDNS, DominiosDNSAdmin)
@@ -211,6 +255,7 @@ admin.site.register(EnviosLeads, EnviosLeadsAdmin)
 admin.site.register(MensagensLeads, MensagensLeadsAdmin)
 admin.site.register(NotificationRead, NotificationReadAdmin)
 admin.site.register(UserActionLog, UserActionLogAdmin)
+admin.site.register(LoginLog, LoginLogAdmin)
 
 # Configurações adicionais do admin
 admin.site.site_header = "Administração do Sistema"

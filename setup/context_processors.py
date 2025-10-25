@@ -1,7 +1,7 @@
 from django.db.models import DurationField, ExpressionWrapper, F
 from django.utils import timezone
 
-from cadastros.models import Mensalidade, Tipos_pgto
+from cadastros.models import Mensalidade, Tipos_pgto, UserProfile
 
 
 def notifications(request):
@@ -32,4 +32,21 @@ def notifications(request):
     )
 
     return {"notif_items": qs[:20], "notif_count": qs.count()}
+
+
+def user_profile(request):
+    """
+    Disponibiliza o perfil do usuário (UserProfile) em todos os templates.
+    Retorna o perfil do usuário autenticado, ou None se não estiver autenticado.
+    """
+    if not request.user.is_authenticated:
+        return {"user_profile": None}
+
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        # Criar perfil se não existir
+        profile = UserProfile.objects.create(user=request.user)
+
+    return {"user_profile": profile}
 

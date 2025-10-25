@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo Login Detectado</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #17a2b8;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #17a2b8;
+            margin: 0;
+            font-size: 24px;
+        }
+        .alert-box {
+            background-color: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .info-section h3 {
+            margin-top: 0;
+            color: #17a2b8;
+            font-size: 16px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        .info-value {
+            color: #6c757d;
+            text-align: right;
+            max-width: 60%;
+        }
+        .security-notice {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e9ecef;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .btn-danger {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #dc3545;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 10px;
+            font-weight: 600;
+        }
+        .btn-primary {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #17a2b8;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 10px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>{{ site_name }}</h1>
+        </div>
+
+        <p>Olá, <strong>{{ user.first_name|default:user.username }}</strong>!</p>
+
+        <div class="alert-box">
+            <strong>Notificação de Acesso</strong>
+            <p style="margin: 10px 0 0 0;">Detectamos um novo login na sua conta.</p>
+        </div>
+
+        <div class="info-section">
+            <h3>Detalhes do Acesso</h3>
+            <div class="info-row">
+                <span class="info-label">Data e hora:</span>
+                <span class="info-value">{{ timestamp|date:"d/m/Y H:i" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Endereço IP:</span>
+                <span class="info-value">{{ ip_address }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Localização:</span>
+                <span class="info-value">{{ location }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Dispositivo:</span>
+                <span class="info-value">{{ user_agent }}</span>
+            </div>
+        </div>
+
+        <p style="text-align: center; color: #28a745; font-weight: 600;">
+            Foi você? Então está tudo certo!
+        </p>
+
+        <div class="security-notice">
+            <strong>⚠ Não reconhece este acesso?</strong>
+            <p style="margin: 10px 0 0 0;">
+                Se você não realizou este login, sua conta pode estar comprometida.
+                Altere sua senha imediatamente e ative a autenticação em dois fatores.
+            </p>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="{{ site_url }}/alterar-senha/" class="btn-danger">Alterar Senha Agora</a>
+            <a href="{{ site_url }}/perfil/" class="btn-primary">Acessar Perfil</a>
+        </div>
+
+        <div class="footer">
+            <p>Este é um email automático de notificação de segurança.</p>
+            <p>Para desativar notificações de login, acesse as configurações do seu perfil.</p>
+            <p>&copy; {{ timestamp|date:"Y" }} {{ site_name }}. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

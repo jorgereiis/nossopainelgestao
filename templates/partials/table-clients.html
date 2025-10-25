@@ -2,85 +2,128 @@
 {% load format_filters %}
 
 <div class="table-responsive table-actions-visible">
-    <table class="table text-nowrap mb-0 table-hover" id="myTable">
+    <table class="table text-nowrap mb-0 table-hover align-middle" id="myTable">
         <thead class="table-light">
             <tr>
-                <th class="fw-bold text-center" data-sort-type="text">Nome</th>
-                <th class="fw-bold text-center" data-sort-type="date">Data adesão</th>
-                <th class="fw-bold text-center" data-sort-type="text">Dispositivo</th>
-                <th class="fw-bold text-center" data-sort-type="text">Aplicativo</th>
-                <th class="fw-bold text-center" data-sort-type="date">Último pgto.</th>
-                <th class="fw-bold text-center" data-sort-type="date">Próximo pgto.</th>
-                <th colspan="2"></th>
+                <th class="fw-bold text-start ps-3" data-sort-type="text" style="min-width: 200px;">Cliente</th>
+                <th class="fw-bold text-center" data-sort-type="date" style="min-width: 110px;">Adesão</th>
+                <th class="fw-bold text-center" data-sort-type="text" style="min-width: 120px;">Dispositivo</th>
+                <th class="fw-bold text-center" data-sort-type="text" style="min-width: 110px;">Aplicativo</th>
+                <th class="fw-bold text-center" data-sort-type="date" style="min-width: 110px;">Último pgto.</th>
+                <th class="fw-bold text-center" data-sort-type="date" style="min-width: 150px;">Próximo pgto.</th>
+                <th class="fw-bold text-center" style="width: 60px;">Pgto.</th>
+                <th class="fw-bold text-center" style="width: 60px;">Ações</th>
             </tr>
         </thead>
 
         <tbody>
             {% for cliente in object_list %}
             <!-- COMEÇO DA LINHA -->
-            <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent align-middle">
-                <td class="dtr-control align-middle" data-sort-value="{{ cliente.nome|default_if_none:''|lower }}">
+            <tr id="cliente-{{ forloop.counter }}" class="odd dt-hasChild parent">
+                <td class="dtr-control ps-3" data-sort-value="{{ cliente.nome|default_if_none:''|lower }}">
                     <div class="d-flex align-items-center">
-                        <div>
-                            <div class="icon-shape icon-md border p-1 rounded-circle">
-                                <img src="{% static 'assets/images/logo-apps/'|add:cliente.servidor.nome|lower|add:'.png' %}"
-                                    class="rounded-circle">
-                            </div>
+                        <div class="flex-shrink-0 position-relative">
+                            <img src="{{ cliente.servidor|servidor_imagem_url:user }}"
+                                class="rounded-circle border border-2"
+                                alt="{{ cliente.servidor.nome }}"
+                                title="{{ cliente.servidor.nome }}"
+                                style="width: 42px; height: 42px; object-fit: cover;"
+                                onerror="this.src='{% static 'assets/images/logo-apps/default.png' %}'">
                         </div>
-                        <div class="ms-3 lh-1">
-                            <h5 class="text-capitalize small" class="text-inherit"
-                                onmouseover="this.style.color='#624BFF'"
-                                onmouseout="this.style.color=''">{{cliente.nome}}</h5>
+                        <div class="ms-3 lh-sm">
+                            <h6 class="mb-0 fw-semibold text-capitalize text-dark"
+                                style="font-size: 0.9375rem; transition: color 0.2s ease;">
+                                {{cliente.nome}}
+                            </h6>
+                            <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                <i class="bi bi-hdd-network me-1"></i>{{ cliente.servidor.nome }}
+                            </small>
                         </div>
                     </div>
                 </td>
-                <td class="small text-center" data-sort-value="{{cliente.data_adesao|date:'Y-m-d'}}">{{cliente.data_adesao|date:'d/m/Y'}}</td>
-                <td class="small text-center" data-sort-value="{{cliente.dispositivo|default_if_none:''|lower}}">{{cliente.dispositivo}}</td>
-                <td class="text-capitalize small text-center" data-sort-value="{{cliente.sistema|default_if_none:''|lower}}">{{cliente.sistema}}</td>
-                <td class="small text-center" data-sort-value="{{cliente.ultimo_pagamento|date:'Y-m-d'}}">
+                <td class="text-center" data-sort-value="{{cliente.data_adesao|date:'Y-m-d'}}">
+                    <span class="text-muted" style="font-size: 0.875rem;">{{cliente.data_adesao|date:'d/m/Y'}}</span>
+                </td>
+                <td class="text-center" data-sort-value="{{cliente.dispositivo|default_if_none:''|lower}}">
+                    <span class="badge bg-light text-dark border" style="font-weight: 500;">{{cliente.dispositivo}}</span>
+                </td>
+                <td class="text-capitalize text-center" data-sort-value="{{cliente.sistema|default_if_none:''|lower}}">
+                    <span class="text-muted" style="font-size: 0.875rem;">{{cliente.sistema}}</span>
+                </td>
+                <td class="text-center" data-sort-value="{{cliente.ultimo_pagamento|date:'Y-m-d'}}">
                     {% if cliente.ultimo_pagamento %}
-                        {{cliente.ultimo_pagamento|date:'d/m/Y'}}
+                        <span class="text-success" style="font-size: 0.875rem;">
+                            <i class="bi bi-check-circle-fill me-1"></i>{{cliente.ultimo_pagamento|date:'d/m/Y'}}
+                        </span>
+                    {% else %}
+                        <span class="text-muted" style="font-size: 0.875rem;">—</span>
                     {% endif %}
                 </td>
 
                 {% for mensalidade in cliente.mensalidade_set.all %}
                 {% if not mensalidade.cancelado and not mensalidade.pgto %}
                 {% if mensalidade.dt_pagamento is None and hoje > mensalidade.dt_vencimento %}
-                <td class="align-middle text-center" data-sort-value="{{mensalidade.dt_vencimento|date:'Y-m-d'}}">
-                    <span class="badge bg-danger">{{mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y'}}]</span>
-                    <span></span>
+                <td class="text-center" data-sort-value="{{mensalidade.dt_vencimento|date:'Y-m-d'}}">
+                    <div class="d-flex flex-column align-items-center gap-1">
+                        <span class="badge bg-danger-subtle text-danger border border-danger" style="font-size: 0.8125rem; padding: 0.35rem 0.65rem;">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Vencido
+                        </span>
+                        <small class="text-danger fw-semibold" style="font-size: 0.75rem;">R$ {{mensalidade.valor}}</small>
+                        <small class="text-muted" style="font-size: 0.7rem;">{{mensalidade.dt_vencimento|date:'d/m/Y'}}</small>
+                    </div>
                 </td>
                 {% else %}
-                <td class="align-middle text-primary text-center" data-sort-value="{{mensalidade.dt_vencimento|date:'Y-m-d'}}">
-                        <span class="badge bg-info">{{mensalidade.valor}} [{{mensalidade.dt_vencimento|date:'d/m/Y' }}]</span>
-                        <span></span>
+                <td class="text-center" data-sort-value="{{mensalidade.dt_vencimento|date:'Y-m-d'}}">
+                    <div class="d-flex flex-column align-items-center gap-1">
+                        <span class="badge bg-info-subtle text-info border border-info" style="font-size: 0.8125rem; padding: 0.35rem 0.65rem;">
+                            <i class="bi bi-clock-fill me-1"></i>A vencer
+                        </span>
+                        <small class="text-info fw-semibold" style="font-size: 0.75rem;">R$ {{mensalidade.valor}}</small>
+                        <small class="text-muted" style="font-size: 0.7rem;">{{mensalidade.dt_vencimento|date:'d/m/Y'}}</small>
+                    </div>
                 </td>
                 {% endif %}
                 {% if cliente.forma_pgto.nome == "PIX" %}
-                <td>
-                    <img src="{% static 'assets/images/svg/pix.png' %}">
+                <td class="text-center">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border"
+                         style="width: 36px; height: 36px;"
+                         title="PIX">
+                        <img src="{% static 'assets/images/svg/pix.png' %}" style="width: 20px; height: 20px;">
+                    </div>
                 </td>
                 {% elif cliente.forma_pgto.nome == "Cartão de Crédito" %}
-                <td>
-                    <span class="bi bi-credit-card" style="color: #4DBDB1"></span>
+                <td class="text-center">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border"
+                         style="width: 36px; height: 36px;"
+                         title="Cartão de Crédito">
+                        <i class="bi bi-credit-card" style="color: #624BFF; font-size: 1.1rem;"></i>
+                    </div>
                 </td>
                 {% elif cliente.forma_pgto.nome == "Boleto" %}
-                <td>
-                    <span class="bi bi-upc-scan" style="color: #4DBDB1"></span>
+                <td class="text-center">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border"
+                         style="width: 36px; height: 36px;"
+                         title="Boleto">
+                        <i class="bi bi-upc-scan" style="color: #624BFF; font-size: 1.1rem;"></i>
+                    </div>
                 </td>
                 {% endif %}
                 <!-- Dropdown da tabela -->
-                <td>
-                    <div class="dropdown dropend">
+                <td class="text-center">
+                    <div class="dropdown table-dropdown-actions">
                         <button
-                            class="btn btn-icon btn-white rounded-circle btn-dashed ms-2"
-                            type="button" id="dropdownMenuButton" data-bs-toggle="dropdown"
-                            aria-expanded="false">
-                            <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                            class="btn btn-sm btn-light rounded-circle d-inline-flex align-items-center justify-content-center border"
+                            type="button"
+                            id="dropdownMenuButton-{{ cliente.id }}"
+                            data-bs-toggle="dropdown"
+                            data-bs-auto-close="true"
+                            aria-expanded="false"
+                            style="width: 32px; height: 32px; padding: 0;">
+                            <i class="bi bi-three-dots-vertical text-muted"></i>
                         </button>
-                        <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ cliente.id }}">
                             <li>
-                                <button class="dropdown-item" 
+                                <button class="dropdown-item d-flex align-items-center py-2"
                                         data-id="{{cliente.id}}"
                                         data-nome="{{cliente.nome}}"
                                         data-plano="{{cliente.plano}}"
@@ -96,11 +139,13 @@
                                         data-data_vencimento="{{cliente.data_vencimento|date:'d/m/Y'}}"
                                         data-ultimo_pagamento="{{cliente.ultimo_pagamento|date:'d/m/Y'}}"
                                         data-conta_aplicativo="{{cliente.conta_aplicativo.all}}"
-                                        onclick="exibirModalDetalhes(this)">Ver Infos.
-                                    </button>
+                                        onclick="exibirModalDetalhes(this)">
+                                    <i class="bi bi-eye me-2 text-primary"></i>
+                                    <span>Ver Informações</span>
+                                </button>
                             </li>
                             <li>
-                                <button class="dropdown-item"
+                                <button class="dropdown-item d-flex align-items-center py-2"
                                 data-id="{{cliente.id}}"
                                 data-nome="{{cliente.nome}}"
                                 data-telefone="{{cliente.telefone|formatar_telefone}}"
@@ -113,21 +158,29 @@
                                 data-dispositivo="{{cliente.dispositivo}}"
                                 data-aplicativo="{{cliente.sistema}}"
                                 data-notas="{{cliente.notas}}"
-                                onclick="exibirModalEdicao(this)"> Editar Infos.
+                                onclick="exibirModalEdicao(this)">
+                                    <i class="bi bi-pencil me-2 text-warning"></i>
+                                    <span>Editar Informações</span>
                                 </button>
                             </li>
+                            <li><hr class="dropdown-divider"></li>
                             <li>
-                                <button class="dropdown-item"
+                                <button class="dropdown-item d-flex align-items-center py-2"
                                     data-nome="{{cliente.nome}}"
                                     data-mensalidade="{{mensalidade.id}}"
-                                    onclick="exibirModalConfirmacaoPagamento(this)">Pagar Mensal.
+                                    onclick="exibirModalConfirmacaoPagamento(this)">
+                                    <i class="bi bi-cash-coin me-2 text-success"></i>
+                                    <span>Registrar Pagamento</span>
                                 </button>
                             </li>
+                            <li><hr class="dropdown-divider"></li>
                             <li>
-                                <button class="dropdown-item"
+                                <button class="dropdown-item d-flex align-items-center py-2 text-danger"
                                     data-nome="{{cliente.nome}}"
                                     data-cliente="{{cliente.id}}"
-                                    onclick="exibirModalConfirmacaoCancelamento(this)">Cancelar cliente
+                                    onclick="exibirModalConfirmacaoCancelamento(this)">
+                                    <i class="bi bi-x-circle me-2"></i>
+                                    <span>Cancelar Cliente</span>
                                 </button>
                             </li>
                         </ul>
@@ -142,127 +195,14 @@
     </table>
 </div>
 
-<style>
-    #myTable thead th[data-sort-type] {
-        cursor: pointer;
-        user-select: none;
-        white-space: nowrap;
-    }
+<!--
+    NOTA: A ordenação da tabela é gerenciada por:
+    - setup/static/dashboard/js/components/table-sortable.js
+    - setup/static/dashboard/js/components/dashboard-table-manager.js
 
-    #myTable thead th.sorted-asc::after {
-        content: " \25B2";
-        font-size: 0.75rem;
-    }
-
-    #myTable thead th.sorted-desc::after {
-        content: " \25BC";
-        font-size: 0.75rem;
-    }
-</style>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const table = document.getElementById('myTable');
-        if (!table || table.dataset.sortableInitialized === 'true') {
-            return;
-        }
-
-        table.dataset.sortableInitialized = 'true';
-
-        const headers = table.querySelectorAll('thead th[data-sort-type]');
-
-        headers.forEach((header, index) => {
-            header.addEventListener('click', () => handleSortClick(header, index));
-            header.setAttribute('title', 'Clique para ordenar');
-        });
-
-        function handleSortClick(header, columnIndex) {
-            const sortType = header.dataset.sortType || 'text';
-            const currentOrder = header.dataset.sortOrder || 'desc';
-            const nextOrder = currentOrder === 'asc' ? 'desc' : 'asc';
-
-            applySort(columnIndex, sortType, nextOrder);
-            updateHeaderStates(header, nextOrder);
-        }
-
-        function applySort(columnIndex, sortType, order) {
-            const tbody = table.tBodies[0];
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-
-            rows.sort((rowA, rowB) => {
-                const aValue = getComparableValue(rowA, columnIndex, sortType);
-                const bValue = getComparableValue(rowB, columnIndex, sortType);
-
-                if (aValue === bValue) {
-                    return 0;
-                }
-
-                if (aValue === null) {
-                    return order === 'asc' ? 1 : -1;
-                }
-
-                if (bValue === null) {
-                    return order === 'asc' ? -1 : 1;
-                }
-
-                if (sortType === 'date') {
-                    return order === 'asc' ? aValue - bValue : bValue - aValue;
-                }
-
-                return order === 'asc'
-                    ? aValue.localeCompare(bValue, 'pt-BR', { sensitivity: 'base' })
-                    : bValue.localeCompare(aValue, 'pt-BR', { sensitivity: 'base' });
-            });
-
-            rows.forEach(row => tbody.appendChild(row));
-        }
-
-        function getComparableValue(row, columnIndex, sortType) {
-            const cell = row.cells[columnIndex];
-            if (!cell) {
-                return null;
-            }
-
-            const rawValue = cell.getAttribute('data-sort-value') ?? cell.textContent.trim();
-
-            if (!rawValue) {
-                return null;
-            }
-
-            if (sortType === 'date') {
-                const parsed = Date.parse(rawValue);
-                if (!Number.isNaN(parsed)) {
-                    return parsed;
-                }
-
-                const parts = rawValue.split('/');
-                if (parts.length === 3) {
-                    const [day, month, year] = parts.map(Number);
-                    const date = new Date(year, month - 1, day);
-                    return date.getTime();
-                }
-
-                return null;
-            }
-
-            return rawValue.toString().toLowerCase();
-        }
-
-        function updateHeaderStates(activeHeader, order) {
-            headers.forEach(header => {
-                if (header === activeHeader) {
-                    header.dataset.sortOrder = order;
-                    header.classList.remove('sorted-asc', 'sorted-desc');
-                    header.classList.add(order === 'asc' ? 'sorted-asc' : 'sorted-desc');
-                    return;
-                }
-
-                header.removeAttribute('data-sort-order');
-                header.classList.remove('sorted-asc', 'sorted-desc');
-            });
-        }
-    });
-</script>
+    Os estilos CSS estão em:
+    - setup/static/dashboard/css/dashboard.css
+-->
 
 <!-- pagination -->
 <div class="card-footer bg-white text-center">
@@ -270,7 +210,7 @@
     <ul class="pagination justify-content-end mb-0">
         {% if page_obj.has_previous %}
         <li class="page-item">
-        <a class="page-link" href="?page=1" aria-label="Primeira">
+        <a class="page-link" href="?page=1" data-page="1" aria-label="Primeira">
             <span aria-hidden="true">&laquo;</span>
         </a>
         </li>
@@ -285,14 +225,14 @@
         {% for page in page_obj.paginator.page_range %}
         {% if page == page_obj.number %}
             <li class="page-item active">
-            <a class="page-link" href="#">
+            <a class="page-link" href="#" data-page="{{ page }}">
                 {{ page }}
                 <span class="sr-only"></span>
             </a>
             </li>
         {% elif page > page_obj.number|add:'-2' and page < page_obj.number|add:'2' %}
             <li class="page-item">
-            <a class="page-link" href="?page={{ page }}">
+            <a class="page-link" href="?page={{ page }}" data-page="{{ page }}">
                 {{ page }}
             </a>
             </li>
@@ -306,7 +246,7 @@
 
         {% if page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
         <li class="page-item">
-        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" data-page="{{ page_obj.paginator.num_pages }}">
             {{ page_obj.paginator.num_pages }}
         </a>
         </li>
@@ -314,7 +254,7 @@
 
         {% if page_obj.has_next %}
         <li class="page-item">
-        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Última">
+        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" data-page="{{ page_obj.paginator.num_pages }}" aria-label="Última">
             <span aria-hidden="true">&raquo;</span>
         </a>
         </li>

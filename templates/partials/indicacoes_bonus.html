@@ -39,7 +39,7 @@
                     const collapseId = `collapse${plano.id}`;
                     // Monta o HTML
                     const item = `
-                    <li class="timeline-event mt-2">
+                    <li class="timeline-event mt-2" data-plano-tipo="${plano.tipo_plano}">
                         <div class="card timeline-event-card">
                             <div class="card-body">
                                 <div class="d-flex flex-lg-row flex-column align-items-lg-center gap-3 justify-content-between">
@@ -94,6 +94,19 @@
                                                     required style="max-width: 150px;"
                                                     ${plano.status ? "disabled" : ""}>
                                             </div>
+                                            ${plano.tipo_plano === 'desconto_progressivo' ? `
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text" title="Limite de indicações com desconto (0 = ilimitado)">Limite</span>
+                                                <input type="number" class="form-control"
+                                                    id="limite_indicacoes_${plano.id}"
+                                                    name="limite_indicacoes"
+                                                    value="${plano.limite_indicacoes || 0}"
+                                                    placeholder="0"
+                                                    min="0"
+                                                    style="max-width: 100px;"
+                                                    ${plano.status ? "disabled" : ""}>
+                                            </div>
+                                            ` : ''}
                                             <button
                                                 class="btn btn-confirmar-acao ${plano.status ? "btn-danger" : "btn-primary"}"
                                                 type="button"
@@ -131,7 +144,9 @@
         const nomeDisplay = botao.getAttribute('data-nome');
         const statusAtual = botao.getAttribute('data-status');
         const inputValor = document.getElementById('valor_indicacao_' + planoId);
+        const inputLimite = document.getElementById('limite_indicacoes_' + planoId);
         let valor = inputValor ? inputValor.value : "0";
+        let limite_indicacoes = inputLimite ? parseInt(inputLimite.value) || 0 : 0;
         const valor_minimo = 5.00;
         const sessao_wpp = botao.getAttribute('data-sessao-wpp');
 
@@ -171,6 +186,7 @@
             tipo_plano: tipo_plano,
             valor: valor,
             valor_minimo_mensalidade: valor_minimo,
+            limite_indicacoes: limite_indicacoes,
             status: novoAtivo
         };
 
@@ -178,7 +194,9 @@
         const classeAnterior = statusAtual === "off" ? "btn-primary" : "btn-danger";
         const statusSpan = document.getElementById('status-plano-' + planoId);
         const valorAnterior = inputValor ? inputValor.value : "";
+        const limiteAnterior = inputLimite ? inputLimite.value : "0";
         const inputDesabilitadoAnterior = inputValor ? inputValor.disabled : false;
+        const inputLimiteDesabilitadoAnterior = inputLimite ? inputLimite.disabled : false;
 
         fetch("/edit-referral-plan/", {
             method: "POST",
@@ -206,8 +224,17 @@
                 inputValor.disabled = novoAtivo;
             }
 
+            if (inputLimite && data.plano && data.plano.limite_indicacoes !== undefined) {
+                inputLimite.value = data.plano.limite_indicacoes;
+                inputLimite.disabled = novoAtivo;
+            }
+
             if (!novoAtivo && inputValor) {
                 inputValor.value = "0";
+            }
+
+            if (!novoAtivo && inputLimite) {
+                inputLimite.value = "0";
             }
 
             if (statusSpan) {
@@ -231,6 +258,13 @@
                 inputValor.disabled = inputDesabilitadoAnterior;
                 if (!inputValor.disabled) {
                     inputValor.value = valorAnterior;
+                }
+            }
+
+            if (inputLimite) {
+                inputLimite.disabled = inputLimiteDesabilitadoAnterior;
+                if (!inputLimite.disabled) {
+                    inputLimite.value = limiteAnterior;
                 }
             }
 

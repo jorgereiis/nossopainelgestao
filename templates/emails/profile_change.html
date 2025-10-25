@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alteração no Perfil</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #667eea;
+            margin: 0;
+            font-size: 24px;
+        }
+        .alert-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .info-section h3 {
+            margin-top: 0;
+            color: #667eea;
+            font-size: 16px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        .info-value {
+            color: #6c757d;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e9ecef;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .btn-primary {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #667eea;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+        .security-notice {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>{{ site_name }}</h1>
+        </div>
+
+        <p>Olá, <strong>{{ user.first_name|default:user.username }}</strong>!</p>
+
+        <div class="alert-box">
+            <strong>Notificação de Segurança</strong>
+            <p style="margin: 10px 0 0 0;">Detectamos uma alteração no seu perfil.</p>
+        </div>
+
+        <div class="info-section">
+            <h3>Detalhes da Alteração</h3>
+            <div class="info-row">
+                <span class="info-label">Tipo de alteração:</span>
+                <span class="info-value">
+                    {% if change_type == 'profile' %}Dados Pessoais
+                    {% elif change_type == 'password' %}Senha
+                    {% elif change_type == 'avatar' %}Avatar
+                    {% elif change_type == 'security' %}Configurações de Segurança
+                    {% else %}{{ change_type }}{% endif %}
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Data e hora:</span>
+                <span class="info-value">{{ timestamp|date:"d/m/Y H:i" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Endereço IP:</span>
+                <span class="info-value">{{ ip_address }}</span>
+            </div>
+        </div>
+
+        {% if changes %}
+        <div class="info-section">
+            <h3>Alterações Realizadas</h3>
+            {% for field, values in changes.items %}
+            <div class="info-row">
+                <span class="info-label">{{ field }}:</span>
+                <span class="info-value">{{ values.old }} → {{ values.new }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="security-notice">
+            <strong>Não foi você?</strong>
+            <p style="margin: 10px 0 0 0;">
+                Se você não realizou esta alteração, sua conta pode estar comprometida.
+                Altere sua senha imediatamente e entre em contato com nosso suporte.
+            </p>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="{{ site_url }}/perfil/" class="btn-primary">Acessar Meu Perfil</a>
+        </div>
+
+        <div class="footer">
+            <p>Este é um email automático de notificação de segurança.</p>
+            <p>Para alterar suas preferências de notificação, acesse seu perfil.</p>
+            <p>&copy; {{ timestamp|date:"Y" }} {{ site_name }}. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -3,6 +3,7 @@ from django.contrib.auth import views as auth_views
 from .views import (
     test,
     Login,
+    verify_2fa_code,
     whatsapp,
     create_app,
     editar_app,
@@ -12,6 +13,18 @@ from .views import (
     edit_server,
     session_wpp,
     profile_page,
+    upload_avatar,
+    remove_avatar,
+    change_password,
+    change_theme,
+    update_notification_preferences,
+    update_privacy_settings,
+    profile_activity_history,
+    setup_2fa,
+    enable_2fa,
+    disable_2fa,
+    regenerate_backup_codes,
+    get_2fa_qr_code,
     conectar_wpp,
     get_logs_wpp,
     edit_profile,
@@ -66,10 +79,23 @@ from .views import (
 urlpatterns = [
     ############ Authentication ###########
     path("", Login.as_view(), name="login"),
+    path("verify-2fa/", verify_2fa_code, name="verify-2fa"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
 
     ########### Profile ###########
     path("perfil/", profile_page, name="perfil"),
+    path("perfil/avatar/upload/", upload_avatar, name="upload-avatar"),
+    path("perfil/avatar/remove/", remove_avatar, name="remove-avatar"),
+    path("perfil/alterar-senha/", change_password, name="alterar-senha"),
+    path("perfil/historico/", profile_activity_history, name="profile-historico"),
+    path("perfil/tema/", change_theme, name="change-theme"),
+    path("perfil/notificacoes/", update_notification_preferences, name="update-notifications"),
+    path("perfil/privacidade/", update_privacy_settings, name="update-privacy"),
+    path("perfil/2fa/setup/", setup_2fa, name="setup-2fa"),
+    path("perfil/2fa/enable/", enable_2fa, name="enable-2fa"),
+    path("perfil/2fa/disable/", disable_2fa, name="disable-2fa"),
+    path("perfil/2fa/regenerate-codes/", regenerate_backup_codes, name="regenerate-backup-codes"),
+    path("perfil/2fa/qr-code/", get_2fa_qr_code, name="get-2fa-qr-code"),
 
     ############ List and Dashboard ###########
     path("dashboard/", TabelaDashboard.as_view(), name="dashboard"),

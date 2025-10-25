@@ -37,26 +37,33 @@
 
             <div class="col-xl-4 col-lg-6 col-md-12 col-12">
               <!-- card -->
-              <div class="card">
+              <div class="card shadow-sm border-0 cadastro-form-card">
                 <!-- card body -->
-                <div class="card-body">
-                  <div class=" mb-5">
-                    <h4 class="mb-1">Formulário de cadastro</h4>
+                <div class="card-body p-4">
+                  <div class="mb-4 pb-3 border-bottom">
+                    <h4 class="mb-1 fw-bold d-flex align-items-center">
+                      <i class="bi bi-plus-circle-fill text-primary me-2"></i>
+                      Formulário de cadastro
+                    </h4>
+                    <small class="text-muted">Preencha os campos abaixo</small>
                   </div>
 
                   <form method="POST">
                     <!-- row -->
                     {% csrf_token %}
-                    <div class="mb-3 row">
-                      <label for="fullName" class="col-sm-3 col-form-label
-                          form-label">Descrição</label>
-                      <div class="col-sm-7 mb-3 mb-lg-0">
-                        <input type="text" class="form-control" placeholder="Marca da TV ou dispositivo..." id="nome"
-                          name="nome" required>
-                      </div>
+                    <div class="mb-4">
+                      <label for="nome" class="form-label fw-semibold">
+                        <i class="bi bi-tablet-fill text-primary me-2"></i>Descrição
+                      </label>
+                      <input type="text" class="form-control form-control-lg" placeholder="Ex: TV Samsung, TVBOX, Celular..." id="nome"
+                        name="nome" required>
+                      <small class="text-muted">Marca ou modelo do dispositivo</small>
                     </div>
-                    <div class="offset-md-3 col-md-8 mt-4">
-                      <button type="submit" class="btn btn-primary" name="cadastrar"> Cadastrar</button>
+
+                    <div class="d-grid gap-2 mt-4">
+                      <button type="submit" class="btn btn-primary btn-lg" name="cadastrar">
+                        <i class="bi bi-check-circle me-2"></i>Cadastrar Dispositivo
+                      </button>
                     </div>
                 </div>
                 </form>
@@ -130,40 +137,67 @@
               <!-- card -->
               <div class="card">
                 <div class="table-responsive">
-                  <table class="table table-sm text-nowrap mb-0 table-hover text-center" id="myTable">
+                  <table class="table table-sm text-nowrap mb-0 table-hover align-middle" id="dispositivosTable">
                     <thead class="table-light">
                       <tr>
-                        <th class="fw-bold text-center">Dispositivos</th>
-                        <th class="fw-bold text-center">Ação</th>
+                        <th class="fw-bold text-start ps-4" style="min-width: 200px;">Dispositivo</th>
+                        <th class="fw-bold text-center" style="width: 80px;">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for dispositivo in dispositivos %}
                       <!-- COMEÇO DA LINHA -->
                       <tr>
-                        <td class="align-middle">
-                          <div class="">
-                            <div class="">
-                              <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
-                                onmouseout="this.style.color=''">{{dispositivo.nome}}</h5>
+                        <td class="ps-4">
+                          <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 position-relative">
+                              <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border border-2"
+                                   style="width: 48px; height: 48px;">
+                                <i class="bi bi-tablet text-info" style="font-size: 1.5rem;"></i>
+                              </div>
+                            </div>
+                            <div class="ms-3 lh-sm">
+                              <h6 class="mb-0 fw-semibold text-capitalize text-dark"
+                                  style="font-size: 1rem; transition: color 0.2s ease;">
+                                {{dispositivo.nome}}
+                              </h6>
+                              <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                <i class="bi bi-device-ssd me-1"></i>Tipo de dispositivo
+                              </small>
                             </div>
                           </div>
                         </td>
                         <!-- Dropdown da tabela -->
-                        <td>
+                        <td class="text-center">
                           <div class="dropdown">
-                            <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button"
-                              id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                              <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                            <button
+                              class="btn btn-sm btn-light rounded-circle d-inline-flex align-items-center justify-content-center border"
+                              type="button"
+                              id="dropdownMenuButton-{{ dispositivo.id }}"
+                              data-bs-toggle="dropdown"
+                              aria-expanded="false"
+                              style="width: 36px; height: 36px; padding: 0;">
+                              <i class="bi bi-three-dots-vertical text-muted"></i>
                             </button>
-                            <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ dispositivo.id }}">
                               <li>
-                                <button class="dropdown-item" data-dispositivo="{{dispositivo.id}}" data-nome="{{dispositivo.nome}}"
-                                onclick="exibirModalEdicao(this)">Editar</button>
+                                <button class="dropdown-item d-flex align-items-center py-2"
+                                  data-dispositivo="{{dispositivo.id}}"
+                                  data-nome="{{dispositivo.nome}}"
+                                  onclick="exibirModalEdicao(this)">
+                                  <i class="bi bi-pencil me-2 text-warning"></i>
+                                  <span>Editar Dispositivo</span>
+                                </button>
                               </li>
+                              <li><hr class="dropdown-divider"></li>
                               <li>
-                                <button class="dropdown-item" data-dispositivo="{{dispositivo.id}}" data-nome="{{dispositivo.nome}}"
-                                onclick="exibirModalConfirmacaoExclusao(this)">Excluir</button>
+                                <button class="dropdown-item d-flex align-items-center py-2 text-danger"
+                                  data-dispositivo="{{dispositivo.id}}"
+                                  data-nome="{{dispositivo.nome}}"
+                                  onclick="exibirModalConfirmacaoExclusao(this)">
+                                  <i class="bi bi-trash me-2"></i>
+                                  <span>Excluir Dispositivo</span>
+                                </button>
                               </li>
                             </ul>
                           </div>
@@ -188,6 +222,12 @@
       {% include 'partials/modal_dns.html' %}
       {% include 'partials/modal_adminlogs.html' %}
       {% include 'partials/modal_userlogs.html' %}
+      <!-- Modais Globais -->
+      {% include 'partials/modais_globais.html' %}
+
+      <!-- Offcanvas de Configurações -->
+      {% include 'partials/offcanvas_configuracoes.html' %}
+
       {% include 'partials/footer.html' %}
       {% include 'partials/scripts.html' %}
 

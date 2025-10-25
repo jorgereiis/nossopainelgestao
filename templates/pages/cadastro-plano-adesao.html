@@ -37,52 +37,57 @@
 
             <div class="col-xl-4 col-lg-6 col-md-12 col-12">
               <!-- card -->
-              <div class="card">
+              <div class="card shadow-sm border-0 cadastro-form-card">
                 <!-- card body -->
-                <div class="card-body">
-                  <div class=" mb-5">
-                    <h4 class="mb-1">Formulário de cadastro</h4>
+                <div class="card-body p-4">
+                  <div class="mb-4 pb-3 border-bottom">
+                    <h4 class="mb-1 fw-bold d-flex align-items-center">
+                      <i class="bi bi-plus-circle-fill text-primary me-2"></i>
+                      Formulário de cadastro
+                    </h4>
+                    <small class="text-muted">Preencha os campos abaixo</small>
                   </div>
-                  
+
                   <form method="POST">
                     <!-- row -->
                     {% csrf_token %}
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="nome" class="col-sm-2 col-form-label form-label">Nome</label>
-                      <div class="col-sm-7 mb-3 mb-lg-0">
-                        <select class="form-select" id="nome" name="nome">
-                          <option value="Mensal">Mensal</option>
-                          <option value="Trimestral">Trimestral</option>
-                          <option value="Semestral">Semestral</option>
-                          <option value="Anual">Anual</option>
-                        </select>
-                      </div>
+
+                    <div class="mb-4">
+                      <label for="nome" class="form-label fw-semibold">
+                        <i class="bi bi-calendar-check-fill text-primary me-2"></i>Tipo de Plano
+                      </label>
+                      <select class="form-select form-select-lg" id="nome" name="nome">
+                        <option value="Mensal">Mensal</option>
+                        <option value="Trimestral">Trimestral</option>
+                        <option value="Semestral">Semestral</option>
+                        <option value="Anual">Anual</option>
+                      </select>
+                      <small class="text-muted">Período de validade do plano</small>
                     </div>
 
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="valor" class="col-sm-2 col-form-label form-label">Telas</label>
-                      <div class="col-sm-7 mb-3 mb-lg-0">
-                        <div class="input-group">
-                          <input type="number" class="form-control" id="telas" name="telas" min="0" step="1" required>
-                        </div>
-                      </div>
+                    <div class="mb-4">
+                      <label for="telas" class="form-label fw-semibold">
+                        <i class="bi bi-tv-fill text-info me-2"></i>Número de Telas
+                      </label>
+                      <input type="number" class="form-control form-control-lg" id="telas" name="telas" min="0" step="1" placeholder="Ex: 1, 2, 3..." required>
+                      <small class="text-muted">Quantidade de telas simultâneas permitidas</small>
                     </div>
 
-                    <!-- row -->
-                    <div class="mb-3 row">
-                      <label for="valor" class="col-sm-2 col-form-label form-label">Valor</label>
-                      <div class="col-sm-7 mb-3 mb-lg-0">
-                        <div class="input-group">
-                          <span class="input-group-text">R$</span>
-                          <input type="number" class="form-control" id="valor" name="valor" min="0" step="1" required>
-                        </div>
+                    <div class="mb-4">
+                      <label for="valor" class="form-label fw-semibold">
+                        <i class="bi bi-cash-coin text-success me-2"></i>Valor
+                      </label>
+                      <div class="input-group input-group-lg">
+                        <span class="input-group-text">R$</span>
+                        <input type="number" class="form-control" id="valor" name="valor" min="0" step="0.01" placeholder="0,00" required>
                       </div>
+                      <small class="text-muted">Preço do plano em reais</small>
                     </div>
 
-                    <div class="offset-md-2 col-md-5 mt-4">
-                      <button type="submit" class="btn btn-primary" name="cadastrar"> Cadastrar</button>
+                    <div class="d-grid gap-2 mt-4">
+                      <button type="submit" class="btn btn-primary btn-lg" name="cadastrar">
+                        <i class="bi bi-check-circle me-2"></i>Cadastrar Plano
+                      </button>
                     </div>
                 </div>
                 </form>
@@ -170,47 +175,74 @@
               <!-- card -->
               <div class="card">
                 <div class="table-responsive">
-                  <table class="table table-sm text-nowrap mb-0 table-hover text-center" id="myTable">
+                  <table class="table table-sm text-nowrap mb-0 table-hover align-middle" id="planosTable">
                     <thead class="table-light">
                       <tr>
-                        <th class="fw-bold text-center">Plano</th>
-                        <th class="fw-bold text-center">Telas</th>
-                        <th class="fw-bold text-center">Valor</th>
-                        <th class="fw-bold text-center">Ação</th>
+                        <th class="fw-bold text-start ps-4" style="min-width: 180px;">Plano</th>
+                        <th class="fw-bold text-center" style="width: 100px;">Telas</th>
+                        <th class="fw-bold text-center" style="width: 120px;">Valor</th>
+                        <th class="fw-bold text-center" style="width: 80px;">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for plano in planos_mensalidades %}
                       <!-- COMEÇO DA LINHA -->
                       <tr>
-                        <td class="align-middle">
-                          <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
-                            onmouseout="this.style.color=''">{{plano.nome}}</h5>
+                        <td class="ps-4">
+                          <div class="lh-sm">
+                            <h6 class="mb-0 fw-semibold text-capitalize text-dark"
+                                style="font-size: 1rem; transition: color 0.2s ease;">
+                              {{plano.nome}}
+                            </h6>
+                            <small class="text-muted d-block" style="font-size: 0.75rem;">
+                              <i class="bi bi-calendar-check me-1"></i>Plano de assinatura
+                            </small>
+                          </div>
                         </td>
-                        <td class="align-middle">
-                          <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
-                            onmouseout="this.style.color=''">{{plano.telas}}</h5>
+                        <td class="text-center">
+                          <span class="badge bg-primary-subtle text-primary border border-primary" style="font-size: 0.875rem; padding: 0.4rem 0.8rem;">
+                            <i class="bi bi-tv me-1"></i>{{plano.telas}}
+                          </span>
                         </td>
-                        <td class="align-middle">
-                          <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
-                            onmouseout="this.style.color=''">{{plano.valor}}</h5>
+                        <td class="text-center">
+                          <span class="fw-semibold text-success" style="font-size: 0.9375rem;">
+                            R$ {{plano.valor}}
+                          </span>
                         </td>
-                        
+
                         <!-- Dropdown da tabela -->
-                        <td>
+                        <td class="text-center">
                           <div class="dropdown">
-                            <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button"
-                              id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                              <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                            <button
+                              class="btn btn-sm btn-light rounded-circle d-inline-flex align-items-center justify-content-center border"
+                              type="button"
+                              id="dropdownMenuButton-{{ plano.id }}"
+                              data-bs-toggle="dropdown"
+                              aria-expanded="false"
+                              style="width: 36px; height: 36px; padding: 0;">
+                              <i class="bi bi-three-dots-vertical text-muted"></i>
                             </button>
-                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ plano.id }}">
                               <li>
-                                <button class="dropdown-item" data-servidor="{{plano.id}}" data-nome="{{plano.nome}}"
-                                  data-telas="{{plano.telas}}" data-valor="{{plano.valor|floatformat:'-0'}}" onclick="exibirModalEdicao(this)">Editar</button>
+                                <button class="dropdown-item d-flex align-items-center py-2"
+                                  data-servidor="{{plano.id}}"
+                                  data-nome="{{plano.nome}}"
+                                  data-telas="{{plano.telas}}"
+                                  data-valor="{{plano.valor|floatformat:'-0'}}"
+                                  onclick="exibirModalEdicao(this)">
+                                  <i class="bi bi-pencil me-2 text-warning"></i>
+                                  <span>Editar Plano</span>
+                                </button>
                               </li>
+                              <li><hr class="dropdown-divider"></li>
                               <li>
-                                <button class="dropdown-item" data-plano="{{plano.id}}" data-nome="{{plano.nome}}"
-                                  onclick="exibirModalConfirmacaoExclusao(this)">Excluir</button>
+                                <button class="dropdown-item d-flex align-items-center py-2 text-danger"
+                                  data-plano="{{plano.id}}"
+                                  data-nome="{{plano.nome}}"
+                                  onclick="exibirModalConfirmacaoExclusao(this)">
+                                  <i class="bi bi-trash me-2"></i>
+                                  <span>Excluir Plano</span>
+                                </button>
                               </li>
                             </ul>
                           </div>
@@ -235,6 +267,12 @@
       {% include 'partials/modal_dns.html' %}
       {% include 'partials/modal_adminlogs.html' %}
       {% include 'partials/modal_userlogs.html' %}
+      <!-- Modais Globais -->
+      {% include 'partials/modais_globais.html' %}
+
+      <!-- Offcanvas de Configurações -->
+      {% include 'partials/offcanvas_configuracoes.html' %}
+
       {% include 'partials/footer.html' %}
       {% include 'partials/scripts.html' %}
 

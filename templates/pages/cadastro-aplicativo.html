@@ -37,38 +37,45 @@
 
             <div class="col-xl-4 col-lg-8 col-md-12 col-12">
               <!-- card -->
-              <div class="card">
+              <div class="card shadow-sm border-0 cadastro-form-card">
                 <!-- card body -->
-                <div class="card-body">
-                  <div class=" mb-5">
-                    <h4 class="mb-1">Formulário de cadastro</h4>
+                <div class="card-body p-4">
+                  <div class="mb-4 pb-3 border-bottom">
+                    <h4 class="mb-1 fw-bold d-flex align-items-center">
+                      <i class="bi bi-plus-circle-fill text-primary me-2"></i>
+                      Formulário de cadastro
+                    </h4>
+                    <small class="text-muted">Preencha os campos abaixo</small>
                   </div>
 
                   <form method="POST">
                     <!-- row -->
                     {% csrf_token %}
-                    <div class="mb-3 row">
-                      <label for="fullName" class="col-sm-4 col-form-label
-                          form-label">Descrição</label>
-                      <div class="col-sm-8 mb-3 mb-lg-0">
-                        <input type="text" class="form-control" placeholder="Nome do aplicativo..." id="name"
-                          name="name" required>
-                      </div>
+                    <div class="mb-4">
+                      <label for="name" class="form-label fw-semibold">
+                        <i class="bi bi-phone-fill text-primary me-2"></i>Descrição
+                      </label>
+                      <input type="text" class="form-control form-control-lg" placeholder="Ex: DuplexPlay, Clouddy..." id="name"
+                        name="name" required>
+                      <small class="text-muted">Nome do aplicativo de streaming</small>
                     </div>
-                    <div class="mb-3 row">
-                      <label for="device-has-mac" class="col-sm-4 col-form-label
-                          form-label">Usa MAC/E-mail?</label>
-                      <div class="col-sm-4 mb-3 mb-lg-0">
-                        <select type="text" class="form-control" id="mac"
-                          name="mac" required>
-                          <option label="Selecione"></option>
-                          <option value="false">Não</option>
-                          <option value="true">Sim</option>
-                        </select>
-                      </div>
+
+                    <div class="mb-4">
+                      <label for="mac" class="form-label fw-semibold">
+                        <i class="bi bi-shield-check text-success me-2"></i>Usa MAC/E-mail?
+                      </label>
+                      <select class="form-select form-select-lg" id="mac" name="mac" required>
+                        <option value="" selected disabled>Selecione uma opção</option>
+                        <option value="false">Não</option>
+                        <option value="true">Sim</option>
+                      </select>
+                      <small class="text-muted">Dispositivo requer autenticação por MAC ou E-mail</small>
                     </div>
-                    <div class="offset-md-4">
-                      <button type="submit" class="btn btn-primary" name="cadastrar"> Cadastrar</button>
+
+                    <div class="d-grid gap-2 mt-4">
+                      <button type="submit" class="btn btn-primary btn-lg" name="cadastrar">
+                        <i class="bi bi-check-circle me-2"></i>Cadastrar Aplicativo
+                      </button>
                     </div>
                 </div>
                 </form>
@@ -150,46 +157,69 @@
               <!-- card -->
               <div class="card">
                 <div class="table-responsive">
-                  <table class="table table-sm text-nowrap mb-0 table-hover text-center" id="myTable">
+                  <table class="table table-sm text-nowrap mb-0 table-hover align-middle" id="aplicativosTable">
                     <thead class="table-light">
                       <tr>
-                        <th class="fw-bold text-center">Aplicativos</th>
-                        <th class="fw-bold text-center">Ação</th>
+                        <th class="fw-bold text-start ps-4" style="min-width: 200px;">Aplicativo</th>
+                        <th class="fw-bold text-center" style="width: 80px;">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for aplicativo in aplicativos %}
                       <!-- COMEÇO DA LINHA -->
                       <tr>
-                        <td class="align-middle">
-                          <div class="">
-                            <div class="">
-                              <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
-                                onmouseout="this.style.color=''">{{aplicativo.nome}}</h5>
+                        <td class="ps-4">
+                          <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 position-relative">
+                              <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border border-2"
+                                   style="width: 48px; height: 48px;">
+                                <i class="bi bi-phone text-primary" style="font-size: 1.5rem;"></i>
+                              </div>
+                            </div>
+                            <div class="ms-3 lh-sm">
+                              <h6 class="mb-0 fw-semibold text-capitalize text-dark"
+                                  style="font-size: 1rem; transition: color 0.2s ease;">
+                                {{aplicativo.nome}}
+                              </h6>
+                              <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                <i class="bi bi-{% if aplicativo.device_has_mac %}check-circle-fill text-success{% else %}circle{% endif %} me-1"></i>
+                                {% if aplicativo.device_has_mac %}Suporta MAC{% else %}Sem MAC{% endif %}
+                              </small>
                             </div>
                           </div>
                         </td>
                         <!-- Dropdown da tabela -->
-                        <td>
+                        <td class="text-center">
                           <div class="dropdown">
-                            <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button"
-                              id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                              <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                            <button
+                              class="btn btn-sm btn-light rounded-circle d-inline-flex align-items-center justify-content-center border"
+                              type="button"
+                              id="dropdownMenuButton-{{ aplicativo.id }}"
+                              data-bs-toggle="dropdown"
+                              aria-expanded="false"
+                              style="width: 36px; height: 36px; padding: 0;">
+                              <i class="bi bi-three-dots-vertical text-muted"></i>
                             </button>
-                            <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ aplicativo.id }}">
                               <li>
-                                <button class="dropdown-item" 
-                                data-aplicativo="{{ aplicativo.id }}" 
-                                data-nome="{{ aplicativo.nome }}" 
-                                data-device_has_mac="{{ aplicativo.device_has_mac|yesno:'true,false' }}" 
-                                onclick="exibirModalEdicao(this)">
-                              Editar
-                            </button>
+                                <button class="dropdown-item d-flex align-items-center py-2"
+                                  data-aplicativo="{{ aplicativo.id }}"
+                                  data-nome="{{ aplicativo.nome }}"
+                                  data-device_has_mac="{{ aplicativo.device_has_mac|yesno:'true,false' }}"
+                                  onclick="exibirModalEdicao(this)">
+                                  <i class="bi bi-pencil me-2 text-warning"></i>
+                                  <span>Editar Aplicativo</span>
+                                </button>
                               </li>
+                              <li><hr class="dropdown-divider"></li>
                               <li>
-                                <button class="dropdown-item" data-aplicativo="{{aplicativo.id}}"
+                                <button class="dropdown-item d-flex align-items-center py-2 text-danger"
+                                  data-aplicativo="{{aplicativo.id}}"
                                   data-nome="{{aplicativo.nome}}"
-                                  onclick="exibirModalConfirmacaoExclusao(this)">Excluir</button>
+                                  onclick="exibirModalConfirmacaoExclusao(this)">
+                                  <i class="bi bi-trash me-2"></i>
+                                  <span>Excluir Aplicativo</span>
+                                </button>
                               </li>
                             </ul>
                           </div>
@@ -214,6 +244,13 @@
       {% include 'partials/modal_dns.html' %}
       {% include 'partials/modal_adminlogs.html' %}
       {% include 'partials/modal_userlogs.html' %}
+
+      <!-- Modais Globais -->
+      {% include 'partials/modais_globais.html' %}
+
+      <!-- Offcanvas de Configurações -->
+      {% include 'partials/offcanvas_configuracoes.html' %}
+
       {% include 'partials/footer.html' %}
       {% include 'partials/scripts.html' %}
 
