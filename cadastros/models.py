@@ -49,24 +49,153 @@ def default_vencimento():
     return timezone.now().date() + timedelta(days=30)
 
 
+def servidor_upload_path(instance, filename):
+    """
+    Gera caminho de upload com UUID para imagens de servidor.
+
+    SEGURANÇA: UUID previne information disclosure via filenames.
+    Preserva extensão do arquivo para correto MIME type.
+
+    Formato: servidores/<uuid>.<ext>
+    Exemplo: servidores/c3d4e5f6-a7b8-9012-cdef-123456789012.png
+    """
+    ext = filename.split('.')[-1].lower()
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('servidores', filename)
+
+
 class Servidor(models.Model):
     """Representa os servidores associados aos clientes."""
     CLUB = "CLUB"
-    PLAY = "PlayON"
+    PLAY = "PLAY"
+    PLAYON = "PlayON"
     ALPHA = "ALPHA"
     SEVEN = "SEVEN"
     FIVE = "FIVE"
+    GF = "GF"
+    WAREZ = "WAREZ"
 
-    CHOICES = ((CLUB, CLUB), (PLAY, PLAY), (ALPHA, ALPHA), (SEVEN, SEVEN), (FIVE, FIVE))
+    CHOICES = (
+        (CLUB, CLUB),
+        (PLAY, PLAY),
+        (PLAYON, PLAYON),
+        (ALPHA, ALPHA),
+        (SEVEN, SEVEN),
+        (FIVE, FIVE),
+        (GF, GF),
+        (WAREZ, WAREZ)
+    )
 
     nome = models.CharField(max_length=255, choices=CHOICES)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    imagem_admin = models.ImageField(
+        upload_to=servidor_upload_path,
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+        help_text='Imagem padrão do servidor (adminuser). Tamanho máximo: 5MB. Formatos: JPG, PNG, GIF, WEBP'
+    )
 
     class Meta:
         verbose_name_plural = "Servidores"
 
+    def get_imagem_url(self, usuario_atual=None):
+        """
+        Retorna a URL da imagem do servidor com fallback hierárquico:
+        1. Imagem específica do usuário atual (ServidorImagem)
+        2. Imagem do adminuser (ServidorImagem - usuário com is_superuser=True)
+        3. Imagem padrão do servidor (campo imagem_admin)
+        4. Imagem genérica estática baseada no nome do servidor
+
+        Args:
+            usuario_atual: User object do usuário atual (opcional)
+
+        Returns:
+            str: URL da imagem do servidor
+        """
+        from django.conf import settings
+
+        # 1. Tentar imagem do usuário atual
+        if usuario_atual:
+            try:
+                imagem_usuario = ServidorImagem.objects.filter(
+                    servidor=self,
+                    usuario=usuario_atual
+                ).first()
+                if imagem_usuario and imagem_usuario.imagem:
+                    return imagem_usuario.imagem.url
+            except:
+                pass
+
+        # 2. Tentar imagem do adminuser
+        try:
+            adminuser = User.objects.filter(is_superuser=True).first()
+            if adminuser:
+                imagem_admin = ServidorImagem.objects.filter(
+                    servidor=self,
+                    usuario=adminuser
+                ).first()
+                if imagem_admin and imagem_admin.imagem:
+                    return imagem_admin.imagem.url
+        except:
+            pass
+
+        # 3. Tentar imagem_admin do modelo Servidor
+        if self.imagem_admin:
+            return self.imagem_admin.url
+
+        # 4. Fallback para imagem estática genérica
+        nome_lower = self.nome.lower()
+        return f'{settings.STATIC_URL}assets/images/logo-apps/{nome_lower}.png'
+
     def __str__(self):
         return self.nome
+
+
+class ServidorImagem(models.Model):
+    """
+    Armazena imagens personalizadas de servidores por usuário.
+
+    Permite que cada usuário tenha sua própria imagem para um servidor específico,
+    sobrescrevendo a imagem padrão definida no modelo Servidor.
+    """
+    servidor = models.ForeignKey(Servidor, on_delete=models.CASCADE, related_name='imagens_customizadas')
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    imagem = models.ImageField(
+        upload_to=servidor_upload_path,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+        help_text='Imagem personalizada do servidor. Tamanho máximo: 5MB. Formatos: JPG, PNG, GIF, WEBP'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Imagem de Servidor"
+        verbose_name_plural = "Imagens de Servidores"
+        unique_together = ('servidor', 'usuario')
+        indexes = [
+            models.Index(fields=['servidor', 'usuario']),
+        ]
+
+    def save(self, *args, **kwargs):
+        """Otimiza a imagem antes de salvar."""
+        super().save(*args, **kwargs)
+
+        if self.imagem and os.path.isfile(self.imagem.path):
+            try:
+                from PIL import Image
+                img = Image.open(self.imagem.path)
+
+                # Redimensionar se muito grande
+                if img.height > 500 or img.width > 500:
+                    output_size = (500, 500)
+                    img.thumbnail(output_size, Image.Resampling.LANCZOS)
+                    img.save(self.imagem.path, quality=85, optimize=True)
+            except ImportError:
+                pass
+
+    def __str__(self):
+        return f"{self.servidor.nome} - {self.usuario.username}"
 
 
 class Tipos_pgto(models.Model):

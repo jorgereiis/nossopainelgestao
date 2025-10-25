@@ -579,3 +579,191 @@
 #myTable thead th[data-sort-type]:hover {
     background-color: rgba(98, 75, 255, 0.05);
 }
+
+/* ===== MELHORIAS UI/UX TABELA DE CLIENTES ===== */
+
+/* Efeito hover suave nas linhas da tabela */
+#myTable tbody tr {
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#myTable tbody tr:hover {
+    background-color: rgba(98, 75, 255, 0.03);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Animação suave no nome do cliente ao hover */
+#myTable tbody tr:hover .text-dark {
+    color: #624BFF !important;
+}
+
+/* Efeito hover nos avatares de servidor */
+#myTable tbody .flex-shrink-0 img {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#myTable tbody tr:hover .flex-shrink-0 img {
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(98, 75, 255, 0.2);
+}
+
+/* Efeito hover nos ícones de forma de pagamento */
+#myTable tbody .rounded-circle.bg-light {
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+#myTable tbody tr:hover .rounded-circle.bg-light {
+    background-color: #f8f9fa !important;
+    transform: scale(1.1);
+}
+
+/* Badges de status com animação */
+#myTable tbody .badge {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#myTable tbody tr:hover .badge {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Botão de ações com animação */
+#myTable tbody .dropdown button {
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#myTable tbody .dropdown button:hover {
+    background-color: #9181fa !important;
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(98, 75, 255, 0.3);
+}
+
+#myTable tbody .dropdown button:hover i {
+    color: white !important;
+}
+
+/* Menu dropdown com animação suave */
+#myTable .dropdown-menu {
+    animation: fadeInDown 0.2s ease;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    z-index: 9999 !important;
+    position: absolute !important;
+}
+
+/* Garantir z-index máximo quando dropdown está aberto */
+#myTable .dropdown-menu.show {
+    z-index: 10000 !important;
+}
+
+/* Garantir que o dropdown sempre apareça sobre a tabela */
+#myTable .dropdown {
+    position: static !important;
+}
+
+#myTable tbody td .dropdown {
+    position: relative !important;
+}
+
+/* Garantir que a tabela não corte o dropdown */
+.table-responsive {
+    overflow: visible !important;
+}
+
+.table-responsive .table {
+    overflow: visible !important;
+}
+
+/* Garantir que o card container também não corte o dropdown */
+.table-actions-visible {
+    overflow: visible !important;
+}
+
+/* Apenas cards que contêm tabelas devem ter overflow visible */
+.card:has(.table-responsive),
+.card:has(#myTable) {
+    overflow: visible !important;
+}
+
+/* Garantir que tbody e tr também não cortem o dropdown */
+#myTable tbody,
+#myTable tbody tr {
+    overflow: visible !important;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Items do dropdown com hover - suave e discreto */
+#myTable .dropdown-item {
+    transition: background-color 0.2s ease;
+    border-radius: 0.25rem;
+}
+
+#myTable .dropdown-item:hover,
+#myTable .dropdown-item:focus {
+    background-color: rgba(98, 75, 255, 0.03) !important;
+    color: inherit !important;
+}
+
+#myTable .dropdown-item:active {
+    background-color: rgba(98, 75, 255, 0.06) !important;
+}
+
+/* Badge de dispositivo responsivo */
+#myTable .badge.bg-light {
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+#myTable tbody tr:hover .badge.bg-light {
+    background-color: rgba(98, 75, 255, 0.1) !important;
+    color: #624BFF !important;
+    border-color: #624BFF !important;
+}
+
+/* Ícone de check do último pagamento com pulse */
+#myTable .bi-check-circle-fill {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Bordas suaves na tabela */
+#myTable {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+/* Espaçamento otimizado das células */
+#myTable tbody td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+}
+
+/* Indicador de status vencido pulsante */
+#myTable .bg-danger-subtle {
+    animation: pulseAlert 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseAlert {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(220, 53, 69, 0);
+    }
+}

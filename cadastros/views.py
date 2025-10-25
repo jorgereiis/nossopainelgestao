@@ -2546,14 +2546,27 @@ def edit_server(request, servidor_id):
 
     if request.method == "POST":
         nome = request.POST.get("nome")
+        imagem = request.FILES.get("imagem")
 
-        if nome:         
+        if nome:
             servidor.nome = nome
             try:
                 servidor.save()
                 changes = {}
                 if original_nome != servidor.nome:
                     changes["nome"] = (original_nome, servidor.nome)
+
+                # Atualizar ou criar imagem do servidor
+                if imagem:
+                    from .models import ServidorImagem
+                    servidor_imagem, created = ServidorImagem.objects.get_or_create(
+                        servidor=servidor,
+                        usuario=request.user
+                    )
+                    servidor_imagem.imagem = imagem
+                    servidor_imagem.save()
+                    changes["imagem"] = "atualizada" if not created else "adicionada"
+
                 mensagem = "Servidor atualizado." if changes else "Servidor salvo sem alteracoes."
                 log_user_action(
                     request=request,
@@ -4465,6 +4478,7 @@ def create_server(request):
 
     if request.method == "POST":
         nome = request.POST.get("nome")
+        imagem = request.FILES.get("imagem")
 
         if nome:
 
@@ -4473,6 +4487,15 @@ def create_server(request):
                 servidor, created = Servidor.objects.get_or_create(nome=nome, usuario=usuario)
 
                 if created:
+                    # Se foi enviada uma imagem, criar ServidorImagem
+                    if imagem:
+                        from .models import ServidorImagem
+                        ServidorImagem.objects.create(
+                            servidor=servidor,
+                            usuario=usuario,
+                            imagem=imagem
+                        )
+
                     log_user_action(
                         request=request,
                         action=UserActionLog.ACTION_CREATE,
@@ -4480,6 +4503,7 @@ def create_server(request):
                         message="Servidor criado.",
                         extra={
                             "nome": servidor.nome,
+                            "tem_imagem": bool(imagem),
                         },
                     )
                     return render(
@@ -4490,7 +4514,7 @@ def create_server(request):
                             "success_message": "Novo Servidor cadastrado com sucesso!",
                         },
                     )
-                
+
                 else:
                     return render(
                             request,

@@ -3,6 +3,7 @@ from .models import (
     Plano,
     Cliente,
     Servidor,
+    ServidorImagem,
     SessaoWpp,
     Aplicativo,
     Tipos_pgto,
@@ -28,10 +29,19 @@ from .models import (
 # --- ADMINISTRADORES ---
 
 class ServidorAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "usuario")
+    list_display = ("id", "nome", "usuario", "imagem_admin")
     list_filter = ("usuario",)
     search_fields = ("nome", "usuario")
     ordering = ("-id", "nome",)
+
+
+class ServidorImagemAdmin(admin.ModelAdmin):
+    list_display = ("id", "servidor", "usuario", "imagem", "criado_em", "atualizado_em")
+    list_filter = ("servidor", "usuario", "criado_em")
+    search_fields = ("servidor__nome", "usuario__username")
+    autocomplete_fields = ("servidor",)
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("-criado_em",)
 
 
 class Tipos_pgtoAdmin(admin.ModelAdmin):
@@ -225,6 +235,7 @@ class LoginLogAdmin(admin.ModelAdmin):
 admin.site.register(Plano, PlanoAdmin)
 admin.site.register(Cliente, ClienteAdmin)
 admin.site.register(Servidor, ServidorAdmin)
+admin.site.register(ServidorImagem, ServidorImagemAdmin)
 admin.site.register(SessaoWpp, SessaoWppAdmin)
 admin.site.register(Tipos_pgto, Tipos_pgtoAdmin)
 admin.site.register(Aplicativo, AplicativoAdmin)

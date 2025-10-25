@@ -42,3 +42,14 @@ def formatar_telefone(wpp):
     return '+' + numero
 
 
+@register.filter
+def servidor_imagem_url(servidor, user=None):
+    """
+    Retorna a URL da imagem do servidor considerando o usuário atual.
+
+    Uso no template:
+        {{ servidor|servidor_imagem_url:request.user }}
+    """
+    if hasattr(servidor, 'get_imagem_url'):
+        return servidor.get_imagem_url(usuario_atual=user)
+    return ''

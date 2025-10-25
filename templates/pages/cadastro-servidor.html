@@ -1,4 +1,5 @@
 {% load static %}
+{% load format_filters %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -43,15 +44,22 @@
                     <h4 class="mb-1">Formulário de cadastro</h4>
                   </div>
 
-                  <form method="POST">
+                  <form method="POST" enctype="multipart/form-data">
                     <!-- row -->
                     {% csrf_token %}
                     <div class="mb-3 row">
-                      <label for="fullName" class="col-sm-3 col-form-label
+                      <label for="nome" class="col-sm-3 col-form-label
                           form-label">Descrição</label>
                       <div class="col-sm-7 mb-3 mb-lg-0">
                         <input type="text" class="form-control" placeholder="Nome do servidor/painel..." id="nome"
                           name="nome" required>
+                      </div>
+                    </div>
+                    <div class="mb-3 row">
+                      <label for="imagem" class="col-sm-3 col-form-label form-label">Imagem <span class="text-muted small">(opcional)</span></label>
+                      <div class="col-sm-7 mb-3 mb-lg-0">
+                        <input type="file" class="form-control" id="imagem" name="imagem" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+                        <small class="text-muted">Formatos aceitos: JPG, PNG, GIF, WEBP. Tamanho máximo: 5MB</small>
                       </div>
                     </div>
                     <div class="offset-md-3 col-md-8 mt-4">
@@ -107,13 +115,18 @@
                     <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar"></button>
                   </div>
                   <div class="modal-body">
-                    <form method="POST" id="edit-servidor-form">
+                    <form method="POST" id="edit-servidor-form" enctype="multipart/form-data">
                       {% csrf_token %}
-                      <div class="form-group">
-                        <label for="servidor-nome">Nome do servidor</label>
-                        <input type="text" class="form-control" id="servidor-nome" name="nome">
+                      <div class="form-group mb-3">
+                        <label for="edit-servidor-nome" class="form-label">Nome do servidor</label>
+                        <input type="text" class="form-control" id="edit-servidor-nome" name="nome">
                       </div>
-                      <input type="hidden" name="servidor_id" id="servidor-id">
+                      <div class="form-group mb-3">
+                        <label for="edit-servidor-imagem" class="form-label">Imagem <span class="text-muted small">(opcional)</span></label>
+                        <input type="file" class="form-control" id="edit-servidor-imagem" name="imagem" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+                        <small class="text-muted">Formatos aceitos: JPG, PNG, GIF, WEBP. Tamanho máximo: 5MB</small>
+                      </div>
+                      <input type="hidden" name="servidor_id" id="edit-servidor-id">
                     </form>
                   </div>
                   <div class="modal-footer">
@@ -140,9 +153,16 @@
                       <!-- COMEÇO DA LINHA -->
                       <tr>
                         <td class="align-middle">
-                          <div class="">
-                            <div class="">
-                              <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
+                          <div class="d-flex align-items-center justify-content-center">
+                            <div class="icon-shape icon-md border p-1 rounded-circle me-3">
+                              <img src="{{ servidor|servidor_imagem_url:user }}"
+                                   class="rounded-circle"
+                                   alt="{{ servidor.nome }}"
+                                   style="width: 40px; height: 40px; object-fit: cover;"
+                                   onerror="this.src='{% static 'assets/images/logo-apps/default.png' %}'">
+                            </div>
+                            <div>
+                              <h5 class="text-capitalize mb-0" class="text-inherit" onmouseover="this.style.color='#624BFF'"
                                 onmouseout="this.style.color=''">{{servidor.nome}}</h5>
                             </div>
                           </div>
@@ -299,8 +319,8 @@
 
     const form = document.querySelector("#edit-servidor-form");
     form.action = `/editar-servidor/${servidorId}/`;
-    form.querySelector("#servidor-nome").value = servidorNome;
-    form.querySelector("#servidor-id").value = servidorId;
+    form.querySelector("#edit-servidor-nome").value = servidorNome;
+    form.querySelector("#edit-servidor-id").value = servidorId;
 
     const modal = new bootstrap.Modal(document.querySelector("#edit-servidor-modal"));
     modal.show();
