@@ -647,21 +647,11 @@
     animation: fadeInDown 0.2s ease;
     border: 1px solid rgba(0, 0, 0, 0.08);
     z-index: 9999 !important;
-    position: absolute !important;
 }
 
 /* Garantir z-index máximo quando dropdown está aberto */
 #myTable .dropdown-menu.show {
     z-index: 10000 !important;
-}
-
-/* Garantir que o dropdown sempre apareça sobre a tabela */
-#myTable .dropdown {
-    position: static !important;
-}
-
-#myTable tbody td .dropdown {
-    position: relative !important;
 }
 
 /* Garantir que a tabela não corte o dropdown */
@@ -678,16 +668,20 @@
     overflow: visible !important;
 }
 
-/* Apenas cards que contêm tabelas devem ter overflow visible */
-.card:has(.table-responsive),
-.card:has(#myTable) {
+.card {
     overflow: visible !important;
 }
 
 /* Garantir que tbody e tr também não cortem o dropdown */
 #myTable tbody,
-#myTable tbody tr {
+#myTable tbody tr,
+#myTable tbody td {
     overflow: visible !important;
+}
+
+/* Posicionamento correto do dropdown */
+#myTable .dropdown {
+    position: relative;
 }
 
 @keyframes fadeInDown {
