@@ -34,44 +34,97 @@ const eyeStorageKey = "dashboard-eye-state";
 
 
 const initializeTableDropdowns = () => {
-    const dropdowns = document.querySelectorAll('.table-actions-visible .dropdown');
+    console.log('[Dashboard] Inicializando dropdowns da tabela');
+
+    const dropdowns = document.querySelectorAll('.table-actions-visible .table-dropdown-actions');
+
     dropdowns.forEach((dropdown) => {
-        if (dropdown.dataset.dropdownEnhanced === 'true') {
+        // Evita reinicializar
+        if (dropdown.dataset.initialized === 'true') {
             return;
         }
-        const toggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
+
+        const button = dropdown.querySelector('[data-bs-toggle="dropdown"]');
         const menu = dropdown.querySelector('.dropdown-menu');
-        if (!toggle || !menu) {
+
+        if (!button || !menu) {
             return;
         }
-        const resetPosition = () => {
-            menu.style.marginTop = '';
-            menu.style.marginBottom = '';
-            menu.style.marginLeft = '';
+
+        // Função para aplicar position: fixed e calcular posição
+        const applyFixedPosition = () => {
+            const buttonRect = button.getBoundingClientRect();
+            const menuRect = menu.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            // Aplica position: fixed
+            menu.style.position = 'fixed';
+            menu.style.margin = '0';
+
+            // Posição vertical: abaixo do botão por padrão
+            let top = buttonRect.bottom + 4;
+
+            // Se não couber abaixo, posiciona acima
+            if (top + menuRect.height > viewportHeight - 10 && buttonRect.top > menuRect.height) {
+                top = buttonRect.top - menuRect.height - 4;
+            }
+
+            // Posição horizontal: alinha à direita do botão (dropdown-menu-end)
+            let left = buttonRect.right - menuRect.width;
+
+            // Ajusta se sair da tela pela esquerda
+            if (left < 10) {
+                left = 10;
+            }
+
+            // Ajusta se sair da tela pela direita
+            if (left + menuRect.width > viewportWidth - 10) {
+                left = viewportWidth - menuRect.width - 10;
+            }
+
+            // Aplica as posições
+            menu.style.top = `${top}px`;
+            menu.style.left = `${left}px`;
+            menu.style.right = 'auto';
+            menu.style.bottom = 'auto';
+            menu.style.transform = 'none';
         };
-        toggle.addEventListener('shown.bs.dropdown', () => {
-            requestAnimationFrame(() => {
-                resetPosition();
-                const menuRect = menu.getBoundingClientRect();
-                const toggleRect = toggle.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
-                const viewportWidth = window.innerWidth;
-                const spaceBelow = viewportHeight - menuRect.bottom;
-                const spaceAbove = toggleRect.top;
-                if (spaceBelow < 12 && spaceAbove > spaceBelow) {
-                    const offset = menuRect.height - toggleRect.height;
-                    menu.style.marginTop = `-${offset}px`;
-                    menu.style.marginBottom = `${toggleRect.height}px`;
-                }
-                const menuRectAfter = menu.getBoundingClientRect();
-                const spaceRight = viewportWidth - menuRectAfter.right;
-                if (spaceRight < 0) {
-                    menu.style.marginLeft = `${spaceRight - 8}px`;
-                }
-            });
+
+        // Função para resetar posição ao fechar
+        const resetPosition = () => {
+            menu.style.position = '';
+            menu.style.top = '';
+            menu.style.left = '';
+            menu.style.right = '';
+            menu.style.bottom = '';
+            menu.style.transform = '';
+            menu.style.margin = '';
+        };
+
+        // Quando o dropdown abre (DEPOIS que o Bootstrap terminou)
+        button.addEventListener('shown.bs.dropdown', () => {
+            requestAnimationFrame(applyFixedPosition);
         });
-        toggle.addEventListener('hidden.bs.dropdown', resetPosition);
-        dropdown.dataset.dropdownEnhanced = 'true';
+
+        // Quando o dropdown fecha
+        button.addEventListener('hidden.bs.dropdown', resetPosition);
+
+        // Atualiza posição ao rolar ou redimensionar (apenas se aberto)
+        let scrollTimeout;
+        const handleScroll = () => {
+            if (button.getAttribute('aria-expanded') === 'true') {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    requestAnimationFrame(applyFixedPosition);
+                }, 10);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, true);
+        window.addEventListener('resize', handleScroll);
+
+        dropdown.dataset.initialized = 'true';
     });
 };
 

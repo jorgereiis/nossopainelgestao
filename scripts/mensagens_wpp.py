@@ -124,7 +124,6 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
 
 def obter_mensalidades_a_vencer(usuario_query):
     dias_envio = (
-        (2, "à vencer 2 dias"),
         (1, "à vencer 1 dias"),
         (0, "vence hoje"),
     )
@@ -177,7 +176,7 @@ def obter_mensalidades_a_vencer(usuario_query):
 
             mensagem = None
 
-            if tipo_mensagem == "à vencer 2 dias":
+            if tipo_mensagem == "à vencer 1 dias":
                 dados = DadosBancarios.objects.filter(usuario=usuario).first()
                 if not dados:
                     registrar_log_auditoria({
@@ -207,13 +206,6 @@ def obter_mensalidades_a_vencer(usuario_query):
                     f"👤 *Beneficiário*: {dados.beneficiario}\n"
                     f"_________________________________\n\n"
                     f"‼️ _Caso já tenha pago, por favor, nos envie o comprovante._"
-                )
-
-            elif tipo_mensagem == "à vencer 1 dias":
-                mensagem = (
-                    f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
-                    f"O seu plano *{plano_nome}* vencerá em *{dias} dia*.\n\n"
-                    f"Fique atento(a)! 💡"
                 )
 
             elif tipo_mensagem == "vence hoje":

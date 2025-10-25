@@ -110,12 +110,13 @@
                 {% endif %}
                 <!-- Dropdown da tabela -->
                 <td class="text-center">
-                    <div class="dropdown">
+                    <div class="dropdown table-dropdown-actions">
                         <button
                             class="btn btn-sm btn-light rounded-circle d-inline-flex align-items-center justify-content-center border"
                             type="button"
                             id="dropdownMenuButton-{{ cliente.id }}"
                             data-bs-toggle="dropdown"
+                            data-bs-auto-close="true"
                             aria-expanded="false"
                             style="width: 32px; height: 32px; padding: 0;">
                             <i class="bi bi-three-dots-vertical text-muted"></i>

@@ -28,20 +28,24 @@
           </div>
           <!-- col -->
           <div class="row mb-8">
-            <div class="col-xl-3 col-lg-4 col-md-12 col-12">
+            <div class="col-xl-4 col-lg-4 col-md-12 col-12">
               <div class="mb-4 mb-lg-0">
                 <h4 class="mb-1">Cadastre aqui o seu novo cliente</h4>
                 <p class="mb-0 fs-5 text-muted">Preencha todos os dados corretamente. </p>
               </div>
             </div>
 
-            <div class="col-xl-9 col-lg-8 col-md-12 col-12" id="div-principal">
+            <div class="col-xl-7 col-lg-8 col-md-12 col-12" id="div-principal">
               <!-- card -->
-              <div class="card">
+              <div class="card shadow-sm border-0 cadastro-form-card">
                 <!-- card body -->
-                <div class="card-body">
-                  <div class=" mb-6">
-                    <h4 class="mb-1">Formulário de cadastro</h4>
+                <div class="card-body p-4">
+                  <div class="mb-4 pb-3 border-bottom">
+                    <h4 class="mb-1 fw-bold d-flex align-items-center">
+                      <i class="bi bi-plus-circle-fill text-primary me-2"></i>
+                      Formulário de cadastro
+                    </h4>
+                    <small class="text-muted">Preencha os dados do novo cliente</small>
                   </div>
 
               <form method="POST" id="cadastro-cliente-form">
@@ -49,139 +53,136 @@
                 <input type="hidden" name="cadastrar" value="1">
 
                 <!-- Nome -->
-                <div class="mb-3 row">
-                  <label for="nome" class="col-sm-4 col-form-label form-label">
-                    Nome <span class="text-danger">*</span>
+                <div class="mb-4">
+                  <label for="nome" class="form-label fw-semibold">
+                    <i class="bi bi-person-fill text-primary me-2"></i>Nome do cliente <span class="text-danger">*</span>
                   </label>
-                  <div class="col-sm-5 mb-3 mb-lg-0">
-                    <input type="text" class="form-control" placeholder="Nome" id="nome" name="nome"
-                      autocomplete="off" required>
-                  </div>
-                </div>
-
-                <!-- Sobrenome -->
-                <div class="mb-3 row">
-                  <label for="nome" class="col-sm-4 col-form-label form-label">
-                    Sobrenome <span class="text-danger">*</span>
-                  </label>
-                  <div class="col-sm-5 mb-3 mb-lg-0">
-                    <input type="text" class="form-control" placeholder="Sobrenome" id="sobrenome" name="sobrenome"
-                      autocomplete="off" required>
-                  </div>
+                  <input type="text" class="form-control form-control-lg" placeholder="Digite o nome completo do cliente" id="nome" name="nome"
+                    autocomplete="off" required>
+                  <small class="text-muted">Nome completo do cliente</small>
                 </div>
 
                 <!-- Telefone -->
-                <div class="mb-3 row">
-                  <label for="telefone" class="col-sm-4 col-form-label form-label">
-                    Telefone <span class="text-danger">*</span>
+                <div class="mb-4">
+                  <label for="telefone" class="form-label fw-semibold">
+                    <i class="bi bi-telephone-fill text-success me-2"></i>Telefone <span class="text-danger">*</span>
                   </label>
-                  <div class="col-sm-5 mb-3 mb-lg-0">
-                    <input type="tel" id="telefone" name="telefone" class="form-control" autocomplete="off" required>
-                  </div>
+                  <input type="tel" id="telefone" name="telefone" class="form-control form-control-lg" autocomplete="off" required>
+                  <small class="text-muted">Número de telefone com DDD</small>
                 </div>
 
                 <!-- Indicado por -->
-                <div class="mb-3 row">
-                  <label for="indicado_por" class="col-sm-4 col-form-label form-label">Indicado por</label>
-                  <div class="col-sm-5 mb-3 mb-lg-0">
-                    <input type="text" class="form-control" placeholder="Selecione um cliente indicador" id="indicado_por"
-                      list="indicador-options" name="indicador_list" autocomplete="off">
-                  </div>
+                <div class="mb-4">
+                  <label for="indicado_por" class="form-label fw-semibold">
+                    <i class="bi bi-people-fill text-info me-2"></i>Indicado por <span class="badge bg-light text-muted">Opcional</span>
+                  </label>
+                  <input type="text" class="form-control form-control-lg" placeholder="Selecione um cliente indicador" id="indicado_por"
+                    list="indicador-options" name="indicador_list" autocomplete="off">
                   <datalist id="indicador-options">
                     {% for indicador in indicadores %}
                     <option value="{{ indicador.nome }}">
                     {% endfor %}
                   </datalist>
+                  <small class="text-muted">Cliente que indicou este novo cliente</small>
                 </div>
 
                 <!-- Servidor -->
-                <div class="mb-3 row">
-                  <label for="servidor" class="col-sm-4 col-form-label form-label">Servidor <span class="text-danger">*</span></label>
-                  <div class="col-sm-5 mb-3 mb-lg-0">
-                    <select class="form-select" id="servidor" name="servidor" required>
-                      <option value="">Selecione um servidor</option>
-                      {% for servidor in servidores %}
-                      <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
-                      {% endfor %}
-                    </select>
-                  </div>
+                <div class="mb-4">
+                  <label for="servidor" class="form-label fw-semibold">
+                    <i class="bi bi-hdd-network-fill text-primary me-2"></i>Servidor <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-select form-select-lg" id="servidor" name="servidor" required>
+                    <option value="" selected disabled>Selecione um servidor</option>
+                    {% for servidor in servidores %}
+                    <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
+                    {% endfor %}
+                  </select>
+                  <small class="text-muted">Servidor de streaming que será utilizado</small>
                 </div>
 
                 <!-- Forma de pagamento -->
-                <div class="mb-3 row">
-                  <label for="forma_pgto" class="col-sm-4 col-form-label form-label">Forma de pagamento <span class="text-danger">*</span></label>
-                  <div class="col-sm-5 mb-3 mb-lg-0">
-                    <select class="form-select" id="forma_pgto" name="forma_pgto" required>
-                      <option value="">Selecione uma forma de pagamento</option>
-                      {% for forma_pgto in formas_pgtos %}
-                      <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
-                      {% endfor %}
-                    </select>
-                  </div>
+                <div class="mb-4">
+                  <label for="forma_pgto" class="form-label fw-semibold">
+                    <i class="bi bi-wallet2 text-success me-2"></i>Forma de pagamento <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-select form-select-lg" id="forma_pgto" name="forma_pgto" required>
+                    <option value="" selected disabled>Selecione uma forma de pagamento</option>
+                    {% for forma_pgto in formas_pgtos %}
+                    <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
+                    {% endfor %}
+                  </select>
+                  <small class="text-muted">Método de pagamento escolhido pelo cliente</small>
                 </div>
 
                 <!-- Planos -->
-                <div class="mb-3 row">
-                  <label for="plano" class="col-sm-4 col-form-label form-label">Planos <span class="text-danger">*</span></label>
-                  <div class="col-sm-5 mb-3 mb-lg-0">
-                    <select class="form-select" id="plano" name="plano" required>
-                      <option value="">Selecione um plano de adesão</option>
-                        {% for plano in planos %}
-                            {% if plano.telas > 1 %}
-                        <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas}}">{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }} telas</option>
-                            {% else %}
-                        <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas}}">{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }} tela</option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                  </div>
+                <div class="mb-4">
+                  <label for="plano" class="form-label fw-semibold">
+                    <i class="bi bi-calendar-check-fill text-warning me-2"></i>Plano de Adesão <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-select form-select-lg" id="plano" name="plano" required>
+                    <option value="" selected disabled>Selecione um plano de adesão</option>
+                      {% for plano in planos %}
+                          {% if plano.telas > 1 %}
+                      <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas}}">{{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} telas</option>
+                          {% else %}
+                      <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas}}">{{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela</option>
+                          {% endif %}
+                      {% endfor %}
+                  </select>
+                  <small class="text-muted">Plano e valor da assinatura</small>
                 </div>
 
                 <!-- Data vencimento -->
-                <div class="mb-3 row">
-                  <label for="data_vencimento" class="col-sm-4 col-form-label form-label">Data vencimento inicial</label>
-                  <div class="col-sm-5 mb-3 mb-lg-0">
-                    <input type="date" class="form-control" id="data_vencimento" name="data_vencimento">
-                  </div>
+                <div class="mb-4">
+                  <label for="data_vencimento" class="form-label fw-semibold">
+                    <i class="bi bi-calendar-event-fill text-danger me-2"></i>Data vencimento inicial <span class="badge bg-light text-muted">Opcional</span>
+                  </label>
+                  <input type="date" class="form-control form-control-lg" id="data_vencimento" name="data_vencimento">
+                  <small class="text-muted">Data do primeiro vencimento (deixe em branco para usar padrão)</small>
                 </div>
 
                 <!-- Dispositivo -->
-                <div class="mb-3 row">
-                  <label for="dispositivo" class="col-sm-4 col-form-label form-label">Dispositivo <span class="text-danger">*</span></label>
-                  <div class="col-sm-5 mb-3 mb-lg-0">
-                    <select class="form-select" id="dispositivo" name="dispositivo" required>
-                      <option value="">Selecione um dispositivo</option>
-                      {% for dispositivo in dispositivos %}
-                      <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
-                      {% endfor %}
-                    </select>
-                  </div>
+                <div class="mb-4">
+                  <label for="dispositivo" class="form-label fw-semibold">
+                    <i class="bi bi-tablet-fill text-info me-2"></i>Dispositivo <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-select form-select-lg" id="dispositivo" name="dispositivo" required>
+                    <option value="" selected disabled>Selecione um dispositivo</option>
+                    {% for dispositivo in dispositivos %}
+                    <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
+                    {% endfor %}
+                  </select>
+                  <small class="text-muted">Tipo de dispositivo que será utilizado</small>
                 </div>
 
                 <!-- Aplicativo -->
-                <div class="mb-3 row" id="teste">
-                  <label for="aplicativo" class="col-sm-4 col-form-label form-label">Aplicativo <span class="text-danger">*</span></label>
-                  <div class="col-sm-5 mb-3 mb-lg-0">
-                    <select class="form-select" id="sistema" name="sistema" required>
-                      <option value="">Selecione um aplicativo</option>
-                      {% for sistema in sistemas %}
-                      <option value="{{ sistema.nome }}" data-mac="{{ sistema.device_has_mac|yesno:'1,0' }}">{{ sistema.nome }}</option>
-                      {% endfor %}
-                    </select>
-                  </div>
+                <div class="mb-4" id="teste">
+                  <label for="sistema" class="form-label fw-semibold">
+                    <i class="bi bi-phone-fill text-primary me-2"></i>Aplicativo <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-select form-select-lg" id="sistema" name="sistema" required>
+                    <option value="" selected disabled>Selecione um aplicativo</option>
+                    {% for sistema in sistemas %}
+                    <option value="{{ sistema.nome }}" data-mac="{{ sistema.device_has_mac|yesno:'1,0' }}">{{ sistema.nome }}</option>
+                    {% endfor %}
+                  </select>
+                  <small class="text-muted">Aplicativo de streaming</small>
                 </div>
 
                 <!-- Anotações -->
-                <div class="mb-3 row">
-                  <label for="notas" class="col-sm-4 col-form-label form-label">Anotações</label>
-                  <div class="col-sm-5 mb-3 mb-lg-0">
-                    <textarea class="form-control" placeholder="Detalhes adicionais sobre o cliente..." id="notas" name="notas"></textarea>
-                  </div>
+                <div class="mb-4">
+                  <label for="notas" class="form-label fw-semibold">
+                    <i class="bi bi-sticky-fill text-warning me-2"></i>Anotações <span class="badge bg-light text-muted">Opcional</span>
+                  </label>
+                  <textarea class="form-control form-control-lg" placeholder="Detalhes adicionais sobre o cliente..." id="notas" name="notas" rows="3"></textarea>
+                  <small class="text-muted">Observações importantes sobre o cliente</small>
                 </div>
 
                 <!-- Botão -->
-                <div class="offset-md-4 mb-4">
-                  <button type="submit" class="btn btn-primary" name="cadastrar" id="cadastrar">Cadastrar</button>
+                <div class="d-grid gap-2 mt-5">
+                  <button type="submit" class="btn btn-primary btn-lg" name="cadastrar" id="cadastrar">
+                    <i class="bi bi-check-circle me-2"></i>Cadastrar Cliente
+                  </button>
                 </div>
               </form>
             </div>
@@ -192,6 +193,9 @@
 
     <!-- Modais Globais -->
     {% include 'partials/modais_globais.html' %}
+
+    <!-- Offcanvas de Configurações -->
+    {% include 'partials/offcanvas_configuracoes.html' %}
 
     <!-- Scripts -->
     {% include 'partials/modal_whatsapp.html' %}

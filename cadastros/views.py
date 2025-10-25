@@ -4202,7 +4202,6 @@ def create_customer(request):
         # Coleta e sanitiza dados do formulário
         post = request.POST
         nome = post.get('nome', '').strip()
-        sobrenome = post.get('sobrenome', '').strip()
         telefone = post.get('telefone', '').strip()
         notas = post.get('notas', '').strip()
         indicador_nome = post.get('indicador_list', '').strip()
@@ -4309,7 +4308,7 @@ def create_customer(request):
                 # SALVAR CLIENTE
                 try:
                     cliente = Cliente(
-                        nome=f"{nome} {sobrenome}",
+                        nome=nome,
                         telefone=telefone,
                         dispositivo=dispositivo,
                         sistema=sistema,

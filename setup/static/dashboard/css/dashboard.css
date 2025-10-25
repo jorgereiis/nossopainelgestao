@@ -545,9 +545,9 @@
     overflow-y: visible;
 }
 
-.table-responsive.table-actions-visible .dropdown-menu {
-    position: absolute;
-    z-index: 1050;
+/* Dropdown menu com z-index alto */
+.table-responsive.table-actions-visible .table-dropdown-actions .dropdown-menu {
+    z-index: 10050 !important;
 }
 
 /* ========================================
@@ -642,35 +642,20 @@
     color: white !important;
 }
 
-/* Menu dropdown com animação suave */
+/* Menu dropdown - sem animação de movimento */
 #myTable .dropdown-menu {
-    animation: fadeInDown 0.2s ease;
     border: 1px solid rgba(0, 0, 0, 0.08);
     z-index: 9999 !important;
 }
 
 /* Garantir z-index máximo quando dropdown está aberto */
-#myTable .dropdown-menu.show {
+#myTable .table-dropdown-actions .dropdown-menu {
     z-index: 10000 !important;
 }
-
-/* Removidas regras globais de overflow: visible que causavam scroll no navbar */
-/* Os dropdowns funcionam corretamente apenas com z-index alto (10000) */
 
 /* Posicionamento correto do dropdown */
 #myTable .dropdown {
     position: relative;
-}
-
-@keyframes fadeInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 /* Items do dropdown com hover - suave e discreto */
@@ -782,9 +767,8 @@
     color: white !important;
 }
 
-/* Menu dropdown com animação suave */
+/* Menu dropdown - sem animação de movimento */
 #servidoresTable .dropdown-menu {
-    animation: fadeInDown 0.2s ease;
     border: 1px solid rgba(0, 0, 0, 0.08);
     z-index: 9999 !important;
 }
@@ -892,12 +876,11 @@
     color: white !important;
 }
 
-/* Menu dropdown */
+/* Menu dropdown - sem animação de movimento */
 #aplicativosTable .dropdown-menu,
 #dispositivosTable .dropdown-menu,
 #planosTable .dropdown-menu,
 #formasPgtoTable .dropdown-menu {
-    animation: fadeInDown 0.2s ease;
     border: 1px solid rgba(0, 0, 0, 0.08);
     z-index: 9999 !important;
 }
@@ -985,4 +968,158 @@
 .navbar-vertical .slimScrollDiv {
     overflow-y: visible !important;
     overflow-x: visible !important;
+}
+
+/* ===== ESTILOS DOS FORMULÁRIOS DE CADASTRO ===== */
+
+/* Card principal dos formulários */
+.cadastro-form-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-radius: 0.75rem !important;
+}
+
+.cadastro-form-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(98, 75, 255, 0.15) !important;
+}
+
+/* Inputs e selects com foco aprimorado */
+.cadastro-form-card .form-control:focus,
+.cadastro-form-card .form-select:focus {
+    border-color: #624BFF;
+    box-shadow: 0 0 0 0.25rem rgba(98, 75, 255, 0.15);
+}
+
+.cadastro-form-card .form-control,
+.cadastro-form-card .form-select {
+    border-radius: 0.5rem;
+    border: 2px solid #e9ecef;
+    transition: all 0.2s ease;
+}
+
+.cadastro-form-card .form-control:hover,
+.cadastro-form-card .form-select:hover {
+    border-color: #c5c9d0;
+}
+
+/* Labels com ícones */
+.cadastro-form-card .form-label {
+    margin-bottom: 0.75rem;
+    font-size: 0.9375rem;
+}
+
+.cadastro-form-card .form-label i {
+    font-size: 1.1rem;
+}
+
+/* Input group (para campos com R$) */
+.cadastro-form-card .input-group-text {
+    background-color: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-right: none;
+    font-weight: 600;
+    color: #28a745;
+}
+
+.cadastro-form-card .input-group .form-control {
+    border-left: none;
+}
+
+.cadastro-form-card .input-group:focus-within .input-group-text {
+    border-color: #624BFF;
+    background-color: rgba(98, 75, 255, 0.05);
+}
+
+.cadastro-form-card .input-group:focus-within .form-control {
+    border-color: #624BFF;
+}
+
+/* Botão de submit aprimorado */
+.cadastro-form-card .btn-primary {
+    background: linear-gradient(135deg, #624BFF 0%, #7C3AED 100%);
+    border: none;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(98, 75, 255, 0.3);
+}
+
+.cadastro-form-card .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(98, 75, 255, 0.4);
+    background: linear-gradient(135deg, #7C3AED 0%, #624BFF 100%);
+}
+
+.cadastro-form-card .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(98, 75, 255, 0.3);
+}
+
+/* Badge "Opcional" */
+.cadastro-form-card .badge.bg-light {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+    font-weight: 500;
+    border: 1px solid #dee2e6;
+}
+
+/* Textos de ajuda (small) */
+.cadastro-form-card small.text-muted {
+    font-size: 0.8125rem;
+    display: block;
+    margin-top: 0.5rem;
+}
+
+/* Header do formulário */
+.cadastro-form-card .border-bottom {
+    border-color: #e9ecef !important;
+}
+
+.cadastro-form-card h4 i {
+    font-size: 1.3rem;
+}
+
+/* Animação suave ao carregar */
+.cadastro-form-card {
+    animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Placeholders estilizados */
+.cadastro-form-card .form-control::placeholder,
+.cadastro-form-card .form-select::placeholder {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* Inputs com erro (quando required não preenchido) */
+.cadastro-form-card .form-control:invalid:not(:placeholder-shown),
+.cadastro-form-card .form-select:invalid:not(:placeholder-shown) {
+    border-color: #dc3545;
+}
+
+.cadastro-form-card .form-control:valid:not(:placeholder-shown),
+.cadastro-form-card .form-select:valid:not(:placeholder-shown) {
+    border-color: #28a745;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .cadastro-form-card {
+        margin-top: 1.5rem;
+    }
+
+    .cadastro-form-card .btn-lg {
+        font-size: 1rem;
+    }
 }
