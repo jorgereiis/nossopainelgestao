@@ -761,3 +761,89 @@
         box-shadow: 0 0 0 6px rgba(220, 53, 69, 0);
     }
 }
+
+/* ===== MELHORIAS UI/UX TABELA DE SERVIDORES ===== */
+
+/* Efeito hover suave nas linhas da tabela de servidores */
+#servidoresTable tbody tr {
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#servidoresTable tbody tr:hover {
+    background-color: rgba(98, 75, 255, 0.03);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Animação suave no nome do servidor ao hover */
+#servidoresTable tbody tr:hover .text-dark {
+    color: #624BFF !important;
+}
+
+/* Efeito hover nos avatares de servidor */
+#servidoresTable tbody .flex-shrink-0 img {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#servidoresTable tbody tr:hover .flex-shrink-0 img {
+    transform: scale(1.1);
+    box-shadow: 0 4px 16px rgba(98, 75, 255, 0.25);
+}
+
+/* Botão de ações com animação */
+#servidoresTable tbody .dropdown button {
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#servidoresTable tbody .dropdown button:hover {
+    background-color: #624BFF !important;
+    transform: scale(1.08);
+    box-shadow: 0 3px 10px rgba(98, 75, 255, 0.3);
+}
+
+#servidoresTable tbody .dropdown button:hover i {
+    color: white !important;
+}
+
+/* Menu dropdown com animação suave */
+#servidoresTable .dropdown-menu {
+    animation: fadeInDown 0.2s ease;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    z-index: 9999 !important;
+}
+
+#servidoresTable .dropdown-menu.show {
+    z-index: 10000 !important;
+}
+
+/* Items do dropdown com hover suave */
+#servidoresTable .dropdown-item {
+    transition: background-color 0.2s ease;
+    border-radius: 0.25rem;
+}
+
+#servidoresTable .dropdown-item:hover,
+#servidoresTable .dropdown-item:focus {
+    background-color: rgba(98, 75, 255, 0.03) !important;
+    color: inherit !important;
+}
+
+#servidoresTable .dropdown-item:active {
+    background-color: rgba(98, 75, 255, 0.06) !important;
+}
+
+/* Garantir que o dropdown sempre apareça sobre o card */
+#servidoresTable .dropdown {
+    position: relative;
+}
+
+/* Espaçamento otimizado das células */
+#servidoresTable tbody td {
+    padding: 1.25rem 0.75rem;
+    vertical-align: middle;
+}
+
+/* Bordas suaves na tabela */
+#servidoresTable {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
