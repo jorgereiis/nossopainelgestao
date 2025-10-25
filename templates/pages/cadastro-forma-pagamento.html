@@ -105,38 +105,66 @@
               <!-- card -->
               <div class="card">
                 <div class="table-responsive">
-                  <table class="table table-sm text-nowrap mb-0 table-hover text-center" id="myTable">
+                  <table class="table table-sm text-nowrap mb-0 table-hover align-middle" id="formasPgtoTable">
                     <thead class="table-light">
                       <tr>
-                        <th class="fw-bold text-center">Forma de Pagamento</th>
-                        <th class="fw-bold text-center">Ação</th>
+                        <th class="fw-bold text-start ps-4" style="min-width: 200px;">Forma de Pagamento</th>
+                        <th class="fw-bold text-center" style="width: 80px;">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for forma_pgto in formas_pgto %}
                       <!-- COMEÇO DA LINHA -->
                       <tr>
-                        <td class="align-middle">
-                          <div class="">
-                            <div class="">
-                              <h5 class="text-capitalize" class="text-inherit" onmouseover="this.style.color='#624BFF'"
-                                onmouseout="this.style.color=''">{{forma_pgto.nome}}</h5>
+                        <td class="ps-4">
+                          <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 position-relative">
+                              <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border border-2"
+                                   style="width: 48px; height: 48px;">
+                                {% if 'PIX' in forma_pgto.nome|upper %}
+                                  <img src="{% static 'assets/images/svg/pix.png' %}" style="width: 24px; height: 24px;">
+                                {% elif 'CART' in forma_pgto.nome|upper or 'CREDIT' in forma_pgto.nome|upper %}
+                                  <i class="bi bi-credit-card text-warning" style="font-size: 1.5rem;"></i>
+                                {% elif 'BOLETO' in forma_pgto.nome|upper %}
+                                  <i class="bi bi-upc-scan text-danger" style="font-size: 1.5rem;"></i>
+                                {% else %}
+                                  <i class="bi bi-currency-dollar text-success" style="font-size: 1.5rem;"></i>
+                                {% endif %}
+                              </div>
+                            </div>
+                            <div class="ms-3 lh-sm">
+                              <h6 class="mb-0 fw-semibold text-capitalize text-dark"
+                                  style="font-size: 1rem; transition: color 0.2s ease;">
+                                {{forma_pgto.nome}}
+                              </h6>
+                              <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                <i class="bi bi-wallet2 me-1"></i>Método de pagamento
+                              </small>
                             </div>
                           </div>
                         </td>
 
                         <!-- Dropdown da tabela -->
-                        <td>
+                        <td class="text-center">
                           <div class="dropdown">
-                            <button class="btn btn-icon btn-white rounded-circle btn-dashed ms-2" type="button"
-                              id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                              <img src="{% static 'assets/images/svg/three-dots-vertical.svg' %}">
+                            <button
+                              class="btn btn-sm btn-light rounded-circle d-inline-flex align-items-center justify-content-center border"
+                              type="button"
+                              id="dropdownMenuButton-{{ forma_pgto.id }}"
+                              data-bs-toggle="dropdown"
+                              aria-expanded="false"
+                              style="width: 36px; height: 36px; padding: 0;">
+                              <i class="bi bi-three-dots-vertical text-muted"></i>
                             </button>
-                            <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton">
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ forma_pgto.id }}">
                               <li>
-                                <button class="dropdown-item" data-formapgto="{{forma_pgto.id}}"
+                                <button class="dropdown-item d-flex align-items-center py-2 text-danger"
+                                  data-formapgto="{{forma_pgto.id}}"
                                   data-nome="{{forma_pgto.nome}}"
-                                  onclick="exibirModalConfirmacaoExclusao(this)">Excluir</button>
+                                  onclick="exibirModalConfirmacaoExclusao(this)">
+                                  <i class="bi bi-trash me-2"></i>
+                                  <span>Excluir Forma de Pagamento</span>
+                                </button>
                               </li>
                             </ul>
                           </div>

@@ -847,3 +847,152 @@
     border-radius: 0.5rem;
     overflow: hidden;
 }
+
+/* ===== ESTILOS COMPARTILHADOS PARA TABELAS DE CADASTRO ===== */
+
+/* Aplicativos, Dispositivos, Planos e Formas de Pagamento */
+#aplicativosTable tbody tr,
+#dispositivosTable tbody tr,
+#planosTable tbody tr,
+#formasPgtoTable tbody tr {
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#aplicativosTable tbody tr:hover,
+#dispositivosTable tbody tr:hover,
+#planosTable tbody tr:hover,
+#formasPgtoTable tbody tr:hover {
+    background-color: rgba(98, 75, 255, 0.03);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Animação no nome ao hover */
+#aplicativosTable tbody tr:hover .text-dark,
+#dispositivosTable tbody tr:hover .text-dark,
+#planosTable tbody tr:hover .text-dark,
+#formasPgtoTable tbody tr:hover .text-dark {
+    color: #624BFF !important;
+}
+
+/* Efeito hover nos ícones circulares */
+#aplicativosTable tbody .flex-shrink-0 > div,
+#dispositivosTable tbody .flex-shrink-0 > div,
+#planosTable tbody .flex-shrink-0 > div,
+#formasPgtoTable tbody .flex-shrink-0 > div {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#aplicativosTable tbody tr:hover .flex-shrink-0 > div,
+#dispositivosTable tbody tr:hover .flex-shrink-0 > div,
+#planosTable tbody tr:hover .flex-shrink-0 > div,
+#formasPgtoTable tbody tr:hover .flex-shrink-0 > div {
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(98, 75, 255, 0.2);
+}
+
+/* Botão de ações */
+#aplicativosTable tbody .dropdown button,
+#dispositivosTable tbody .dropdown button,
+#planosTable tbody .dropdown button,
+#formasPgtoTable tbody .dropdown button {
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#aplicativosTable tbody .dropdown button:hover,
+#dispositivosTable tbody .dropdown button:hover,
+#planosTable tbody .dropdown button:hover,
+#formasPgtoTable tbody .dropdown button:hover {
+    background-color: #624BFF !important;
+    transform: scale(1.08);
+    box-shadow: 0 3px 10px rgba(98, 75, 255, 0.3);
+}
+
+#aplicativosTable tbody .dropdown button:hover i,
+#dispositivosTable tbody .dropdown button:hover i,
+#planosTable tbody .dropdown button:hover i,
+#formasPgtoTable tbody .dropdown button:hover i {
+    color: white !important;
+}
+
+/* Menu dropdown */
+#aplicativosTable .dropdown-menu,
+#dispositivosTable .dropdown-menu,
+#planosTable .dropdown-menu,
+#formasPgtoTable .dropdown-menu {
+    animation: fadeInDown 0.2s ease;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    z-index: 9999 !important;
+}
+
+#aplicativosTable .dropdown-menu.show,
+#dispositivosTable .dropdown-menu.show,
+#planosTable .dropdown-menu.show,
+#formasPgtoTable .dropdown-menu.show {
+    z-index: 10000 !important;
+}
+
+/* Items do dropdown */
+#aplicativosTable .dropdown-item,
+#dispositivosTable .dropdown-item,
+#planosTable .dropdown-item,
+#formasPgtoTable .dropdown-item {
+    transition: background-color 0.2s ease;
+    border-radius: 0.25rem;
+}
+
+#aplicativosTable .dropdown-item:hover,
+#aplicativosTable .dropdown-item:focus,
+#dispositivosTable .dropdown-item:hover,
+#dispositivosTable .dropdown-item:focus,
+#planosTable .dropdown-item:hover,
+#planosTable .dropdown-item:focus,
+#formasPgtoTable .dropdown-item:hover,
+#formasPgtoTable .dropdown-item:focus {
+    background-color: rgba(98, 75, 255, 0.03) !important;
+    color: inherit !important;
+}
+
+#aplicativosTable .dropdown-item:active,
+#dispositivosTable .dropdown-item:active,
+#planosTable .dropdown-item:active,
+#formasPgtoTable .dropdown-item:active {
+    background-color: rgba(98, 75, 255, 0.06) !important;
+}
+
+/* Posicionamento do dropdown */
+#aplicativosTable .dropdown,
+#dispositivosTable .dropdown,
+#planosTable .dropdown,
+#formasPgtoTable .dropdown {
+    position: relative;
+}
+
+/* Espaçamento das células */
+#aplicativosTable tbody td,
+#dispositivosTable tbody td,
+#planosTable tbody td,
+#formasPgtoTable tbody td {
+    padding: 1.25rem 0.75rem;
+    vertical-align: middle;
+}
+
+/* Bordas suaves */
+#aplicativosTable,
+#dispositivosTable,
+#planosTable,
+#formasPgtoTable {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+/* ===== ESTILOS ESPECÍFICOS DA TABELA DE PLANOS ===== */
+
+/* Badge de telas com hover */
+#planosTable tbody .badge {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#planosTable tbody tr:hover .badge {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(13, 110, 253, 0.3);
+}
