@@ -5,6 +5,7 @@ import django
 import calendar
 import requests
 import subprocess
+import threading
 from pathlib import Path
 from django.db.models import Q
 from django.utils import timezone
@@ -899,32 +900,128 @@ def run_scheduled_tasks():
 ###########################################################
 
 def executar_envios_agendados():
+    """
+    Executa envios agendados com proteção contra execução duplicada.
+
+    Usa select_for_update(skip_locked=True) para garantir que:
+    - Apenas um processo processa cada usuário por vez
+    - Diferentes usuários podem ser processados em paralelo
+    - Não há race condition no campo ultimo_envio
+    """
     agora = timezone.localtime()
     hora_atual = agora.strftime('%H:%M')
     hoje = agora.date()
 
-    horarios = HorarioEnvios.objects.filter(
+    # Busca horários elegíveis (sem lock ainda)
+    horarios_candidatos = HorarioEnvios.objects.filter(
         status=True,
         ativo=True,
         horario__isnull=False
+    ).filter(
+        Q(ultimo_envio__isnull=True) | Q(ultimo_envio__lt=hoje)
     )
 
-    for h in horarios:
-        if (
-            h.horario.strftime('%H:%M') == hora_atual and
-            (h.ultimo_envio is None or h.ultimo_envio < hoje)
-        ):
-            print(f'Executando envios para usuário: {h.usuario} (horário: {h.horario})')
+    for h_candidato in horarios_candidatos:
+        # Verifica se o horário bate
+        if h_candidato.horario.strftime('%H:%M') != hora_atual:
+            continue
 
-            # Verifica o tipo de envio e executa a função correspondente
-            if h.tipo_envio == 'mensalidades_a_vencer':
-                obter_mensalidades_a_vencer(h.usuario)
-            elif h.tipo_envio == 'obter_mensalidades_vencidas':
-                obter_mensalidades_vencidas(h.usuario)
+        # Tenta adquirir lock exclusivo deste registro específico
+        try:
+            with transaction.atomic():
+                # select_for_update com skip_locked: se outro processo já travou este registro, pula
+                horarios_locked = HorarioEnvios.objects.select_for_update(
+                    skip_locked=True
+                ).filter(
+                    id=h_candidato.id,
+                    status=True,
+                    ativo=True
+                ).filter(
+                    Q(ultimo_envio__isnull=True) | Q(ultimo_envio__lt=hoje)
+                )
 
-            # Atualiza o último envio
-            h.ultimo_envio = hoje
-            h.save(update_fields=['ultimo_envio'])
+                h = horarios_locked.first()
+
+                if not h:
+                    # Outro processo já pegou este registro ou condições mudaram
+                    registrar_log_auditoria({
+                        "funcao": "executar_envios_agendados",
+                        "status": "lock_nao_adquirido",
+                        "usuario": str(h_candidato.usuario),
+                        "tipo_envio": h_candidato.tipo_envio,
+                        "horario": str(h_candidato.horario),
+                        "motivo": "registro_travado_por_outro_processo_ou_ja_processado",
+                    })
+                    continue
+
+                # Lock adquirido! Atualiza IMEDIATAMENTE para bloquear outros processos
+                h.ultimo_envio = hoje
+                h.save(update_fields=['ultimo_envio'])
+
+                print(f'[{agora.strftime("%d-%m-%Y %H:%M:%S")}] [LOCK ADQUIRIDO] Executando envios para usuário: {h.usuario} (tipo: {h.tipo_envio}, horário: {h.horario})')
+
+                registrar_log_auditoria({
+                    "funcao": "executar_envios_agendados",
+                    "status": "iniciando",
+                    "usuario": str(h.usuario),
+                    "tipo_envio": h.tipo_envio,
+                    "horario": str(h.horario),
+                })
+
+            # Transação commitada, lock liberado. Agora executa o envio (pode demorar)
+            try:
+                if h.tipo_envio == 'mensalidades_a_vencer':
+                    obter_mensalidades_a_vencer(h.usuario)
+                elif h.tipo_envio == 'obter_mensalidades_vencidas':
+                    obter_mensalidades_vencidas(h.usuario)
+
+                print(f'[{timezone.localtime().strftime("%d-%m-%Y %H:%M:%S")}] [CONCLUÍDO] Envios finalizados para usuário: {h.usuario}')
+
+                registrar_log_auditoria({
+                    "funcao": "executar_envios_agendados",
+                    "status": "concluido",
+                    "usuario": str(h.usuario),
+                    "tipo_envio": h.tipo_envio,
+                })
+            except Exception as exc_envio:
+                logger.error(f"Erro ao executar envio para usuário {h.usuario}: {exc_envio}", exc_info=exc_envio)
+                registrar_log_auditoria({
+                    "funcao": "executar_envios_agendados",
+                    "status": "erro_durante_envio",
+                    "usuario": str(h.usuario),
+                    "tipo_envio": h.tipo_envio,
+                    "erro": str(exc_envio),
+                })
+
+        except Exception as exc_lock:
+            logger.error(f"Erro ao adquirir lock para usuário {h_candidato.usuario}: {exc_lock}", exc_info=exc_lock)
+            registrar_log_auditoria({
+                "funcao": "executar_envios_agendados",
+                "status": "erro_lock",
+                "usuario": str(h_candidato.usuario),
+                "tipo_envio": h_candidato.tipo_envio,
+                "erro": str(exc_lock),
+            })
+
+
+# Lock local (intra-processo) para executar_envios_agendados
+_executar_envios_agendados_lock = threading.Lock()
+
+def executar_envios_agendados_com_lock():
+    """
+    Wrapper com dupla proteção:
+    1. threading.Lock() - evita múltiplas threads do mesmo processo
+    2. executar_envios_agendados() - usa DB lock para evitar múltiplos processos
+    """
+    if _executar_envios_agendados_lock.locked():
+        logger.debug("[LOCK LOCAL] executar_envios_agendados já em execução nesta thread")
+        return
+
+    with _executar_envios_agendados_lock:
+        try:
+            executar_envios_agendados()
+        except Exception as exc:
+            logger.exception(f"Erro em executar_envios_agendados_com_lock: {exc}")
 
 
 ##############################################################################################

@@ -393,6 +393,12 @@ class HorarioEnvios(models.Model):
     class Meta:
         verbose_name = "Horário de Envio"
         verbose_name_plural = "Horarios de Envio"
+        indexes = [
+            # Índice composto para queries de envios agendados (melhora performance do select_for_update)
+            models.Index(fields=['status', 'ativo', 'horario', 'ultimo_envio'], name='horarioenvios_agendados_idx'),
+            # Índice para filtros por usuário e tipo de envio
+            models.Index(fields=['usuario', 'tipo_envio'], name='horarioenvios_usuario_tipo_idx'),
+        ]
 
     def __str__(self):
         return self.get_nome_display()
