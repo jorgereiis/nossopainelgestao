@@ -1,6 +1,7 @@
 import os, sys, time, asyncio, threading, logging
 from datetime import datetime
 import schedule
+import socket
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -61,6 +62,14 @@ if not logger_fileonly.handlers:
     fh_fileonly.setFormatter(fmt)
     fh_fileonly.setLevel(logging.DEBUG)
     logger_fileonly.addHandler(fh_fileonly)
+
+INSTANCE_ID = f"{socket.gethostname()}-{os.getpid()}"
+logger.info(f"=" * 60)
+logger.info(f"SCHEDULER INICIADO - Instância única")
+logger.info(f"ID: {INSTANCE_ID}")
+logger.info(f"PID: {os.getpid()}")
+logger.info(f"Hostname: {socket.gethostname()}")
+logger.info(f"=" * 60)
 
 # --------------- Helpers ---------------
 def log_jobs_state():
