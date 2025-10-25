@@ -1,6 +1,7 @@
 import os, sys, time, asyncio, threading, logging
 from datetime import datetime
 import schedule
+import socket
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -62,6 +63,14 @@ if not logger_fileonly.handlers:
     fh_fileonly.setLevel(logging.DEBUG)
     logger_fileonly.addHandler(fh_fileonly)
 
+INSTANCE_ID = f"{socket.gethostname()}-{os.getpid()}"
+logger.info(f"=" * 60)
+logger.info(f"SCHEDULER INICIADO - Instância única")
+logger.info(f"ID: {INSTANCE_ID}")
+logger.info(f"PID: {os.getpid()}")
+logger.info(f"Hostname: {socket.gethostname()}")
+logger.info(f"=" * 60)
+
 # --------------- Helpers ---------------
 def log_jobs_state():
     """Loga o estado atual dos jobs agendados."""
@@ -111,7 +120,7 @@ def run_threaded_async(async_coro_func, *args, **kwargs):
 
 # --------------- Agendamentos ---------------
 # Jobs diários em horários fixos:
-schedule.every().day.at("09:00").do(run_threaded_sync, chamada_funcao_gp_futebol).tag("gp_futebol")
+schedule.every().day.at("09:05").do(run_threaded_sync, chamada_funcao_gp_futebol).tag("gp_futebol")
 schedule.every().day.at("10:00").do(run_threaded_sync, chamada_funcao_gp_vendas).tag("gp_vendas_manha")
 schedule.every().day.at("12:00").do(run_threaded_sync, run_scheduled_tasks).tag("run_scheduled_tasks")
 schedule.every().day.at("17:00").do(run_threaded_sync, obter_mensalidades_canceladas).tag("mensalidades_canceladas")
