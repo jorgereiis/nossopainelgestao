@@ -1,4 +1,4 @@
-import os, sys, time, asyncio, threading, logging
+import os, sys, time, asyncio, threading, logging, fcntl, signal, atexit
 from datetime import datetime
 import schedule
 import socket
@@ -15,7 +15,7 @@ from mensagem_gp_wpp import (
 )
 from mensagens_wpp import (
     obter_mensalidades_canceladas,
-    executar_envios_agendados,
+    executar_envios_agendados_com_lock,
     run_scheduled_tasks,
     backup_db_sh,
 )
@@ -23,6 +23,57 @@ from upload_status_wpp import executar_upload_image_from_telegram_com_lock
 from comparar_m3u8 import executar_comparar_lista_m3u8_com_lock
 from check_canais_dns import executar_check_canais_dns_com_lock
 from integracoes.telegram_connection import telegram_connection
+
+################################################
+##### PROTEÇÃO CONTRA MÚLTIPLAS INSTÂNCIAS #####
+################################################
+
+LOCK_FILE = "/tmp/scheduler_agendamentos.lock"
+lock_file_handle = None
+
+def acquire_scheduler_lock():
+    """
+    Adquire um lock de sistema para garantir que apenas uma instância do scheduler execute.
+    Retorna o file handle se bem-sucedido, ou None se já existe outra instância.
+    """
+    global lock_file_handle
+    try:
+        lock_file_handle = open(LOCK_FILE, 'w')
+        # Tenta adquirir lock exclusivo não-bloqueante
+        fcntl.flock(lock_file_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        # Escreve PID no arquivo para debug
+        lock_file_handle.write(f"{os.getpid()}\n")
+        lock_file_handle.flush()
+        return lock_file_handle
+    except IOError:
+        # Outra instância já está rodando
+        return None
+    except Exception as e:
+        print(f"[ERRO] Falha ao adquirir lock: {e}")
+        return None
+
+def release_scheduler_lock():
+    """Libera o lock e remove o arquivo."""
+    global lock_file_handle
+    if lock_file_handle:
+        try:
+            fcntl.flock(lock_file_handle.fileno(), fcntl.LOCK_UN)
+            lock_file_handle.close()
+            if os.path.exists(LOCK_FILE):
+                os.remove(LOCK_FILE)
+        except Exception as e:
+            print(f"[AVISO] Erro ao liberar lock: {e}")
+
+def signal_handler(signum, frame):
+    """Handler para sinais de terminação."""
+    print(f"\n[SIGNAL] Recebido sinal {signum}. Encerrando graciosamente...")
+    release_scheduler_lock()
+    sys.exit(0)
+
+# Registra handlers de sinal e cleanup
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
+atexit.register(release_scheduler_lock)
 
 ################################################
 ##### CONFIGURAÇÃO DO AGENDADOR DE TAREFAS #####
@@ -132,7 +183,13 @@ schedule.every().day.at("23:50").do(run_threaded_sync, executar_upload_image_fro
 
 # Jobs em frequência curta:
 schedule.every(60).minutes.do(run_threaded_sync, backup_db_sh).tag("backup_db")
-schedule.every(1).minutes.do(run_threaded_sync_nolog, executar_envios_agendados).tag("envios_agendados")
+schedule.every(1).minutes.do(run_threaded_sync_nolog, executar_envios_agendados_com_lock).tag("envios_agendados")
+
+# --------------- Verificação de Lock de Instância Única ---------------
+if not acquire_scheduler_lock():
+    print(f"[BLOQUEADO] Outra instância do scheduler já está em execução.")
+    print(f"[INFO] Verifique o arquivo {LOCK_FILE} para detalhes.")
+    sys.exit(0)
 
 logger.info("Scheduler iniciado.")
 log_jobs_state()
