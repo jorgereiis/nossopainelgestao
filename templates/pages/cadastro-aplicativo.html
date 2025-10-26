@@ -202,18 +202,18 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ aplicativo.id }}">
                               <li>
-                                <button class="dropdown-item d-flex align-items-center py-2"
+                                <button class="dropdown-item dropdown-action-edit"
                                   data-aplicativo="{{ aplicativo.id }}"
                                   data-nome="{{ aplicativo.nome }}"
                                   data-device_has_mac="{{ aplicativo.device_has_mac|yesno:'true,false' }}"
                                   onclick="exibirModalEdicao(this)">
-                                  <i class="bi bi-pencil me-2 text-warning"></i>
+                                  <i class="bi bi-pencil me-2"></i>
                                   <span>Editar Aplicativo</span>
                                 </button>
                               </li>
                               <li><hr class="dropdown-divider"></li>
                               <li>
-                                <button class="dropdown-item d-flex align-items-center py-2 text-danger"
+                                <button class="dropdown-item dropdown-action-delete"
                                   data-aplicativo="{{aplicativo.id}}"
                                   data-nome="{{aplicativo.nome}}"
                                   onclick="exibirModalConfirmacaoExclusao(this)">

@@ -181,17 +181,17 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ dispositivo.id }}">
                               <li>
-                                <button class="dropdown-item d-flex align-items-center py-2"
+                                <button class="dropdown-item dropdown-action-edit"
                                   data-dispositivo="{{dispositivo.id}}"
                                   data-nome="{{dispositivo.nome}}"
                                   onclick="exibirModalEdicao(this)">
-                                  <i class="bi bi-pencil me-2 text-warning"></i>
+                                  <i class="bi bi-pencil me-2"></i>
                                   <span>Editar Dispositivo</span>
                                 </button>
                               </li>
                               <li><hr class="dropdown-divider"></li>
                               <li>
-                                <button class="dropdown-item d-flex align-items-center py-2 text-danger"
+                                <button class="dropdown-item dropdown-action-delete"
                                   data-dispositivo="{{dispositivo.id}}"
                                   data-nome="{{dispositivo.nome}}"
                                   onclick="exibirModalConfirmacaoExclusao(this)">

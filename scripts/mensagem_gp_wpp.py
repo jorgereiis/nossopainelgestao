@@ -18,6 +18,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Carregar as configurações do Django
 django.setup()
 
+# Importa configuração centralizada de logging
+from cadastros.services.logging_config import get_groups_logger
+
+# Configuração do logger com rotação automática
+logger = get_groups_logger()
+
 from django.utils.timezone import localtime
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
@@ -201,11 +207,17 @@ def enviar_mensagem_grupos(
     # --------- fluxo GRUPO VENDAS ---------
     if tipo_envio == 'grupo_vendas':
         if not image_name:
+            logger.error("Imagem não informada para grupo_vendas | grupo=%s", grupo_nome)
             _log_fail(1, -1, "Imagem não informada para grupo_vendas.")
             return
 
         img_b64 = obter_img_base64(image_name, 'gp_vendas')
         if not img_b64:
+            logger.error(
+                "Falha ao converter imagem em base64 | imagem=%s grupo=%s",
+                image_name,
+                grupo_nome
+            )
             _log_fail(1, -1, f"Falha ao converter imagem '{image_name}' em base64 (gp_vendas).")
             return
 
@@ -222,8 +234,22 @@ def enviar_mensagem_grupos(
         for tentativa in range(1, 3):
             ok, err, status = _post_json(url, payload, tentativa)
             if ok:
+                logger.info(
+                    "Mensagem enviada com sucesso | tipo=%s grupo=%s imagem=%s",
+                    tipo_envio,
+                    grupo_nome,
+                    image_name
+                )
                 _log_ok()
                 break
+            logger.warning(
+                "Falha ao enviar mensagem | tipo=%s grupo=%s tentativa=%d status=%s erro=%s",
+                tipo_envio,
+                grupo_nome,
+                tentativa,
+                status,
+                err
+            )
             _log_fail(tentativa, status, err)
             time.sleep(random.uniform(20, 30))
         return
@@ -233,6 +259,12 @@ def enviar_mensagem_grupos(
         subdir_dia, data_resolvida, data_solicitada, imagens = _subdir_futebol(data_envio)
 
         if data_resolvida != data_solicitada:
+            logger.warning(
+                "Fallback de pasta de imagens | solicitada=%s resolvida=%s grupo=%s",
+                data_solicitada,
+                data_resolvida,
+                grupo_nome
+            )
             registrar_log(
                 f"{localtime().strftime('%d-%m-%Y %H:%M:%S')} "
                 f"[TIPO][{tipo_envio.upper()}] [USUARIO][{usuario}] [GRUPO][{grupo_nome}] [CODE][N/A] "
@@ -240,9 +272,21 @@ def enviar_mensagem_grupos(
                 LOG_GRUPOS,
             )
 
+        logger.info(
+            "Enviando imagens de futebol | grupo=%s quantidade=%d data=%s",
+            grupo_nome,
+            len(imagens),
+            data_resolvida
+        )
+
         imagens_enviadas = 0
 
         if not imagens:
+            logger.warning(
+                "Nenhuma imagem encontrada | pasta=%s grupo=%s",
+                subdir_dia,
+                grupo_nome
+            )
             _log_fail(1, -1, f"Nenhuma imagem encontrada em /images/{subdir_dia}. Texto final será ignorado.")
         else:
             # 1) Envia TODAS as imagens do dia, SEM legenda
@@ -276,6 +320,11 @@ def enviar_mensagem_grupos(
 
         # 2) Envia o texto final **apenas se ao menos 1 imagem foi enviada**
         if imagens_enviadas > 0 and mensagem:
+            logger.info(
+                "Enviando texto final | grupo=%s imagens_enviadas=%d",
+                grupo_nome,
+                imagens_enviadas
+            )
             payload_txt = {
                 'phone': grupo_id,
                 'isGroup': True,
@@ -286,11 +335,21 @@ def enviar_mensagem_grupos(
             for tentativa in range(1, 3):
                 ok, err, status = _post_json(url_txt, payload_txt, tentativa)
                 if ok:
+                    logger.info(
+                        "Envio de futebol concluído | grupo=%s imagens=%d",
+                        grupo_nome,
+                        imagens_enviadas
+                    )
                     _log_ok()
                     break
                 _log_fail(tentativa, status, err)
                 time.sleep(random.uniform(20, 30))
         elif imagens_enviadas == 0:
+            logger.warning(
+                "Nenhuma imagem enviada com sucesso | pasta=%s grupo=%s",
+                subdir_dia,
+                grupo_nome
+            )
             _log_fail(1, -1, f"Nenhuma imagem enviada com sucesso em /images/{subdir_dia}. Texto final não será enviado.")
         return
 
@@ -358,6 +417,7 @@ def mensagem_gp_wpp(
     api_user = getattr(django_user, "username", str(django_user))
 
     if tipo_envio not in {"grupo_vendas", "grupo_futebol"}:
+        logger.error("Tipo de envio inválido | tipo=%s", tipo_envio)
         registrar_log(
             TEMPLATE_LOG_MSG_GRUPO_FALHOU.format(
                 ts, tipo_envio.upper(), api_user, "N/A", "N/A", 1,
@@ -367,9 +427,21 @@ def mensagem_gp_wpp(
         )
         return
 
+    logger.info(
+        "Iniciando envio para grupos | tipo=%s grupos_buscados=%s",
+        tipo_envio,
+        nomes_grupos
+    )
+
     try:
         grupos_encontrados = get_group_ids_by_names(token, api_user, nomes_grupos, log_path=LOG_GRUPOS)
     except Exception as e:
+        logger.error(
+            "Falha ao buscar grupos | tipo=%s erro=%s",
+            tipo_envio,
+            str(e),
+            exc_info=True
+        )
         registrar_log(
             TEMPLATE_LOG_MSG_GRUPO_FALHOU.format(
                 ts, tipo_envio.upper(), api_user, "N/A", "N/A", 1,
@@ -380,6 +452,11 @@ def mensagem_gp_wpp(
         return
 
     if not grupos_encontrados:
+        logger.warning(
+            "Nenhum grupo encontrado | tipo=%s nomes_buscados=%s",
+            tipo_envio,
+            nomes_grupos
+        )
         registrar_log(
             TEMPLATE_LOG_MSG_GRUPO_FALHOU.format(
                 ts, tipo_envio.upper(), api_user, "N/A", "N/A", 1,
@@ -388,6 +465,12 @@ def mensagem_gp_wpp(
             LOG_GRUPOS,
         )
         return
+
+    logger.info(
+        "Grupos encontrados | tipo=%s quantidade=%d",
+        tipo_envio,
+        len(grupos_encontrados)
+    )
 
     vendas_img = None
     if tipo_envio == "grupo_vendas":

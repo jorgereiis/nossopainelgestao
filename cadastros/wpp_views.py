@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.utils.timezone import localtime
 
 from cadastros.models import SecretTokenAPI, SessaoWpp
+from cadastros.services.logging_config import get_logger
 from wpp.api_connection import (
     check_connection,
     close_session,
@@ -21,6 +22,9 @@ from wpp.api_connection import (
     start_session,
     status_session,
 )
+
+# Configuração do logger com rotação automática
+logger = get_logger(__name__, log_file="logs/WhatsApp/wpp_views.log")
 
 
 @login_required
@@ -36,7 +40,6 @@ def conectar_wpp(request):
 
     Requer requisição POST e retorna resposta JSON sobre o progresso da conexão.
     """
-    timestamp = localtime().strftime("%d-%m-%Y %H:%M:%S")
     func_name = inspect.currentframe().f_code.co_name
     if request.method != "POST":
         return JsonResponse({"erro": "Método não permitido."}, status=405)
@@ -48,26 +51,58 @@ def conectar_wpp(request):
         user_admin = User.objects.get(is_superuser=True)
         secret = SecretTokenAPI.objects.get(usuario=user_admin).token
     except (User.DoesNotExist, SecretTokenAPI.DoesNotExist):
+        logger.error(
+            "Token secreto de integração não encontrado | func=%s usuario=%s",
+            func_name,
+            usuario
+        )
         return JsonResponse({"erro": "Token secreto de integração não encontrado."}, status=500)
 
     sessao_existente = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
     if sessao_existente:
         token = sessao_existente.token
-        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Token reutilizado para sessão '{session}'")
+        logger.info(
+            "Token reutilizado | func=%s usuario=%s session=%s",
+            func_name,
+            usuario,
+            session
+        )
     else:
         token_data, token_status = gerar_token(session, secret)
         if token_status != 201:
+            logger.error(
+                "Falha ao gerar token | func=%s usuario=%s session=%s status=%d",
+                func_name,
+                usuario,
+                session,
+                token_status
+            )
             return JsonResponse({"erro": "Falha ao gerar token de autenticação."}, status=400)
         token = token_data["token"]
-        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Novo token gerado para sessão '{session}'")
+        logger.info(
+            "Novo token gerado | func=%s usuario=%s session=%s",
+            func_name,
+            usuario,
+            session
+        )
 
     init_data, _ = start_session(session, token)
-    print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Resposta inicial de start-session: {init_data}")
+    logger.debug(
+        "Resposta de start-session | func=%s usuario=%s data=%s",
+        func_name,
+        usuario,
+        init_data
+    )
 
     status_data, status_code = status_session(session, token)
     status = status_data.get("status")
     if status == "CONNECTED":
-        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Sessão '{session}' já está conectada.")
+        logger.info(
+            "Sessão já conectada | func=%s usuario=%s session=%s",
+            func_name,
+            usuario,
+            session
+        )
         SessaoWpp.objects.update_or_create(
             usuario=session,
             defaults={
@@ -83,12 +118,24 @@ def conectar_wpp(request):
     for tentativa in range(max_tentativas):
         status_data, status_code = status_session(session, token)
         status = status_data.get("status")
-        print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Tentativa {tentativa + 1}: status = {status}")
+        logger.debug(
+            "Aguardando QRCode | func=%s usuario=%s tentativa=%d/%d status=%s",
+            func_name,
+            usuario,
+            tentativa + 1,
+            max_tentativas,
+            status
+        )
         if status == "QRCODE":
             break
         time.sleep(intervalo_segundos)
     else:
-        print(f"[{timestamp}] [{func_name}] [{usuario}] [ERRO] QRCode não gerado após {max_tentativas} tentativas.")
+        logger.error(
+            "QRCode não gerado | func=%s usuario=%s tentativas=%d",
+            func_name,
+            usuario,
+            max_tentativas
+        )
         return JsonResponse(
             {
                 "erro": "Não foi possível gerar QRCode. Tente novamente em instantes.",
@@ -105,7 +152,12 @@ def conectar_wpp(request):
             "is_active": True,
         },
     )
-    print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Sessão '{session}' salva com sucesso.")
+    logger.info(
+        "Sessão salva com sucesso | func=%s usuario=%s session=%s",
+        func_name,
+        usuario,
+        session
+    )
 
     return JsonResponse(
         {"qrcode": status_data.get("qrcode"), "status": status_data.get("status"), "session": session, "token": token}
@@ -184,7 +236,6 @@ def cancelar_sessao_wpp(request):
 
     Ideal para casos em que a API está instável, mas a sessão precisa ser resetada.
     """
-    timestamp = localtime().strftime("%d-%m-%Y %H:%M:%S")
     func_name = inspect.currentframe().f_code.co_name
 
     if request.method != "POST":
@@ -195,6 +246,11 @@ def cancelar_sessao_wpp(request):
 
     sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
     if not sessao:
+        logger.warning(
+            "Sessão não encontrada para cancelamento | func=%s usuario=%s",
+            func_name,
+            usuario
+        )
         return JsonResponse({"erro": "Sessão não encontrada"}, status=404)
 
     token = sessao.token
@@ -202,7 +258,12 @@ def cancelar_sessao_wpp(request):
         resp_data, resp_status = close_session(session, token)
 
         if isinstance(resp_data, dict) and "status" in resp_data:
-            print(f"[{timestamp}] [INFO] [{func_name}] [{usuario}] Resposta ao fechar sessão: {resp_data}")
+            logger.info(
+                "Sessão cancelada | func=%s usuario=%s status=%s",
+                func_name,
+                usuario,
+                resp_data.get("status")
+            )
 
             sessao.is_active = False
             sessao.save()
@@ -219,5 +280,11 @@ def cancelar_sessao_wpp(request):
         raise ValueError("Resposta da API não é um JSON válido")
 
     except Exception as exc:  # noqa: BLE001
-        print(f"[{timestamp}] [{func_name}] [{usuario}] [ERRO] Exceção ao cancelar sessão: {exc}")
+        logger.error(
+            "Exceção ao cancelar sessão | func=%s usuario=%s erro=%s",
+            func_name,
+            usuario,
+            str(exc),
+            exc_info=True
+        )
         return JsonResponse({"erro": "Erro interno ao cancelar sessão", "detalhes": str(exc)}, status=500)

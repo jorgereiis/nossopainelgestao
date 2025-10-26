@@ -49,7 +49,9 @@ def acquire_scheduler_lock():
         # Outra instância já está rodando
         return None
     except Exception as e:
-        print(f"[ERRO] Falha ao adquirir lock: {e}")
+        # Usa print aqui pois logger ainda não está configurado neste ponto
+        import sys
+        print(f"[ERRO] Falha ao adquirir lock: {e}", file=sys.stderr)
         return None
 
 def release_scheduler_lock():
@@ -187,8 +189,9 @@ schedule.every(1).minutes.do(run_threaded_sync_nolog, executar_envios_agendados_
 
 # --------------- Verificação de Lock de Instância Única ---------------
 if not acquire_scheduler_lock():
-    print(f"[BLOQUEADO] Outra instância do scheduler já está em execução.")
-    print(f"[INFO] Verifique o arquivo {LOCK_FILE} para detalhes.")
+    # Logger já está configurado neste ponto, mas usa sys.stderr para garantir visibilidade
+    logger.critical("BLOQUEADO: Outra instância do scheduler já está em execução.")
+    logger.info("Verifique o arquivo %s para detalhes.", LOCK_FILE)
     sys.exit(0)
 
 logger.info("Scheduler iniciado.")

@@ -1,6 +1,8 @@
 import os
 import django
 import threading
+import requests
+from datetime import datetime
 from django.utils.timezone import now, localtime
 
 # Definir a variável de ambiente para o Django
@@ -9,29 +11,19 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 # Inicializar o ambiente Django para acesso aos modelos
 django.setup()
 
-import requests
-from datetime import datetime
+from cadastros.services.logging_config import get_m3u8_logger
+
+# Configuração do logger centralizado com rotação automática
+logger = get_m3u8_logger()
 
 # Variáveis de ambiente e caminhos de arquivos
 URL_M3U8 = os.getenv("URL_M3U8")
-NOME_SCRIPT = "COMPARAR M3U8"
 LISTA_ATUAL = "archives/M3U8/lista_atual.m3u8"
 LISTA_ANTERIOR = "archives/M3U8/lista_anterior.m3u8"
 LISTA_NOVOS = "archives/M3U8/novos.txt"
-LOG_FILE = "logs/M3U8/comparar_m3u8.log"
-THREAD_LOG = "logs/M3U8/comparar_m3u8_thread.log"
 
-# Criar diretórios necessários para salvar os arquivos e logs (se ainda não existirem)
+# Criar diretórios necessários para salvar os arquivos (se ainda não existirem)
 os.makedirs(os.path.dirname(LISTA_ATUAL), exist_ok=True)
-os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-
-# Função para registrar mensagens no arquivo de log principal
-def registrar_log(mensagem, log_file):
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    print(f"[{timestamp}] [{NOME_SCRIPT}] {mensagem}")
-    
-    with open(log_file, "a", encoding="utf-8") as log:
-        log.write(f"[{timestamp}] {mensagem}\n")
 
 # Função para baixar a lista M3U8 da URL configurada
 def baixar_lista():
@@ -44,11 +36,11 @@ def baixar_lista():
         with open(LISTA_ATUAL, "w", encoding="utf-8") as f:
             f.write(response.text)
 
-        registrar_log("[SUCESSO] Lista M3U8 baixada com sucesso.", LOG_FILE)
+        logger.info("Lista M3U8 baixada com sucesso")
         return True
 
     except Exception as e:
-        registrar_log(f"[ERRO] Falha ao baixar a lista M3U8: {e}", LOG_FILE)
+        logger.error("Falha ao baixar lista M3U8 | erro=%s", str(e))
         return False
 
 # Função auxiliar para extrair linhas com "#EXTINF" da lista M3U8
@@ -60,7 +52,7 @@ def extrair_extinf(arquivo):
 def comparar_listas():
     if not os.path.exists(LISTA_ANTERIOR):
         # Primeira execução: não há lista anterior para comparar
-        registrar_log("[INFO] Nenhuma lista anterior encontrada. Esta será usada como referência inicial.", LOG_FILE)
+        logger.info("Nenhuma lista anterior encontrada | acao=criando_referencia_inicial")
         os.rename(LISTA_ATUAL, LISTA_ANTERIOR)
         return
 
@@ -71,7 +63,7 @@ def comparar_listas():
 
     if novos:
         # Conteúdos novos foram detectados
-        registrar_log(f"[INFO] Novos conteúdos identificados: {len(novos)}", LOG_FILE)
+        logger.info("Novos conteúdos identificados | quantidade=%d", len(novos))
 
         # Salva os novos conteúdos detectados
         with open(LISTA_NOVOS, "w", encoding="utf-8") as f:
@@ -82,16 +74,16 @@ def comparar_listas():
         os.remove(LISTA_ANTERIOR)
         os.rename(LISTA_ATUAL, LISTA_ANTERIOR)
 
-        registrar_log("[INFO] Lista anterior substituída com a nova.", LOG_FILE)
+        logger.info("Lista anterior substituída com a nova")
 
     else:
         # Nenhuma mudança detectada
-        registrar_log("[INFO] Nenhum conteúdo novo encontrado.", LOG_FILE)
+        logger.info("Nenhum conteúdo novo encontrado")
         os.remove(LISTA_ATUAL)
 
 # Função principal para baixar e comparar a lista
 def executar_comparar_lista_m3u8():
-    registrar_log("[INIT] Iniciando comparação de listas M3U8.", LOG_FILE)
+    logger.info("Iniciando comparação de listas M3U8")
     if baixar_lista():
         comparar_listas()
 
@@ -106,12 +98,13 @@ executar_comparar_lista_m3u8_lock = threading.Lock()
 def executar_comparar_lista_m3u8_com_lock():
     if executar_comparar_lista_m3u8_lock.locked():
         # Se já estiver em execução, não executa novamente
-        registrar_log("[IGNORADO] Execução ignorada — processo ainda em andamento\n", THREAD_LOG)
+        logger.warning("Execução ignorada | motivo=processo_em_andamento funcao=executar_comparar_lista_m3u8")
         return
 
     # Executa com lock para garantir exclusividade
     with executar_comparar_lista_m3u8_lock:
         inicio = datetime.now()
+        logger.info("Iniciando execução com lock | funcao=executar_comparar_lista_m3u8")
         executar_comparar_lista_m3u8()
         fim = datetime.now()
 
@@ -119,6 +112,6 @@ def executar_comparar_lista_m3u8_com_lock():
         minutos = duracao // 60
         segundos = duracao % 60
 
-        registrar_log(f"[END] Tempo de execução: {int(minutos)} min {segundos:.1f} s\n", THREAD_LOG)
+        logger.info("Execução finalizada | funcao=executar_comparar_lista_m3u8 duracao=%dmin %.1fs", int(minutos), segundos)
 
 ##### FIM #####

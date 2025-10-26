@@ -224,19 +224,19 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ plano.id }}">
                               <li>
-                                <button class="dropdown-item d-flex align-items-center py-2"
+                                <button class="dropdown-item dropdown-action-edit"
                                   data-servidor="{{plano.id}}"
                                   data-nome="{{plano.nome}}"
                                   data-telas="{{plano.telas}}"
                                   data-valor="{{plano.valor|floatformat:'-0'}}"
                                   onclick="exibirModalEdicao(this)">
-                                  <i class="bi bi-pencil me-2 text-warning"></i>
+                                  <i class="bi bi-pencil me-2"></i>
                                   <span>Editar Plano</span>
                                 </button>
                               </li>
                               <li><hr class="dropdown-divider"></li>
                               <li>
-                                <button class="dropdown-item d-flex align-items-center py-2 text-danger"
+                                <button class="dropdown-item dropdown-action-delete"
                                   data-plano="{{plano.id}}"
                                   data-nome="{{plano.nome}}"
                                   onclick="exibirModalConfirmacaoExclusao(this)">

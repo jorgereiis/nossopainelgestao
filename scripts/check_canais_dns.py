@@ -15,6 +15,10 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 django.setup()
 
 from cadastros.models import DominiosDNS, SessaoWpp, User
+from cadastros.services.logging_config import get_dns_logger
+
+# Configuração do logger com rotação automática
+logger = get_dns_logger()
 
 __version__ = "2.2.0"
 
@@ -32,12 +36,8 @@ URL_API_WPP = os.getenv("URL_API_WPP")
 WPP_TELEFONE = os.getenv("MEU_NUM_TIM")
 ADM_ENVIA_ALERTAS = os.getenv("NUM_MONITOR")
 
-ERROR_LOG = "logs/error.log"
-LOG_FILE = "logs/DNS/consultas_dns.log"
-THREAD_LOG = "logs/DNS/run_dns_thread.log"
+# Arquivos de log consolidados (com rotação automática via logger centralizado)
 STATUS_SNAPSHOT_FILE = "logs/DNS/snapshots_dns.pkl"
-LOG_FILE_ENVIOS = "logs/DNS/envio_pv_notificacoes.log"
-LOG_FILE_GRUPOS_WHATSAPP = "logs/DNS/envio_gp_notificacoes.log"
 
 USER_ADMIN = User.objects.get(is_superuser=True)
 sessao_wpp = SessaoWpp.objects.get(usuario=USER_ADMIN)
@@ -45,15 +45,11 @@ WPP_USER = sessao_wpp.usuario
 WPP_TOKEN = sessao_wpp.token
 
 # --- Inicialização de diretórios ---
-os.makedirs(os.path.dirname(ERROR_LOG), exist_ok=True)
-os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-os.makedirs(os.path.dirname(THREAD_LOG), exist_ok=True)
-os.makedirs(os.path.dirname(LOG_FILE_ENVIOS), exist_ok=True)
 os.makedirs(os.path.dirname(STATUS_SNAPSHOT_FILE), exist_ok=True)
 
 # --- Verificação de variáveis obrigatórias ---
 if not all([USERNAME, PASSWORD, URL_API_WPP, WPP_TELEFONE, WPP_USER, WPP_TOKEN]):
-    print("[ERROR] Variáveis obrigatórias não definidas.")
+    logger.critical("Variáveis obrigatórias não definidas")
     sys.exit(1)
 
 HEADERS = {
@@ -65,33 +61,6 @@ HEADERS = {
 ############################################################
 #################### FUNÇÕES AUXILIARES ####################
 ############################################################
-
-# --- Logger ---
-def registrar_log(mensagem, arquivo=LOG_FILE, titulo_destacado=None, titulo_m3u_parcial=None, titulo_inicio_fim=None, limitar_linhas=False):
-    """
-    Escreve mensagem no log, opcionalmente com título, bloco de alerta e limitação de linhas.
-    """
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    linhas = str(mensagem).splitlines()
-    if limitar_linhas:
-        linhas = linhas[:MAX_LINHAS_QTD]
-
-    try:
-        with open(arquivo, "a", encoding="utf-8") as log:
-            if titulo_destacado:
-                log.write(f"[{timestamp}] {titulo_destacado}\n")
-            if titulo_m3u_parcial:
-                log.write(f"[{timestamp}]   📄 {titulo_m3u_parcial} (até {MAX_LINHAS_QTD} linhas):\n")
-            for i, linha in enumerate(linhas):
-                log.write(f"[{timestamp}]   {linha}\n")
-            if limitar_linhas and len(mensagem.splitlines()) > MAX_LINHAS_QTD:
-                log.write(f"[{timestamp}]   ... (demais linhas omitidas)\n")
-            if titulo_inicio_fim:
-                log.write(f"[{timestamp}]{titulo_inicio_fim}\n")
-
-    except Exception as e:
-        import sys
-        print(f"[ERROR] Erro ao gravar log: {e}", file=sys.stderr)
 
 
 # --- Envio de mensagens via WPPConnect ---
@@ -109,9 +78,9 @@ def enviar_mensagem(telefone, mensagem, usuario, token, is_group=False):
         time.sleep(delay_envio)
         response = requests.post(url, json=body, headers=headers_envio, timeout=30)
         response.raise_for_status()
-        registrar_log(f"[OK] Mensagem enviada para contato informado.", LOG_FILE_ENVIOS)
+        logger.info("Mensagem enviada | telefone=%s is_group=%s", telefone, is_group)
     except Exception as e:
-        registrar_log(f"[ERRO] Envio para contato falhou => {e}", LOG_FILE_ENVIOS)
+        logger.error("Envio falhou | telefone=%s erro=%s", telefone, str(e))
 
 
 # --- Gera um snapshot de status atual dos domínios ---
@@ -196,8 +165,7 @@ def validar_dominio(dominio, nome_servidor):
     password = PASSWORD.get(nome_servidor_padrao)
 
     url = f"{dominio.rstrip('/')}/get.php?username={username}&password={password}&type=m3u_plus&output=m3u8"
-    registrar_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    registrar_log("", titulo_destacado=f"🌍 INICIANDO: {dominio} ({nome_servidor})")
+    logger.info("Iniciando validação | dominio=%s servidor=%s", dominio, nome_servidor)
 
     tempo_inicio = time.time()
     for i in range(tentativas):
@@ -217,7 +185,15 @@ def validar_dominio(dominio, nome_servidor):
                     break
             tempo = time.time() - inicio
             tempos.append(tempo)
-            registrar_log(f"🕓 Tentativa {i+1}: status {r.status_code}, tempo da requisição {tempo:.2f}s, #EXTINF encontrado: {encontrou_extinf}")
+            logger.debug(
+                "Tentativa de validação | dominio=%s tentativa=%d/%d status=%d tempo=%.2fs extinf=%s",
+                dominio,
+                i+1,
+                tentativas,
+                r.status_code,
+                tempo,
+                encontrou_extinf
+            )
 
             if r.status_code == 200 and encontrou_extinf and tempo < resposta_tempo_max:
                 respostas_ok += 1
@@ -225,30 +201,61 @@ def validar_dominio(dominio, nome_servidor):
         except requests.exceptions.ConnectTimeout:
             tempos.append(None)
             status_codes.append('ConnectTimeout')
-            registrar_log(f"⚠️ Tentativa {i+1}: TIMEOUT na conexão (5s)")
+            logger.warning(
+                "Timeout na conexão | dominio=%s tentativa=%d/%d",
+                dominio,
+                i+1,
+                tentativas
+            )
         except requests.exceptions.ReadTimeout:
             tempos.append(None)
             status_codes.append('ReadTimeout')
-            registrar_log(f"⚠️ Tentativa {i+1}: TIMEOUT ao ler resposta (10s)")
+            logger.warning(
+                "Timeout ao ler resposta | dominio=%s tentativa=%d/%d",
+                dominio,
+                i+1,
+                tentativas
+            )
         except requests.exceptions.Timeout:
             tempos.append(None)
             status_codes.append('Timeout')
-            registrar_log(f"⚠️ Tentativa {i+1}: TIMEOUT geral")
+            logger.warning(
+                "Timeout geral | dominio=%s tentativa=%d/%d",
+                dominio,
+                i+1,
+                tentativas
+            )
         except Exception as e:
             tempos.append(None)
             status_codes.append(str(e))
-            registrar_log(f"❌ Tentativa {i+1}: Erro inesperado: {repr(e)}")
+            logger.error(
+                "Erro inesperado na validação | dominio=%s tentativa=%d/%d erro=%s",
+                dominio,
+                i+1,
+                tentativas,
+                repr(e)
+            )
             erro = str(e)
 
     tempo_total = time.time() - tempo_inicio
     online = respostas_ok >= respostas_ok_min
-    registrar_log(f"🔁 Tentativas bem-sucedidas: {respostas_ok}/{tentativas}")
-    registrar_log(f"⏱️ Tempo total: {tempo_total:.2f}s")
+
     if online:
-        registrar_log("", titulo_destacado=f"✅ ONLINE!!")
+        logger.info(
+            "Domínio ONLINE | dominio=%s tentativas_ok=%d/%d tempo_total=%.2fs",
+            dominio,
+            respostas_ok,
+            tentativas,
+            tempo_total
+        )
     else:
-        registrar_log("", titulo_destacado=f"🔻 OFFLINE!!")
-    registrar_log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+        logger.warning(
+            "Domínio OFFLINE | dominio=%s tentativas_ok=%d/%d tempo_total=%.2fs",
+            dominio,
+            respostas_ok,
+            tentativas,
+            tempo_total
+        )
     time.sleep(random.randint(10, 20))
 
     return {
@@ -271,13 +278,13 @@ def validar_dominio(dominio, nome_servidor):
 
 def check_dns_canais():
     time.sleep(random.randint(10, 20))
-    registrar_log("", titulo_inicio_fim=f"[INIT] Checagem de status de domínios DNS.")
-    print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [INIT] Checagem de status de domínios DNS.")
+    logger.info("Iniciando checagem de status de domínios DNS")
     inicio_global = time.time()
 
     # Obtém todos os grupos e extrai IDs dos grupos desejados para envio
     grupos = get_all_groups(WPP_TOKEN, sessao_wpp)
-    grupos_envio = get_ids_grupos_envio(grupos, ADM_ENVIA_ALERTAS, LOG_FILE_GRUPOS_WHATSAPP)
+    # Nota: log_path não é mais necessário pois get_ids_grupos_envio usa logger interno
+    grupos_envio = get_ids_grupos_envio(grupos, ADM_ENVIA_ALERTAS, None)
 
     # Pega todos os domínios do sistema (online e offline) ordenados por Servidor
     dominios = DominiosDNS.objects.filter(monitorado=True).order_by("servidor")
@@ -313,12 +320,19 @@ def check_dns_canais():
                     # Envia notificação para grupos no WPP, se houver ID válido obtido;
                     for group_id, group_name in grupos_envio:
                         enviar_mensagem(group_id, mensagem, WPP_USER, WPP_TOKEN, is_group=True)
-                        registrar_log("", titulo_destacado=f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS ONLINE {dominio.dominio}")
+                        logger.info(
+                            "Alerta enviado para grupo | tipo=DNS_ONLINE grupo=%s dominio=%s",
+                            group_name,
+                            dominio.dominio
+                        )
 
                 if WPP_TELEFONE:
                     # Envia mensagem para contato privado no WPP, se houver número definido;
                     enviar_mensagem(WPP_TELEFONE, mensagem, WPP_USER, WPP_TOKEN, is_group=False)
-                    registrar_log("", titulo_destacado=f"🚨 [PRIVADO] ALERTA enviado: DNS ONLINE {dominio.dominio}")
+                    logger.info(
+                        "Alerta enviado (privado) | tipo=DNS_ONLINE dominio=%s",
+                        dominio.dominio
+                    )
 
                 # Atualiza status para online;
                 dominio.status = "online"
@@ -345,11 +359,18 @@ def check_dns_canais():
                 if grupos_envio:
                     for group_id, group_name in grupos_envio:
                         enviar_mensagem(group_id, mensagem, WPP_USER, WPP_TOKEN, is_group=True)
-                        registrar_log("", titulo_destacado=f"🚨 [GRUPO] ALERTA enviado para '{group_name}': DNS OFFLINE {dominio.dominio}")
+                        logger.warning(
+                            "Alerta enviado para grupo | tipo=DNS_OFFLINE grupo=%s dominio=%s",
+                            group_name,
+                            dominio.dominio
+                        )
 
                 if WPP_TELEFONE:
                     enviar_mensagem(WPP_TELEFONE, mensagem, WPP_USER, WPP_TOKEN, is_group=False)
-                    registrar_log(f"🚨 [PRIVADO] ALERTA enviado: DNS OFFLINE {dominio.dominio}")
+                    logger.warning(
+                        "Alerta enviado (privado) | tipo=DNS_OFFLINE dominio=%s",
+                        dominio.dominio
+                    )
 
                 # Atualiza status para offline
                 dominio.status = "offline"
@@ -360,25 +381,24 @@ def check_dns_canais():
             elif status_anterior == "offline":
                 # Se já estava offline, só registra a verificação
                 dominio.save(update_fields=["data_ultima_verificacao"])
-                registrar_log("", titulo_destacado=f"❌ DNS offline: {dominio.dominio}")
+                logger.info("DNS continua offline | dominio=%s", dominio.dominio)
 
-            # Registra em log resultados detalhados em log;
-            log_msg = (
-                f"[SUCCESS] {success}\n"
-                f"[TEMPOS] {tempos}\n"
-                f"[STATUS_CODES] {status_codes}\n"
-                f"[TENTATIVAS] {tentativas}\n"
-                f"[ERROR] {error_msg}\n"
-                f"[SERVIDOR] {servidor}\n"
-                f"[DOMINIO] {dominio.dominio}\n"
-                f"[USERNAME] {username}\n"
-                f"[PASSWORD] {str(password)[:3] + '***' if password != 'N/A' else password}\n"
+            # Registra resultados detalhados em log
+            logger.debug(
+                "Detalhes da validação | success=%s dominio=%s servidor=%s username=%s "
+                "tempos=%s status_codes=%s tentativas=%s erro=%s",
+                success,
+                dominio.dominio,
+                servidor,
+                username,
+                tempos,
+                status_codes,
+                tentativas,
+                error_msg
             )
-            registrar_log(log_msg)
 
     fim_global = time.time()
-    registrar_log("", titulo_inicio_fim=f"[END] Checagem de status de domínios DNS concluída em: {fim_global-inicio_global:.2f}s\n")
-    print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [END] Checagem de status de domínios DNS concluída em: {fim_global-inicio_global:.2f}s\n")
+    logger.info("Checagem de DNS concluída | duracao=%.2fs", fim_global - inicio_global)
 
 ##################################################################################
 ##### LOCK PARA EVITAR EXECUÇÃO SIMULTÂNEA DA FUNÇÃO PROCESSAR_NOVOS_TITULOS #####
@@ -389,11 +409,12 @@ executar_check_dns_canais_lock = threading.Lock()
 def executar_check_canais_dns_com_lock():
 
     if executar_check_dns_canais_lock.locked():
-        registrar_log("[IGNORADO] Execução de CHECK_DNS_CANAIS ignorada — processo ainda em andamento.", THREAD_LOG)
+        logger.warning("Execução ignorada | motivo=processo_em_andamento funcao=check_dns_canais")
         return
 
     with executar_check_dns_canais_lock:
         inicio = localtime()
+        logger.info("Iniciando execução com lock | funcao=check_dns_canais")
         check_dns_canais()
         fim = localtime()
 
@@ -401,5 +422,9 @@ def executar_check_canais_dns_com_lock():
         minutos = duracao // 60
         segundos = duracao % 60
 
-        registrar_log(f"[END] Tempo de execução da CHECK_DNS_CANAIS: {int(minutos)} min {segundos:.1f} s", THREAD_LOG)
+        logger.info(
+            "Execução finalizada | funcao=check_dns_canais duracao=%dmin %.1fs",
+            int(minutos),
+            segundos
+        )
 ##### FIM #####

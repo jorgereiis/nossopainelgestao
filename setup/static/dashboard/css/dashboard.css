@@ -632,25 +632,36 @@
     transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-#myTable tbody .dropdown button:hover {
-    background-color: #9181fa !important;
-    transform: scale(1.1);
-    box-shadow: 0 2px 8px rgba(98, 75, 255, 0.3);
-}
+/* ===== DROPDOWN DA TABELA - ESTILO PREMIUM ===== */
 
-#myTable tbody .dropdown button:hover i {
-    color: white !important;
-}
-
-/* Menu dropdown - sem animação de movimento */
+/* Menu dropdown com design moderno */
 #myTable .dropdown-menu {
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    min-width: 220px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    padding: 0.5rem 0;
+    margin-top: 4px;
+    overflow: hidden;
     z-index: 9999 !important;
 }
 
-/* Garantir z-index máximo quando dropdown está aberto */
-#myTable .table-dropdown-actions .dropdown-menu {
+/* Animação de fade-in ao abrir */
+#myTable .dropdown-menu.show {
+    animation: tableDropdownFadeIn 0.2s ease-out;
     z-index: 10000 !important;
+}
+
+@keyframes tableDropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Posicionamento correto do dropdown */
@@ -658,21 +669,7 @@
     position: relative;
 }
 
-/* Items do dropdown com hover - suave e discreto */
-#myTable .dropdown-item {
-    transition: background-color 0.2s ease;
-    border-radius: 0.25rem;
-}
-
-#myTable .dropdown-item:hover,
-#myTable .dropdown-item:focus {
-    background-color: rgba(98, 75, 255, 0.03) !important;
-    color: inherit !important;
-}
-
-#myTable .dropdown-item:active {
-    background-color: rgba(98, 75, 255, 0.06) !important;
-}
+/* REMOVIDO: Estilos movidos para .table-dropdown-item (linha ~1332) */
 
 /* Badge de dispositivo responsivo */
 #myTable .badge.bg-light {
@@ -707,8 +704,13 @@
 
 /* Espaçamento otimizado das células */
 #myTable tbody td {
-    padding: 1rem 0.75rem;
+    padding: 0.65rem 0.75rem;
     vertical-align: middle;
+}
+
+/* Centralizar cabeçalhos da tabela */
+#myTable thead th {
+    text-align: center !important;
 }
 
 /* Indicador de status vencido pulsante */
@@ -752,46 +754,28 @@
     box-shadow: 0 4px 16px rgba(98, 75, 255, 0.25);
 }
 
-/* Botão de ações com animação */
-#servidoresTable tbody .dropdown button {
-    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-}
+/* Botão de ações com animação - já incluído no bloco compartilhado abaixo */
+/* (ver linhas ~868-902 para estilos compartilhados) */
 
-#servidoresTable tbody .dropdown button:hover {
-    background-color: #624BFF !important;
-    transform: scale(1.08);
-    box-shadow: 0 3px 10px rgba(98, 75, 255, 0.3);
-}
-
-#servidoresTable tbody .dropdown button:hover i {
-    color: white !important;
-}
-
-/* Menu dropdown - sem animação de movimento */
+/* Menu dropdown - estilo premium */
 #servidoresTable .dropdown-menu {
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    min-width: 220px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    padding: 0.5rem 0;
+    margin-top: 4px;
+    overflow: hidden;
     z-index: 9999 !important;
 }
 
 #servidoresTable .dropdown-menu.show {
+    animation: tableDropdownFadeIn 0.2s ease-out;
     z-index: 10000 !important;
 }
 
-/* Items do dropdown com hover suave */
-#servidoresTable .dropdown-item {
-    transition: background-color 0.2s ease;
-    border-radius: 0.25rem;
-}
-
-#servidoresTable .dropdown-item:hover,
-#servidoresTable .dropdown-item:focus {
-    background-color: rgba(98, 75, 255, 0.03) !important;
-    color: inherit !important;
-}
-
-#servidoresTable .dropdown-item:active {
-    background-color: rgba(98, 75, 255, 0.06) !important;
-}
+/* REMOVIDO: Estilos movidos para .table-dropdown-item (linha ~1332) */
 
 /* Garantir que o dropdown sempre apareça sobre o card */
 #servidoresTable .dropdown {
@@ -856,32 +840,24 @@
 #aplicativosTable tbody .dropdown button,
 #dispositivosTable tbody .dropdown button,
 #planosTable tbody .dropdown button,
-#formasPgtoTable tbody .dropdown button {
+#formasPgtoTable tbody .dropdown button,
+#servidoresTable tbody .dropdown button {
     transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-#aplicativosTable tbody .dropdown button:hover,
-#dispositivosTable tbody .dropdown button:hover,
-#planosTable tbody .dropdown button:hover,
-#formasPgtoTable tbody .dropdown button:hover {
-    background-color: #624BFF !important;
-    transform: scale(1.08);
-    box-shadow: 0 3px 10px rgba(98, 75, 255, 0.3);
-}
-
-#aplicativosTable tbody .dropdown button:hover i,
-#dispositivosTable tbody .dropdown button:hover i,
-#planosTable tbody .dropdown button:hover i,
-#formasPgtoTable tbody .dropdown button:hover i {
-    color: white !important;
-}
-
-/* Menu dropdown - sem animação de movimento */
+/* Menu dropdown - estilo premium */
 #aplicativosTable .dropdown-menu,
 #dispositivosTable .dropdown-menu,
 #planosTable .dropdown-menu,
 #formasPgtoTable .dropdown-menu {
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    min-width: 220px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    padding: 0.5rem 0;
+    margin-top: 4px;
+    overflow: hidden;
     z-index: 9999 !important;
 }
 
@@ -889,36 +865,11 @@
 #dispositivosTable .dropdown-menu.show,
 #planosTable .dropdown-menu.show,
 #formasPgtoTable .dropdown-menu.show {
+    animation: tableDropdownFadeIn 0.2s ease-out;
     z-index: 10000 !important;
 }
 
-/* Items do dropdown */
-#aplicativosTable .dropdown-item,
-#dispositivosTable .dropdown-item,
-#planosTable .dropdown-item,
-#formasPgtoTable .dropdown-item {
-    transition: background-color 0.2s ease;
-    border-radius: 0.25rem;
-}
-
-#aplicativosTable .dropdown-item:hover,
-#aplicativosTable .dropdown-item:focus,
-#dispositivosTable .dropdown-item:hover,
-#dispositivosTable .dropdown-item:focus,
-#planosTable .dropdown-item:hover,
-#planosTable .dropdown-item:focus,
-#formasPgtoTable .dropdown-item:hover,
-#formasPgtoTable .dropdown-item:focus {
-    background-color: rgba(98, 75, 255, 0.03) !important;
-    color: inherit !important;
-}
-
-#aplicativosTable .dropdown-item:active,
-#dispositivosTable .dropdown-item:active,
-#planosTable .dropdown-item:active,
-#formasPgtoTable .dropdown-item:active {
-    background-color: rgba(98, 75, 255, 0.06) !important;
-}
+/* REMOVIDO: Estilos movidos para .table-dropdown-item (linha ~1332) */
 
 /* Posicionamento do dropdown */
 #aplicativosTable .dropdown,
@@ -1122,4 +1073,236 @@
     .cadastro-form-card .btn-lg {
         font-size: 1rem;
     }
+}
+
+/* ===== CLASSES ESPECÍFICAS PARA DROPDOWNS DE TABELAS ===== */
+/* Inspirada no estilo premium do header.html */
+/* Sobrescreve TODOS os estilos com !important e especificidade máxima */
+
+/* Base comum para todos os dropdown-items de tabelas */
+.dropdown-item.dropdown-action-view,
+.dropdown-item.dropdown-action-edit,
+.dropdown-item.dropdown-action-payment,
+.dropdown-item.dropdown-action-delete,
+button.dropdown-item.dropdown-action-view,
+button.dropdown-item.dropdown-action-edit,
+button.dropdown-item.dropdown-action-payment,
+button.dropdown-item.dropdown-action-delete {
+    padding: 0.75rem 1.5rem !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    border: none !important;
+    background-color: transparent !important;
+    background: transparent !important;
+    text-align: left !important;
+    font-size: 0.9375rem !important;
+    color: #334155 !important;
+    transition: all 0.2s ease !important;
+    position: relative !important;
+    cursor: pointer !important;
+    line-height: 1.5 !important;
+    text-decoration: none !important;
+    border-radius: 0 !important;
+}
+
+/* ===== AÇÃO: VER INFORMAÇÕES (Roxo) ===== */
+.dropdown-item.dropdown-action-view::before,
+button.dropdown-item.dropdown-action-view::before {
+    content: '' !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 3px !important;
+    background: #624bff !important;
+    transform: scaleY(0) !important;
+    transition: transform 0.2s ease !important;
+}
+
+.dropdown-item.dropdown-action-view:hover,
+.dropdown-item.dropdown-action-view:focus,
+.dropdown-item.dropdown-action-view:active,
+button.dropdown-item.dropdown-action-view:hover,
+button.dropdown-item.dropdown-action-view:focus,
+button.dropdown-item.dropdown-action-view:active {
+    background-color: #f1f5f9 !important;
+    background: #f1f5f9 !important;
+    color: #624bff !important;
+    padding-left: 1.75rem !important;
+    text-decoration: none !important;
+}
+
+.dropdown-item.dropdown-action-view:hover::before,
+.dropdown-item.dropdown-action-view:focus::before,
+button.dropdown-item.dropdown-action-view:hover::before,
+button.dropdown-item.dropdown-action-view:focus::before {
+    transform: scaleY(1) !important;
+}
+
+.dropdown-item.dropdown-action-view i,
+button.dropdown-item.dropdown-action-view i {
+    transition: all 0.2s ease !important;
+    opacity: 0.7 !important;
+    color: #475569 !important;
+}
+
+.dropdown-item.dropdown-action-view:hover i,
+.dropdown-item.dropdown-action-view:focus i,
+button.dropdown-item.dropdown-action-view:hover i,
+button.dropdown-item.dropdown-action-view:focus i {
+    opacity: 1 !important;
+    color: #624bff !important;
+}
+
+/* ===== AÇÃO: EDITAR INFORMAÇÕES (Roxo) ===== */
+.dropdown-item.dropdown-action-edit::before,
+button.dropdown-item.dropdown-action-edit::before {
+    content: '' !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 3px !important;
+    background: #624bff !important;
+    transform: scaleY(0) !important;
+    transition: transform 0.2s ease !important;
+}
+
+.dropdown-item.dropdown-action-edit:hover,
+.dropdown-item.dropdown-action-edit:focus,
+.dropdown-item.dropdown-action-edit:active,
+button.dropdown-item.dropdown-action-edit:hover,
+button.dropdown-item.dropdown-action-edit:focus,
+button.dropdown-item.dropdown-action-edit:active {
+    background-color: #f1f5f9 !important;
+    background: #f1f5f9 !important;
+    color: #624bff !important;
+    padding-left: 1.75rem !important;
+    text-decoration: none !important;
+}
+
+.dropdown-item.dropdown-action-edit:hover::before,
+.dropdown-item.dropdown-action-edit:focus::before,
+button.dropdown-item.dropdown-action-edit:hover::before,
+button.dropdown-item.dropdown-action-edit:focus::before {
+    transform: scaleY(1) !important;
+}
+
+.dropdown-item.dropdown-action-edit i,
+button.dropdown-item.dropdown-action-edit i {
+    transition: all 0.2s ease !important;
+    opacity: 0.7 !important;
+    color: #475569 !important;
+}
+
+.dropdown-item.dropdown-action-edit:hover i,
+.dropdown-item.dropdown-action-edit:focus i,
+button.dropdown-item.dropdown-action-edit:hover i,
+button.dropdown-item.dropdown-action-edit:focus i {
+    opacity: 1 !important;
+    color: #624bff !important;
+}
+
+/* ===== AÇÃO: REGISTRAR PAGAMENTO (Verde) ===== */
+.dropdown-item.dropdown-action-payment::before,
+button.dropdown-item.dropdown-action-payment::before {
+    content: '' !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 3px !important;
+    background: #16a34a !important;
+    transform: scaleY(0) !important;
+    transition: transform 0.2s ease !important;
+}
+
+.dropdown-item.dropdown-action-payment:hover,
+.dropdown-item.dropdown-action-payment:focus,
+.dropdown-item.dropdown-action-payment:active,
+button.dropdown-item.dropdown-action-payment:hover,
+button.dropdown-item.dropdown-action-payment:focus,
+button.dropdown-item.dropdown-action-payment:active {
+    background-color: #f1f5f9 !important;
+    background: #f1f5f9 !important;
+    color: #16a34a !important;
+    padding-left: 1.75rem !important;
+    text-decoration: none !important;
+}
+
+.dropdown-item.dropdown-action-payment:hover::before,
+.dropdown-item.dropdown-action-payment:focus::before,
+button.dropdown-item.dropdown-action-payment:hover::before,
+button.dropdown-item.dropdown-action-payment:focus::before {
+    transform: scaleY(1) !important;
+}
+
+.dropdown-item.dropdown-action-payment i,
+button.dropdown-item.dropdown-action-payment i {
+    transition: all 0.2s ease !important;
+    opacity: 0.7 !important;
+    color: #475569 !important;
+}
+
+.dropdown-item.dropdown-action-payment:hover i,
+.dropdown-item.dropdown-action-payment:focus i,
+button.dropdown-item.dropdown-action-payment:hover i,
+button.dropdown-item.dropdown-action-payment:focus i {
+    opacity: 1 !important;
+    color: #16a34a !important;
+}
+
+/* ===== AÇÃO: CANCELAR/DELETAR (Vermelho) ===== */
+.dropdown-item.dropdown-action-delete::before,
+button.dropdown-item.dropdown-action-delete::before {
+    content: '' !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 3px !important;
+    background: #dc3545 !important;
+    transform: scaleY(0) !important;
+    transition: transform 0.2s ease !important;
+}
+
+.dropdown-item.dropdown-action-delete:hover,
+.dropdown-item.dropdown-action-delete:focus,
+.dropdown-item.dropdown-action-delete:active,
+button.dropdown-item.dropdown-action-delete:hover,
+button.dropdown-item.dropdown-action-delete:focus,
+button.dropdown-item.dropdown-action-delete:active {
+    background-color: #fff5f5 !important;
+    background: #fff5f5 !important;
+    color: #b91c1c !important;
+    padding-left: 1.75rem !important;
+    text-decoration: none !important;
+}
+
+.dropdown-item.dropdown-action-delete:hover::before,
+.dropdown-item.dropdown-action-delete:focus::before,
+button.dropdown-item.dropdown-action-delete:hover::before,
+button.dropdown-item.dropdown-action-delete:focus::before {
+    transform: scaleY(1) !important;
+}
+
+.dropdown-item.dropdown-action-delete,
+button.dropdown-item.dropdown-action-delete {
+    color: #dc3545 !important;
+}
+
+.dropdown-item.dropdown-action-delete i,
+button.dropdown-item.dropdown-action-delete i {
+    transition: all 0.2s ease !important;
+    opacity: 0.7 !important;
+    color: #dc3545 !important;
+}
+
+.dropdown-item.dropdown-action-delete:hover i,
+.dropdown-item.dropdown-action-delete:focus i,
+button.dropdown-item.dropdown-action-delete:hover i,
+button.dropdown-item.dropdown-action-delete:focus i {
+    opacity: 1 !important;
+    color: #b91c1c !important;
 }

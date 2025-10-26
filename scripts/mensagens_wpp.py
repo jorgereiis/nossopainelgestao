@@ -16,8 +16,18 @@ import base64, mimetypes, re, time, random
 from django.db import transaction, IntegrityError
 import logging
 
-# Configuração do logger
-logger = logging.getLogger(__name__)
+# Adiciona o caminho para imports do novo sistema de logging
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Importa configuração centralizada de logging
+from cadastros.services.logging_config import get_logger
+from scripts.logging_utils import (
+    registrar_log_json_auditoria,
+    log_envio_mensagem,
+)
+
+# Configuração do logger com rotação automática
+logger = get_logger(__name__, log_file="logs/WhatsApp/mensagens_wpp.log")
 
 # Definir a variável de ambiente DJANGO_SETTINGS_MODULE
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
@@ -64,15 +74,10 @@ AUDIT_LOG_PATH = Path("logs/Audit/envios_wpp.log")
 def registrar_log_auditoria(evento: dict) -> None:
     """
     Persiste eventos de envio em um arquivo de auditoria estruturado.
+
+    NOTA: Esta função agora usa o sistema centralizado de logging.
     """
-    try:
-        AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        registro = dict(evento or {})
-        registro.setdefault("timestamp", localtime().strftime('%d-%m-%Y %H:%M:%S'))
-        with AUDIT_LOG_PATH.open("a", encoding="utf-8") as arquivo:
-            arquivo.write(json.dumps(registro, ensure_ascii=False) + "\n")
-    except Exception as exc:
-        logger.error("Erro ao registrar log de auditoria: %s", exc, exc_info=exc)
+    registrar_log_json_auditoria(AUDIT_LOG_PATH, evento, auto_timestamp=True)
 
 ##################################################################
 ################ FUNÇÃO PARA ENVIAR MENSAGENS ####################
@@ -140,7 +145,13 @@ def obter_mensalidades_a_vencer(usuario_query):
             cancelado=False
         )
 
-        print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
+        logger.info(
+            "Mensalidades a vencer | tipo=%s quantidade=%d data_ref=%s usuario=%s",
+            tipo_mensagem.upper(),
+            mensalidades.count(),
+            data_referencia.strftime('%d-%m-%Y'),
+            usuario_query
+        )
 
         for mensalidade in mensalidades:
             cliente = mensalidade.cliente
@@ -267,7 +278,14 @@ def obter_mensalidades_vencidas(usuario_query):
             cancelado=False
         )
 
-        print(f"[{localtime().strftime('%d-%m-%Y %H:%M:%S')}] [{tipo_mensagem.upper()}] QUANTIDADE DE ENVIOS: {mensalidades.count()}")
+        logger.info(
+            "Mensalidades vencidas | tipo=%s quantidade=%d dias_atraso=%d data_ref=%s usuario=%s",
+            tipo_mensagem.upper(),
+            mensalidades.count(),
+            dias,
+            data_referencia.strftime('%d-%m-%Y'),
+            usuario_query
+        )
 
         for mensalidade in mensalidades:
             cliente = mensalidade.cliente
@@ -367,10 +385,17 @@ def obter_mensalidades_canceladas():
         )
 
         qtd = mensalidades.count()
-        print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [CANCELADAS HÁ {qtd_dias} DIAS] QUANTIDADE DE ENVIOS: {qtd}")
+        logger.info(
+            "Mensalidades canceladas | dias_cancelamento=%d quantidade=%d usuario=%s",
+            qtd_dias,
+            qtd,
+            admin
+        )
 
         if not qtd:
-            print(f"Nenhum envio realizado para clientes cancelados há {qtd_dias} dias.")
+            logger.debug(
+                "Nenhum envio para clientes cancelados há %d dias", qtd_dias
+            )
             continue
 
         for mensalidade in mensalidades:
@@ -383,7 +408,7 @@ def obter_mensalidades_canceladas():
             try:
                 sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
             except SessaoWpp.DoesNotExist:
-                print(f"[ERRO] Sessão WPP não encontrada para '{usuario}'. Pulando...")
+                logger.warning("Sessão WPP não encontrada | usuario=%s", usuario)
                 registrar_log_auditoria({
                     "funcao": "obter_mensalidades_canceladas",
                     "status": "sessao_indisponivel",
@@ -428,7 +453,10 @@ def obter_mensalidades_canceladas():
 
             Cliente.objects.filter(mensalidade__id__in=ids).update(enviado_oferta_promo=True)
 
-            print(f"[ENVIO PROMO REALIZADO] {qtd} clientes atualizados para 'enviado_oferta_promo = True'")
+            logger.info(
+                "Envio promocional concluído | quantidade=%d atualizado_oferta_promo=True",
+                qtd
+            )
 ##### FIM #####
 
 
@@ -513,10 +541,15 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             if telefone.strip()
         ]
     else:
-        print(f"[ERRO] Tipo de envio desconhecido: {tipo_envio}")
+        logger.error("Tipo de envio desconhecido: %s", tipo_envio)
         return
 
     if not destinatarios:
+        logger.warning(
+            "Nenhum destinatário encontrado | tipo=%s usuario=%s",
+            tipo_envio,
+            usuario.username
+        )
         registrar_log_auditoria({
             "funcao": "envia_mensagem_personalizada",
             "status": "sem_destinatarios",
@@ -524,14 +557,23 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             "tipo_envio": tipo_envio,
         })
 
-    print(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] [ENVIO][{tipo_envio.upper()}] [QTD.][{len(destinatarios)}]")
+    logger.info(
+        "Iniciando envios personalizados | tipo=%s quantidade=%d usuario=%s",
+        tipo_envio.upper(),
+        len(destinatarios),
+        usuario.username
+    )
 
     for destinatario in destinatarios:
         telefone = destinatario["telefone"]
         cliente_nome = destinatario.get("cliente_nome")
         cliente_id = destinatario.get("cliente_id")
         if total_enviados >= LIMITE_ENVIO_DIARIO:
-            print(f"[LIMITE] Atingido o limite diário de {LIMITE_ENVIO_DIARIO} envios.")
+            logger.warning(
+                "Limite diário atingido | limite=%d enviados=%d",
+                LIMITE_ENVIO_DIARIO,
+                total_enviados
+            )
             registrar_log_auditoria({
                 "funcao": "envia_mensagem_personalizada",
                 "status": "limite_diario_atingido",
@@ -565,6 +607,12 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
                 data_envio__year=hoje.year,
                 data_envio__month=hoje.month
             ).exists():
+                logger.debug(
+                    "Envio ignorado (já enviado este mês) | telefone=%s tipo=%s usuario=%s",
+                    telefone,
+                    tipo_envio,
+                    usuario.username
+                )
                 registrar_log(f"[{hoje.strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já recebeu envio este mês (avulso)", usuario, DIR_LOGS_AGENDADOS)
                 registrar_log_auditoria({
                     "funcao": "envia_mensagem_personalizada",
@@ -594,6 +642,12 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
         # Validação via WhatsApp
         numero_existe = check_number_status(telefone, token, usuario)
         if not numero_existe:
+            logger.warning(
+                "Número não está no WhatsApp | telefone=%s usuario=%s tipo=%s",
+                telefone,
+                usuario.username,
+                tipo_envio
+            )
             registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ❌ Número inválido no WhatsApp", usuario, DIR_LOGS_AGENDADOS)
             registrar_log_auditoria({
                 "funcao": "envia_mensagem_personalizada",
@@ -606,12 +660,24 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             })
             if tipo_envio == 'avulso':
                 TelefoneLeads.objects.filter(telefone=telefone, usuario=usuario).delete()
+                logger.info(
+                    "Telefone deletado do banco (lead inválido) | telefone=%s usuario=%s",
+                    telefone,
+                    usuario.username
+                )
                 registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - 🗑️ Deletado do banco (avulso)", usuario, DIR_LOGS_AGENDADOS)
             continue
 
         # Obter mensagem personalizada
         message = obter_mensagem_personalizada(nome=nome_msg, tipo=tipo_envio, usuario=usuario)
         if not message:
+            logger.error(
+                "Falha ao gerar mensagem personalizada | nome_msg=%s tipo=%s telefone=%s usuario=%s",
+                nome_msg,
+                tipo_envio,
+                telefone,
+                usuario.username
+            )
             registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ❌ Falha ao gerar variação da mensagem", usuario, DIR_LOGS_AGENDADOS)
             registrar_log_auditoria({
                 "funcao": "envia_mensagem_personalizada",
@@ -747,7 +813,12 @@ def obter_img_base64(image_name: str, sub_directory: str) -> str:
         with open(image_path, 'rb') as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
-        print(f"[ERRO] Ao abrir imagem: {e}")
+        logger.error(
+            "Erro ao abrir imagem | imagem=%s subdir=%s erro=%s",
+            image_name,
+            sub_directory,
+            str(e)
+        )
         return None
 
 
@@ -773,7 +844,7 @@ def processa_telefones(usuario: User = None) -> str:
         return ','.join(numeros_limpos) if numeros_limpos else None
 
     except Exception as e:
-        print(f"[ERRO] processa_telefones(): {e}")
+        logger.error("Erro ao processar telefones | erro=%s", str(e), exc_info=True)
         return None
 
 
@@ -796,7 +867,12 @@ def obter_mensagem_personalizada(nome: str, tipo: str, usuario: User = None) -> 
 
         mensagem_obj = filtro.first()
         if not mensagem_obj:
-            print(f"[AVISO] Mensagem '{nome}' do tipo '{tipo}' não encontrada no banco.")
+            logger.warning(
+                "Mensagem não encontrada no banco | nome=%s tipo=%s usuario=%s",
+                nome,
+                tipo,
+                usuario
+            )
             return None
 
         mensagem_original = mensagem_obj.mensagem
@@ -813,7 +889,13 @@ def obter_mensagem_personalizada(nome: str, tipo: str, usuario: User = None) -> 
         return mensagem_reescrita
 
     except Exception as e:
-        print(f"[ERRO] obter_mensagem_personalizada(): {e}")
+        logger.error(
+            "Erro ao obter mensagem personalizada | nome=%s tipo=%s erro=%s",
+            nome,
+            tipo,
+            str(e),
+            exc_info=True
+        )
         return None
 #### FIM #####
 
@@ -885,13 +967,26 @@ def run_scheduled_tasks():
 
         # Execução final do envio
         if tipo and imagem and nome_msg:
-            print(f"[{now.strftime('%d-%m-%Y %H:%M:%S')}] [TAREFA] Executando envio programado para {tipo.upper()}")
+            logger.info(
+                "Executando envio programado | tipo=%s imagem=%s msg=%s",
+                tipo.upper(),
+                imagem,
+                nome_msg
+            )
             envia_mensagem_personalizada(tipo_envio=tipo, image_name=imagem, nome_msg=nome_msg)
         else:
-            print(f"[{now.strftime('%d-%m-%Y %H:%M:%S')}] [TAREFA] Nenhum envio agendado para hoje.")
+            logger.debug(
+                "Nenhum envio agendado para hoje | dia_semana=%s dia=%d",
+                dia_semana,
+                dia
+            )
 
     except Exception as e:
-        print(f"[ERRO] run_scheduled_tasks(): {str(e)}")
+        logger.error(
+            "Erro em run_scheduled_tasks | erro=%s",
+            str(e),
+            exc_info=True
+        )
 ##### FIM #####
 
 
@@ -899,34 +994,51 @@ def run_scheduled_tasks():
 ##### FUNÇÃO PARA VALIDAR E EXECUTAR ENVIOS AGENDADOS #####
 ###########################################################
 
-def executar_envios_agendados():
+# Gerenciamento de locks por usuário (permite processamento paralelo de usuários diferentes)
+_locks_por_usuario = {}
+_locks_manager_lock = threading.Lock()
+
+def _obter_lock_usuario(usuario_id):
     """
-    Executa envios agendados com proteção contra execução duplicada.
-
-    Usa select_for_update(skip_locked=True) para garantir que:
-    - Apenas um processo processa cada usuário por vez
-    - Diferentes usuários podem ser processados em paralelo
-    - Não há race condition no campo ultimo_envio
+    Retorna o lock específico de um usuário, criando-o se necessário.
+    Thread-safe através do _locks_manager_lock.
     """
-    agora = timezone.localtime()
-    hora_atual = agora.strftime('%H:%M')
-    hoje = agora.date()
+    with _locks_manager_lock:
+        if usuario_id not in _locks_por_usuario:
+            _locks_por_usuario[usuario_id] = threading.Lock()
+        return _locks_por_usuario[usuario_id]
 
-    # Busca horários elegíveis (sem lock ainda)
-    horarios_candidatos = HorarioEnvios.objects.filter(
-        status=True,
-        ativo=True,
-        horario__isnull=False
-    ).filter(
-        Q(ultimo_envio__isnull=True) | Q(ultimo_envio__lt=hoje)
-    )
 
-    for h_candidato in horarios_candidatos:
-        # Verifica se o horário bate
-        if h_candidato.horario.strftime('%H:%M') != hora_atual:
-            continue
+def executar_envio_para_usuario(h_candidato, agora, hoje):
+    """
+    Executa envio para um usuário específico em thread separada.
 
-        # Tenta adquirir lock exclusivo deste registro específico
+    Proteções implementadas:
+    1. threading.Lock() por usuário - evita processamento duplicado do mesmo usuário
+    2. select_for_update(skip_locked=True) - proteção inter-processo via DB
+    3. Update atômico de ultimo_envio antes de iniciar envio
+
+    Args:
+        h_candidato: Registro HorarioEnvios candidato a processamento
+        agora: datetime atual
+        hoje: date atual
+    """
+    usuario_id = h_candidato.usuario.id
+    usuario_lock = _obter_lock_usuario(usuario_id)
+
+    # Verifica se este usuário já está sendo processado neste processo
+    if usuario_lock.locked():
+        registrar_log_auditoria({
+            "funcao": "executar_envio_para_usuario",
+            "status": "usuario_em_processamento_local",
+            "usuario": str(h_candidato.usuario),
+            "tipo_envio": h_candidato.tipo_envio,
+            "horario": str(h_candidato.horario),
+            "motivo": "lock_local_do_usuario_ja_adquirido",
+        })
+        return
+
+    with usuario_lock:
         try:
             with transaction.atomic():
                 # select_for_update com skip_locked: se outro processo já travou este registro, pula
@@ -945,83 +1057,164 @@ def executar_envios_agendados():
                 if not h:
                     # Outro processo já pegou este registro ou condições mudaram
                     registrar_log_auditoria({
-                        "funcao": "executar_envios_agendados",
-                        "status": "lock_nao_adquirido",
+                        "funcao": "executar_envio_para_usuario",
+                        "status": "lock_db_nao_adquirido",
                         "usuario": str(h_candidato.usuario),
                         "tipo_envio": h_candidato.tipo_envio,
                         "horario": str(h_candidato.horario),
                         "motivo": "registro_travado_por_outro_processo_ou_ja_processado",
                     })
-                    continue
+                    return
 
-                # Lock adquirido! Atualiza IMEDIATAMENTE para bloquear outros processos
+                # Lock DB adquirido! Atualiza IMEDIATAMENTE para bloquear outros processos
                 h.ultimo_envio = hoje
                 h.save(update_fields=['ultimo_envio'])
 
-                print(f'[{agora.strftime("%d-%m-%Y %H:%M:%S")}] [LOCK ADQUIRIDO] Executando envios para usuário: {h.usuario} (tipo: {h.tipo_envio}, horário: {h.horario})')
+                logger.info(
+                    "Lock adquirido - iniciando envios | thread=%s usuario=%s tipo=%s horario=%s",
+                    threading.current_thread().name,
+                    h.usuario,
+                    h.tipo_envio,
+                    h.horario
+                )
 
                 registrar_log_auditoria({
-                    "funcao": "executar_envios_agendados",
+                    "funcao": "executar_envio_para_usuario",
                     "status": "iniciando",
                     "usuario": str(h.usuario),
                     "tipo_envio": h.tipo_envio,
                     "horario": str(h.horario),
+                    "thread": threading.current_thread().name,
                 })
 
-            # Transação commitada, lock liberado. Agora executa o envio (pode demorar)
+            # Transação commitada, lock DB liberado. Agora executa o envio (pode demorar)
             try:
                 if h.tipo_envio == 'mensalidades_a_vencer':
                     obter_mensalidades_a_vencer(h.usuario)
                 elif h.tipo_envio == 'obter_mensalidades_vencidas':
                     obter_mensalidades_vencidas(h.usuario)
 
-                print(f'[{timezone.localtime().strftime("%d-%m-%Y %H:%M:%S")}] [CONCLUÍDO] Envios finalizados para usuário: {h.usuario}')
+                logger.info(
+                    "Envios concluídos | thread=%s usuario=%s tipo=%s",
+                    threading.current_thread().name,
+                    h.usuario,
+                    h.tipo_envio
+                )
 
                 registrar_log_auditoria({
-                    "funcao": "executar_envios_agendados",
+                    "funcao": "executar_envio_para_usuario",
                     "status": "concluido",
                     "usuario": str(h.usuario),
                     "tipo_envio": h.tipo_envio,
+                    "thread": threading.current_thread().name,
                 })
             except Exception as exc_envio:
                 logger.error(f"Erro ao executar envio para usuário {h.usuario}: {exc_envio}", exc_info=exc_envio)
                 registrar_log_auditoria({
-                    "funcao": "executar_envios_agendados",
+                    "funcao": "executar_envio_para_usuario",
                     "status": "erro_durante_envio",
                     "usuario": str(h.usuario),
                     "tipo_envio": h.tipo_envio,
                     "erro": str(exc_envio),
+                    "thread": threading.current_thread().name,
                 })
 
         except Exception as exc_lock:
-            logger.error(f"Erro ao adquirir lock para usuário {h_candidato.usuario}: {exc_lock}", exc_info=exc_lock)
+            logger.error(f"Erro ao adquirir lock DB para usuário {h_candidato.usuario}: {exc_lock}", exc_info=exc_lock)
             registrar_log_auditoria({
-                "funcao": "executar_envios_agendados",
-                "status": "erro_lock",
+                "funcao": "executar_envio_para_usuario",
+                "status": "erro_lock_db",
                 "usuario": str(h_candidato.usuario),
                 "tipo_envio": h_candidato.tipo_envio,
                 "erro": str(exc_lock),
+                "thread": threading.current_thread().name,
             })
 
 
-# Lock local (intra-processo) para executar_envios_agendados
-_executar_envios_agendados_lock = threading.Lock()
+def executar_envios_agendados():
+    """
+    Executa envios agendados com processamento paralelo por usuário.
+
+    Comportamento:
+    - Busca todos os horários elegíveis
+    - Cria uma thread separada para cada usuário elegível
+    - Cada usuário é processado em paralelo (threads diferentes)
+    - Mesmo usuário nunca processa 2x simultaneamente (lock por usuário)
+    - Proteção inter-processo via select_for_update(skip_locked=True)
+
+    Exemplo:
+        Usuario A (12h00) + Usuario B (12h00) → Ambos processam EM PARALELO
+        Usuario A (12h00) + Usuario A (12h01) → Segundo bloqueado até primeiro terminar
+    """
+    agora = timezone.localtime()
+    hora_atual = agora.strftime('%H:%M')
+    hoje = agora.date()
+
+    # Busca horários elegíveis (sem lock ainda)
+    horarios_candidatos = HorarioEnvios.objects.filter(
+        status=True,
+        ativo=True,
+        horario__isnull=False
+    ).filter(
+        Q(ultimo_envio__isnull=True) | Q(ultimo_envio__lt=hoje)
+    )
+
+    threads_criadas = []
+
+    for h_candidato in horarios_candidatos:
+        # Verifica se o horário bate
+        if h_candidato.horario.strftime('%H:%M') != hora_atual:
+            continue
+
+        # Cria thread separada para este usuário (processamento paralelo)
+        thread_name = f"EnvioUsuario-{h_candidato.usuario.id}-{h_candidato.tipo_envio}"
+        t = threading.Thread(
+            target=executar_envio_para_usuario,
+            args=(h_candidato, agora, hoje),
+            name=thread_name,
+            daemon=True
+        )
+        t.start()
+        threads_criadas.append({
+            "thread": t,
+            "usuario": str(h_candidato.usuario),
+            "tipo_envio": h_candidato.tipo_envio,
+        })
+
+        logger.debug(
+            "Thread criada para envio | thread=%s usuario=%s tipo=%s",
+            thread_name,
+            h_candidato.usuario,
+            h_candidato.tipo_envio
+        )
+
+    if threads_criadas:
+        registrar_log_auditoria({
+            "funcao": "executar_envios_agendados",
+            "status": "threads_criadas",
+            "quantidade": len(threads_criadas),
+            "threads": [
+                {"usuario": t["usuario"], "tipo_envio": t["tipo_envio"]}
+                for t in threads_criadas
+            ],
+        })
+
+    # Não aguarda threads terminarem (daemon=True permite execução em background)
+    # O scheduler continuará funcionando e as threads processarão em paralelo
+
 
 def executar_envios_agendados_com_lock():
     """
-    Wrapper com dupla proteção:
-    1. threading.Lock() - evita múltiplas threads do mesmo processo
-    2. executar_envios_agendados() - usa DB lock para evitar múltiplos processos
-    """
-    if _executar_envios_agendados_lock.locked():
-        logger.debug("[LOCK LOCAL] executar_envios_agendados já em execução nesta thread")
-        return
+    Entry point para execução de envios agendados.
 
-    with _executar_envios_agendados_lock:
-        try:
-            executar_envios_agendados()
-        except Exception as exc:
-            logger.exception(f"Erro em executar_envios_agendados_com_lock: {exc}")
+    Nota: O lock global foi REMOVIDO para permitir processamento paralelo.
+    Agora usa locks POR USUÁRIO, permitindo que diferentes usuários sejam
+    processados simultaneamente.
+    """
+    try:
+        executar_envios_agendados()
+    except Exception as exc:
+        logger.exception(f"Erro em executar_envios_agendados_com_lock: {exc}")
 
 
 ##############################################################################################
@@ -1032,21 +1225,21 @@ def backup_db_sh():
     """
     Executa o script 'backup_db.sh' para realizar backup do banco SQLite.
     """
-    # Obter a data e hora atual formatada
-    data_hora_atual = localtime().strftime('%d-%m-%Y %H:%M:%S')
-
     # Caminho para o script de backup
     caminho_arquivo_sh = 'backup_db.sh'
 
     # Executar o script de backup
     resultado = subprocess.run(['sh', caminho_arquivo_sh], capture_output=True, text=True)
-    
+
     # Verificar o resultado da execução do script
     if resultado.returncode == 0:
-        print('[{}] [BACKUP DIÁRIO] Backup do DB realizado.'.format(data_hora_atual))
+        logger.info("Backup do DB realizado com sucesso")
     else:
-        print('[{}] [BACKUP DIÁRIO] Falha durante backup do DB.'.format(data_hora_atual))
-        print('[ERROR] ', resultado.stderr)
-        
+        logger.error(
+            "Falha durante backup do DB | returncode=%d stderr=%s",
+            resultado.returncode,
+            resultado.stderr
+        )
+
     time.sleep(random.randint(10, 20))
 ##### FIM #####

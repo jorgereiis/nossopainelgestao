@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import logging
+from logging.handlers import RotatingFileHandler
 from django.core.exceptions import ImproperlyConfigured
 
 
@@ -22,6 +23,11 @@ load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# ==================== CONFIGURAÇÃO DE DIRETÓRIOS ====================
+# Garante que o diretório de logs existe (necessário para instalações novas)
+BASE_LOG_DIR = BASE_DIR / "logs"
+BASE_LOG_DIR.mkdir(exist_ok=True)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -217,20 +223,27 @@ LOGIN_URL = "login"
 SESSION_COOKIE_AGE = 7200  # tempo em segundos
 SESSION_SAVE_EVERY_REQUEST = True
 
-# Logger Configs
+# ==================== CONFIGURAÇÃO DE LOGGING ====================
+# Sistema de logging do Django com rotação automática de arquivos
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
         'file': {
-            'class': 'logging.FileHandler',
-            'filename': 'logs/error.log',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(BASE_LOG_DIR / 'error.log'),
+            'maxBytes': 10 * 1024 * 1024,  # 10MB por arquivo
+            'backupCount': 5,  # Mantém 5 arquivos de backup (total: 50MB)
             'formatter': 'verbose',
+            'encoding': 'utf-8',
         },
         'security_file': {
-            'class': 'logging.FileHandler',
-            'filename': 'logs/security.log',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(BASE_LOG_DIR / 'security.log'),
+            'maxBytes': 10 * 1024 * 1024,  # 10MB por arquivo
+            'backupCount': 5,  # Mantém 5 arquivos de backup (total: 50MB)
             'formatter': 'verbose',
+            'encoding': 'utf-8',
         },
     },
     'formatters': {

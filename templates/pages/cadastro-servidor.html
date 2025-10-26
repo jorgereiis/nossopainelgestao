@@ -195,17 +195,17 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ servidor.id }}">
                               <li>
-                                <button class="dropdown-item d-flex align-items-center py-2"
+                                <button class="dropdown-item dropdown-action-edit"
                                   data-servidor="{{servidor.id}}"
                                   data-nome="{{servidor.nome}}"
                                   onclick="exibirModalEdicao(this)">
-                                  <i class="bi bi-pencil me-2 text-warning"></i>
+                                  <i class="bi bi-pencil me-2"></i>
                                   <span>Editar Servidor</span>
                                 </button>
                               </li>
                               <li><hr class="dropdown-divider"></li>
                               <li>
-                                <button class="dropdown-item d-flex align-items-center py-2 text-danger"
+                                <button class="dropdown-item dropdown-action-delete"
                                   data-servidor="{{servidor.id}}"
                                   data-nome="{{servidor.nome}}"
                                   onclick="exibirModalConfirmacaoExclusao(this)">

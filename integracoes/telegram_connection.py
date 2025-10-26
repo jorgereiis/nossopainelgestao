@@ -1,6 +1,5 @@
 """Integração com o Telegram para download diário de banners do canal configurado."""
 
-import logging
 import os
 import sys
 import traceback
@@ -15,6 +14,8 @@ from telethon import TelegramClient
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "setup.settings")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 django.setup()
+
+from cadastros.services.logging_config import get_telegram_logger
 
 
 def _get_env_setting(name: str, *, cast=str, required: bool = True, default=None):
@@ -49,37 +50,12 @@ session_name = _get_env_setting(
 )
 
 IMAGES_BASE_DIR = "images/telegram_banners/"
-LOG_DIR = "logs/TelegramConnection/"
-LOG_FILE = os.path.join(LOG_DIR, "telegram_connection.log")
 
 # ======================
 # Configuração Logging
 # ======================
-os.makedirs(LOG_DIR, exist_ok=True)
-
-logger = logging.getLogger("TelegramConnection")
-logger.setLevel(logging.DEBUG)
-
-# Log em arquivo
-file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
-file_handler.setLevel(logging.DEBUG)
-
-# Log no console
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-
-# Formato dos logs
-formatter = logging.Formatter(
-    "[%(asctime)s] [%(levelname)s] [TELEGRAM] %(message)s",
-    datefmt="%d-%m-%Y %H:%M:%S",
-)
-file_handler.setFormatter(formatter)
-console_handler.setFormatter(formatter)
-
-# Evitar duplicidade de handlers
-if not logger.handlers:
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+# Logger centralizado com rotação automática
+logger = get_telegram_logger()
 
 
 # ======================
