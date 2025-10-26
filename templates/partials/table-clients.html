@@ -123,7 +123,7 @@
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ cliente.id }}">
                             <li>
-                                <button class="dropdown-item d-flex align-items-center py-2"
+                                <button class="dropdown-item dropdown-action-view"
                                         data-id="{{cliente.id}}"
                                         data-nome="{{cliente.nome}}"
                                         data-plano="{{cliente.plano}}"
@@ -140,12 +140,12 @@
                                         data-ultimo_pagamento="{{cliente.ultimo_pagamento|date:'d/m/Y'}}"
                                         data-conta_aplicativo="{{cliente.conta_aplicativo.all}}"
                                         onclick="exibirModalDetalhes(this)">
-                                    <i class="bi bi-eye me-2 text-primary"></i>
+                                    <i class="bi bi-eye me-3"></i>
                                     <span>Ver Informações</span>
                                 </button>
                             </li>
                             <li>
-                                <button class="dropdown-item d-flex align-items-center py-2"
+                                <button class="dropdown-item dropdown-action-edit"
                                 data-id="{{cliente.id}}"
                                 data-nome="{{cliente.nome}}"
                                 data-telefone="{{cliente.telefone|formatar_telefone}}"
@@ -159,27 +159,27 @@
                                 data-aplicativo="{{cliente.sistema}}"
                                 data-notas="{{cliente.notas}}"
                                 onclick="exibirModalEdicao(this)">
-                                    <i class="bi bi-pencil me-2 text-warning"></i>
+                                    <i class="bi bi-pencil me-3"></i>
                                     <span>Editar Informações</span>
                                 </button>
                             </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <button class="dropdown-item d-flex align-items-center py-2"
+                                <button class="dropdown-item dropdown-action-payment"
                                     data-nome="{{cliente.nome}}"
                                     data-mensalidade="{{mensalidade.id}}"
                                     onclick="exibirModalConfirmacaoPagamento(this)">
-                                    <i class="bi bi-cash-coin me-2 text-success"></i>
+                                    <i class="bi bi-cash-coin me-3"></i>
                                     <span>Registrar Pagamento</span>
                                 </button>
                             </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <button class="dropdown-item d-flex align-items-center py-2 text-danger"
+                                <button class="dropdown-item dropdown-action-delete"
                                     data-nome="{{cliente.nome}}"
                                     data-cliente="{{cliente.id}}"
                                     onclick="exibirModalConfirmacaoCancelamento(this)">
-                                    <i class="bi bi-x-circle me-2"></i>
+                                    <i class="bi bi-x-circle me-3"></i>
                                     <span>Cancelar Cliente</span>
                                 </button>
                             </li>
