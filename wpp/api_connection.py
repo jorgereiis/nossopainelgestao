@@ -5,10 +5,17 @@ import logging
 import mimetypes
 import os
 import random
+import sys
 import time
 
 import requests
+from pathlib import Path
+
+# Adiciona o caminho para imports do sistema centralizado de logging
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from cadastros.services.logging import append_line
+from cadastros.services.logging_config import get_wpp_logger
 
 URL_API_WPP = os.getenv("URL_API_WPP")
 MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
@@ -17,8 +24,8 @@ MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
 ################ FUNÇÃO PARA REGISTRAR LOGS ######################
 ##################################################################
 
-# Função para registrar mensagens no arquivo de log principal
-logger = logging.getLogger(__name__)
+# Logger configurado com rotação automática
+logger = get_wpp_logger()
 
 
 def registrar_log(mensagem: str, log_path: str) -> None:

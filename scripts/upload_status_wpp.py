@@ -4,38 +4,26 @@ import django
 import time
 import shutil
 import random
-import inspect
-import logging
 import requests
 import threading
 from datetime import datetime
 from django.contrib.auth.models import User
 from django.utils.timezone import localtime
-from cadastros.models import User, ConteudoM3U8, SessaoWpp
-from wpp.api_connection import upload_imagem_status, upload_status_sem_imagem
 
 # --- Configura o ambiente Django ---
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "setup.settings")
 django.setup()
 
+from cadastros.models import User, ConteudoM3U8, SessaoWpp
+from cadastros.services.logging_config import get_wpp_logger
+from wpp.api_connection import upload_imagem_status, upload_status_sem_imagem
+
+# Configuração do logger centralizado com rotação automática
+logger = get_wpp_logger()
+
 # --- Variáveis de ambiente e caminhos ---
 MEU_NUM_TIM = os.getenv("MEU_NUM_TIM")
-NOME_SCRIPT = "UPLOAD STATUS WPP"
 URL_API_WPP = os.getenv("URL_API_WPP")
-LOG_FILE = "logs/UploadStatusWpp/upload_status.log"
-THREAD_LOG = "logs/UploadStatusWpp/upload_status_thread.log"
-
-# --- Garante que os diretórios dos arquivos de log existam ---
-os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-os.makedirs(os.path.dirname(THREAD_LOG), exist_ok=True)
-
-# --- Função para registrar log no arquivo e imprimir no terminal ---
-def registrar_log(mensagem, log_file):
-    timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
-    print(f"[{timestamp}] [{NOME_SCRIPT}] {mensagem}")
-    
-    with open(log_file, "a", encoding="utf-8") as log:
-        log.write(f"[{timestamp}] {mensagem}\n")
 
 # --- Envia mensagem privada para número específico ---
 def enviar_mensagem(telefone, mensagem, usuario, token):
@@ -50,9 +38,9 @@ def enviar_mensagem(telefone, mensagem, usuario, token):
     try:
         response = requests.post(url, json=body, headers=headers, timeout=30)
         response.raise_for_status()
-        registrar_log(f"[OK] Mensagem enviada para número {telefone}", LOG_FILE)
+        logger.info("Mensagem enviada | telefone=%s", telefone)
     except Exception as e:
-        registrar_log(f"[ERRO] {telefone} => {e}", LOG_FILE)
+        logger.error("Falha ao enviar mensagem | telefone=%s erro=%s", telefone, str(e))
 
 # --- Monta legenda amigável com temporada/episódio ---
 def gerar_legenda(conteudo):
@@ -62,11 +50,11 @@ def gerar_legenda(conteudo):
 
 # --- Função principal de envio de status no WhatsApp ---
 def executar_upload_status():
-    registrar_log(f"[INIT] Iniciando envio de status para o WhatsApp.", LOG_FILE)
+    logger.info("Iniciando envio de status para WhatsApp")
 
     conteudos = ConteudoM3U8.objects.filter(upload=False).order_by('criado_em')
     if not conteudos.exists():
-        registrar_log("[INFO] Nenhum conteúdo novo para enviar.", LOG_FILE)
+        logger.info("Nenhum conteúdo novo para enviar")
         return
 
     primeiro = conteudos.first()
@@ -74,7 +62,7 @@ def executar_upload_status():
     token_obj = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
 
     if not token_obj:
-        registrar_log(f"[ERRO] Token do usuário {usuario.username} não encontrado.", LOG_FILE)
+        logger.error("Token não encontrado | usuario=%s", usuario.username)
         return
 
     token = token_obj.token
@@ -82,8 +70,8 @@ def executar_upload_status():
     # Envia mensagem de introdução
     data_hoje = datetime.now().strftime("%d/%m/%Y")
     mensagem_inicial = f"📢 Confira a seguir os novos conteúdos de Filmes/Séries adicionados à nossa grade hoje ({data_hoje})!"
-    if not upload_status_sem_imagem(mensagem_inicial, usuario.username, token, LOG_FILE):
-        registrar_log(f"[AVISO] Abortando envio para {usuario.username} — erro na mensagem de abertura.", LOG_FILE)
+    if not upload_status_sem_imagem(mensagem_inicial, usuario.username, token, None):
+        logger.warning("Abortando envio | usuario=%s motivo=erro_na_mensagem_abertura", usuario.username)
         return
 
     enviados = 0
@@ -102,7 +90,7 @@ def executar_upload_status():
             continue
 
         legenda = gerar_legenda(item)
-        sucesso = upload_imagem_status(item.capa, legenda, usuario.username, token, LOG_FILE)
+        sucesso = upload_imagem_status(item.capa, legenda, usuario.username, token, None)
 
         if sucesso:
             item.upload = True
@@ -115,7 +103,7 @@ def executar_upload_status():
             if item.temporada and item.episodio:
                 resumo_envios[item.nome].append(f"T{item.temporada}E{item.episodio}")
         else:
-            registrar_log(f"[AVISO] Conteúdo não marcado como enviado: {item.nome}", LOG_FILE)
+            logger.warning("Conteúdo não marcado como enviado | nome=%s", item.nome)
 
     if enviados > 0:
         # Gera resumo para status e mensagem privada
@@ -137,7 +125,7 @@ def executar_upload_status():
         for idx, bloco in enumerate(blocos, start=1):
             texto_bloco = f"🎬 *Resumo das Atualizações de Hoje (página {idx}/{total_blocos}):*\n\n"
             texto_bloco += "\n".join(bloco)
-            upload_status_sem_imagem(texto_bloco, usuario.username, token, LOG_FILE)
+            upload_status_sem_imagem(texto_bloco, usuario.username, token, None)
 
         if MEU_NUM_TIM:
             texto_mensagem_privada = "\n".join(linhas_mensagem)
@@ -147,35 +135,17 @@ def executar_upload_status():
             "✅ Encerramos por aqui! Agradecemos por acompanhar nossas novidades. Em breve, mais conteúdos incríveis para vocês!",
             usuario.username,
             token,
-            LOG_FILE
+            None
         )
 
-    registrar_log(f"[OK] Status atualizado para {usuario.username} ({enviados} conteúdos enviados)", LOG_FILE)
+    logger.info("Status atualizado | usuario=%s conteudos_enviados=%d", usuario.username, enviados)
 
 ####################################################################################
 ##### FUNÇÃO PARA UPLOAD DE IMAGENS DE STATUS DO WHATSAPP A PARTIR DO TELEGRAM #####
 ####################################################################################
 
-# --- Caminho base e logs ---
+# --- Caminho base ---
 CAMINHO_BASE = "images/telegram_banners/"
-LOG_PATH = "logs/UploadStatusWpp/images_from_telegram.log"
-
-# Configuração do logger (arquivo + console)
-os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
-logger = logging.getLogger("UploadStatusWpp")
-logger.setLevel(logging.INFO)
-
-formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(funcName)s] %(message)s")
-
-# Console
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
-
-# Arquivo
-file_handler = logging.FileHandler(LOG_PATH)
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
 
 
 def extrair_numero(nome_arquivo):
@@ -217,14 +187,14 @@ def upload_image_from_telegram():
     user = User.objects.get(id=1)
     sessao = SessaoWpp.objects.filter(usuario=user, is_active=True).first()
     if not sessao:
-        logger.error(f"[{user}] Nenhuma sessão ativa encontrada!")
+        logger.error("Nenhuma sessão ativa encontrada | usuario=%s", user.username)
         return
 
     token = sessao.token
     limpar_diretorios_antigos(CAMINHO_BASE, manter=7)
 
     if not os.path.exists(pasta_hoje):
-        logger.warning(f"[{user}] Nenhuma imagem encontrada para o dia: {hoje_str}")
+        logger.warning("Nenhuma imagem encontrada | usuario=%s dia=%s", user.username, hoje_str)
         return
 
     arquivos = os.listdir(pasta_hoje)
@@ -234,7 +204,7 @@ def upload_image_from_telegram():
     )
 
     if not imagens:
-        logger.warning(f"[{user}] Nenhuma imagem válida encontrada na pasta: {pasta_hoje}")
+        logger.warning("Nenhuma imagem válida encontrada | usuario=%s pasta=%s", user.username, pasta_hoje)
         return
 
     for img_nome in imagens:
@@ -247,14 +217,14 @@ def upload_image_from_telegram():
                 legenda="",
                 usuario=user,
                 token=token,
-                log_path=LOG_PATH,
+                log_path=None,
             )
 
             if sucesso:
-                logger.info(f"[{user}] Imagem enviada '{img_nome}' (tentativa {tentativa+1})")
+                logger.info("Imagem enviada | usuario=%s imagem=%s tentativa=%d", user.username, img_nome, tentativa+1)
                 break
             else:
-                logger.error(f"[{user}] Falha ao enviar '{img_nome}' (tentativa {tentativa+1})")
+                logger.error("Falha ao enviar imagem | usuario=%s imagem=%s tentativa=%d", user.username, img_nome, tentativa+1)
 
 
 #################################################################################
@@ -264,11 +234,12 @@ def upload_image_from_telegram():
 executar_upload_status_lock = threading.Lock()
 def executar_upload_status_com_lock():
     if executar_upload_status_lock.locked():
-        registrar_log("[IGNORADO] Execução ignorada — processo ainda em andamento.", THREAD_LOG)
+        logger.warning("Execução ignorada | motivo=processo_em_andamento funcao=executar_upload_status")
         return
 
     with executar_upload_status_lock:
         inicio = datetime.now()
+        logger.info("Iniciando execução com lock | funcao=executar_upload_status")
         executar_upload_status()
         fim = datetime.now()
 
@@ -276,17 +247,18 @@ def executar_upload_status_com_lock():
         minutos = duracao // 60
         segundos = duracao % 60
 
-        registrar_log(f"[END] Tempo de execução: {int(minutos)} min {segundos:.1f} s.", THREAD_LOG)
+        logger.info("Execução finalizada | funcao=executar_upload_status duracao=%dmin %.1fs", int(minutos), segundos)
         return
-    
+
 executar_upload_image_from_telegram_lock = threading.Lock()
 def executar_upload_image_from_telegram_com_lock():
     if executar_upload_image_from_telegram_lock.locked():
-        registrar_log("[IGNORADO] Execução ignorada — processo ainda em andamento.", THREAD_LOG)
+        logger.warning("Execução ignorada | motivo=processo_em_andamento funcao=upload_image_from_telegram")
         return
 
     with executar_upload_image_from_telegram_lock:
         inicio = datetime.now()
+        logger.info("Iniciando execução com lock | funcao=upload_image_from_telegram")
         upload_image_from_telegram()
         fim = datetime.now()
 
@@ -294,6 +266,6 @@ def executar_upload_image_from_telegram_com_lock():
         minutos = duracao // 60
         segundos = duracao % 60
 
-        registrar_log(f"[END] Tempo de execução: {int(minutos)} min {segundos:.1f} s.", THREAD_LOG)
+        logger.info("Execução finalizada | funcao=upload_image_from_telegram duracao=%dmin %.1fs", int(minutos), segundos)
         return
 ##### FIM #####

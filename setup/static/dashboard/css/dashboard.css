@@ -707,8 +707,13 @@
 
 /* Espaçamento otimizado das células */
 #myTable tbody td {
-    padding: 1rem 0.75rem;
+    padding: 0.65rem 0.75rem;
     vertical-align: middle;
+}
+
+/* Centralizar cabeçalhos da tabela */
+#myTable thead th {
+    text-align: center !important;
 }
 
 /* Indicador de status vencido pulsante */
