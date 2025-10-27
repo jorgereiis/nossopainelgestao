@@ -8,7 +8,9 @@ notes.py
 bkp/*
 access.log
 teste.sh
-*.sh
+!backup_mysql.sh
+!restore_mysql.sh
+!import_to_production.sh
 m3u8/
 error_log
 logs/*
@@ -18,7 +20,27 @@ teste*
 *.session
 *.md
 **/*.md
-docker
+!CLAUDE.md
+!docker/**/*.md
+
+# Docker - IGNORAR apenas dados sensíveis, NÃO arquivos de configuração
+docker/**/.env
+docker/**/data/
+docker/**/backups/
+docker/**/logs/
+docker/**/sessions/
+docker/**/tokens/
+docker/**/mediafiles/
+docker/**/staticfiles/
+docker/**/database/*.sqlite3
+docker/**/*.sql
+docker/**/*.sql.gz
+
+# MySQL backups (dumps contêm dados sensíveis)
+backups_mysql/
+backups_pre_migration/
+*.sql
+*.sql.gz
 
 ### Django ###
 *.pot
@@ -28,6 +50,7 @@ __pycache__/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+db.sqlite3*
 media
 staticfiles
 
