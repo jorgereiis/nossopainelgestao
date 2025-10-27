@@ -55,11 +55,6 @@ else:
     ALLOWED_HOSTS = [
         'nossopainel.com.br',
         'www.nossopainel.com.br',
-        'localhost',
-        '127.0.0.1',
-        '67.23.235.238',
-        '186.227.198.200',
-        '187.45.181.20',
     ]
 
 # Application definition
