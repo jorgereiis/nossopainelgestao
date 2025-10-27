@@ -20,8 +20,9 @@ teste*
 *.session
 *.md
 **/*.md
-!CLAUDE.md
-!docker/**/*.md
+*.md
+docker
+*.sh
 
 # Docker - IGNORAR apenas dados sensíveis, NÃO arquivos de configuração
 docker/**/.env
