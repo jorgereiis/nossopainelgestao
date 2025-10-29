@@ -5030,3 +5030,166 @@ def evolucao_patrimonio(request):
         ],
     })
 
+
+@csrf_exempt
+@require_POST
+def internal_send_whatsapp(request):
+    """
+    Endpoint interno para envio de notificações WhatsApp ao admin.
+
+    Restrito à rede interna (database-network) via InternalAPIMiddleware.
+    Usado por scripts cron do servidor MySQL para enviar alertas ao admin.
+
+    O número de destino é fixo (MEU_NUM_TIM do .env).
+
+    Payload JSON esperado:
+    {
+        "mensagem": "Texto da notificação",
+        "tipo": "backup|status|alert|info"  # Opcional, para logging (default: "unknown")
+    }
+
+    Segurança:
+    - IP-restricted via InternalAPIMiddleware (apenas database-network)
+    - CSRF exempt (seguro pois POST-only + IP restrito)
+    - Sem autenticação de usuário (não necessária na rede interna)
+    - Logging completo de todas as requisições
+
+    Returns:
+        JSON: {'success': bool, 'status_code': int, 'response': dict}
+    """
+    import requests
+    from cadastros.services.logging import append_line
+
+    # Diretório de logs
+    log_path = Path("logs/MySQL_Triggers/whatsapp_notifications.log")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # Parse do payload JSON
+        data = json.loads(request.body.decode('utf-8'))
+        mensagem = data.get('mensagem')
+        tipo = data.get('tipo', 'unknown')
+
+        # Validação de campo obrigatório
+        if not mensagem:
+            error_msg = "[ERROR] Campo obrigatório 'mensagem' não fornecido"
+            append_line(str(log_path), error_msg)
+            return JsonResponse({
+                'success': False,
+                'error': 'Campo obrigatório: mensagem'
+            }, status=400)
+
+        # Busca telefone fixo do admin no .env
+        telefone_admin = os.getenv('MEU_NUM_TIM')
+        if not telefone_admin:
+            error_msg = "[ERROR] Variável MEU_NUM_TIM não configurada no .env"
+            append_line(str(log_path), error_msg)
+            return JsonResponse({
+                'success': False,
+                'error': 'Telefone admin não configurado (MEU_NUM_TIM)'
+            }, status=500)
+
+        # Busca sessão WhatsApp ativa do usuário admin (id=1)
+        try:
+            user_admin = User.objects.get(id=1)
+            sessao = SessaoWpp.objects.filter(
+                usuario=user_admin.username,
+                is_active=True
+            ).order_by('-dt_inicio').first()
+
+            if not sessao:
+                error_msg = f"[ERROR] Nenhuma sessão WhatsApp ativa para usuário {user_admin.username}"
+                append_line(str(log_path), error_msg)
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Sessão WhatsApp não encontrada ou inativa'
+                }, status=503)
+
+        except User.DoesNotExist:
+            error_msg = "[ERROR] Usuário admin (ID=1) não encontrado no banco"
+            append_line(str(log_path), error_msg)
+            return JsonResponse({
+                'success': False,
+                'error': 'Usuário admin não encontrado'
+            }, status=500)
+
+        # Prepara requisição para WPPConnect API
+        url_api_wpp = os.getenv('URL_API_WPP', os.getenv('URL_API', 'http://api.nossopainel.com.br/api'))
+        url = f"{url_api_wpp}/{sessao.usuario}/send-message"
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': f'Bearer {sessao.token}'
+        }
+
+        body = {
+            'phone': telefone_admin,
+            'message': mensagem,
+            'isGroup': False
+        }
+
+        # Envia mensagem via WPPConnect
+        response = requests.post(url, headers=headers, json=body, timeout=30)
+
+        # Registra resultado no log
+        timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+        client_ip = request.META.get('REMOTE_ADDR', 'unknown')
+
+        log_entry = (
+            f"[{timestamp}] "
+            f"Tipo: {tipo} | "
+            f"IP: {client_ip} | "
+            f"Telefone: {telefone_admin} | "
+            f"Status: {response.status_code} | "
+            f"Response: {response.text[:200]}"
+        )
+        append_line(str(log_path), log_entry)
+
+        # Retorna resposta baseada no status code
+        if 200 <= response.status_code < 300:
+            return JsonResponse({
+                'success': True,
+                'status_code': response.status_code,
+                'response': response.json() if response.text else {}
+            }, status=200)
+        else:
+            return JsonResponse({
+                'success': False,
+                'status_code': response.status_code,
+                'response': response.json() if response.text else {'error': 'Resposta vazia da API'},
+                'error': f'API retornou status {response.status_code}'
+            }, status=response.status_code)
+
+    except json.JSONDecodeError as e:
+        error_msg = f"[ERROR] JSON inválido no body da requisição: {str(e)}"
+        append_line(str(log_path), error_msg)
+        return JsonResponse({
+            'success': False,
+            'error': 'Payload JSON inválido'
+        }, status=400)
+
+    except requests.Timeout:
+        error_msg = f"[ERROR] Timeout ao conectar com API WhatsApp (tipo: {tipo})"
+        append_line(str(log_path), error_msg)
+        return JsonResponse({
+            'success': False,
+            'error': 'Timeout ao conectar com API WhatsApp'
+        }, status=504)
+
+    except requests.RequestException as e:
+        error_msg = f"[ERROR] Erro na requisição HTTP: {str(e)}"
+        append_line(str(log_path), error_msg)
+        return JsonResponse({
+            'success': False,
+            'error': f'Erro na requisição: {str(e)}'
+        }, status=500)
+
+    except Exception as e:
+        error_msg = f"[ERROR] Erro inesperado: {type(e).__name__} - {str(e)}"
+        append_line(str(log_path), error_msg)
+        return JsonResponse({
+            'success': False,
+            'error': f'Erro interno: {str(e)}'
+        }, status=500)
+

@@ -84,6 +84,7 @@ MIDDLEWARE = [
     "axes.middleware.AxesMiddleware",  # django-axes deve vir após AuthenticationMiddleware
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    'setup.middleware.InternalAPIMiddleware',  # Restringe endpoints internos por IP
     'setup.middleware.CheckUserLoggedInMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware', # whitenoise para servir arquivos estáticos
 ]
