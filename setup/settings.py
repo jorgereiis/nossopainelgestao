@@ -48,9 +48,8 @@ RECAPTCHA_REQUIRED_SCORE = 0.85
 # SEGURANÇA: Default é False. Para desenvolvimento, configure DEBUG=True no .env
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
-_allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS")
-if _allowed_hosts_env:
-    ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_env.split(",") if host.strip()]
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
 else:
     ALLOWED_HOSTS = [
         'nossopainel.com.br',
