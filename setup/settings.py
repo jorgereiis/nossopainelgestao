@@ -48,9 +48,8 @@ RECAPTCHA_REQUIRED_SCORE = 0.85
 # SEGURANÇA: Default é False. Para desenvolvimento, configure DEBUG=True no .env
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
-_allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS")
-if _allowed_hosts_env:
-    ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_env.split(",") if host.strip()]
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
 else:
     ALLOWED_HOSTS = [
         'nossopainel.com.br',
@@ -143,7 +142,7 @@ WSGI_APPLICATION = "setup.wsgi.application"
 # Configuração flexível: SQLite (dev/fallback) ou MySQL (produção)
 DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").lower()
 
-"""if DB_ENGINE == "mysql":
+if DB_ENGINE == "mysql":
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
@@ -160,17 +159,16 @@ DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").lower()
         }
     }
 else:
-    """
     # Fallback para SQLite (desenvolvimento/testes)
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-        'OPTIONS': {
-            'timeout': 30,
-        },
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+            'OPTIONS': {
+                'timeout': 30,
+            },
+        }
     }
-}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
