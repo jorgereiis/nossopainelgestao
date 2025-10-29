@@ -74,6 +74,7 @@ from .views import (
     evolucao_patrimonio,
     adesoes_cancelamentos_api,
     clientes_servidor_data,
+    internal_send_whatsapp,
 )
 
 urlpatterns = [
@@ -171,7 +172,10 @@ urlpatterns = [
     path("desconectar-wpp/", desconectar_wpp, name="desconectar_wpp"),
     path("cancelar-sessao-wpp/", cancelar_sessao_wpp, name="cancelar_sessao_wpp"),
     path("check-connection-wpp/", check_connection_wpp, name="check_connection_wpp"),
-    
+
+    ############ Internal API (IP-restricted) ###########
+    path("api/internal/send-whatsapp/", internal_send_whatsapp, name="internal-send-whatsapp"),
+
     ########### Tests ###########
     path("teste/", test, name="teste"),
 ]
