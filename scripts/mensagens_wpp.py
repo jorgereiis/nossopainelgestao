@@ -59,7 +59,7 @@ from integracoes.openai_chat import consultar_chatgpt
 from cadastros.models import (
     Mensalidade, SessaoWpp, MensagemEnviadaWpp,
     Cliente, DadosBancarios, HorarioEnvios,
-    MensagensLeads, TelefoneLeads
+    MensagensLeads, TelefoneLeads, OfertaPromocionalEnviada
 )
 
 URL_API_WPP = os.getenv("URL_API_WPP")
@@ -352,111 +352,274 @@ def obter_mensalidades_vencidas(usuario_query):
 
 def obter_mensalidades_canceladas():
     """
-    Envia mensagens personalizadas para clientes cancelados há X dias,
-    utilizando a lógica de saudação e validando número antes do envio.
+    Envia mensagens personalizadas para clientes cancelados há X dias.
+
+    Sistema de ofertas progressivas:
+    - 20 dias: Feedback (não conta como oferta promocional)
+    - 60 dias: Oferta 1 (R$ 24,90 por 3 meses)
+    - 240 dias: Oferta 2 (8 meses - sentimos sua falta)
+    - 420 dias: Oferta 3 (14 meses - última oportunidade)
+
+    Cada cliente recebe no máximo 3 ofertas promocionais em toda a vida.
+    A contagem de dias é sempre a partir da data_cancelamento atual.
     """
-    atrasos = [
-        {
-            "dias": 20,
-            "mensagem": "*{}, {}* 🫡\n\nTudo bem? Espero que sim.\n\nFaz um tempo que você deixou de ser nosso cliente ativo e ficamos preocupados. Houve algo que não agradou em nosso sistema?\n\nPergunto, pois se algo não agradou, nos informe para fornecermos uma plataforma melhor para você, tá bom?\n\nEstamos à disposição! 🙏🏼"
-        },
+    admin = User.objects.get(is_superuser=True)
+
+    # Mensagem de feedback (20 dias) - NÃO É OFERTA PROMOCIONAL
+    feedback_config = {
+        "dias": 20,
+        "tipo": "feedback",
+        "mensagem": "*{}, {}* 🫡\n\nTudo bem? Espero que sim.\n\nFaz um tempo que você deixou de ser nosso cliente ativo e ficamos preocupados. Houve algo que não agradou em nosso sistema?\n\nPergunto, pois se algo não agradou, nos informe para fornecermos uma plataforma melhor para você, tá bom?\n\nEstamos à disposição! 🙏🏼"
+    }
+
+    # Ofertas promocionais progressivas
+    ofertas_config = [
         {
             "dias": 60,
+            "numero_oferta": 1,
             "mensagem": "*Opa.. {}!! Tudo bacana?*\n\nComo você já foi nosso cliente, trago uma notícia que talvez você goste muuuiito!!\n\nVocê pode renovar a sua mensalidade conosco pagando *APENAS R$ 24.90* nos próximos 3 meses. Olha só que bacana?!?!\n\nEsse tipo de desconto não oferecemos a qualquer um, viu? rsrs\n\nCaso tenha interesse, avise aqui, pois iremos garantir essa oferta apenas essa semana. 👏🏼👏🏼"
+        },
+        {
+            "dias": 240,
+            "numero_oferta": 2,
+            "mensagem": "*{}, {}!* 😊\n\nSentimos muito a sua falta por aqui!\n\nQue tal voltar para a nossa família com uma *SUPER OFERTA EXCLUSIVA*?\n\nEstamos oferecendo *3 meses por apenas R$ 24,90* para você que já foi nosso cliente! 🎉\n\nEsta é uma oportunidade única de retornar com um preço especial. Não perca!\n\nTem interesse? É só responder aqui! 🙌"
+        },
+        {
+            "dias": 420,
+            "numero_oferta": 3,
+            "mensagem": "*{}, {}!* 🌟\n\nEsta é a nossa *ÚLTIMA OFERTA ESPECIAL* para você!\n\nSabemos que você já foi parte da nossa família e queremos muito ter você de volta.\n\n✨ *OFERTA FINAL: R$ 24,90 por 3 meses* ✨\n\nEsta é realmente a última oportunidade de aproveitar este preço exclusivo.\n\nO que acha? Vamos renovar essa parceria? 🤝"
         }
     ]
 
-    for atraso in atrasos:
-        admin = User.objects.get(is_superuser=True)
-        qtd_dias = atraso["dias"]
-        mensagem_template = atraso["mensagem"]
+    # Processa feedback de 20 dias (separado das ofertas)
+    _processar_feedback(admin, feedback_config)
 
-        data_alvo = localtime().date() - timedelta(days=qtd_dias)
+    # Processa ofertas promocionais progressivas
+    for oferta_config in ofertas_config:
+        _processar_oferta_promocional(admin, oferta_config)
 
-        mensalidades = Mensalidade.objects.filter(
-            cliente__cancelado=True,
-            cliente__nao_enviar_msgs=False,
-            cliente__enviado_oferta_promo=False,
-            dt_cancelamento=data_alvo,
-            pgto=False,
-            cancelado=True,
-            notificacao_wpp1=False,
-            usuario = admin
+
+def _processar_feedback(admin, config):
+    """Processa envio de feedback para clientes cancelados há 20 dias."""
+    qtd_dias = config["dias"]
+    mensagem_template = config["mensagem"]
+    data_alvo = localtime().date() - timedelta(days=qtd_dias)
+
+    # Busca clientes cancelados há exatamente 20 dias
+    clientes = Cliente.objects.filter(
+        usuario=admin,
+        cancelado=True,
+        nao_enviar_msgs=False,
+        data_cancelamento=data_alvo
+    )
+
+    qtd = clientes.count()
+    logger.info(
+        "Feedback para cancelados | dias=%d quantidade=%d",
+        qtd_dias,
+        qtd
+    )
+
+    if not qtd:
+        logger.debug("Nenhum feedback para enviar (20 dias)")
+        return
+
+    for cliente in clientes:
+        _enviar_mensagem_cliente(
+            cliente=cliente,
+            admin=admin,
+            mensagem_template=mensagem_template,
+            qtd_dias=qtd_dias,
+            tipo_envio="Feedback 20d"
         )
+        time.sleep(random.uniform(30, 60))
 
-        qtd = mensalidades.count()
-        logger.info(
-            "Mensalidades canceladas | dias_cancelamento=%d quantidade=%d usuario=%s",
-            qtd_dias,
-            qtd,
-            admin
-        )
 
-        if not qtd:
+def _processar_oferta_promocional(admin, oferta_config):
+    """
+    Processa envio de ofertas promocionais progressivas.
+
+    Verifica:
+    1. Se cliente já recebeu 3 ofertas (limite vitalício)
+    2. Se cliente já recebeu esta oferta específica
+    3. Se cliente está cancelado há exatamente X dias
+    """
+    qtd_dias = oferta_config["dias"]
+    numero_oferta = oferta_config["numero_oferta"]
+    mensagem_template = oferta_config["mensagem"]
+    data_alvo = localtime().date() - timedelta(days=qtd_dias)
+
+    # Busca clientes cancelados há exatamente X dias
+    clientes_candidatos = Cliente.objects.filter(
+        usuario=admin,
+        cancelado=True,
+        nao_enviar_msgs=False,
+        data_cancelamento=data_alvo
+    )
+
+    clientes_enviados = 0
+    clientes_ignorados = 0
+
+    for cliente in clientes_candidatos:
+        # Verifica quantas ofertas este cliente já recebeu na vida
+        total_ofertas_recebidas = cliente.ofertas_enviadas.count()
+
+        if total_ofertas_recebidas >= 3:
             logger.debug(
-                "Nenhum envio para clientes cancelados há %d dias", qtd_dias
+                "Cliente atingiu limite de ofertas | cliente=%s total_ofertas=%d",
+                cliente.nome,
+                total_ofertas_recebidas
             )
+            registrar_log_auditoria({
+                "funcao": "_processar_oferta_promocional",
+                "status": "limite_ofertas_atingido",
+                "cliente": cliente.nome,
+                "cliente_id": cliente.id,
+                "total_ofertas_recebidas": total_ofertas_recebidas,
+                "numero_oferta_tentada": numero_oferta,
+                "dias_cancelado": qtd_dias,
+            })
+            clientes_ignorados += 1
             continue
 
-        for mensalidade in mensalidades:
-            usuario = mensalidade.usuario
-            cliente = mensalidade.cliente
-            primeiro_nome = cliente.nome.split(' ')[0]
-            saudacao = get_saudacao_por_hora()
-            mensagem = mensagem_template.format(saudacao, primeiro_nome)
+        # Verifica se já recebeu ESTA oferta específica
+        ja_recebeu_esta_oferta = cliente.ofertas_enviadas.filter(
+            numero_oferta=numero_oferta
+        ).exists()
 
-            try:
-                sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
-            except SessaoWpp.DoesNotExist:
-                logger.warning("Sessão WPP não encontrada | usuario=%s", usuario)
-                registrar_log_auditoria({
-                    "funcao": "obter_mensalidades_canceladas",
-                    "status": "sessao_indisponivel",
-                    "usuario": str(usuario),
-                    "cliente": cliente.nome,
-                    "cliente_id": cliente.id,
-                    "mensalidade_id": mensalidade.id,
-                    "dias_cancelado": qtd_dias,
-                })
-                continue
+        if ja_recebeu_esta_oferta:
+            logger.debug(
+                "Cliente já recebeu esta oferta | cliente=%s numero_oferta=%d",
+                cliente.nome,
+                numero_oferta
+            )
+            registrar_log_auditoria({
+                "funcao": "_processar_oferta_promocional",
+                "status": "oferta_ja_recebida",
+                "cliente": cliente.nome,
+                "cliente_id": cliente.id,
+                "numero_oferta": numero_oferta,
+                "dias_cancelado": qtd_dias,
+            })
+            clientes_ignorados += 1
+            continue
 
-            if not sessao or not sessao.token:
-                registrar_log_auditoria({
-                    "funcao": "obter_mensalidades_canceladas",
-                    "status": "sessao_indisponivel",
-                    "usuario": str(usuario),
-                    "cliente": cliente.nome,
-                    "cliente_id": cliente.id,
-                    "mensalidade_id": mensalidade.id,
-                    "dias_cancelado": qtd_dias,
-                })
-                continue
+        # Cliente elegível! Envia oferta
+        sucesso = _enviar_mensagem_cliente(
+            cliente=cliente,
+            admin=admin,
+            mensagem_template=mensagem_template,
+            qtd_dias=qtd_dias,
+            tipo_envio=f"Oferta {numero_oferta}"
+        )
 
-            enviar_mensagem_agendada(
-                telefone=cliente.telefone,
-                mensagem=mensagem,
-                usuario=usuario,
-                token=sessao.token,
-                cliente=cliente.nome,
-                tipo_envio="Canceladas"
+        if sucesso:
+            # Registra no histórico de ofertas
+            OfertaPromocionalEnviada.objects.create(
+                cliente=cliente,
+                usuario=admin,
+                numero_oferta=numero_oferta,
+                dias_apos_cancelamento=qtd_dias,
+                data_cancelamento_ref=cliente.data_cancelamento,
+                mensagem_enviada=mensagem_template
             )
 
-            time.sleep(random.uniform(30, 60))
-
-        if qtd_dias > 30:
-            ids = mensalidades.values_list('id', flat=True)
-
-            Mensalidade.objects.filter(id__in=ids).update(
-                notificacao_wpp1=True,
-                dt_notif_wpp1=localtime().now()
-            )
-
-            Cliente.objects.filter(mensalidade__id__in=ids).update(enviado_oferta_promo=True)
+            clientes_enviados += 1
 
             logger.info(
-                "Envio promocional concluído | quantidade=%d atualizado_oferta_promo=True",
-                qtd
+                "Oferta enviada e registrada | cliente=%s numero_oferta=%d total_ofertas_cliente=%d",
+                cliente.nome,
+                numero_oferta,
+                total_ofertas_recebidas + 1
             )
+
+            registrar_log_auditoria({
+                "funcao": "_processar_oferta_promocional",
+                "status": "oferta_enviada",
+                "cliente": cliente.nome,
+                "cliente_id": cliente.id,
+                "numero_oferta": numero_oferta,
+                "dias_cancelado": qtd_dias,
+                "total_ofertas_apos_envio": total_ofertas_recebidas + 1,
+            })
+
+        time.sleep(random.uniform(30, 60))
+
+    logger.info(
+        "Processamento oferta concluído | numero_oferta=%d dias=%d enviados=%d ignorados=%d",
+        numero_oferta,
+        qtd_dias,
+        clientes_enviados,
+        clientes_ignorados
+    )
+
+
+def _enviar_mensagem_cliente(cliente, admin, mensagem_template, qtd_dias, tipo_envio):
+    """
+    Envia mensagem para um cliente específico.
+
+    Returns:
+        bool: True se enviou com sucesso, False caso contrário
+    """
+    primeiro_nome = cliente.nome.split(' ')[0]
+    saudacao = get_saudacao_por_hora()
+    mensagem = mensagem_template.format(saudacao, primeiro_nome)
+
+    try:
+        sessao = SessaoWpp.objects.filter(usuario=admin, is_active=True).first()
+    except SessaoWpp.DoesNotExist:
+        logger.warning("Sessão WPP não encontrada | usuario=%s", admin)
+        registrar_log_auditoria({
+            "funcao": "_enviar_mensagem_cliente",
+            "status": "sessao_indisponivel",
+            "usuario": str(admin),
+            "cliente": cliente.nome,
+            "cliente_id": cliente.id,
+            "dias_cancelado": qtd_dias,
+            "tipo_envio": tipo_envio,
+        })
+        return False
+
+    if not sessao or not sessao.token:
+        registrar_log_auditoria({
+            "funcao": "_enviar_mensagem_cliente",
+            "status": "sessao_indisponivel",
+            "usuario": str(admin),
+            "cliente": cliente.nome,
+            "cliente_id": cliente.id,
+            "dias_cancelado": qtd_dias,
+            "tipo_envio": tipo_envio,
+        })
+        return False
+
+    try:
+        enviar_mensagem_agendada(
+            telefone=cliente.telefone,
+            mensagem=mensagem,
+            usuario=admin,
+            token=sessao.token,
+            cliente=cliente.nome,
+            tipo_envio=tipo_envio
+        )
+        return True
+    except Exception as e:
+        logger.error(
+            "Erro ao enviar mensagem | cliente=%s erro=%s",
+            cliente.nome,
+            str(e),
+            exc_info=True
+        )
+        registrar_log_auditoria({
+            "funcao": "_enviar_mensagem_cliente",
+            "status": "erro_envio",
+            "usuario": str(admin),
+            "cliente": cliente.nome,
+            "cliente_id": cliente.id,
+            "dias_cancelado": qtd_dias,
+            "tipo_envio": tipo_envio,
+            "erro": str(e),
+        })
+        return False
 ##### FIM #####
 
 

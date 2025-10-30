@@ -24,6 +24,7 @@ from .models import (
     UserActionLog,
     NotificationRead,
     LoginLog,
+    OfertaPromocionalEnviada,
 )
 
 # --- ADMINISTRADORES ---
@@ -230,6 +231,16 @@ class LoginLogAdmin(admin.ModelAdmin):
         return False
 
 
+class OfertaPromocionalEnviadaAdmin(admin.ModelAdmin):
+    list_display = ("id", "cliente", "numero_oferta", "dias_apos_cancelamento", "data_cancelamento_ref", "data_envio", "usuario")
+    list_filter = ("numero_oferta", "dias_apos_cancelamento", "usuario", "data_envio")
+    search_fields = ("cliente__nome", "cliente__telefone")
+    autocomplete_fields = ("cliente",)
+    readonly_fields = ("data_envio",)
+    ordering = ("-data_envio",)
+    list_per_page = 50
+
+
 # --- REGISTRO NO ADMIN ---
 
 admin.site.register(Plano, PlanoAdmin)
@@ -256,6 +267,7 @@ admin.site.register(MensagensLeads, MensagensLeadsAdmin)
 admin.site.register(NotificationRead, NotificationReadAdmin)
 admin.site.register(UserActionLog, UserActionLogAdmin)
 admin.site.register(LoginLog, LoginLogAdmin)
+admin.site.register(OfertaPromocionalEnviada, OfertaPromocionalEnviadaAdmin)
 
 # Configurações adicionais do admin
 admin.site.site_header = "Administração do Sistema"

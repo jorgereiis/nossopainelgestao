@@ -301,6 +301,55 @@ class Cliente(models.Model):
         return self.nome
 
 
+class OfertaPromocionalEnviada(models.Model):
+    """
+    Rastreia o histórico de ofertas promocionais enviadas para clientes cancelados.
+
+    Garante que cada cliente receba no máximo 3 ofertas em toda a vida:
+    - Oferta 1: 60 dias após cancelamento
+    - Oferta 2: 240 dias após cancelamento (8 meses)
+    - Oferta 3: 420 dias após cancelamento (14 meses)
+
+    A contagem de dias é sempre a partir da data_cancelamento atual do cliente,
+    permitindo que clientes reativados recebam ofertas subsequentes em futuros cancelamentos.
+    """
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='ofertas_enviadas',
+        verbose_name="Cliente"
+    )
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    data_envio = models.DateTimeField("Data de Envio", auto_now_add=True)
+    numero_oferta = models.IntegerField(
+        "Número da Oferta",
+        choices=[(1, "Primeira Oferta"), (2, "Segunda Oferta"), (3, "Terceira Oferta")],
+        help_text="Sequência da oferta (1, 2 ou 3)"
+    )
+    dias_apos_cancelamento = models.IntegerField(
+        "Dias Após Cancelamento",
+        help_text="Quantidade de dias após o cancelamento (60, 240 ou 420)"
+    )
+    data_cancelamento_ref = models.DateField(
+        "Data de Cancelamento (Referência)",
+        help_text="Data de cancelamento do cliente no momento do envio"
+    )
+    mensagem_enviada = models.TextField("Mensagem Enviada", blank=True)
+
+    class Meta:
+        verbose_name = "Oferta Promocional Enviada"
+        verbose_name_plural = "Ofertas Promocionais Enviadas"
+        ordering = ['-data_envio']
+        indexes = [
+            models.Index(fields=['cliente', '-data_envio'], name='oferta_cliente_idx'),
+            models.Index(fields=['usuario', '-data_envio'], name='oferta_usuario_idx'),
+            models.Index(fields=['numero_oferta'], name='oferta_numero_idx'),
+        ]
+
+    def __str__(self):
+        return f"Oferta {self.numero_oferta} - {self.cliente.nome} ({self.data_envio.strftime('%d/%m/%Y')})"
+
+
 class Mensalidade(models.Model):
     """Modela a mensalidade de um cliente com informações de pagamento, vencimento e status."""
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT)
