@@ -52,6 +52,7 @@ if DEBUG:
     ALLOWED_HOSTS = ['*']
 else:
     ALLOWED_HOSTS = [
+        'localhost',
         'nossopainel.com.br',
         'www.nossopainel.com.br',
     ]
