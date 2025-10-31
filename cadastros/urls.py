@@ -27,6 +27,9 @@ from .views import (
     get_2fa_qr_code,
     conectar_wpp,
     get_logs_wpp,
+    parar_envio,
+    status_envio,
+    limpar_log_wpp,
     edit_profile,
     edit_customer,
     delete_server,
@@ -164,6 +167,9 @@ urlpatterns = [
     path("obter-stkn/", secret_token_api, name="obter-stkn"),
     path("obter-logs-wpp/", get_logs_wpp, name="obter-logs-wpp"),
     path("enviar-mensagem/", send_message_wpp, name="enviar-mensagem"),
+    path("parar-envio/", parar_envio, name="parar-envio"),
+    path("status-envio/", status_envio, name="status-envio"),
+    path("limpar-log-wpp/", limpar_log_wpp, name="limpar-log-wpp"),
     path("obter-session-wpp/", get_session_wpp, name="obter-session-wpp"),
 
     ############## Whatsapp API (new) ###########

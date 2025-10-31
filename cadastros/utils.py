@@ -812,3 +812,80 @@ def criar_mensalidade(cliente):
         dt_vencimento=vencimento.date(),
         usuario=cliente.usuario,
     )
+
+
+def mask_phone_number(phone):
+    """
+    Mascara número de telefone para proteção em logs.
+
+    Formato entrada: +5511987654321
+    Formato saída: +55XX****4321
+
+    SEGURANÇA:
+    - Logs de arquivo contêm números mascarados
+    - Console do modal exibe números completos (para conferência do usuário)
+    - Proteção contra vazamento de dados sensíveis em logs persistentes
+
+    Args:
+        phone (str): Número de telefone completo
+
+    Returns:
+        str: Número mascarado
+
+    Examples:
+        >>> mask_phone_number('+5511987654321')
+        '+55XX****4321'
+        >>> mask_phone_number('5511987654321')
+        '55XX****4321'
+    """
+    if not phone:
+        return phone
+
+    # Remove espaços e caracteres especiais (exceto +)
+    clean_phone = re.sub(r'[^\d+]', '', str(phone))
+
+    # Se começa com +, preserva
+    prefix = '+' if clean_phone.startswith('+') else ''
+    digits = clean_phone.lstrip('+')
+
+    # Formato: +55 (2) + XX (mask DDD) + **** (mask middle) + 4321 (last 4)
+    if len(digits) >= 10:
+        country_code = digits[:2]  # 55
+        last_four = digits[-4:]    # 4321
+        masked = f"{prefix}{country_code}XX****{last_four}"
+        return masked
+    else:
+        # Número muito curto, mascara apenas middle
+        if len(digits) >= 4:
+            return f"{prefix}{digits[:-4]}****{digits[-4:]}"
+        else:
+            return f"{prefix}{'*' * len(digits)}"
+
+
+def get_envios_hoje(usuario):
+    """
+    Retorna quantidade de envios realizados hoje pelo usuário.
+
+    Usado para:
+    - Exibir contador no modal (ex: "47/150 envios hoje")
+    - Determinar delay incremental (> 200 envios = +10s)
+    - Exibir warnings de limite recomendado
+
+    Args:
+        usuario (User): Usuário Django
+
+    Returns:
+        int: Quantidade de envios hoje
+
+    Examples:
+        >>> user = User.objects.get(username='admin')
+        >>> get_envios_hoje(user)
+        47
+    """
+    from .models import MensagemEnviadaWpp
+
+    hoje = timezone.now().date()
+    return MensagemEnviadaWpp.objects.filter(
+        usuario=usuario,
+        data_envio=hoje
+    ).count()

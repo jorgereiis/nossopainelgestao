@@ -19,7 +19,7 @@
 
             <div class="modal-body">
                 <!-- Alert de Informação -->
-                <div class="alert alert-warning d-flex align-items-start gap-2 mb-4" role="alert">
+                <div class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
                     <i class="bi bi-info-circle-fill"></i>
                     <div>
                         <strong>Atenção:</strong> Esta é uma API não-oficial. Use com moderação para evitar possíveis bloqueios.
@@ -27,16 +27,44 @@
                     </div>
                 </div>
 
+                <!-- Contador de Envios -->
+                <div class="card border-0 shadow-sm mb-4" id="contador-envios-card">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">Envios realizados hoje</small>
+                                <h5 class="mb-0" id="contador-envios-texto">
+                                    <span id="contador-envios-atual">0</span>/<span id="contador-envios-limite">150</span>
+                                </h5>
+                            </div>
+                            <div class="text-end">
+                                <i class="bi bi-send-check fs-2" id="contador-icone"></i>
+                            </div>
+                        </div>
+                        <div class="progress mt-2" style="height: 6px;">
+                            <div class="progress-bar" id="contador-progress-bar" role="progressbar"
+                                 style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                        <small class="text-muted mt-2 d-block" id="contador-mensagem">
+                            Recomendamos não exceder 150 envios por dia
+                        </small>
+                    </div>
+                </div>
+
                 <!-- Formulário de Envio -->
-                <form method="post" action="" id="form-wpp-modal">
-                    <!-- Mensagem de Status Desativado -->
+                <form method="post" action="{% url 'enviar-mensagem' %}" id="form-wpp-modal">
+                    {% csrf_token %}
+                    <!-- Mensagem de Status Desativado (comentada - feature habilitada) -->
+                    <!--
                     <div class="text-center py-3 mb-3 bg-light rounded" id="status-desativado">
                         <i class="bi bi-exclamation-triangle text-warning fs-3 mb-2"></i>
                         <p class="text-danger mb-0 fw-semibold">Desativado temporariamente.</p>
                     </div>
+                    -->
 
                     <!-- Tipo de Envio -->
-                    <div class="mb-4" id="select-tipo-envio" style="display: none;">
+                    <div class="mb-4" id="select-tipo-envio">
                         <label for="options-modal" class="form-label fw-semibold">
                             <i class="bi bi-send me-2"></i>Tipo de Envio
                             <span class="text-danger">*</span>
@@ -55,10 +83,10 @@
                         </select>
                     </div>
 
-                    <!-- Campos de Envio -->
+                    <!-- Campos de Envio (exibidos condicionalmente) -->
                     <div id="form-envio-modal">
-                        <!-- Upload de Telefones -->
-                        <div class="mb-4">
+                        <!-- Upload de Telefones (apenas para avulso) -->
+                        <div class="mb-4 d-none" id="campo-telefones">
                             <label for="telefones-modal" class="form-label fw-semibold">
                                 <i class="bi bi-telephone me-2"></i>Telefones
                                 <span class="text-danger">*</span>
@@ -68,7 +96,7 @@
                                     <i class="bi bi-file-earmark-text"></i>
                                 </span>
                                 <input type="file" class="form-control" id="telefones-modal" name="telefones"
-                                       accept=".txt" capture=".txt" required>
+                                       accept=".txt" aria-label="Arquivo de telefones .txt">
                             </div>
                             <small class="text-muted">
                                 <i class="bi bi-info-circle me-1"></i>
@@ -76,8 +104,8 @@
                             </small>
                         </div>
 
-                        <!-- Upload de Imagem (Opcional) -->
-                        <div class="mb-4">
+                        <!-- Upload de Imagem (Opcional - para todos os tipos) -->
+                        <div class="mb-4 d-none" id="campo-imagem">
                             <label for="imagem-modal" class="form-label fw-semibold">
                                 <i class="bi bi-image me-2"></i>Imagem
                                 <span class="text-muted fw-normal">(opcional)</span>
@@ -86,7 +114,8 @@
                                 <span class="input-group-text bg-light">
                                     <i class="bi bi-card-image"></i>
                                 </span>
-                                <input type="file" class="form-control" id="imagem-modal" name="imagem" accept="image/*">
+                                <input type="file" class="form-control" id="imagem-modal" name="imagem"
+                                       accept="image/png,image/jpeg,image/jpg" aria-label="Imagem PNG ou JPG">
                             </div>
                             <small class="text-muted">
                                 <i class="bi bi-info-circle me-1"></i>
@@ -94,8 +123,8 @@
                             </small>
                         </div>
 
-                        <!-- Mensagem -->
-                        <div class="mb-4">
+                        <!-- Mensagem (obrigatória para todos os tipos) -->
+                        <div class="mb-4 d-none" id="campo-mensagem">
                             <label for="mensagem-modal" class="form-label fw-semibold">
                                 <i class="bi bi-chat-text me-2"></i>Mensagem
                                 <span class="text-danger">*</span>
@@ -111,12 +140,25 @@
                             </div>
                         </div>
 
-                        <!-- Botão de Enviar -->
-                        <div class="d-grid">
+                        <!-- Botões de Controle (Enviar/Parar/Retomar) -->
+                        <div class="d-grid gap-2 d-none" id="botoes-controle">
                             <button class="btn btn-success btn-lg" type="button" id="botao-enviar-modal">
                                 <i class="bi bi-send me-2"></i>Enviar Mensagens
                             </button>
+                            <button class="btn btn-warning btn-lg d-none" type="button" id="botao-parar-modal">
+                                <i class="bi bi-stop-fill me-2"></i>Parar Envio
+                            </button>
+                            <button class="btn btn-info btn-lg d-none" type="button" id="botao-retomar-modal">
+                                <i class="bi bi-play-fill me-2"></i>Retomar Envio
+                            </button>
                         </div>
+                    </div>
+
+                    <!-- Botão Ver Logs (sempre visível) -->
+                    <div class="mt-3">
+                        <button class="btn btn-outline-secondary w-100" type="button" id="botao-ver-logs-modal">
+                            <i class="bi bi-file-earmark-text me-2"></i>Ver Logs de Envios
+                        </button>
                     </div>
                 </form>
 
@@ -298,59 +340,680 @@
 </style>
 
 <script>
-// Script para contador de caracteres
-document.addEventListener('DOMContentLoaded', function() {
-    const mensagemTextarea = document.getElementById('mensagem-modal');
-    const charCount = document.getElementById('char-count-modal');
+/**
+ * Sistema de Envios WhatsApp - Frontend Controller
+ *
+ * Funcionalidades:
+ * - Envio de mensagens com validação client-side
+ * - Polling de logs em tempo real
+ * - Controle de estado (Enviar/Parar/Retomar)
+ * - Contador dinâmico de envios com warnings
+ * - Sincronização com backend via AJAX
+ */
 
-    if (mensagemTextarea && charCount) {
-        mensagemTextarea.addEventListener('input', function() {
-            const count = this.value.length;
-            charCount.textContent = `${count} caractere${count !== 1 ? 's' : ''}`;
-        });
+(function() {
+    'use strict';
+
+    // Estado global do envio
+    let estadoEnvio = {
+        emProgresso: false,
+        pausado: false,
+        totalHoje: 0
+    };
+
+    // Intervalo de polling
+    let pollingInterval = null;
+    let statusInterval = null;
+
+    // CSRF Token
+    function getCSRFToken() {
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) return csrfMeta.content;
+
+        const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfInput) return csrfInput.value;
+
+        return null;
     }
 
-    // Botão para limpar console
-    const limparConsoleBtn = document.getElementById('limpar-console-modal');
-    if (limparConsoleBtn) {
-        limparConsoleBtn.addEventListener('click', function() {
-            const consoleBody = document.getElementById('console-body-modal');
-            if (consoleBody) {
-                consoleBody.innerHTML = '<div class="text-muted">Aguardando envios...</div>';
+    // Atualiza contador de envios
+    function atualizarContador(total) {
+        estadoEnvio.totalHoje = total;
+
+        const contadorAtual = document.getElementById('contador-envios-atual');
+        const progressBar = document.getElementById('contador-progress-bar');
+        const contadorMensagem = document.getElementById('contador-mensagem');
+        const contadorCard = document.getElementById('contador-envios-card');
+        const contadorIcone = document.getElementById('contador-icone');
+
+        if (!contadorAtual) return;
+
+        contadorAtual.textContent = total;
+
+        // Calcula percentual (limite recomendado: 150)
+        const percentual = Math.min((total / 150) * 100, 100);
+        progressBar.style.width = `${percentual}%`;
+        progressBar.setAttribute('aria-valuenow', percentual);
+
+        // Warnings dinâmicos
+        if (total <= 150) {
+            // Verde: OK
+            progressBar.className = 'progress-bar bg-success';
+            contadorCard.className = 'card border-0 shadow-sm mb-4';
+            contadorIcone.className = 'bi bi-send-check fs-2 text-success';
+            contadorMensagem.innerHTML = '<i class="bi bi-check-circle me-1"></i>Dentro do limite recomendado';
+            contadorMensagem.className = 'text-success mt-2 d-block';
+        } else if (total <= 200) {
+            // Amarelo: Atenção
+            progressBar.className = 'progress-bar bg-warning';
+            contadorCard.className = 'card border-warning shadow-sm mb-4';
+            contadorIcone.className = 'bi bi-exclamation-triangle fs-2 text-warning';
+            contadorMensagem.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i><strong>ATENÇÃO:</strong> Recomendamos não exceder 150 envios/dia`;
+            contadorMensagem.className = 'text-warning mt-2 d-block';
+        } else {
+            // Vermelho: Perigo
+            progressBar.className = 'progress-bar bg-danger';
+            contadorCard.className = 'card border-danger shadow-sm mb-4';
+            contadorIcone.className = 'bi bi-exclamation-circle fs-2 text-danger';
+            contadorMensagem.innerHTML = `<i class="bi bi-exclamation-circle me-1"></i><strong>RISCO DE BLOQUEIO!</strong> Delay aumentado para +10s. Total: ${total}/dia`;
+            contadorMensagem.className = 'text-danger mt-2 d-block fw-bold';
+        }
+    }
+
+    // Sincroniza estado com backend
+    async function sincronizarEstado() {
+        try {
+            const response = await fetch('/status-envio/', {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) throw new Error('Erro ao obter status');
+
+            const data = await response.json();
+            estadoEnvio.emProgresso = data.em_progresso;
+            estadoEnvio.pausado = data.pausado;
+            estadoEnvio.totalHoje = data.total_hoje;
+
+            atualizarContador(data.total_hoje);
+            atualizarBotoes();
+        } catch (error) {
+            console.error('Erro ao sincronizar estado:', error);
+        }
+    }
+
+    // Atualiza visibilidade dos botões baseado no estado
+    function atualizarBotoes() {
+        const btnEnviar = document.getElementById('botao-enviar-modal');
+        const btnParar = document.getElementById('botao-parar-modal');
+        const btnRetomar = document.getElementById('botao-retomar-modal');
+        const btnLimpar = document.getElementById('limpar-console-modal');
+
+        if (!btnEnviar || !btnParar || !btnRetomar) return;
+
+        if (estadoEnvio.emProgresso && !estadoEnvio.pausado) {
+            // Envio ativo: mostrar botão PARAR
+            btnEnviar.classList.add('d-none');
+            btnParar.classList.remove('d-none');
+            btnRetomar.classList.add('d-none');
+
+            // Desabilita botão "Limpar" durante envio
+            if (btnLimpar) {
+                btnLimpar.disabled = true;
+                btnLimpar.title = 'Não é possível limpar logs durante um envio em progresso';
             }
-        });
+        } else if (estadoEnvio.pausado) {
+            // Envio pausado: mostrar botão RETOMAR
+            btnEnviar.classList.add('d-none');
+            btnParar.classList.add('d-none');
+            btnRetomar.classList.remove('d-none');
+
+            // Desabilita botão "Limpar" durante envio pausado (ainda em progresso)
+            if (btnLimpar) {
+                btnLimpar.disabled = true;
+                btnLimpar.title = 'Não é possível limpar logs durante um envio em progresso';
+            }
+        } else {
+            // Sem envio: mostrar botão ENVIAR
+            btnEnviar.classList.remove('d-none');
+            btnParar.classList.add('d-none');
+            btnRetomar.classList.add('d-none');
+
+            // Habilita botão "Limpar" quando não há envio
+            if (btnLimpar) {
+                btnLimpar.disabled = false;
+                btnLimpar.title = 'Limpar logs de envios';
+            }
+        }
     }
 
-    // Botão voltar do console
-    const voltarBtn = document.getElementById('botao-voltar-modal');
-    if (voltarBtn) {
-        voltarBtn.addEventListener('click', function() {
-            document.getElementById('console-modal').style.display = 'none';
-            document.getElementById('form-wpp-modal').style.display = 'block';
-        });
-    }
+    // Inicia polling de logs
+    function iniciarPollingLogs() {
+        if (pollingInterval) clearInterval(pollingInterval);
 
-    // Reset do formulário ao fechar modal
-    const modal = document.getElementById('modalEnviosWhatsapp');
-    if (modal) {
-        modal.addEventListener('hidden.bs.modal', function() {
-            const form = document.getElementById('form-wpp-modal');
-            if (form) {
-                form.reset();
-                if (charCount) {
-                    charCount.textContent = '0 caracteres';
+        pollingInterval = setInterval(async () => {
+            try {
+                const response = await fetch('/obter-logs-wpp/', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) return;
+
+                const data = await response.json();
+                const consoleBody = document.getElementById('console-body-modal');
+
+                if (consoleBody && data.logs) {
+                    // Converte logs em HTML
+                    const logsFormatted = data.logs
+                        .split('\n')
+                        .map(line => `<div>${line || '&nbsp;'}</div>`)
+                        .join('');
+
+                    consoleBody.innerHTML = logsFormatted || '<div class="text-muted">Aguardando envios...</div>';
+
+                    // Auto-scroll para final
+                    consoleBody.scrollTop = consoleBody.scrollHeight;
                 }
+            } catch (error) {
+                console.error('Erro ao buscar logs:', error);
             }
-            // Esconder console e mostrar form
-            document.getElementById('console-modal').style.display = 'none';
-            document.getElementById('form-wpp-modal').style.display = 'block';
-        });
+        }, 2000); // Polling a cada 2 segundos
     }
-});
 
-// Função para abrir o modal de envios WhatsApp
-function modalEnviosWhatsapp() {
-    const modal = new bootstrap.Modal(document.getElementById('modalEnviosWhatsapp'));
-    modal.show();
-}
+    // Para polling de logs
+    function pararPollingLogs() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+    }
+
+    // Validação client-side
+    function validarFormulario(formData) {
+        const tipoEnvio = formData.get('options');
+        const mensagem = formData.get('mensagem');
+        const telefones = formData.get('telefones');
+
+        // Valida tipo de envio
+        if (!tipoEnvio || tipoEnvio === '') {
+            alert('Por favor, selecione um tipo de envio');
+            return false;
+        }
+
+        // Valida mensagem (obrigatória para todos os tipos)
+        if (!mensagem || mensagem.trim().length === 0) {
+            alert('Por favor, digite uma mensagem');
+            return false;
+        }
+
+        if (mensagem.length > 4096) {
+            alert('Mensagem muito longa (máximo 4096 caracteres)');
+            return false;
+        }
+
+        // Valida arquivo de telefones (obrigatório APENAS para avulso)
+        if (tipoEnvio === 'avulso') {
+            if (!telefones || telefones.size === 0) {
+                alert('Para envio avulso, é necessário selecionar um arquivo de telefones (.txt)');
+                return false;
+            }
+
+            // Valida extensão do arquivo
+            const fileName = telefones.name || '';
+            if (!fileName.toLowerCase().endsWith('.txt')) {
+                alert('O arquivo de telefones deve ser um arquivo .txt');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Handler: Enviar mensagens
+    async function enviarMensagens() {
+        const form = document.getElementById('form-wpp-modal');
+        const formData = new FormData(form);
+
+        // Validação
+        if (!validarFormulario(formData)) return;
+
+        // Obtém referências aos botões
+        const btnEnviar = document.getElementById('botao-enviar-modal');
+        const btnRetomar = document.getElementById('botao-retomar-modal');
+        const btnAtivo = btnEnviar.classList.contains('d-none') ? btnRetomar : btnEnviar;
+
+        // Estado original do botão
+        const textoOriginal = btnAtivo.innerHTML;
+
+        try {
+            // 1. Adiciona loading no botão
+            btnAtivo.disabled = true;
+            btnAtivo.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processando...';
+
+            // 2. Mostra SweetAlert2 loading
+            Swal.fire({
+                title: 'Processando Envio',
+                html: '<div class="text-center"><div class="spinner-border text-success mb-3" role="status"><span class="visually-hidden">Carregando...</span></div><p class="mb-0">Preparando envio de mensagens...<br><small class="text-muted">Aguarde...</small></p></div>',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Marca o tempo de início (para garantir 2s mínimo de loading)
+            const startTime = Date.now();
+
+            // 3. Faz a requisição (agora retorna imediatamente com 202)
+            const response = await fetch('/enviar-mensagem/', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            });
+
+            const data = await response.json();
+
+            // 4. Verifica se houve erro
+            if (!response.ok) {
+                // Fecha o loading
+                Swal.close();
+
+                // Restaura botão
+                btnAtivo.disabled = false;
+                btnAtivo.innerHTML = textoOriginal;
+
+                // Mostra erro específico
+                if (response.status === 409) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Envio em Progresso',
+                        text: 'Já existe um envio em progresso. Aguarde a conclusão ou pause o envio atual.',
+                        confirmButtonColor: '#28a745'
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erro ao Enviar',
+                        html: `<div class="text-start"><strong>Detalhes do erro:</strong><br><code>${JSON.stringify(data.error)}</code></div>`,
+                        confirmButtonColor: '#dc3545'
+                    });
+                }
+                return;
+            }
+
+            // 5. Sucesso (status 202): Garante que loading fica no mínimo 2s
+            const elapsedTime = Date.now() - startTime;
+            const remainingTime = Math.max(0, 2000 - elapsedTime);
+
+            if (remainingTime > 0) {
+                await new Promise(resolve => setTimeout(resolve, remainingTime));
+            }
+
+            // 6. Fecha o loading
+            Swal.close();
+
+            // 7. Restaura botão
+            btnAtivo.disabled = false;
+            btnAtivo.innerHTML = textoOriginal;
+
+            // 8. Transição suave: mostra console imediatamente
+            document.getElementById('form-wpp-modal').style.display = 'none';
+            document.getElementById('console-modal').style.display = 'block';
+
+            // 9. Inicia polling de logs (tempo real)
+            iniciarPollingLogs();
+            sincronizarEstado();
+
+            // 10. Inicia polling de status a cada 5s
+            if (statusInterval) clearInterval(statusInterval);
+            statusInterval = setInterval(sincronizarEstado, 5000);
+
+            // 11. Mostra toast de sucesso (não bloqueia console)
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'Envio iniciado!',
+                text: 'Acompanhe os logs em tempo real',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+
+        } catch (error) {
+            console.error('Erro ao enviar:', error);
+
+            // Fecha loading se ainda estiver aberto
+            Swal.close();
+
+            // Restaura botão
+            btnAtivo.disabled = false;
+            btnAtivo.innerHTML = textoOriginal;
+
+            // Mostra erro
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro de Conexão',
+                text: 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
+                confirmButtonColor: '#dc3545'
+            });
+        }
+    }
+
+    // Handler: Parar envio
+    async function pararEnvio() {
+        const btnParar = document.getElementById('botao-parar-modal');
+        const textoOriginal = btnParar.innerHTML;
+
+        try {
+            // Adiciona loading no botão
+            btnParar.disabled = true;
+            btnParar.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Parando...';
+
+            const csrfToken = getCSRFToken();
+            const response = await fetch('/parar-envio/', {
+                method: 'POST',
+                headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {},
+                credentials: 'same-origin'
+            });
+
+            const data = await response.json();
+
+            // Restaura botão
+            btnParar.disabled = false;
+            btnParar.innerHTML = textoOriginal;
+
+            if (!response.ok) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro ao Parar',
+                    text: data.error || 'Erro desconhecido ao tentar parar o envio',
+                    confirmButtonColor: '#dc3545'
+                });
+                return;
+            }
+
+            // Sucesso
+            Swal.fire({
+                icon: 'info',
+                title: 'Envio Pausado',
+                text: 'O envio será interrompido em breve. Use o botão "Retomar" para continuar.',
+                timer: 3000,
+                showConfirmButton: false
+            });
+
+            // Atualiza estado
+            estadoEnvio.pausado = true;
+            atualizarBotoes();
+
+            // Para polling de status (economiza recursos)
+            if (statusInterval) {
+                clearInterval(statusInterval);
+                statusInterval = null;
+            }
+
+        } catch (error) {
+            console.error('Erro ao parar envio:', error);
+
+            // Restaura botão
+            btnParar.disabled = false;
+            btnParar.innerHTML = textoOriginal;
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro de Conexão',
+                text: 'Não foi possível conectar ao servidor para parar o envio.',
+                confirmButtonColor: '#dc3545'
+            });
+        }
+    }
+
+    // Controla exibição de campos baseado no tipo de envio
+    function atualizarCamposVisiveis() {
+        const tipoEnvio = document.getElementById('options-modal');
+        const campoTelefones = document.getElementById('campo-telefones');
+        const campoImagem = document.getElementById('campo-imagem');
+        const campoMensagem = document.getElementById('campo-mensagem');
+        const botoesControle = document.getElementById('botoes-controle');
+        const inputTelefones = document.getElementById('telefones-modal');
+
+        if (!tipoEnvio) return;
+
+        const tipo = tipoEnvio.value;
+
+        // Reseta tudo primeiro
+        campoTelefones.classList.add('d-none');
+        campoImagem.classList.add('d-none');
+        campoMensagem.classList.add('d-none');
+        botoesControle.classList.add('d-none');
+        inputTelefones.removeAttribute('required');
+
+        // Exibe campos baseado no tipo selecionado
+        if (tipo === 'ativos') {
+            // Ativos: imagem (opcional) + mensagem (obrigatório)
+            campoImagem.classList.remove('d-none');
+            campoMensagem.classList.remove('d-none');
+            botoesControle.classList.remove('d-none');
+        } else if (tipo === 'cancelados') {
+            // Cancelados: imagem (opcional) + mensagem (obrigatório)
+            campoImagem.classList.remove('d-none');
+            campoMensagem.classList.remove('d-none');
+            botoesControle.classList.remove('d-none');
+        } else if (tipo === 'avulso') {
+            // Avulso: telefones (obrigatório) + imagem (opcional) + mensagem (obrigatório)
+            campoTelefones.classList.remove('d-none');
+            campoImagem.classList.remove('d-none');
+            campoMensagem.classList.remove('d-none');
+            botoesControle.classList.remove('d-none');
+            inputTelefones.setAttribute('required', 'required');
+        }
+        // Se tipo vazio ("Selecione um tipo"), nada é exibido
+    }
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', function() {
+        // Event listener para mudança de tipo de envio
+        const tipoEnvioSelect = document.getElementById('options-modal');
+        if (tipoEnvioSelect) {
+            tipoEnvioSelect.addEventListener('change', atualizarCamposVisiveis);
+        }
+
+        // Contador de caracteres
+        const mensagemTextarea = document.getElementById('mensagem-modal');
+        const charCount = document.getElementById('char-count-modal');
+
+        if (mensagemTextarea && charCount) {
+            mensagemTextarea.addEventListener('input', function() {
+                const count = this.value.length;
+                charCount.textContent = `${count} caractere${count !== 1 ? 's' : ''}`;
+
+                // Warning se exceder limite
+                if (count > 4096) {
+                    charCount.classList.add('text-danger');
+                } else {
+                    charCount.classList.remove('text-danger');
+                }
+            });
+        }
+
+        // Botão Enviar
+        const btnEnviar = document.getElementById('botao-enviar-modal');
+        if (btnEnviar) {
+            btnEnviar.addEventListener('click', enviarMensagens);
+        }
+
+        // Botão Parar
+        const btnParar = document.getElementById('botao-parar-modal');
+        if (btnParar) {
+            btnParar.addEventListener('click', pararEnvio);
+        }
+
+        // Botão Retomar (mesma função de enviar)
+        const btnRetomar = document.getElementById('botao-retomar-modal');
+        if (btnRetomar) {
+            btnRetomar.addEventListener('click', enviarMensagens);
+        }
+
+        // Botão Ver Logs (consulta sem envio)
+        const btnVerLogs = document.getElementById('botao-ver-logs-modal');
+        if (btnVerLogs) {
+            btnVerLogs.addEventListener('click', async function() {
+                // Mostra console
+                document.getElementById('form-wpp-modal').style.display = 'none';
+                document.getElementById('console-modal').style.display = 'block';
+
+                // Inicia polling de logs
+                iniciarPollingLogs();
+                sincronizarEstado();
+
+                // Inicia polling de status a cada 5s
+                if (statusInterval) clearInterval(statusInterval);
+                statusInterval = setInterval(sincronizarEstado, 5000);
+            });
+        }
+
+        // Botão Limpar Console (agora deleta o arquivo de log)
+        const limparConsoleBtn = document.getElementById('limpar-console-modal');
+        if (limparConsoleBtn) {
+            limparConsoleBtn.addEventListener('click', async function() {
+                const btn = this;
+                const textoOriginal = btn.innerHTML;
+
+                // Confirma ação
+                const result = await Swal.fire({
+                    title: 'Limpar Logs?',
+                    text: 'Esta ação irá deletar permanentemente o arquivo de log de envios.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sim, limpar!',
+                    cancelButtonText: 'Cancelar'
+                });
+
+                if (!result.isConfirmed) return;
+
+                try {
+                    // Adiciona loading no botão
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Limpando...';
+
+                    // Chama endpoint para deletar arquivo
+                    const response = await fetch('/limpar-log-wpp/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'same-origin'
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        // Erro
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Erro ao Limpar',
+                            text: data.error || 'Não foi possível limpar os logs',
+                            confirmButtonColor: '#dc3545'
+                        });
+                    } else {
+                        // Sucesso: limpa o console visualmente
+                        const consoleBody = document.getElementById('console-body-modal');
+                        if (consoleBody) {
+                            consoleBody.innerHTML = '<div class="text-muted">Logs limpos. Aguardando novos envios...</div>';
+                        }
+
+                        // Mostra toast de sucesso
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'Logs limpos!',
+                            showConfirmButton: false,
+                            timer: 2000,
+                            timerProgressBar: true
+                        });
+                    }
+                } catch (error) {
+                    console.error('Erro ao limpar logs:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erro de Conexão',
+                        text: 'Não foi possível conectar ao servidor',
+                        confirmButtonColor: '#dc3545'
+                    });
+                } finally {
+                    // Restaura botão
+                    btn.disabled = false;
+                    btn.innerHTML = textoOriginal;
+                }
+            });
+        }
+
+        // Botão Voltar
+        const voltarBtn = document.getElementById('botao-voltar-modal');
+        if (voltarBtn) {
+            voltarBtn.addEventListener('click', function() {
+                document.getElementById('console-modal').style.display = 'none';
+                document.getElementById('form-wpp-modal').style.display = 'block';
+
+                // Para polling
+                pararPollingLogs();
+                if (statusInterval) {
+                    clearInterval(statusInterval);
+                    statusInterval = null;
+                }
+            });
+        }
+
+        // Reset ao fechar modal
+        const modal = document.getElementById('modalEnviosWhatsapp');
+        if (modal) {
+            modal.addEventListener('hidden.bs.modal', function() {
+                const form = document.getElementById('form-wpp-modal');
+                if (form) {
+                    form.reset();
+                    if (charCount) {
+                        charCount.textContent = '0 caracteres';
+                    }
+                }
+
+                // Esconde console e mostra form
+                document.getElementById('console-modal').style.display = 'none';
+                document.getElementById('form-wpp-modal').style.display = 'block';
+
+                // Oculta todos os campos de input novamente
+                document.getElementById('campo-telefones').classList.add('d-none');
+                document.getElementById('campo-imagem').classList.add('d-none');
+                document.getElementById('campo-mensagem').classList.add('d-none');
+                document.getElementById('botoes-controle').classList.add('d-none');
+
+                // Para polling
+                pararPollingLogs();
+                if (statusInterval) {
+                    clearInterval(statusInterval);
+                    statusInterval = null;
+                }
+            });
+
+            // Sincroniza estado ao abrir modal
+            modal.addEventListener('shown.bs.modal', function() {
+                sincronizarEstado();
+                // Garante que campos estejam ocultos ao abrir
+                atualizarCamposVisiveis();
+            });
+        }
+    });
+
+    // Função global para abrir modal
+    window.modalEnviosWhatsapp = function() {
+        const modal = new bootstrap.Modal(document.getElementById('modalEnviosWhatsapp'));
+        modal.show();
+    };
+
+})();
 </script>

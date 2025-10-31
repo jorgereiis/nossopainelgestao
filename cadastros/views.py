@@ -15,6 +15,7 @@ import operator
 import os
 import random
 import re
+import requests
 import time
 import unicodedata
 from pathlib import Path
@@ -112,7 +113,7 @@ warnings.filterwarnings(
     "ignore", message="errors='ignore' is deprecated", category=FutureWarning
 )
 logger = logging.getLogger(__name__)
-url_api = os.getenv("URL_API")
+url_api = os.getenv("URL_API_WPP")
 
 class StaffRequiredMixin(UserPassesTestMixin):
     raise_exception = True
@@ -949,79 +950,85 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 
 @login_required
 def send_message_wpp(request):
+    """
+    Envia mensagens WhatsApp em massa via WPPConnect API.
+
+    Funcionalidades:
+    - Validação robusta via Django Form
+    - Sistema de controle via session (pausar/retomar)
+    - Mascaramento de telefones nos logs de arquivo
+    - Delay incremental (> 200 envios/dia = +10s)
+    - Timeout e retry em requests HTTP
+    - Registro em UserActionLog
+    - Sleep interruptível (parada em ~2s)
+    - Constraint UNIQUE previne duplicatas
+    - PROCESSAMENTO EM BACKGROUND (threading) para logs em tempo real
+
+    SEGURANÇA:
+    - CSRF protected
+    - Validação de inputs (XSS, injection, DoS)
+    - Path traversal prevention nos logs
+    - Rate limiting via constraint UNIQUE
+    - Isolamento por sessão (multi-user safe)
+    """
+    from django.db import IntegrityError
+    from .forms import EnvioWhatsAppForm
+    from .utils import mask_phone_number, get_envios_hoje
+    import threading
+
     if request.method != 'POST':
         return JsonResponse({'error': 'Método inválido'}, status=400)
 
-    BASE_URL = url_api + '/{}/send-{}'
+    # Previne múltiplas requisições simultâneas do mesmo usuário
+    if request.session.get('envio_em_progresso', False):
+        return JsonResponse({
+            'error': 'Já existe um envio em progresso. Aguarde a conclusão ou pause o envio atual.'
+        }, status=409)
+
+    # Validação com Django Form
+    form = EnvioWhatsAppForm(request.POST, request.FILES)
+    if not form.is_valid():
+        return JsonResponse({'error': form.errors}, status=400)
+
+    # Dados validados
+    tipo_envio = form.cleaned_data['options']
+    mensagem = form.cleaned_data['mensagem']
+    imagem = form.cleaned_data.get('imagem')
+    telefones_file = form.cleaned_data.get('telefones')
+
+    # Setup
     usuario = request.user
     sessao = get_object_or_404(SessaoWpp, usuario=usuario)
     token = sessao.token
-    tipo_envio = request.POST.get('options')
-    mensagem = request.POST.get('mensagem')
-    imagem = request.FILES.get('imagem')
+    BASE_URL = url_api + '/{}/send-{}'
 
-    log_directory = './logs/Envios manuais/'
-    log_filename = os.path.join(log_directory, f'{usuario}.log')
-    log_result_filename = os.path.join(log_directory, f'{usuario}_send_result.log')
-    os.makedirs(log_directory, exist_ok=True)
+    # Logs
+    import re
+    safe_username = re.sub(r'[^\w\-]', '', usuario.username)
+    log_directory = Path('./logs/Envios manuais/')
+    log_directory.mkdir(parents=True, exist_ok=True)
+    log_filename = log_directory / f'{safe_username}.log'
+    log_result_filename = log_directory / f'{safe_username}_send_result.log'
 
+    # Imagem base64
     imagem_base64 = None
     if imagem:
         imagem_base64 = base64.b64encode(imagem.read()).decode('utf-8')
 
-    def log_result(file_path, content):
-        with codecs.open(file_path, 'a', encoding='utf-8') as f:
-            f.write(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {content}\n")
-
-    def enviar_mensagem(url, telefone):
-        if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone, data_envio=timezone.now().date()).exists():
-            log_result(log_result_filename, f"{telefone} - ⚠️ Já foi feito envio hoje!")
-            return
-
-        headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': f'Bearer {token}'
-        }
-        body = {
-            'phone': telefone,
-            'isGroup': False,
-            'message': mensagem
-        }
-        if imagem:
-            body.update({
-                'filename': str(imagem),
-                'caption': mensagem,
-                'base64': f'data:image/png;base64,{imagem_base64}'
-            })
-
-        response = requests.post(url, headers=headers, json=body)
-
-        if response.status_code in [200, 201]:
-            log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{telefone}] Mensagem enviada!")
-            log_result(log_result_filename, f"{telefone} - ✅ Mensagem enviada")
-            MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone)
-            time.sleep(random.uniform(5, 12))
-        else:
-            try:
-                response_data = response.json()
-                error_message = response_data.get('message', response.text)
-            except json.decoder.JSONDecodeError:
-                error_message = response.text
-            log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{telefone}] [CODE][{response.status_code}] - {error_message}")
-            log_result(log_result_filename, f"{telefone} - ❌ Não enviada (consultar log)")
-
-    # Coleta de contatos
+    # Coleta de telefones (validação inicial)
     telefones = []
-    clientes = []
     if tipo_envio == 'ativos':
         clientes = Cliente.objects.filter(usuario=usuario, cancelado=False, nao_enviar_msgs=False)
         telefones = [re.sub(r'\s+|\W', '', c.telefone) for c in clientes]
     elif tipo_envio == 'cancelados':
-        clientes = Cliente.objects.filter(usuario=usuario, cancelado=True, data_cancelamento__lte=timezone.now()-timedelta(days=40), nao_enviar_msgs=False)
+        clientes = Cliente.objects.filter(
+            usuario=usuario,
+            cancelado=True,
+            data_cancelamento__lte=timezone.now() - timedelta(days=40),
+            nao_enviar_msgs=False
+        )
         telefones = [re.sub(r'\s+|\W', '', c.telefone) for c in clientes]
     elif tipo_envio == 'avulso':
-        telefones_file = request.FILES.get('telefones')
         if telefones_file:
             lines = telefones_file.read().decode('utf-8').splitlines()
             telefones = [re.sub(r'\s+|\W', '', tel) for tel in lines if tel.strip()]
@@ -1029,11 +1036,280 @@ def send_message_wpp(request):
     if not telefones:
         return JsonResponse({'error': 'Nenhum telefone válido encontrado'}, status=400)
 
-    url_envio = BASE_URL.format(usuario, 'image' if imagem else 'message')
-    for telefone in telefones:
-        enviar_mensagem(url_envio, telefone)
+    # Marca envio como em progresso
+    request.session['envio_em_progresso'] = True
+    request.session['stop_envio'] = False
+    request.session.save()
 
-    return JsonResponse({'success': 'Envio concluído'}, status=200)
+    # Prepara dados para a thread
+    thread_data = {
+        'session_key': request.session.session_key,
+        'user_id': usuario.id,
+        'tipo_envio': tipo_envio,
+        'mensagem': mensagem,
+        'imagem_nome': str(imagem) if imagem else None,
+        'imagem_base64': imagem_base64,
+        'telefones': telefones,
+        'token': token,
+        'BASE_URL': BASE_URL,
+        'log_filename': str(log_filename),
+        'log_result_filename': str(log_result_filename),
+        'remote_addr': request.META.get('REMOTE_ADDR'),
+        'request_path': request.path
+    }
+
+    # Função executada em background (thread separada)
+    def processar_envios_background(data):
+        """
+        Processa envios WhatsApp em thread separada para permitir
+        que o frontend exiba logs em tempo real via polling.
+        """
+        from django.contrib.sessions.backends.db import SessionStore
+        from django.contrib.auth import get_user_model
+        from django.db import IntegrityError
+        from .utils import mask_phone_number, get_envios_hoje
+
+        User = get_user_model()
+
+        # Reconstrói objetos necessários
+        usuario = User.objects.get(id=data['user_id'])
+        session = SessionStore(session_key=data['session_key'])
+
+        tipo_envio = data['tipo_envio']
+        mensagem = data['mensagem']
+        imagem_nome = data['imagem_nome']
+        imagem_base64 = data['imagem_base64']
+        telefones = data['telefones']
+        token = data['token']
+        BASE_URL = data['BASE_URL']
+        log_filename = data['log_filename']
+        log_result_filename = data['log_result_filename']
+        remote_addr = data['remote_addr']
+        request_path = data['request_path']
+
+        def log_result(file_path, content):
+            """Escreve log em arquivo com timestamp."""
+            with codecs.open(file_path, 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {content}\n")
+
+        def enviar_mensagem_com_retry(url, telefone, max_retries=3):
+            """
+            Envia mensagem com retry automático e timeout.
+            Cria o registro no BD ANTES de enviar (previne duplicatas).
+            """
+            hoje = timezone.now().date()
+
+            # Check: já enviou hoje?
+            if MensagemEnviadaWpp.objects.filter(
+                usuario=usuario,
+                telefone=telefone,
+                data_envio=hoje
+            ).exists():
+                log_result(log_result_filename, f"{telefone} - ⚠️ Já enviado hoje (ignorado)")
+                return False
+
+            # PASSO 1: Cria registro PRIMEIRO (previne duplicata)
+            try:
+                registro = MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone)
+            except IntegrityError:
+                log_result(log_result_filename, f"{telefone} - ⚠️ Já enviado hoje (ignorado)")
+                return False
+
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': f'Bearer {token}'
+            }
+            body = {
+                'phone': telefone,
+                'isGroup': False,
+                'message': mensagem
+            }
+            if imagem_nome:
+                body.update({
+                    'filename': imagem_nome,
+                    'caption': mensagem,
+                    'base64': f'data:image/png;base64,{imagem_base64}'
+                })
+
+            # PASSO 2: Tenta enviar (com rollback se falhar)
+            try:
+                for attempt in range(max_retries):
+                    try:
+                        response = requests.post(url, headers=headers, json=body, timeout=30)
+
+                        if response.status_code in [200, 201]:
+                            masked_phone = mask_phone_number(telefone)
+                            log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{masked_phone}] Mensagem enviada!")
+                            log_result(log_result_filename, f"{telefone} - ✅ Mensagem enviada")
+                            return True
+                        else:
+                            try:
+                                response_data = response.json()
+                                error_message = response_data.get('message', response.text)
+                            except json.decoder.JSONDecodeError:
+                                error_message = response.text
+
+                            masked_phone = mask_phone_number(telefone)
+                            log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{masked_phone}] [CODE][{response.status_code}] - {error_message}")
+
+                            if response.status_code >= 500 and attempt < max_retries - 1:
+                                wait_time = 2 ** attempt
+                                time.sleep(wait_time)
+                                continue
+                            else:
+                                registro.delete()
+                                log_result(log_result_filename, f"{telefone} - ❌ Não enviada (consultar log)")
+                                return False
+
+                    except requests.exceptions.Timeout:
+                        masked_phone = mask_phone_number(telefone)
+                        log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{masked_phone}] [TIMEOUT] Timeout após 30s")
+                        if attempt < max_retries - 1:
+                            time.sleep(2 ** attempt)
+                            continue
+                        else:
+                            registro.delete()
+                            log_result(log_result_filename, f"{telefone} - ❌ Timeout (consultar log)")
+                            return False
+
+                    except requests.exceptions.RequestException as e:
+                        registro.delete()
+                        masked_phone = mask_phone_number(telefone)
+                        log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{masked_phone}] [ERRO] {str(e)}")
+                        log_result(log_result_filename, f"{telefone} - ❌ Erro de conexão")
+                        return False
+
+            except Exception as e:
+                registro.delete()
+                masked_phone = mask_phone_number(telefone)
+                log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{masked_phone}] [ERRO INESPERADO] {str(e)}")
+                log_result(log_result_filename, f"{telefone} - ❌ Erro inesperado")
+                return False
+
+            registro.delete()
+            return False
+
+        try:
+            # UserActionLog: início
+            UserActionLog.objects.create(
+                usuario=usuario,
+                acao='other',
+                entidade='envio_whatsapp',
+                mensagem='Envio WhatsApp iniciado',
+                ip=remote_addr,
+                extras={
+                    'tipo_envio': tipo_envio,
+                    'total_telefones': len(telefones),
+                    'com_imagem': bool(imagem_nome),
+                    'path': request_path
+                }
+            )
+
+            # Processamento
+            url_envio = BASE_URL.format(usuario, 'image' if imagem_nome else 'message')
+            total = len(telefones)
+            enviadas = 0
+            envios_hoje_inicial = get_envios_hoje(usuario)
+
+            log_result(log_result_filename, f"\n=== INICIANDO ENVIO ===\nTotal: {total} telefones\n")
+
+            for idx, telefone in enumerate(telefones, 1):
+                # CHECK: Flag de parada
+                if session.get('stop_envio', False):
+                    log_result(log_result_filename, f"\n=== ENVIO PARADO PELO USUÁRIO ===\nEnviadas: {enviadas}/{total}\n")
+                    UserActionLog.objects.create(
+                        usuario=usuario,
+                        acao='other',
+                        entidade='envio_whatsapp',
+                        mensagem='Envio WhatsApp pausado pelo usuário',
+                        ip=remote_addr,
+                        extras={
+                            'tipo_envio': tipo_envio,
+                            'enviadas': enviadas,
+                            'total': total,
+                            'percentual': round((enviadas / total) * 100, 2),
+                            'path': request_path
+                        }
+                    )
+                    return
+
+                # Envia mensagem
+                if enviar_mensagem_com_retry(url_envio, telefone):
+                    enviadas += 1
+
+                # Delay inteligente
+                envios_hoje_atual = envios_hoje_inicial + enviadas
+                base_delay = random.uniform(5, 12)
+                if envios_hoje_atual > 200:
+                    extra_delay = 10
+                    total_delay = base_delay + extra_delay
+                    log_result(log_result_filename, f"⚠️ Limite de 200 envios/dia excedido. Delay aumentado para {total_delay:.1f}s")
+                else:
+                    total_delay = base_delay
+
+                # Sleep interruptível
+                chunks = int(total_delay)
+                remainder = total_delay - chunks
+                for _ in range(chunks):
+                    if session.get('stop_envio', False):
+                        log_result(log_result_filename, f"\n=== ENVIO PARADO DURANTE SLEEP ===\n")
+                        return
+                    time.sleep(1)
+                if remainder > 0:
+                    time.sleep(remainder)
+
+            # UserActionLog: conclusão
+            UserActionLog.objects.create(
+                usuario=usuario,
+                acao='other',
+                entidade='envio_whatsapp',
+                mensagem='Envio WhatsApp concluído com sucesso',
+                ip=remote_addr,
+                extras={
+                    'tipo_envio': tipo_envio,
+                    'enviadas': enviadas,
+                    'total': total,
+                    'percentual': round((enviadas / total) * 100, 2) if total > 0 else 0,
+                    'path': request_path
+                }
+            )
+
+            log_result(log_result_filename, f"\n=== ENVIO CONCLUÍDO ===\nEnviadas: {enviadas}/{total}\n")
+
+        except Exception as e:
+            log_result(log_result_filename, f"\n=== ERRO INESPERADO ===\n{str(e)}\n")
+        finally:
+            # Cleanup da sessão
+            session['envio_em_progresso'] = False
+            session['stop_envio'] = False
+            session.save()
+
+    # Inicia thread de processamento
+    thread = threading.Thread(target=processar_envios_background, args=(thread_data,), daemon=True)
+    thread.start()
+
+    # UserActionLog: início (registro imediato)
+    UserActionLog.objects.create(
+        usuario=usuario,
+        acao='other',
+        entidade='envio_whatsapp',
+        mensagem='Envio WhatsApp aceito para processamento',
+        ip=request.META.get('REMOTE_ADDR'),
+        extras={
+            'tipo_envio': tipo_envio,
+            'total_telefones': len(telefones),
+            'com_imagem': bool(imagem),
+            'path': request.path
+        }
+    )
+
+    # Retorna imediatamente (status 202 = Accepted)
+    return JsonResponse({
+        'success': 'Envio iniciado com sucesso',
+        'total': len(telefones),
+        'message': 'Os logs serão exibidos em tempo real no console'
+    }, status=202)
 
 
 
@@ -1078,13 +1354,163 @@ def get_session_wpp(request):
 @require_http_methods(["GET"])
 @login_required
 def get_logs_wpp(request):
-    log_path = Path(LOG_DIR) / "Envios manuais" / f"{request.user.username}_send_result.log"
+    """
+    Retorna logs de envios do usuário atual.
+
+    SEGURANÇA:
+    - Valida username contra path traversal (../)
+    - Normaliza path para prevenir acesso fora de LOG_DIR
+    - Verifica que path final está dentro do diretório esperado
+    """
+    import re
+
+    # Sanitiza username (previne path traversal)
+    username = request.user.username
+    # Remove caracteres perigosos: apenas alfanuméricos, underscore, hífen
+    safe_username = re.sub(r'[^\w\-]', '', username)
+
+    # Constrói path
+    log_dir = Path(LOG_DIR) / "Envios manuais"
+    log_path = log_dir / f"{safe_username}_send_result.log"
+
+    # Normaliza e resolve path (previne ../ e symlinks)
+    log_path = log_path.resolve()
+    log_dir = log_dir.resolve()
+
+    # Verifica se log_path está dentro de log_dir (previne traversal)
+    try:
+        log_path.relative_to(log_dir)
+    except ValueError:
+        # Path está fora do diretório permitido
+        return JsonResponse({'error': 'Acesso negado'}, status=403)
 
     if not log_path.exists():
         return JsonResponse({'logs': ''})
 
     logs = log_path.read_text(encoding='utf-8', errors='ignore')
     return JsonResponse({'logs': logs})
+
+
+@require_http_methods(["POST"])
+@login_required
+def parar_envio(request):
+    """
+    Endpoint para usuário pausar envios WhatsApp em progresso.
+
+    Sistema de controle via session:
+    - session['envio_em_progresso']: Boolean indicando se há envio ativo
+    - session['stop_envio']: Flag para interromper loop de envios
+
+    Response:
+    - 200: Flag setada com sucesso, envio será pausado
+    - 409: Nenhum envio em progresso para pausar
+
+    SEGURANÇA:
+    - Isolamento por sessão (cada usuário controla apenas seus próprios envios)
+    - CSRF protected
+    """
+    if not request.session.get('envio_em_progresso', False):
+        return JsonResponse({
+            'error': 'Nenhum envio em progresso'
+        }, status=409)
+
+    request.session['stop_envio'] = True
+    request.session.save()
+
+    return JsonResponse({
+        'success': 'Envio será pausado em breve'
+    }, status=200)
+
+
+@require_http_methods(["GET"])
+@login_required
+def status_envio(request):
+    """
+    Retorna status atual do envio para sincronizar UI.
+
+    Used by JavaScript para:
+    - Exibir botão correto (Enviar/Parar/Retomar)
+    - Polling a cada 5s durante envio ativo
+    - Prevenir múltiplas requisições simultâneas
+
+    Response JSON:
+        {
+            "em_progresso": bool,  # True se há envio rodando
+            "pausado": bool,       # True se foi pausado pelo usuário
+            "total_hoje": int      # Quantidade de envios realizados hoje
+        }
+    """
+    from .utils import get_envios_hoje
+
+    return JsonResponse({
+        'em_progresso': request.session.get('envio_em_progresso', False),
+        'pausado': request.session.get('stop_envio', False),
+        'total_hoje': get_envios_hoje(request.user)
+    })
+
+
+@require_http_methods(["POST"])
+@login_required
+def limpar_log_wpp(request):
+    """
+    Deleta fisicamente o arquivo de log de envios WhatsApp do usuário.
+
+    REGRAS:
+    - Só permite limpar se NÃO houver envio em progresso
+    - Deleta ambos os arquivos: log principal e log de resultados
+
+    Response:
+    - 200: Log deletado com sucesso
+    - 409: Não pode limpar durante envio em progresso
+
+    SEGURANÇA:
+    - Path traversal prevention (sanitiza username)
+    - Isolamento por usuário (cada um limpa apenas seus logs)
+    - CSRF protected
+    """
+    # Verifica se há envio em progresso
+    if request.session.get('envio_em_progresso', False):
+        return JsonResponse({
+            'error': 'Não é possível limpar logs durante um envio em progresso'
+        }, status=409)
+
+    # Path dos arquivos de log
+    import re
+    safe_username = re.sub(r'[^\w\-]', '', request.user.username)
+    log_directory = Path('./logs/Envios manuais/')
+    log_filename = log_directory / f'{safe_username}.log'
+    log_result_filename = log_directory / f'{safe_username}_send_result.log'
+
+    try:
+        # Deleta arquivo de log principal (se existir)
+        if log_filename.exists():
+            log_filename.unlink()
+
+        # Deleta arquivo de log de resultados (se existir)
+        if log_result_filename.exists():
+            log_result_filename.unlink()
+
+        # Log da ação
+        UserActionLog.objects.create(
+            usuario=request.user,
+            acao='other',
+            entidade='log_whatsapp',
+            mensagem='Arquivo de log de envios WhatsApp foi limpo',
+            ip=request.META.get('REMOTE_ADDR'),
+            extras={
+                'path': request.path,
+                'arquivos_deletados': [str(log_filename), str(log_result_filename)]
+            }
+        )
+
+        return JsonResponse({
+            'success': 'Logs limpos com sucesso'
+        }, status=200)
+
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Erro ao limpar logs: {str(e)}'
+        }, status=500)
 
 
 @login_required
