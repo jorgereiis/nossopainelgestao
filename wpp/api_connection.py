@@ -7,6 +7,7 @@ import os
 import random
 import sys
 import time
+from typing import Optional
 
 import requests
 from pathlib import Path
@@ -28,7 +29,7 @@ MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
 logger = get_wpp_logger()
 
 
-def registrar_log(mensagem: str, log_path: str | None) -> None:
+def registrar_log(mensagem: str, log_path: Optional[str]) -> None:
     """Anexa a ``mensagem`` ao arquivo de log indicado.
 
     Se log_path for None, a função retorna silenciosamente sem fazer nada.
