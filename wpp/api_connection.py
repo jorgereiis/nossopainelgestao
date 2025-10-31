@@ -28,8 +28,13 @@ MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
 logger = get_wpp_logger()
 
 
-def registrar_log(mensagem: str, log_path: str) -> None:
-    """Anexa a ``mensagem`` ao arquivo de log indicado."""
+def registrar_log(mensagem: str, log_path: str | None) -> None:
+    """Anexa a ``mensagem`` ao arquivo de log indicado.
+
+    Se log_path for None, a função retorna silenciosamente sem fazer nada.
+    """
+    if log_path is None:
+        return
     append_line(log_path, mensagem)
 
 ###################################################
@@ -424,7 +429,7 @@ def get_group_ids_by_names(token, user, group_names, log_path=None):
 
 ##### FUNÇÃO PARA ENVIAR MENSAGENS DE STATUS NO WHATSAPP #####
 # --- Envia mensagem de texto para o status do WhatsApp ---
-def upload_status_sem_imagem(texto_status, usuario, token, log_path):
+def upload_status_sem_imagem(texto_status, usuario, token, log_path=None):
     url = f"{URL_API_WPP}/{usuario}/send-text-storie"
     headers = {
         'Content-Type': 'application/json',
@@ -454,7 +459,7 @@ def upload_status_sem_imagem(texto_status, usuario, token, log_path):
 
 
 # --- Envia imagem com legenda para o status do WhatsApp ---
-def upload_imagem_status(imagem, legenda, usuario, token, log_path):
+def upload_imagem_status(imagem, legenda, usuario, token, log_path=None):
     try:
         # Se for uma URL (http ou https), envia diretamente
         if imagem.startswith("http://") or imagem.startswith("https://"):
