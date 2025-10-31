@@ -999,6 +999,7 @@ class UserActionLog(models.Model):
     ACTION_CANCEL = "cancel"
     ACTION_REACTIVATE = "reactivate"
     ACTION_PAYMENT = "payment"
+    ACTION_MIGRATION = "migration"
     ACTION_OTHER = "other"
 
     ACTION_CHOICES = [
@@ -1009,6 +1010,7 @@ class UserActionLog(models.Model):
         (ACTION_CANCEL, "Cancelamento"),
         (ACTION_REACTIVATE, "Reativação"),
         (ACTION_PAYMENT, "Pagamento"),
+        (ACTION_MIGRATION, "Migração"),
         (ACTION_OTHER, "Ação"),
     ]
 
