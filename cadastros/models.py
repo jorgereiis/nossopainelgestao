@@ -865,7 +865,13 @@ class UserProfile(models.Model):
 
 
 class MensagemEnviadaWpp(models.Model):
-    """Registra o histórico de mensagens enviadas ao WhatsApp."""
+    """
+    Registra o histórico de mensagens enviadas ao WhatsApp.
+
+    CONSTRAINT UNIQUE:
+    Previne envio duplicado para o mesmo telefone no mesmo dia pelo mesmo usuário.
+    Protege contra race conditions em requests concorrentes.
+    """
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     telefone = models.CharField(max_length=20)
     data_envio = models.DateField(auto_now_add=True)
@@ -873,6 +879,12 @@ class MensagemEnviadaWpp(models.Model):
     class Meta:
         verbose_name = "Mensagem Enviada ao WhatsApp"
         verbose_name_plural = "Mensagens Enviadas ao WhatsApp"
+        constraints = [
+            models.UniqueConstraint(
+                fields=['usuario', 'telefone', 'data_envio'],
+                name='unique_msg_por_usuario_telefone_dia'
+            )
+        ]
 
     def __str__(self) -> str:
         return self.telefone
