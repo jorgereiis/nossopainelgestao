@@ -10,4 +10,9 @@
 <!-- Modal de Envios WhatsApp -->
 {% include 'partials/modal_envios_whatsapp.html' %}
 
+<!-- Modal de Migração de Clientes (Admin) -->
+{% if request.user.is_superuser %}
+{% include 'partials/modal_migrar_clientes.html' %}
+{% endif %}
+
 <!-- Adicione outros modais globais aqui conforme necessário -->

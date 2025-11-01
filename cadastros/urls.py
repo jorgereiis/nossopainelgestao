@@ -78,6 +78,10 @@ from .views import (
     adesoes_cancelamentos_api,
     clientes_servidor_data,
     internal_send_whatsapp,
+    # Migração de clientes
+    MigrationClientesListView,
+    MigrationValidationView,
+    MigrationExecuteView,
 )
 
 urlpatterns = [
@@ -181,6 +185,11 @@ urlpatterns = [
 
     ############ Internal API (IP-restricted) ###########
     path("api/internal/send-whatsapp/", internal_send_whatsapp, name="internal-send-whatsapp"),
+
+    ############ Migração de Clientes (Admin) ###########
+    path("migration/clientes/list/", MigrationClientesListView.as_view(), name="migration-clientes-list"),
+    path("migration/clientes/validate/", MigrationValidationView.as_view(), name="migration-clientes-validate"),
+    path("migration/clientes/execute/", MigrationExecuteView.as_view(), name="migration-clientes-execute"),
 
     ########### Tests ###########
     path("teste/", test, name="teste"),

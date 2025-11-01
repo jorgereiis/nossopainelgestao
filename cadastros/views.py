@@ -5619,3 +5619,292 @@ def internal_send_whatsapp(request):
             'error': f'Erro interno: {str(e)}'
         }, status=500)
 
+
+########################################
+# MIGRAÇÃO DE CLIENTES ENTRE USUÁRIOS #
+########################################
+
+class SuperuserRequiredMixin(UserPassesTestMixin):
+    """Mixin que permite acesso apenas para superusuários"""
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def handle_no_permission(self):
+        return JsonResponse({
+            'error': 'Acesso negado. Apenas superusuários podem acessar esta funcionalidade.'
+        }, status=403)
+
+
+class MigrationClientesListView(LoginRequiredMixin, SuperuserRequiredMixin, View):
+    """
+    View para listar clientes de um usuário específico para seleção na migração.
+
+    Retorna dados formatados para popular DataTable com informações completas
+    dos clientes (nome, servidor, status, plano, telefone, etc.)
+    """
+
+    def get(self, request):
+        """Retorna lista de clientes do usuário especificado"""
+        usuario_origem_id = request.GET.get('usuario_origem_id')
+
+        if not usuario_origem_id:
+            return JsonResponse({
+                'error': 'ID do usuário de origem não informado.'
+            }, status=400)
+
+        try:
+            usuario_origem = User.objects.get(id=usuario_origem_id)
+        except User.DoesNotExist:
+            return JsonResponse({
+                'error': 'Usuário de origem não encontrado.'
+            }, status=404)
+
+        # Buscar clientes do usuário
+        clientes = Cliente.objects.filter(
+            usuario=usuario_origem
+        ).select_related(
+            'servidor', 'dispositivo', 'sistema', 'forma_pgto', 'plano', 'indicado_por'
+        ).order_by('-data_adesao')
+
+        # Serializar dados para DataTable
+        clientes_data = []
+        for cliente in clientes:
+            clientes_data.append({
+                'id': cliente.id,
+                'nome': cliente.nome,
+                'telefone': cliente.telefone or '-',
+                'servidor': cliente.servidor.nome if cliente.servidor else '-',
+                'dispositivo': cliente.dispositivo.nome if cliente.dispositivo else '-',
+                'sistema': cliente.sistema.nome if cliente.sistema else '-',
+                'plano': cliente.plano.nome if cliente.plano else '-',
+                'plano_valor': float(cliente.plano.valor) if cliente.plano else 0,
+                'forma_pgto': cliente.forma_pgto.nome if cliente.forma_pgto else '-',
+                'status': 'Cancelado' if cliente.cancelado else 'Ativo',
+                'status_class': 'danger' if cliente.cancelado else 'success',
+                'data_cadastro': cliente.data_adesao.strftime('%d/%m/%Y') if cliente.data_adesao else '-',
+                'data_cancelamento': cliente.data_cancelamento.strftime('%d/%m/%Y') if cliente.data_cancelamento else '-',
+                'indicado_por': cliente.indicado_por.nome if cliente.indicado_por else '-',
+                'uf': cliente.uf or '-',
+            })
+
+        return JsonResponse({
+            'success': True,
+            'clientes': clientes_data,
+            'total': len(clientes_data),
+            'usuario_origem': {
+                'id': usuario_origem.id,
+                'username': usuario_origem.username,
+                'nome': usuario_origem.get_full_name() or usuario_origem.username,
+            }
+        })
+
+
+class MigrationValidationView(LoginRequiredMixin, SuperuserRequiredMixin, View):
+    """
+    View para validar migração de clientes e retornar resumo detalhado.
+
+    Executa todas as validações (indicações, descontos, entidades) e retorna
+    estatísticas completas sobre o que será migrado.
+    """
+
+    def post(self, request):
+        """Valida a migração e retorna resumo"""
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'error': 'JSON inválido no corpo da requisição.'
+            }, status=400)
+
+        usuario_origem_id = data.get('usuario_origem_id')
+        usuario_destino_id = data.get('usuario_destino_id')
+        clientes_ids = data.get('clientes_ids', [])
+
+        # Validações básicas
+        if not usuario_origem_id or not usuario_destino_id:
+            return JsonResponse({
+                'error': 'IDs de usuário de origem e destino são obrigatórios.'
+            }, status=400)
+
+        if usuario_origem_id == usuario_destino_id:
+            return JsonResponse({
+                'error': 'Usuário de origem e destino não podem ser iguais.'
+            }, status=400)
+
+        if not clientes_ids:
+            return JsonResponse({
+                'error': 'Nenhum cliente selecionado para migração.'
+            }, status=400)
+
+        try:
+            usuario_origem = User.objects.get(id=usuario_origem_id)
+            usuario_destino = User.objects.get(id=usuario_destino_id)
+        except User.DoesNotExist:
+            return JsonResponse({
+                'error': 'Usuário de origem ou destino não encontrado.'
+            }, status=404)
+
+        # Importar serviço de migração
+        from cadastros.services.migration_service import (
+            ClientMigrationService,
+            MigrationValidationError
+        )
+
+        # Executar validação
+        service = ClientMigrationService(usuario_origem, usuario_destino)
+
+        try:
+            validation_result = service.validate_migration(clientes_ids)
+
+            return JsonResponse({
+                'success': True,
+                'validation': validation_result,
+                'usuario_origem': {
+                    'id': usuario_origem.id,
+                    'username': usuario_origem.username,
+                    'nome': usuario_origem.get_full_name() or usuario_origem.username,
+                },
+                'usuario_destino': {
+                    'id': usuario_destino.id,
+                    'username': usuario_destino.username,
+                    'nome': usuario_destino.get_full_name() or usuario_destino.username,
+                }
+            })
+
+        except MigrationValidationError as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e),
+                'validation_errors': service.validation_errors,
+            }, status=400)
+
+        except Exception as e:
+            logger.exception(
+                "Erro inesperado ao validar migração (user=%s, origem=%s, destino=%s)",
+                request.user.username,
+                usuario_origem_id,
+                usuario_destino_id,
+            )
+            return JsonResponse({
+                'success': False,
+                'error': f'Erro interno ao validar migração: {str(e)}'
+            }, status=500)
+
+
+class MigrationExecuteView(LoginRequiredMixin, SuperuserRequiredMixin, View):
+    """
+    View para executar a migração de clientes entre usuários.
+
+    Executa a migração de forma transacional (rollback em caso de erro)
+    e registra todas as operações em UserActionLog.
+    """
+
+    def post(self, request):
+        """Executa a migração de clientes"""
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'error': 'JSON inválido no corpo da requisição.'
+            }, status=400)
+
+        usuario_origem_id = data.get('usuario_origem_id')
+        usuario_destino_id = data.get('usuario_destino_id')
+        clientes_ids = data.get('clientes_ids', [])
+
+        # Validações básicas
+        if not usuario_origem_id or not usuario_destino_id:
+            return JsonResponse({
+                'error': 'IDs de usuário de origem e destino são obrigatórios.'
+            }, status=400)
+
+        if usuario_origem_id == usuario_destino_id:
+            return JsonResponse({
+                'error': 'Usuário de origem e destino não podem ser iguais.'
+            }, status=400)
+
+        if not clientes_ids:
+            return JsonResponse({
+                'error': 'Nenhum cliente selecionado para migração.'
+            }, status=400)
+
+        try:
+            usuario_origem = User.objects.get(id=usuario_origem_id)
+            usuario_destino = User.objects.get(id=usuario_destino_id)
+        except User.DoesNotExist:
+            return JsonResponse({
+                'error': 'Usuário de origem ou destino não encontrado.'
+            }, status=404)
+
+        # Importar serviço de migração
+        from cadastros.services.migration_service import (
+            ClientMigrationService,
+            MigrationValidationError
+        )
+
+        # Executar migração
+        service = ClientMigrationService(usuario_origem, usuario_destino)
+
+        try:
+            # Executar migração (transacional)
+            result = service.execute_migration(clientes_ids)
+
+            # Registrar log da operação
+            UserActionLog.objects.create(
+                usuario=request.user,
+                acao='migration',
+                entidade='Cliente',
+                objeto_id='',  # String vazia ao invés de None
+                objeto_repr=f'{result["stats"]["clientes_migrados"]} clientes',
+                mensagem=f'Migração de {result["stats"]["clientes_migrados"]} clientes de '
+                         f'{usuario_origem.username} para {usuario_destino.username}',
+                extras={
+                    'usuario_origem_id': usuario_origem.id,
+                    'usuario_destino_id': usuario_destino.id,
+                    'clientes_ids': clientes_ids,
+                    'stats': result['stats'],
+                    'entities_created': result['entities_created'],
+                },
+                ip=get_client_ip(request),
+                request_path=request.path,
+            )
+
+            logger.info(
+                "Migração de clientes concluída com sucesso (admin=%s, origem=%s, destino=%s, clientes=%d)",
+                request.user.username,
+                usuario_origem.username,
+                usuario_destino.username,
+                result['stats']['clientes_migrados'],
+            )
+
+            return JsonResponse({
+                'success': True,
+                'result': result,
+                'message': f'{result["stats"]["clientes_migrados"]} clientes migrados com sucesso!',
+            })
+
+        except MigrationValidationError as e:
+            logger.warning(
+                "Erro de validação ao executar migração (admin=%s, origem=%s, destino=%s): %s",
+                request.user.username,
+                usuario_origem_id,
+                usuario_destino_id,
+                str(e),
+            )
+            return JsonResponse({
+                'success': False,
+                'error': str(e),
+            }, status=400)
+
+        except Exception as e:
+            logger.exception(
+                "Erro inesperado ao executar migração (admin=%s, origem=%s, destino=%s)",
+                request.user.username,
+                usuario_origem_id,
+                usuario_destino_id,
+            )
+            return JsonResponse({
+                'success': False,
+                'error': f'Erro interno ao executar migração: {str(e)}'
+            }, status=500)
+

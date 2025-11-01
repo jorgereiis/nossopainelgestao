@@ -1,0 +1,354 @@
+{% load static %}
+
+<!-- Modal de Migração de Clientes -->
+<div class="modal fade" id="modal-migrar-clientes" tabindex="-1" aria-labelledby="modalMigrarClientesLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <!-- Header -->
+            <div class="modal-header bg-gradient-primary text-white border-0">
+                <div class="d-flex align-items-center">
+                    <i data-feather="users" class="me-3" style="width: 28px; height: 28px;"></i>
+                    <div>
+                        <h4 class="modal-title mb-0" id="modalMigrarClientesLabel">Migração de Clientes</h4>
+                        <small class="opacity-75">Transferir clientes entre usuários do sistema</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body p-0">
+                <!-- Steps Progress -->
+                <div class="px-4 pt-4 pb-3 bg-light border-bottom">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="step-item text-center flex-fill" id="step-indicator-1">
+                            <div class="step-circle bg-primary text-white mb-2 mx-auto d-flex align-items-center justify-content-center rounded-circle" style="width: 40px; height: 40px;">
+                                <span class="fw-bold">1</span>
+                            </div>
+                            <small class="text-muted d-block">Selecionar Usuários</small>
+                        </div>
+                        <div class="step-line flex-fill bg-secondary mx-2" style="height: 2px;"></div>
+                        <div class="step-item text-center flex-fill" id="step-indicator-2">
+                            <div class="step-circle bg-secondary text-white mb-2 mx-auto d-flex align-items-center justify-content-center rounded-circle" style="width: 40px; height: 40px;">
+                                <span class="fw-bold">2</span>
+                            </div>
+                            <small class="text-muted d-block">Selecionar Clientes</small>
+                        </div>
+                        <div class="step-line flex-fill bg-secondary mx-2" style="height: 2px;"></div>
+                        <div class="step-item text-center flex-fill" id="step-indicator-3">
+                            <div class="step-circle bg-secondary text-white mb-2 mx-auto d-flex align-items-center justify-content-center rounded-circle" style="width: 40px; height: 40px;">
+                                <span class="fw-bold">3</span>
+                            </div>
+                            <small class="text-muted d-block">Confirmar Migração</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1: Seleção de Usuários -->
+                <div class="step-content p-4" id="migration-step-1">
+                    <h5 class="mb-4 d-flex align-items-center">
+                        <i data-feather="user-check" class="me-2 text-primary"></i>
+                        Selecione os Usuários para Migração
+                    </h5>
+
+                    <div class="row g-4">
+                        <!-- Usuário Origem -->
+                        <div class="col-md-6">
+                            <div class="card border-primary h-100">
+                                <div class="card-header bg-primary bg-opacity-10 border-primary">
+                                    <h6 class="mb-0 text-primary">
+                                        <i data-feather="upload" class="me-2" style="width: 18px; height: 18px;"></i>
+                                        Usuário de Origem
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <label for="usuario-origem" class="form-label fw-semibold">
+                                        De onde os clientes serão migrados?
+                                    </label>
+                                    <select class="form-select form-select-lg" id="usuario-origem" required>
+                                        <option value="" selected disabled>Selecione o usuário...</option>
+                                    </select>
+                                    <small class="text-muted d-block mt-2">
+                                        <i data-feather="info" style="width: 14px; height: 14px;"></i>
+                                        Clientes serão removidos deste usuário
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Usuário Destino -->
+                        <div class="col-md-6">
+                            <div class="card border-success h-100">
+                                <div class="card-header bg-success bg-opacity-10 border-success">
+                                    <h6 class="mb-0 text-success">
+                                        <i data-feather="download" class="me-2" style="width: 18px; height: 18px;"></i>
+                                        Usuário de Destino
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <label for="usuario-destino" class="form-label fw-semibold">
+                                        Para onde os clientes serão transferidos?
+                                    </label>
+                                    <select class="form-select form-select-lg" id="usuario-destino" required>
+                                        <option value="" selected disabled>Selecione o usuário...</option>
+                                    </select>
+                                    <small class="text-muted d-block mt-2">
+                                        <i data-feather="info" style="width: 14px; height: 14px;"></i>
+                                        Clientes serão adicionados a este usuário
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-4 d-flex align-items-start" role="alert">
+                        <i data-feather="alert-circle" class="me-2 mt-1 flex-shrink-0" style="width: 20px; height: 20px;"></i>
+                        <div>
+                            <strong>Importante:</strong> Todas as informações relacionadas aos clientes (mensalidades, contas de aplicativos, histórico de planos, etc.) serão migradas junto.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Seleção de Clientes -->
+                <div class="step-content p-4 d-none" id="migration-step-2">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="mb-0 d-flex align-items-center">
+                            <i data-feather="list" class="me-2 text-primary"></i>
+                            Selecione os Clientes para Migrar
+                        </h5>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btn-selecionar-todos">
+                                <i data-feather="check-square" class="me-1" style="width: 16px; height: 16px;"></i>
+                                Selecionar Todos
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-limpar-selecao">
+                                <i data-feather="x-square" class="me-1" style="width: 16px; height: 16px;"></i>
+                                Limpar Seleção
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filtros Rápidos -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label for="filtro-status" class="form-label fw-semibold small">Status</label>
+                            <select class="form-select form-select-sm" id="filtro-status">
+                                <option value="">Todos</option>
+                                <option value="Ativo">Ativo</option>
+                                <option value="Cancelado">Cancelado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtro-servidor" class="form-label fw-semibold small">Servidor</label>
+                            <select class="form-select form-select-sm" id="filtro-servidor">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtro-plano" class="form-label fw-semibold small">Plano</label>
+                            <select class="form-select form-select-sm" id="filtro-plano">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtro-uf" class="form-label fw-semibold small">Estado (UF)</label>
+                            <select class="form-select form-select-sm" id="filtro-uf">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- DataTable -->
+                    <div class="table-responsive" style="max-height: 500px;">
+                        <table class="table table-hover table-bordered" id="table-clientes-migracao" style="width: 100%;">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th class="text-center" style="width: 50px;">
+                                        <input type="checkbox" class="form-check-input" id="checkbox-select-all">
+                                    </th>
+                                    <th>Nome</th>
+                                    <th>Telefone</th>
+                                    <th>Servidor</th>
+                                    <th>Plano</th>
+                                    <th>Status</th>
+                                    <th>UF</th>
+                                    <th>Cadastro</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populado via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-3">
+                        <span class="badge bg-primary" id="badge-clientes-selecionados">0 clientes selecionados</span>
+                    </div>
+                </div>
+
+                <!-- Step 3: Resumo e Confirmação -->
+                <div class="step-content p-4 d-none" id="migration-step-3">
+                    <h5 class="mb-4 d-flex align-items-center">
+                        <i data-feather="check-circle" class="me-2 text-success"></i>
+                        Confirme os Dados da Migração
+                    </h5>
+
+                    <!-- Cards de Resumo -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="card border-primary">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i data-feather="arrow-right" class="me-2 text-primary"></i>
+                                        <h6 class="mb-0">Resumo da Migração</h6>
+                                    </div>
+                                    <div class="small">
+                                        <div class="d-flex justify-content-between py-1 border-bottom">
+                                            <span class="text-muted">De:</span>
+                                            <strong id="resumo-usuario-origem">-</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between py-1 border-bottom">
+                                            <span class="text-muted">Para:</span>
+                                            <strong id="resumo-usuario-destino">-</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between py-1">
+                                            <span class="text-muted">Total de Clientes:</span>
+                                            <strong id="resumo-total-clientes" class="text-primary">0</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-info">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i data-feather="database" class="me-2 text-info"></i>
+                                        <h6 class="mb-0">Dados Relacionados</h6>
+                                    </div>
+                                    <div class="small">
+                                        <div class="d-flex justify-content-between py-1 border-bottom">
+                                            <span class="text-muted">Mensalidades:</span>
+                                            <strong id="resumo-mensalidades">0</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between py-1 border-bottom">
+                                            <span class="text-muted">Contas de Apps:</span>
+                                            <strong id="resumo-contas-app">0</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between py-1">
+                                            <span class="text-muted">Históricos:</span>
+                                            <strong id="resumo-historicos">0</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Warnings -->
+                    <div id="warnings-container" class="d-none">
+                        <div class="alert alert-warning" role="alert">
+                            <h6 class="alert-heading d-flex align-items-center">
+                                <i data-feather="alert-triangle" class="me-2" style="width: 20px; height: 20px;"></i>
+                                Avisos
+                            </h6>
+                            <ul id="warnings-list" class="mb-0 small">
+                                <!-- Populado via JavaScript -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Entidades a Criar -->
+                    <div id="entities-container" class="d-none">
+                        <div class="alert alert-info" role="alert">
+                            <h6 class="alert-heading d-flex align-items-center">
+                                <i data-feather="plus-circle" class="me-2" style="width: 20px; height: 20px;"></i>
+                                Entidades que Serão Criadas
+                            </h6>
+                            <p class="small mb-2">As seguintes entidades não existem no usuário de destino e serão criadas automaticamente:</p>
+                            <div id="entities-list" class="small">
+                                <!-- Populado via JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Confirmação Final -->
+                    <div class="alert alert-danger d-flex align-items-start" role="alert">
+                        <i data-feather="alert-octagon" class="me-2 mt-1 flex-shrink-0" style="width: 20px; height: 20px;"></i>
+                        <div>
+                            <strong>Atenção:</strong> Esta operação é irreversível. Certifique-se de que está migrando os clientes corretos antes de prosseguir.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div class="step-content p-5 text-center d-none" id="migration-loading">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <h5 class="text-muted" id="loading-message">Processando...</h5>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer bg-light border-top">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i data-feather="x" class="me-1" style="width: 16px; height: 16px;"></i>
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="btn-voltar-step" disabled>
+                    <i data-feather="arrow-left" class="me-1" style="width: 16px; height: 16px;"></i>
+                    Voltar
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-proximo-step">
+                    Próximo
+                    <i data-feather="arrow-right" class="ms-1" style="width: 16px; height: 16px;"></i>
+                </button>
+                <button type="button" class="btn btn-success d-none" id="btn-executar-migracao">
+                    <i data-feather="check" class="me-1" style="width: 16px; height: 16px;"></i>
+                    Confirmar Migração
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Custom styles for migration modal */
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .step-circle.active {
+        background-color: #667eea !important;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+    }
+
+    .step-circle.completed {
+        background-color: #28a745 !important;
+    }
+
+    #table-clientes-migracao tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    #table-clientes-migracao tbody tr.selected {
+        background-color: #e7f1ff !important;
+    }
+
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    /* DataTable customization */
+    .dataTables_wrapper .dataTables_filter input {
+        border-radius: 20px;
+        padding: 0.375rem 1rem;
+    }
+
+    .dataTables_wrapper .dataTables_length select {
+        border-radius: 5px;
+    }
+</style>
