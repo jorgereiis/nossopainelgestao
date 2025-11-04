@@ -681,39 +681,7 @@ $(document).ready(function() {
 // NOTA: A busca de clientes agora é gerenciada por DashboardTableManager
 // Ver: setup/static/dashboard/js/components/dashboard-table-manager.js
 
-// Função para exibir o toast
-    function showToast({ message, icon = "ℹ️", duration = 3000, iconColor = "#624bff", raw = false}) {
-        const container = document.getElementById("toast-container");
-
-        // Apaga todos os toasts anteriores
-        container.innerHTML = "";
-
-        const toast = document.createElement("div");
-        toast.classList.add("toast-message");
-
-        toast.innerHTML = raw
-        ? `
-            <span class="toast-icon">${icon}</span>
-            <span>${message}</span>
-            `
-        : `
-            <span class="toast-icon" style="color: ${iconColor};">${icon}</span>
-            <span>${message}</span>
-            `;
-
-        container.appendChild(toast);
-
-        // Fade-in
-        setTimeout(() => toast.classList.add("show"), 50);
-
-        // Fade-out e remoção
-        setTimeout(() => {
-            toast.classList.remove("show");
-            setTimeout(() => {
-                if (toast.parentNode) toast.remove();
-            }, 400);
-        }, duration);
-    }
+// NOTA: window.showToast é agora carregado globalmente via toast-manager.js
 
 // NOTA: atualizarTabelaClientes() foi substituída por window.dashboardTableManager.refreshTable()
 // A função antiga foi removida. Use o novo gerenciador:
@@ -910,5 +878,5 @@ window.exibirModalEdicao = exibirModalEdicao;
 window.exibirModalConfirmacaoPagamento = exibirModalConfirmacaoPagamento;
 window.exibirModalConfirmacaoCancelamento = exibirModalConfirmacaoCancelamento;
 window.fireAlert = fireAlert;
-window.showToast = showToast;
+// window.showToast é carregado globalmente via toast-manager.js
 window.initializeTableDropdowns = initializeTableDropdowns;

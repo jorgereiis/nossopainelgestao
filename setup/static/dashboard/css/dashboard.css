@@ -490,6 +490,209 @@
         grid-template-columns: 1fr; /* apenas 1 por linha */
     }
     }
+
+    /* ========== CARDS MODERNOS DE CONTA DO APLICATIVO ========== */
+
+    /* Container principal do card */
+    .app-card-modern {
+        position: relative;
+        width: 100%;
+        max-width: 280px;
+        border-radius: 1rem;
+        overflow: visible;
+        background: white;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(98, 75, 255, 0.1);
+    }
+
+    .app-card-modern:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 10px 28px rgba(98, 75, 255, 0.12);
+        border-color: rgba(98, 75, 255, 0.25);
+    }
+
+    /* Conteúdo do card */
+    .app-card-content {
+        position: relative;
+        padding: 1.5rem 1.25rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 0.875rem;
+    }
+
+    /* Logo circular ampliada */
+    .app-card-logo {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+        object-fit: cover;
+        transition: all 0.3s ease;
+        margin-bottom: 0.25rem;
+    }
+
+    .app-card-modern:hover .app-card-logo {
+        transform: scale(1.08);
+        box-shadow: 0 5px 20px rgba(13, 110, 253, 0.2);
+        border-color: #0d6efd;
+    }
+
+    /* Título do app */
+    .app-card-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    /* Seção de informações técnicas */
+    .app-card-info {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+
+    .app-card-info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    /* Label das informações */
+    .app-card-info-label {
+        font-size: 0.7rem;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        padding-left: 0.25rem;
+    }
+
+    /* Container do valor + botão copiar */
+    .app-card-info-value-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        width: 100%;
+        background: #f3f4f6;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+    }
+
+    .app-card-info-value-wrapper:hover {
+        background: #e5e7eb;
+        border-color: rgba(98, 75, 255, 0.2);
+    }
+
+    /* Valor da informação */
+    .app-card-info-value {
+        flex: 1;
+        font-size: 0.8rem;
+        color: #374151;
+        font-family: 'Courier New', 'Consolas', monospace;
+        word-break: break-all;
+        letter-spacing: 0.2px;
+        text-align: left;
+    }
+
+    /* Botão copiar */
+    .app-card-copy-btn {
+        flex-shrink: 0;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.3rem;
+        color: #6b7280;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        border-radius: 0.25rem;
+    }
+
+    .app-card-copy-btn:hover {
+        color: #624bff;
+        background: rgba(98, 75, 255, 0.1);
+        transform: scale(1.08);
+    }
+
+    .app-card-copy-btn:active {
+        transform: scale(0.95);
+    }
+
+    .app-card-copy-btn.copied {
+        color: #16a34a;
+        background: rgba(22, 163, 74, 0.1);
+    }
+
+    /* Botão deletar (ícone discreto no canto superior direito) */
+    .app-card-delete-btn {
+        position: absolute;
+        top: 0.65rem;
+        right: 0.65rem;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        color: #9ca3af;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        z-index: 10;
+        opacity: 0.7;
+    }
+
+    .app-card-delete-btn:hover {
+        background: rgba(220, 38, 38, 0.1);
+        color: #dc2626;
+        transform: scale(1.1);
+        opacity: 1;
+    }
+
+    .app-card-delete-btn:active {
+        transform: scale(0.92);
+        background: rgba(220, 38, 38, 0.15);
+    }
+
+    .app-card-delete-btn i {
+        font-size: 1.1rem;
+    }
+
+    /* Responsividade específica dos cards */
+    @media (max-width: 576px) {
+        .app-card-modern {
+            max-width: 100%;
+        }
+
+        .app-card-content {
+            padding: 1.25rem 1rem 1rem;
+        }
+
+        .app-card-title {
+            font-size: 1.1rem;
+        }
+
+        .app-card-logo {
+            width: 55px;
+            height: 55px;
+        }
+    }
+
     /* limitar a altura das tabelas, permitir scroll e fixar o cabeçalho no modal info */
     .custom-table-scroll {
         max-height: 320px;
@@ -503,32 +706,6 @@
         background: #fff; /* ou a cor do seu header */
         z-index: 2;
     }
-
-/* Estilo para o toast */
-.toast-message {
-  display: flex;
-  align-items: center;
-  background-color: #fff;
-  color: #333333;
-  border-radius: 8px;
-  padding: 10px 16px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-  margin-bottom: 10px;
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.4s ease, transform 0.4s ease;
-  min-width: 220px;
-}
-
-.toast-message.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.toast-icon {
-  font-size: 20px;
-  margin-right: 10px;
-}
 
 /* Estilo para o campo de telefone */
   .iti {
@@ -1305,4 +1482,33 @@ button.dropdown-item.dropdown-action-delete:hover i,
 button.dropdown-item.dropdown-action-delete:focus i {
     opacity: 1 !important;
     color: #b91c1c !important;
+}
+
+/* ========== Gestão DNS - Cards Filtráveis ========== */
+.card-filter-clickable {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.card-filter-clickable:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.card-filter-clickable.card-filter-active {
+    border: 3px solid #0d6efd !important;
+    box-shadow: 0 6px 16px rgba(13, 110, 253, 0.4) !important;
+    transform: translateY(-5px);
+}
+
+.card-filter-clickable.card-filter-active::after {
+    content: '\f0b0';  /* Font Awesome filter icon */
+    font-family: 'bootstrap-icons';
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    font-size: 0.9rem;
+    color: #0d6efd;
+    font-weight: bold;
 }

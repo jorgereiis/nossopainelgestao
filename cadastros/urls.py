@@ -82,6 +82,16 @@ from .views import (
     MigrationClientesListView,
     MigrationValidationView,
     MigrationExecuteView,
+    # Gestão de Domínios DNS (Reseller Automation)
+    gestao_dns_page,
+    obter_dispositivos_paginados_api,
+    verificar_conta_reseller_api,
+    iniciar_login_manual_api,
+    iniciar_migracao_dns_api,
+    consultar_progresso_migracao_api,
+    # API Debug Headless (Admin)
+    toggle_debug_headless,
+    get_debug_status,
 )
 
 urlpatterns = [
@@ -190,6 +200,18 @@ urlpatterns = [
     path("migration/clientes/list/", MigrationClientesListView.as_view(), name="migration-clientes-list"),
     path("migration/clientes/validate/", MigrationValidationView.as_view(), name="migration-clientes-validate"),
     path("migration/clientes/execute/", MigrationExecuteView.as_view(), name="migration-clientes-execute"),
+
+    ############ Gestão de Domínios DNS (Reseller Automation) ###########
+    path("gestao-dns/", gestao_dns_page, name="gestao-dns"),
+    path("api/gestao-dns/verificar-conta/", verificar_conta_reseller_api, name="api-verificar-conta-reseller"),
+    path("api/gestao-dns/login-manual/", iniciar_login_manual_api, name="api-login-manual-reseller"),
+    path("api/gestao-dns/iniciar-migracao/", iniciar_migracao_dns_api, name="api-iniciar-migracao-dns"),
+    path("api/gestao-dns/progresso/<int:tarefa_id>/", consultar_progresso_migracao_api, name="api-progresso-migracao-dns"),
+    path("api/gestao-dns/dispositivos-paginados/", obter_dispositivos_paginados_api, name="api-dispositivos-paginados-dns"),
+
+    # Configuração Debug Headless (Admin)
+    path("api/toggle-debug-headless/", toggle_debug_headless, name="api-toggle-debug-headless"),
+    path("api/debug-status/", get_debug_status, name="api-debug-status"),
 
     ########### Tests ###########
     path("teste/", test, name="teste"),

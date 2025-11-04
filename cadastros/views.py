@@ -16,6 +16,7 @@ import os
 import random
 import re
 import requests
+import threading
 import time
 import unicodedata
 from pathlib import Path
@@ -77,7 +78,9 @@ from .models import (
     DadosBancarios, MensagemEnviadaWpp,
     DominiosDNS, PlanoIndicacao,
     HorarioEnvios, NotificationRead,
-    UserActionLog, ClientePlanoHistorico
+    UserActionLog, ClientePlanoHistorico,
+    ContaReseller, TarefaMigracaoDNS,
+    DispositivoMigracaoDNS
 )
 from .utils import (
     envio_apos_novo_cadastro,
@@ -87,6 +90,7 @@ from .utils import (
     historico_iniciar,
     historico_encerrar_vigente,
     get_client_ip,
+    extrair_dominio_de_url,
 )
 from .wpp_views import (
     cancelar_sessao_wpp,
@@ -395,6 +399,7 @@ class CarregarContasDoAplicativo(LoginRequiredMixin, View):
             nome_aplicativo = conta.app.nome
             conta_json = model_to_dict(conta)
             conta_json['nome_aplicativo'] = nome_aplicativo
+            conta_json['logo_url'] = conta.app.get_logo_url()
             conta_app_json.append(conta_json)
 
         conta_app_json = sorted(conta_app_json, key=operator.itemgetter('nome_aplicativo'))
@@ -5907,4 +5912,705 @@ class MigrationExecuteView(LoginRequiredMixin, SuperuserRequiredMixin, View):
                 'success': False,
                 'error': f'Erro interno ao executar migração: {str(e)}'
             }, status=500)
+
+
+# ==================== VIEWS: GESTÃO DE DOMÍNIOS DNS (RESELLER AUTOMATION) ====================
+
+@login_required
+def gestao_dns_page(request):
+    """
+    Página principal de Gestão de Domínios DNS para automação reseller.
+
+    Permite ao usuário:
+    - Selecionar aplicativo (apenas os que suportam automação)
+    - Fazer login manual no painel reseller (se necessário)
+    - Configurar e iniciar migração DNS
+    - Visualizar progresso em tempo real
+    - Consultar histórico de tarefas
+
+    Template: templates/pages/gestao-dns.html
+    """
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    from django.db.models import Case, When, Value, IntegerField
+
+    # Busca apenas aplicativos que usam MAC (device_has_mac=True)
+    # Ordenação: aplicativos com automação primeiro (DreamTV = 0), depois alfabético
+    aplicativos = Aplicativo.objects.filter(device_has_mac=True).annotate(
+        prioridade=Case(
+            When(nome__iexact='dreamtv', then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField()
+        )
+    ).order_by('prioridade', 'nome')
+
+    # Contas reseller do usuário
+    contas = ContaReseller.objects.filter(usuario=request.user).select_related('aplicativo')
+
+    # Verifica se foi solicitada uma tarefa específica
+    tarefa_id = request.GET.get('tarefa_id')
+    tarefa_selecionada = None
+    dispositivos_tarefa = None
+
+    if tarefa_id:
+        try:
+            tarefa_selecionada = TarefaMigracaoDNS.objects.get(
+                id=tarefa_id,
+                usuario=request.user
+            )
+            # Busca dispositivos da tarefa COM PAGINAÇÃO (10 por página)
+            dispositivos_list = tarefa_selecionada.dispositivos.all().order_by('id')
+
+            dispositivos_paginator = Paginator(dispositivos_list, 10)
+            dispositivos_page = request.GET.get('dispositivos_page', 1)
+
+            try:
+                dispositivos_tarefa = dispositivos_paginator.page(dispositivos_page)
+            except PageNotAnInteger:
+                dispositivos_tarefa = dispositivos_paginator.page(1)
+            except EmptyPage:
+                dispositivos_tarefa = dispositivos_paginator.page(dispositivos_paginator.num_pages)
+        except TarefaMigracaoDNS.DoesNotExist:
+            pass
+
+    # Tarefas recentes com paginação (10 por página)
+    tarefas_list = TarefaMigracaoDNS.objects.filter(
+        usuario=request.user
+    ).select_related('aplicativo').order_by('-criada_em')
+
+    paginator = Paginator(tarefas_list, 10)  # 10 tarefas por página
+    page = request.GET.get('page', 1)
+
+    try:
+        tarefas_recentes = paginator.page(page)
+    except PageNotAnInteger:
+        tarefas_recentes = paginator.page(1)
+    except EmptyPage:
+        tarefas_recentes = paginator.page(paginator.num_pages)
+
+    context = {
+        'aplicativos': aplicativos,
+        'contas': contas,
+        'tarefas_recentes': tarefas_recentes,
+        'tarefa_selecionada': tarefa_selecionada,
+        'dispositivos_tarefa': dispositivos_tarefa,
+        'page_title': 'Gestão de Domínios DNS',
+    }
+
+    return render(request, 'pages/gestao-dns.html', context)
+
+
+@login_required
+def obter_dispositivos_paginados_api(request):
+    """
+    API para obter dispositivos de uma tarefa de migração com paginação AJAX.
+
+    GET Params:
+        tarefa_id: ID da tarefa (obrigatório)
+        page: Número da página (default: 1)
+        status_filter: Filtro de status ('all', 'sucesso', 'erro', 'pulado') (default: 'all')
+
+    Returns:
+        JSON:
+            - success: Boolean
+            - dispositivos: Lista de dispositivos (dict)
+            - pagination: Informações de paginação
+            - estatisticas: Estatísticas da tarefa
+    """
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
+    try:
+        tarefa_id = request.GET.get('tarefa_id')
+        page = request.GET.get('page', 1)
+        status_filter = request.GET.get('status_filter', 'all')
+
+        if not tarefa_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'tarefa_id é obrigatório'
+            }, status=400)
+
+        # Busca tarefa (apenas do usuário logado)
+        try:
+            tarefa = TarefaMigracaoDNS.objects.get(
+                id=tarefa_id,
+                usuario=request.user
+            )
+        except TarefaMigracaoDNS.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Tarefa não encontrada'
+            }, status=404)
+
+        # Filtra dispositivos por status (se não for 'all')
+        dispositivos_queryset = tarefa.dispositivos.all().order_by('id')
+
+        if status_filter != 'all':
+            dispositivos_queryset = dispositivos_queryset.filter(status=status_filter)
+
+        # Paginação (10 por página)
+        paginator = Paginator(dispositivos_queryset, 10)
+
+        try:
+            dispositivos_page = paginator.page(page)
+        except PageNotAnInteger:
+            dispositivos_page = paginator.page(1)
+        except EmptyPage:
+            dispositivos_page = paginator.page(paginator.num_pages)
+
+        # Serializa dispositivos
+        dispositivos_data = []
+        for dispositivo in dispositivos_page:
+            dispositivos_data.append({
+                'device_id': dispositivo.device_id,
+                'nome_dispositivo': dispositivo.nome_dispositivo or '-',
+                'status': dispositivo.status,
+                'dns_encontrado': extrair_dominio_de_url(dispositivo.dns_encontrado) if dispositivo.dns_encontrado else '-',
+                'dns_atualizado': extrair_dominio_de_url(dispositivo.dns_atualizado) if dispositivo.dns_atualizado else '-',
+                'mensagem_erro': dispositivo.mensagem_erro or ''
+            })
+
+        # Informações de paginação
+        pagination_data = {
+            'current_page': dispositivos_page.number,
+            'total_pages': paginator.num_pages,
+            'total_items': paginator.count,
+            'has_previous': dispositivos_page.has_previous(),
+            'has_next': dispositivos_page.has_next(),
+            'previous_page': dispositivos_page.previous_page_number() if dispositivos_page.has_previous() else None,
+            'next_page': dispositivos_page.next_page_number() if dispositivos_page.has_next() else None,
+            'page_range': list(paginator.page_range)
+        }
+
+        # Estatísticas da tarefa (sempre baseadas no total, não no filtro)
+        estatisticas = {
+            'total': tarefa.total_dispositivos,
+            'sucessos': tarefa.sucessos,
+            'falhas': tarefa.falhas,
+            'pulados': tarefa.pulados,
+            'processados': tarefa.processados
+        }
+
+        return JsonResponse({
+            'success': True,
+            'dispositivos': dispositivos_data,
+            'pagination': pagination_data,
+            'estatisticas': estatisticas,
+            'status_filter_ativo': status_filter
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Erro interno: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_POST
+def verificar_conta_reseller_api(request):
+    """
+    API para verificar se usuário possui conta reseller válida para o aplicativo.
+
+    POST Params:
+        aplicativo_id: ID do aplicativo
+
+    Returns:
+        JSON:
+            - status: 'sem_conta' | 'sessao_expirada' | 'ok'
+            - email: Email da conta (se existir)
+            - ultimo_login: Data/hora do último login (se existir)
+            - sessao_valida: Boolean
+            - mensagem: Mensagem descritiva
+    """
+    try:
+        aplicativo_id = request.POST.get('aplicativo_id')
+
+        if not aplicativo_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'aplicativo_id é obrigatório'
+            }, status=400)
+
+        # Busca aplicativo
+        try:
+            aplicativo = Aplicativo.objects.get(id=aplicativo_id)
+        except Aplicativo.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Aplicativo não encontrado'
+            }, status=404)
+
+        # Verifica se aplicativo tem automação implementada
+        # NOTA: Por enquanto, apenas DreamTV tem automação
+        if aplicativo.nome.lower() != 'dreamtv':
+            return JsonResponse({
+                'status': 'nao_implementado',
+                'mensagem': f'Automação ainda não implementada para {aplicativo.nome}.'
+            })
+
+        # Busca conta reseller
+        try:
+            conta = ContaReseller.objects.get(
+                usuario=request.user,
+                aplicativo=aplicativo
+            )
+        except ContaReseller.DoesNotExist:
+            return JsonResponse({
+                'status': 'sem_conta',
+                'mensagem': 'Você ainda não possui credenciais salvas para este aplicativo.'
+            })
+
+        # Verifica se sessão ainda é válida
+        from cadastros.services.reseller_automation import DreamTVAutomation
+
+        service = DreamTVAutomation(user=request.user, aplicativo=aplicativo)
+        sessao_valida = service.verificar_sessao_valida()
+
+        if not sessao_valida:
+            return JsonResponse({
+                'status': 'sessao_expirada',
+                'email': conta.email_login,
+                'ultimo_login': conta.ultimo_login.isoformat() if conta.ultimo_login else None,
+                'sessao_valida': False,
+                'mensagem': 'Sua sessão expirou. Faça login novamente.'
+            })
+
+        return JsonResponse({
+            'status': 'ok',
+            'email': conta.email_login,
+            'ultimo_login': conta.ultimo_login.isoformat() if conta.ultimo_login else None,
+            'sessao_valida': True,
+            'mensagem': 'Conta autenticada e sessão válida.'
+        })
+
+    except Exception as e:
+        logger.exception(f"Erro ao verificar conta reseller: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Erro interno: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_POST
+def iniciar_login_manual_api(request):
+    """
+    API para iniciar processo de login manual no painel reseller.
+
+    Abre um navegador Playwright visível para que o usuário faça login
+    manualmente e resolva o reCAPTCHA.
+
+    POST Params:
+        aplicativo_id: ID do aplicativo
+        email: Email/usuário para login
+        senha: Senha para login
+
+    Returns:
+        JSON:
+            - status: 'login_iniciado' | 'erro'
+            - mensagem: Mensagem descritiva
+    """
+    try:
+        aplicativo_id = request.POST.get('aplicativo_id')
+        email = request.POST.get('email')
+        senha = request.POST.get('senha')
+
+        # Validações
+        if not all([aplicativo_id, email, senha]):
+            return JsonResponse({
+                'success': False,
+                'error': 'Campos obrigatórios: aplicativo_id, email, senha'
+            }, status=400)
+
+        # Busca aplicativo
+        try:
+            aplicativo = Aplicativo.objects.get(id=aplicativo_id)
+        except Aplicativo.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Aplicativo não encontrado'
+            }, status=404)
+
+        # Verifica se aplicativo tem automação
+        if aplicativo.nome.lower() != 'dreamtv':
+            return JsonResponse({
+                'success': False,
+                'error': f'Automação não implementada para {aplicativo.nome}'
+            }, status=400)
+
+        # Salva ou atualiza credenciais (senha será criptografada)
+        from cadastros.utils import encrypt_password
+
+        conta, created = ContaReseller.objects.update_or_create(
+            usuario=request.user,
+            aplicativo=aplicativo,
+            defaults={
+                'email_login': email,
+                'senha_login': encrypt_password(senha),
+                'sessao_valida': False,  # Ainda não logou
+            }
+        )
+
+        logger.info(
+            f"[USER:{request.user.username}] Credenciais salvas para {aplicativo.nome} "
+            f"({'criadas' if created else 'atualizadas'})"
+        )
+
+        # Inicia login manual em thread separada
+        def fazer_login_thread():
+            """Thread que executa o login manual."""
+            try:
+                from cadastros.services.reseller_automation import DreamTVAutomation
+
+                service = DreamTVAutomation(user=request.user, aplicativo=aplicativo)
+                sucesso = service.fazer_login_manual()
+
+                if sucesso:
+                    logger.info(
+                        f"[USER:{request.user.username}] Login manual concluído com sucesso"
+                    )
+                else:
+                    logger.warning(
+                        f"[USER:{request.user.username}] Login manual não foi concluído (timeout ou erro)"
+                    )
+
+            except Exception as e:
+                logger.exception(
+                    f"[USER:{request.user.username}] Erro na thread de login manual: {e}"
+                )
+
+        thread = threading.Thread(target=fazer_login_thread, daemon=True)
+        thread.start()
+
+        return JsonResponse({
+            'status': 'login_iniciado',
+            'mensagem': 'Navegador será aberto. Faça login e resolva o reCAPTCHA.',
+        })
+
+    except Exception as e:
+        logger.exception(f"Erro ao iniciar login manual: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Erro interno: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_POST
+def iniciar_migracao_dns_api(request):
+    """
+    API para iniciar tarefa de migração DNS em background.
+
+    Valida inputs, cria tarefa no banco e inicia execução em thread separada.
+
+    POST Params:
+        aplicativo_id: ID do aplicativo
+        tipo_migracao: 'todos' | 'especifico'
+        mac_alvo: MAC Address (obrigatório se tipo='especifico')
+        dominio_origem: Domínio DNS atual (protocolo+host+porta, ex: http://dominio.com:8080)
+        dominio_destino: Novo domínio DNS (protocolo+host+porta)
+
+    Returns:
+        JSON:
+            - status: 'iniciado' | 'erro'
+            - tarefa_id: ID da tarefa criada (para polling)
+            - mensagem: Mensagem descritiva
+    """
+    from cadastros.utils import validar_formato_dominio, extrair_dominio_de_url
+
+    try:
+        # Parse dados
+        aplicativo_id = request.POST.get('aplicativo_id')
+        tipo_migracao = request.POST.get('tipo_migracao')
+        mac_alvo = request.POST.get('mac_alvo', '').strip()
+        dominio_origem = request.POST.get('dominio_origem', '').strip()
+        dominio_destino = request.POST.get('dominio_destino', '').strip()
+
+        # Validações básicas
+        if not all([aplicativo_id, tipo_migracao, dominio_origem, dominio_destino]):
+            return JsonResponse({
+                'success': False,
+                'error': 'Campos obrigatórios: aplicativo_id, tipo_migracao, dominio_origem, dominio_destino'
+            }, status=400)
+
+        # Validação de formato de domínio
+        if not validar_formato_dominio(dominio_origem):
+            return JsonResponse({
+                'success': False,
+                'error': 'Domínio origem inválido. Formato esperado: http://dominio.com ou http://dominio.com:8080'
+            }, status=400)
+
+        if not validar_formato_dominio(dominio_destino):
+            return JsonResponse({
+                'success': False,
+                'error': 'Domínio destino inválido. Formato esperado: http://dominio.com ou http://dominio.com:8080'
+            }, status=400)
+
+        if tipo_migracao not in [TarefaMigracaoDNS.TIPO_TODOS, TarefaMigracaoDNS.TIPO_ESPECIFICO]:
+            return JsonResponse({
+                'success': False,
+                'error': 'tipo_migracao deve ser "todos" ou "especifico"'
+            }, status=400)
+
+        if tipo_migracao == TarefaMigracaoDNS.TIPO_ESPECIFICO and not mac_alvo:
+            return JsonResponse({
+                'success': False,
+                'error': 'mac_alvo é obrigatório quando tipo_migracao="especifico"'
+            }, status=400)
+
+        # Busca aplicativo
+        try:
+            aplicativo = Aplicativo.objects.get(id=aplicativo_id)
+        except Aplicativo.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Aplicativo não encontrado'
+            }, status=404)
+
+        # Busca conta reseller
+        try:
+            conta = ContaReseller.objects.get(
+                usuario=request.user,
+                aplicativo=aplicativo
+            )
+        except ContaReseller.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Conta reseller não encontrada. Faça login primeiro.'
+            }, status=400)
+
+        # Verifica se sessão é válida
+        if not conta.sessao_valida:
+            return JsonResponse({
+                'success': False,
+                'error': 'Sessão expirada. Faça login novamente.'
+            }, status=400)
+
+        # Validação específica: se tipo='especifico', validar se dispositivo existe
+        if tipo_migracao == TarefaMigracaoDNS.TIPO_ESPECIFICO:
+            # NOTA: Esta validação assume que você tem ContaDoAplicativo vinculado ao usuário
+            # Ajuste conforme seu modelo de dados
+            try:
+                device = ContaDoAplicativo.objects.get(
+                    usuario=request.user,
+                    device_id=mac_alvo
+                )
+
+                # VALIDAÇÃO CRÍTICA: Extrai domínio da URL do dispositivo e compara
+                if device.url_lista:
+                    dominio_device = extrair_dominio_de_url(device.url_lista)
+
+                    if dominio_device and dominio_device != dominio_origem:
+                        return JsonResponse({
+                            'success': False,
+                            'error': f'Domínio atual do dispositivo ({dominio_device}) não corresponde ao domínio origem informado ({dominio_origem}).'
+                        }, status=400)
+
+            except ContaDoAplicativo.DoesNotExist:
+                # Dispositivo não encontrado no banco local
+                # Isso não é necessariamente um erro, pois pode existir apenas no painel reseller
+                # Vamos permitir e deixar a validação para o momento da execução
+                logger.warning(
+                    f"[USER:{request.user.username}] Dispositivo {mac_alvo} não encontrado no banco local. "
+                    "Migração será tentada mesmo assim."
+                )
+
+        # Cria tarefa
+        tarefa = TarefaMigracaoDNS.objects.create(
+            usuario=request.user,
+            aplicativo=aplicativo,
+            conta_reseller=conta,
+            tipo_migracao=tipo_migracao,
+            mac_alvo=mac_alvo if tipo_migracao == TarefaMigracaoDNS.TIPO_ESPECIFICO else '',
+            dominio_origem=dominio_origem,
+            dominio_destino=dominio_destino,
+            status=TarefaMigracaoDNS.STATUS_INICIANDO,
+        )
+
+        logger.info(
+            f"[USER:{request.user.username}] Tarefa de migração DNS criada: #{tarefa.id} "
+            f"(tipo={tipo_migracao}, origem={dominio_origem}, destino={dominio_destino})"
+        )
+
+        # Inicia execução em thread
+        def executar_migracao_thread():
+            """Thread que executa a migração DNS."""
+            try:
+                from cadastros.services.reseller_automation import DreamTVAutomation
+
+                service = DreamTVAutomation(user=request.user, aplicativo=aplicativo)
+                service.executar_migracao(tarefa_id=tarefa.id)
+
+            except Exception as e:
+                logger.exception(
+                    f"[TAREFA:{tarefa.id}] Erro na thread de migração: {e}"
+                )
+
+        thread = threading.Thread(target=executar_migracao_thread, daemon=True)
+        thread.start()
+
+        return JsonResponse({
+            'status': 'iniciado',
+            'tarefa_id': tarefa.id,
+            'mensagem': 'Migração DNS iniciada. Aguarde o progresso.'
+        })
+
+    except Exception as e:
+        logger.exception(f"Erro ao iniciar migração DNS: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Erro interno: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_GET
+def consultar_progresso_migracao_api(request, tarefa_id):
+    """
+    API para consultar progresso de uma tarefa de migração DNS (polling).
+
+    URL: /api/gestao-dns/progresso/<tarefa_id>/
+    Method: GET
+
+    Returns:
+        JSON:
+            - status: Status da tarefa
+            - total_dispositivos: Total a serem migrados
+            - processados: Quantidade já processada
+            - sucessos: Quantidade com sucesso
+            - falhas: Quantidade com erro
+            - erro_geral: Mensagem de erro geral (se houver)
+            - concluida: Boolean indicando se tarefa finalizou
+            - dispositivos: Lista com status de cada dispositivo
+    """
+    try:
+        # Busca tarefa (apenas do usuário logado - segurança)
+        try:
+            tarefa = TarefaMigracaoDNS.objects.get(
+                id=tarefa_id,
+                usuario=request.user
+            )
+        except TarefaMigracaoDNS.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Tarefa não encontrada ou você não tem permissão para acessá-la.'
+            }, status=404)
+
+        # Busca dispositivos processados
+        dispositivos = tarefa.dispositivos.all().values(
+            'device_id',
+            'nome_dispositivo',
+            'status',
+            'dns_encontrado',
+            'dns_atualizado',
+            'mensagem_erro',
+            'processado_em'
+        )
+
+        # Serializa processado_em para ISO format
+        dispositivos_list = []
+        for disp in dispositivos:
+            disp_dict = dict(disp)
+            if disp_dict['processado_em']:
+                disp_dict['processado_em'] = disp_dict['processado_em'].isoformat()
+            dispositivos_list.append(disp_dict)
+
+        return JsonResponse({
+            'status': tarefa.status,
+            'etapa_atual': tarefa.etapa_atual,  # NEW: Etapa atual (iniciando, analisando, processando, concluida, cancelada)
+            'mensagem_progresso': tarefa.mensagem_progresso,  # NEW: Mensagem dinâmica de progresso
+            'progresso_percentual': tarefa.progresso_percentual,  # UPDATED: Usa valor direto do banco (0-100)
+            'total_dispositivos': tarefa.total_dispositivos,
+            'processados': tarefa.processados,
+            'sucessos': tarefa.sucessos,
+            'falhas': tarefa.falhas,
+            'pulados': tarefa.pulados,
+            'erro_geral': tarefa.erro_geral,
+            'concluida': tarefa.esta_concluida(),
+            'criada_em': tarefa.criada_em.isoformat(),
+            'iniciada_em': tarefa.iniciada_em.isoformat() if tarefa.iniciada_em else None,
+            'concluida_em': tarefa.concluida_em.isoformat() if tarefa.concluida_em else None,
+            'dispositivos': dispositivos_list
+        })
+
+    except Exception as e:
+        logger.exception(f"Erro ao consultar progresso da tarefa {tarefa_id}: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Erro interno: {str(e)}'
+        }, status=500)
+
+
+# =====================================================================
+# API - CONFIGURAÇÃO DEBUG HEADLESS (ADMIN)
+# =====================================================================
+
+@login_required
+@require_http_methods(["POST"])
+def toggle_debug_headless(request):
+    """
+    Toggle do modo debug headless (apenas admin).
+    Quando ativado, o navegador Playwright fica visível durante automação.
+    """
+    from cadastros.models import ConfiguracaoAutomacao
+
+    # Apenas admins podem ativar debug mode
+    if not request.user.is_staff:
+        return JsonResponse({
+            'success': False,
+            'erro': 'Permissão negada. Apenas administradores podem alterar o modo debug.'
+        }, status=403)
+
+    try:
+        # Pega ou cria config para o usuário
+        config, created = ConfiguracaoAutomacao.objects.get_or_create(user=request.user)
+
+        # Inverte o estado
+        config.debug_headless_mode = not config.debug_headless_mode
+        config.save()
+
+        status_msg = "ATIVADO" if config.debug_headless_mode else "DESATIVADO"
+        logger.info(
+            f"[ADMIN:{request.user.username}] Modo debug headless {status_msg}"
+        )
+
+        return JsonResponse({
+            'success': True,
+            'debug_mode': config.debug_headless_mode,
+            'mensagem': f"Modo debug {status_msg}. "
+                       f"{'Navegador ficará VISÍVEL durante próximas automações.' if config.debug_headless_mode else 'Navegador voltará a ser OCULTO (headless).'}"
+        })
+
+    except Exception as e:
+        logger.exception(f"Erro ao toggle debug headless: {e}")
+        return JsonResponse({
+            'success': False,
+            'erro': f'Erro ao alterar configuração: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def get_debug_status(request):
+    """
+    Retorna o status atual do modo debug headless.
+    Usado para inicializar o estado do botão na interface.
+    """
+    from cadastros.models import ConfiguracaoAutomacao
+
+    try:
+        config = ConfiguracaoAutomacao.objects.filter(user=request.user).first()
+
+        return JsonResponse({
+            'success': True,
+            'debug_mode': config.debug_headless_mode if config else False,
+            'is_admin': request.user.is_staff
+        })
+
+    except Exception as e:
+        logger.exception(f"Erro ao consultar status de debug: {e}")
+        return JsonResponse({
+            'success': False,
+            'erro': f'Erro ao consultar status: {str(e)}'
+        }, status=500)
 

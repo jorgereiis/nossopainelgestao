@@ -1,0 +1,931 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Gestão de Domínios DNS | Nosso Painel - Gestão IPTV</title>
+  <style>
+    .app-card {
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+    .app-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      border-color: #0d6efd;
+    }
+    .app-card.selected {
+      border-color: #0d6efd;
+      background-color: #e7f1ff;
+    }
+
+    /* Logo circular do aplicativo */
+    .app-logo {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      border: 3px solid #f8f9fa;
+    }
+    .app-card:hover .app-logo {
+      box-shadow: 0 6px 12px rgba(13, 110, 253, 0.3);
+      border-color: #0d6efd;
+    }
+
+    /* Cards desabilitados (sem automação) */
+    .app-card-disabled {
+      opacity: 0.5;
+      cursor: not-allowed !important;
+      background-color: #f8f9fa;
+    }
+    .app-card-disabled:hover {
+      transform: none !important;
+      box-shadow: none !important;
+      border-color: transparent !important;
+    }
+    .app-card-disabled .card-body {
+      filter: grayscale(70%);
+    }
+    .app-card-disabled:hover .app-logo {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+      border-color: #f8f9fa !important;
+    }
+
+    /* Cards de filtro na seção de detalhes */
+    .card-filter-clickable-detalhes {
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .card-filter-clickable-detalhes:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    }
+    .card-filter-clickable-detalhes.card-filter-active {
+      border: 3px solid #0d6efd !important;
+      box-shadow: 0 6px 16px rgba(13, 110, 253, 0.4) !important;
+      transform: translateY(-5px);
+    }
+    .card-filter-clickable-detalhes.card-filter-active::after {
+      content: '\f0b0';
+      font-family: 'bootstrap-icons';
+      position: absolute;
+      top: 5px;
+      right: 8px;
+      font-size: 0.9rem;
+      color: #0d6efd;
+    }
+
+    .progress-container {
+      position: relative;
+    }
+    .progress {
+      height: 30px;
+    }
+    .progress-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-weight: bold;
+      color: #000;
+    }
+    .device-table-container {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .status-badge {
+      min-width: 80px;
+      display: inline-block;
+      text-align: center;
+    }
+    .hidden {
+      display: none !important;
+    }
+
+    /* Botão Debug (Admin) */
+    .debug-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #btnToggleDebug {
+      transition: all 0.3s ease;
+      font-size: 0.875rem;
+    }
+    #btnToggleDebug.active {
+      background-color: #ffc107;
+      border-color: #ffc107;
+      color: #000;
+      font-weight: bold;
+    }
+    #btnToggleDebug:hover {
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+
+<body class="bg-light">
+  <div id="db-wrapper">
+    {% include 'partials/navbar-vertical.html' %}
+    <div id="page-content">
+      {% include 'partials/header.html' %}
+
+      <div class="container-fluid p-6">
+        <div class="row">
+          <div class="col-lg-12 col-md-12 col-12">
+            <!-- Page header -->
+            <div class="border-bottom pb-4 mb-4">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h3 class="mb-0 fw-bold">
+                    <i class="bi bi-hdd-network-fill text-primary me-2"></i>
+                    Gestão de Domínios DNS
+                  </h3>
+                  <p class="text-muted mb-0 mt-2">Automatize a troca de domínios DNS nos painéis reseller</p>
+                </div>
+
+                <!-- Botão Debug (apenas admin) -->
+                {% if user.is_staff %}
+                <div class="debug-control">
+                  <button id="btnToggleDebug" class="btn btn-sm btn-outline-warning" title="Modo Debug: Mostra navegador durante automação">
+                    <i class="fas fa-bug me-1"></i>
+                    <span id="debugStatusText">Debug: OFF</span>
+                  </button>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ETAPA 1: Seleção de Aplicativo -->
+        <div id="step-select-app" class="row mb-4">
+          <div class="col-xl-4 col-lg-4 col-md-12 col-12">
+            <div class="mb-4 mb-lg-0">
+              <h4 class="mb-1">Selecione o Aplicativo</h4>
+              <p class="mb-0 fs-5 text-muted">Escolha qual aplicativo/plataforma você deseja gerenciar.</p>
+            </div>
+          </div>
+
+          <div class="col-xl-8 col-lg-8 col-md-12 col-12">
+            <div class="row" id="aplicativos-container">
+              {% for app in aplicativos %}
+              <div class="col-md-4 mb-3">
+                <div class="card app-card shadow-sm border-0 {% if not app.tem_automacao_implementada %}app-card-disabled{% endif %}"
+                     data-app-id="{{ app.id }}"
+                     data-app-name="{{ app.nome }}"
+                     data-tem-automacao="{{ app.tem_automacao_implementada|yesno:'true,false' }}">
+                  <div class="card-body text-center p-3">
+                    <img src="{{ app.get_logo_url }}" alt="{{ app.nome }} Logo" class="app-logo">
+                    <h6 class="mb-2 fw-semibold">{{ app.nome }}</h6>
+                    {% if app.tem_automacao_implementada %}
+                      <span class="badge bg-success badge-sm">Disponível</span>
+                    {% else %}
+                      <span class="badge bg-secondary badge-sm">Em Breve</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <!-- ETAPA 2: Status da Conta -->
+        <div id="step-account-status" class="row mb-4 hidden">
+          <div class="col-xl-4 col-lg-4 col-md-12 col-12">
+            <div class="mb-4 mb-lg-0">
+              <h4 class="mb-1">Status da Conta</h4>
+              <p class="mb-0 fs-5 text-muted">Verificando autenticação do painel reseller.</p>
+            </div>
+          </div>
+
+          <div class="col-xl-8 col-lg-8 col-md-12 col-12">
+            <div class="card shadow-sm border-0">
+              <div class="card-body p-4">
+                <div id="account-status-content">
+                  <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">Verificando...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Verificando status da conta...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ETAPA 3: Login Manual -->
+        <div id="step-login-manual" class="row mb-4 hidden">
+          <div class="col-xl-4 col-lg-4 col-md-12 col-12">
+            <div class="mb-4 mb-lg-0">
+              <h4 class="mb-1">Login Manual</h4>
+              <p class="mb-0 fs-5 text-muted">Faça login no painel reseller.</p>
+            </div>
+          </div>
+
+          <div class="col-xl-8 col-lg-8 col-md-12 col-12">
+            <div class="card shadow-sm border-0">
+              <div class="card-body p-4">
+                <div class="alert alert-info">
+                  <i class="bi bi-info-circle-fill me-2"></i>
+                  <strong>Atenção:</strong> Um navegador será aberto para que você faça login manualmente e resolva o reCAPTCHA.
+                </div>
+
+                <form id="form-login-manual">
+                  {% csrf_token %}
+                  <input type="hidden" name="aplicativo_id" id="login-aplicativo-id">
+
+                  <div class="mb-3">
+                    <label for="login-email" class="form-label fw-semibold">
+                      <i class="bi bi-envelope-fill text-primary me-2"></i>Email/Usuário <span class="text-danger">*</span>
+                    </label>
+                    <input type="email" class="form-control form-control-lg" id="login-email" name="email" required>
+                    <small class="text-muted">Email ou usuário usado no painel reseller</small>
+                  </div>
+
+                  <div class="mb-4">
+                    <label for="login-senha" class="form-label fw-semibold">
+                      <i class="bi bi-key-fill text-warning me-2"></i>Senha <span class="text-danger">*</span>
+                    </label>
+                    <input type="password" class="form-control form-control-lg" id="login-senha" name="senha" required>
+                    <small class="text-muted">Senha do painel reseller</small>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-lg w-100">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Fazer Login Manual
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ETAPA 4: Configuração da Migração -->
+        <div id="step-migracao-config" class="row mb-4 hidden">
+          <div class="col-xl-4 col-lg-4 col-md-12 col-12">
+            <div class="mb-4 mb-lg-0">
+              <h4 class="mb-1">Configurar Migração</h4>
+              <p class="mb-0 fs-5 text-muted">Defina qual dispositivo e qual domínio DNS será usado.</p>
+            </div>
+          </div>
+
+          <div class="col-xl-8 col-lg-8 col-md-12 col-12">
+            <div class="card shadow-sm border-0">
+              <div class="card-body p-4">
+                <form id="form-migracao">
+                  {% csrf_token %}
+                  <input type="hidden" name="aplicativo_id" id="migracao-aplicativo-id">
+
+                  <!-- Escopo da migração -->
+                  <div class="mb-4">
+                    <label class="form-label fw-semibold">
+                      <i class="bi bi-diagram-3-fill text-primary me-2"></i>Escopo da Migração <span class="text-danger">*</span>
+                    </label>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="tipo_migracao" id="tipo-todos" value="todos" checked>
+                      <label class="form-check-label" for="tipo-todos">
+                        Todos os dispositivos
+                      </label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="tipo_migracao" id="tipo-especifico" value="especifico">
+                      <label class="form-check-label" for="tipo-especifico">
+                        Dispositivo específico (MAC Address)
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- MAC específico (condicional) -->
+                  <div id="div-mac-especifico" class="mb-4 hidden">
+                    <label for="mac-alvo" class="form-label fw-semibold">
+                      <i class="bi bi-router-fill text-info me-2"></i>MAC Address <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control form-control-lg" id="mac-alvo" name="mac_alvo" placeholder="XX:XX:XX:XX:XX:XX">
+                    <small class="text-muted">MAC Address do dispositivo que será atualizado</small>
+                  </div>
+
+                  <!-- Domínio Origem -->
+                  <div class="mb-4">
+                    <label for="dominio-origem" class="form-label fw-semibold">
+                      <i class="bi bi-link-45deg text-danger me-2"></i>Domínio Origem <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control form-control-lg" id="dominio-origem" name="dominio_origem"
+                           placeholder="http://dominio-atual.com ou http://dominio-atual.com:8080" required>
+                    <small class="text-muted">Protocolo + domínio + porta opcional (ex: http://exemplo.com:8080)</small>
+                  </div>
+
+                  <!-- Domínio Destino -->
+                  <div class="mb-4">
+                    <label for="dominio-destino" class="form-label fw-semibold">
+                      <i class="bi bi-link-45deg text-success me-2"></i>Domínio Destino <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control form-control-lg" id="dominio-destino" name="dominio_destino"
+                           placeholder="http://dominio-novo.com ou http://dominio-novo.com:80" required>
+                    <small class="text-muted">Protocolo + domínio + porta opcional (ex: http://novo.com)</small>
+                  </div>
+
+                  <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success btn-lg">
+                      <i class="bi bi-lightning-fill me-2"></i>Iniciar Migração DNS
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="btn-voltar">
+                      <i class="bi bi-arrow-left me-2"></i>Voltar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ETAPA 5: Progresso da Migração -->
+        <div id="step-progresso" class="row mb-4 hidden">
+          <div class="col-12">
+            <div class="card shadow-sm border-0">
+              <div class="card-body p-4">
+                <h4 class="mb-4 fw-bold">
+                  <i class="bi bi-hourglass-split text-primary me-2"></i>
+                  Migração em Andamento
+                </h4>
+
+                <!-- Mensagem dinâmica de progresso -->
+                <div id="progress-message" class="alert alert-info mb-3 text-center" role="alert">
+                  <i class="bi bi-info-circle-fill me-2"></i>
+                  <span id="progress-message-text">Iniciando migração...</span>
+                </div>
+
+                <!-- Barra de progresso -->
+                <div class="progress-container mb-4">
+                  <div class="progress">
+                    <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                         role="progressbar" style="width: 0%"></div>
+                  </div>
+                  <div class="progress-text" id="progress-text">0%</div>
+                </div>
+
+                <!-- Estatísticas -->
+                <div class="row mb-4 justify-content-center">
+                  <div class="col-md-2">
+                    <div class="card bg-light border-0 card-filter-clickable" data-filter="all" onclick="GestaoDNS.filtrarPorStatus('all')">
+                      <div class="card-body text-center p-2">
+                        <h3 class="mb-0 fw-bold text-primary" id="stat-total">0</h3>
+                        <small class="text-muted">Total</small>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <div class="card bg-light border-0">
+                      <div class="card-body text-center p-2">
+                        <h3 class="mb-0 fw-bold text-info" id="stat-processados">0</h3>
+                        <small class="text-muted">Processados</small>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <div class="card bg-success border-0 card-filter-clickable" data-filter="sucesso" onclick="GestaoDNS.filtrarPorStatus('sucesso')">
+                      <div class="card-body text-center p-2">
+                        <h3 class="mb-0 fw-bold text-white" id="stat-sucessos">0</h3>
+                        <small class="text-white opacity-75">Sucessos</small>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <div class="card bg-warning border-0 card-filter-clickable" data-filter="pulado" onclick="GestaoDNS.filtrarPorStatus('pulado')">
+                      <div class="card-body text-center p-2">
+                        <h3 class="mb-0 fw-bold text-dark" id="stat-pulados">0</h3>
+                        <small class="text-dark opacity-75">Pulados</small>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <div class="card bg-danger border-0 card-filter-clickable" data-filter="erro" onclick="GestaoDNS.filtrarPorStatus('erro')">
+                      <div class="card-body text-center p-2">
+                        <h3 class="mb-0 fw-bold text-white" id="stat-falhas">0</h3>
+                        <small class="text-white opacity-75">Falhas</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Loading Indicator (visível apenas quando total_dispositivos === 0) -->
+                <div id="loading-indicator" class="text-center mb-4 hidden">
+                  <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Carregando...</span>
+                  </div>
+                  <p class="mt-3 text-muted fw-semibold">
+                    <i class="bi bi-hourglass-split me-2"></i>Carregando lista de dispositivos...
+                  </p>
+                </div>
+
+                <!-- Tabela de dispositivos -->
+                <div class="device-table-container">
+                  <table class="table table-hover table-sm">
+                    <thead class="table-light sticky-top">
+                      <tr>
+                        <th>MAC Address</th>
+                        <th>Nome</th>
+                        <th>Status</th>
+                        <th>DNS Encontrado</th>
+                        <th>DNS Atualizado</th>
+                        <th>Erro</th>
+                      </tr>
+                    </thead>
+                    <tbody id="devices-tbody">
+                      <!-- Preenchido via JavaScript -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Resumo final (quando concluído) -->
+                <div id="resumo-final" class="hidden mt-4">
+                  <div class="alert alert-success">
+                    <h5 class="alert-heading">
+                      <i class="bi bi-check-circle-fill me-2"></i>Migração Concluída!
+                    </h5>
+                    <p class="mb-0" id="resumo-texto"></p>
+                  </div>
+                  <button class="btn btn-primary" id="btn-nova-migracao">
+                    <i class="bi bi-arrow-repeat me-2"></i>Nova Migração
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detalhes de Migração Histórica -->
+        {% if tarefa_selecionada %}
+        <div class="row mt-5">
+          <div class="col-12">
+            <div class="card shadow-lg border-primary border-2">
+              <div class="card-header bg-primary text-white p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h4 class="mb-1">
+                      <i class="bi bi-info-circle me-2"></i>
+                      Detalhes da Migração #{{ tarefa_selecionada.id }}
+                    </h4>
+                    <p class="text-white-50 small mb-0">
+                      <i class="bi bi-info-circle-fill me-1"></i>
+                      O progresso indica dispositivos <strong>processados</strong> (analisados pela automação), não necessariamente migrados com sucesso.
+                      Verifique as estatísticas abaixo para detalhes.
+                    </p>
+                  </div>
+                  <a href="{% url 'gestao-dns' %}" class="btn btn-light btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Voltar
+                  </a>
+                </div>
+              </div>
+              <div class="card-body p-4">
+                <!-- Informações da Tarefa -->
+                <div class="row mb-4">
+                  <div class="col-md-3 text-center">
+                    <p class="mb-1 text-muted small">Aplicativo</p>
+                    <p class="fw-bold">{{ tarefa_selecionada.aplicativo.nome }}</p>
+                  </div>
+                  <div class="col-md-2 text-center">
+                    <p class="mb-1 text-muted small">Tipo</p>
+                    <p>
+                      {% if tarefa_selecionada.tipo_migracao == 'todos' %}
+                        <span class="badge bg-primary">Todos</span>
+                      {% else %}
+                        <span class="badge bg-info">Específico ({{ tarefa_selecionada.mac_alvo }})</span>
+                      {% endif %}
+                    </p>
+                  </div>
+                  <div class="col-md-2 text-center">
+                    <p class="mb-1 text-muted small">Status</p>
+                    <p>
+                      {% if tarefa_selecionada.status == 'concluida' %}
+                        <span class="badge bg-success">Concluída</span>
+                      {% elif tarefa_selecionada.status == 'em_andamento' %}
+                        <span class="badge bg-warning">Em andamento</span>
+                      {% elif tarefa_selecionada.status == 'erro_login' %}
+                        <span class="badge bg-danger">Erro no login</span>
+                      {% else %}
+                        <span class="badge bg-secondary">{{ tarefa_selecionada.get_status_display }}</span>
+                      {% endif %}
+                    </p>
+                  </div>
+                  <div class="col-md-3 text-center">
+                    <p class="mb-1 text-muted small">Progresso</p>
+                    <p class="fw-bold text-success">
+                      {{ tarefa_selecionada.sucessos }}/{{ tarefa_selecionada.total_dispositivos }} dispositivos
+                      <span class="text-muted small">({{ tarefa_selecionada.progresso_percentual }}%)</span>
+                    </p>
+                  </div>
+                  <div class="col-md-2 text-center">
+                    <p class="mb-1 text-muted small">Data</p>
+                    <p>{{ tarefa_selecionada.criada_em|date:"d/m/Y H:i" }}</p>
+                  </div>
+                </div>
+
+                <!-- Domínios -->
+                <div class="row mb-4">
+                  <div class="col-md-6 text-center">
+                    <p class="mb-1 text-muted small">Domínio Origem</p>
+                    <p class="fw-bold text-danger">{{ tarefa_selecionada.dominio_origem }}</p>
+                  </div>
+                  <div class="col-md-6 text-center">
+                    <p class="mb-1 text-muted small">Domínio Destino</p>
+                    <p class="fw-bold text-success">{{ tarefa_selecionada.dominio_destino }}</p>
+                  </div>
+                </div>
+
+                <hr class="my-4">
+
+                <!-- Tabela de Dispositivos -->
+                <h5 class="mb-3 fw-bold">
+                  <i class="bi bi-list-ul me-2"></i>
+                  Dispositivos Migrados
+                </h5>
+
+                {% if dispositivos_tarefa %}
+                <!-- Barras de Progresso -->
+                <div class="row mb-4">
+                  <div class="col-md-6">
+                    <small class="text-muted d-block mb-2">
+                      <i class="bi bi-speedometer2 me-1"></i>
+                      Progresso de Processamento
+                    </small>
+                    <div class="progress" style="height: 28px;">
+                      <div class="progress-bar bg-primary" style="width: {{ tarefa_selecionada.progresso_percentual }}%">
+                        <span class="fw-semibold">{{ tarefa_selecionada.progresso_percentual }}% ({{ tarefa_selecionada.processados }}/{{ tarefa_selecionada.total_dispositivos }} processados)</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <small class="text-muted d-block mb-2">
+                      <i class="bi bi-pie-chart me-1"></i>
+                      Distribuição de Resultados
+                    </small>
+                    <div class="progress" style="height: 28px;">
+                      {% if tarefa_selecionada.total_dispositivos > 0 %}
+                        {% widthratio tarefa_selecionada.sucessos tarefa_selecionada.total_dispositivos 100 as percent_sucesso %}
+                        {% widthratio tarefa_selecionada.pulados tarefa_selecionada.total_dispositivos 100 as percent_pulados %}
+                        {% widthratio tarefa_selecionada.falhas tarefa_selecionada.total_dispositivos 100 as percent_falhas %}
+
+                        {% if percent_sucesso > 0 %}
+                        <div class="progress-bar bg-success" style="width: {{ percent_sucesso }}%"
+                             data-bs-toggle="tooltip" title="{{ tarefa_selecionada.sucessos }} sucessos ({{ percent_sucesso }}%)">
+                          {% if percent_sucesso >= 10 %}{{ tarefa_selecionada.sucessos }}{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if percent_pulados > 0 %}
+                        <div class="progress-bar bg-warning" style="width: {{ percent_pulados }}%"
+                             data-bs-toggle="tooltip" title="{{ tarefa_selecionada.pulados }} pulados ({{ percent_pulados }}%)">
+                          {% if percent_pulados >= 10 %}{{ tarefa_selecionada.pulados }}{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if percent_falhas > 0 %}
+                        <div class="progress-bar bg-danger" style="width: {{ percent_falhas }}%"
+                             data-bs-toggle="tooltip" title="{{ tarefa_selecionada.falhas }} falhas ({{ percent_falhas }}%)">
+                          {% if percent_falhas >= 10 %}{{ tarefa_selecionada.falhas }}{% endif %}
+                        </div>
+                        {% endif %}
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Cards de Filtro por Status -->
+                <div class="row mb-4 justify-content-center">
+                  <div class="col-md-2">
+                    <div class="card bg-light border-0 card-filter-clickable-detalhes"
+                         data-filter="all"
+                         onclick="GestaoDNS.filtrarDispositivosDetalhes('all')">
+                      <div class="card-body text-center p-3">
+                        <i class="bi bi-speedometer2 text-primary fs-5 mb-2 d-block"></i>
+                        <h3 class="mb-0 fw-bold text-primary">{{ dispositivos_tarefa.paginator.count }}</h3>
+                        <small class="text-muted">Total Processados</small>
+                        <div class="progress mt-2" style="height: 4px;">
+                          {% if tarefa_selecionada.total_dispositivos > 0 %}
+                            {% widthratio tarefa_selecionada.sucessos tarefa_selecionada.total_dispositivos 100 as p_suc %}
+                            {% widthratio tarefa_selecionada.pulados tarefa_selecionada.total_dispositivos 100 as p_pul %}
+                            {% widthratio tarefa_selecionada.falhas tarefa_selecionada.total_dispositivos 100 as p_fal %}
+                            <div class="progress-bar bg-success" style="width: {{ p_suc }}%"></div>
+                            <div class="progress-bar bg-warning" style="width: {{ p_pul }}%"></div>
+                            <div class="progress-bar bg-danger" style="width: {{ p_fal }}%"></div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <div class="card bg-light border-0 card-filter-clickable-detalhes"
+                         data-filter="sucesso"
+                         onclick="GestaoDNS.filtrarDispositivosDetalhes('sucesso')">
+                      <div class="card-body text-center p-3">
+                        <i class="bi bi-check-circle-fill text-success fs-5 mb-2 d-block"></i>
+                        <h3 class="mb-0 fw-bold text-success">{{ tarefa_selecionada.sucessos }}</h3>
+                        <small class="text-muted">Sucessos</small>
+                        <div class="progress mt-2" style="height: 4px;">
+                          {% if tarefa_selecionada.total_dispositivos > 0 %}
+                            {% widthratio tarefa_selecionada.sucessos tarefa_selecionada.total_dispositivos 100 as percent %}
+                            <div class="progress-bar bg-success" style="width: {{ percent }}%"></div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <div class="card bg-light border-0 card-filter-clickable-detalhes"
+                         data-filter="pulado"
+                         onclick="GestaoDNS.filtrarDispositivosDetalhes('pulado')">
+                      <div class="card-body text-center p-3">
+                        <i class="bi bi-skip-forward-fill text-warning fs-5 mb-2 d-block"></i>
+                        <h3 class="mb-0 fw-bold text-warning">{{ tarefa_selecionada.pulados }}</h3>
+                        <small class="text-muted">Pulados</small>
+                        <div class="progress mt-2" style="height: 4px;">
+                          {% if tarefa_selecionada.total_dispositivos > 0 %}
+                            {% widthratio tarefa_selecionada.pulados tarefa_selecionada.total_dispositivos 100 as percent %}
+                            <div class="progress-bar bg-warning" style="width: {{ percent }}%"></div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <div class="card bg-light border-0 card-filter-clickable-detalhes"
+                         data-filter="erro"
+                         onclick="GestaoDNS.filtrarDispositivosDetalhes('erro')">
+                      <div class="card-body text-center p-3">
+                        <i class="bi bi-x-circle-fill text-danger fs-5 mb-2 d-block"></i>
+                        <h3 class="mb-0 fw-bold text-danger">{{ tarefa_selecionada.falhas }}</h3>
+                        <small class="text-muted">Falhas</small>
+                        <div class="progress mt-2" style="height: 4px;">
+                          {% if tarefa_selecionada.total_dispositivos > 0 %}
+                            {% widthratio tarefa_selecionada.falhas tarefa_selecionada.total_dispositivos 100 as percent %}
+                            <div class="progress-bar bg-danger" style="width: {{ percent }}%"></div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="table table-hover table-sm">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="text-center">MAC Address</th>
+                        <th class="text-center">Nome</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">DNS Encontrado</th>
+                        <th class="text-center">DNS Atualizado</th>
+                        <th class="text-center">Erro</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dispositivos-detalhes-tbody">
+                      {% for dispositivo in dispositivos_tarefa %}
+                      <tr>
+                        <td class="text-center"><code>{{ dispositivo.device_id }}</code></td>
+                        <td class="text-center">{{ dispositivo.nome_dispositivo|default:"-" }}</td>
+                        <td class="text-center">
+                          {% if dispositivo.status == 'sucesso' %}
+                            <span class="badge bg-success">
+                              <i class="bi bi-check-circle-fill"></i> sucesso
+                            </span>
+                          {% elif dispositivo.status == 'erro' %}
+                            <span class="badge bg-danger">
+                              <i class="bi bi-x-circle-fill"></i> erro
+                            </span>
+                          {% elif dispositivo.status == 'pulado' %}
+                            <span class="badge bg-warning text-dark">
+                              <i class="bi bi-skip-forward-fill"></i> pulado
+                            </span>
+                          {% elif dispositivo.status == 'processando' %}
+                            <span class="badge bg-info">
+                              <i class="bi bi-arrow-repeat"></i> processando
+                            </span>
+                          {% else %}
+                            <span class="badge bg-secondary">{{ dispositivo.status }}</span>
+                          {% endif %}
+                        </td>
+                        <td class="text-center"><small class="text-muted">{{ dispositivo.get_dns_encontrado_formatado }}</small></td>
+                        <td class="text-center"><small class="text-success">{{ dispositivo.get_dns_atualizado_formatado }}</small></td>
+                        <td class="text-center">
+                          {% if dispositivo.mensagem_erro %}
+                            <small class="text-danger">{{ dispositivo.mensagem_erro }}</small>
+                          {% else %}
+                            <small class="text-muted">-</small>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Paginação da Tabela de Dispositivos (AJAX) -->
+                {% if dispositivos_tarefa.has_other_pages %}
+                <nav aria-label="Navegação de dispositivos" class="mt-4" id="dispositivos-detalhes-paginacao">
+                  <ul class="pagination justify-content-center">
+                    {% if dispositivos_tarefa.has_previous %}
+                      <li class="page-item">
+                        <a class="page-link" href="#" data-page="{{ dispositivos_tarefa.previous_page_number }}" aria-label="Anterior">
+                          <span aria-hidden="true">&laquo;</span>
+                        </a>
+                      </li>
+                    {% else %}
+                      <li class="page-item disabled">
+                        <span class="page-link">&laquo;</span>
+                      </li>
+                    {% endif %}
+
+                    {% for num in dispositivos_tarefa.paginator.page_range %}
+                      {% if dispositivos_tarefa.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                      {% elif num > dispositivos_tarefa.number|add:'-3' and num < dispositivos_tarefa.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="#" data-page="{{ num }}">{{ num }}</a></li>
+                      {% endif %}
+                    {% endfor %}
+
+                    {% if dispositivos_tarefa.has_next %}
+                      <li class="page-item">
+                        <a class="page-link" href="#" data-page="{{ dispositivos_tarefa.next_page_number }}" aria-label="Próximo">
+                          <span aria-hidden="true">&raquo;</span>
+                        </a>
+                      </li>
+                    {% else %}
+                      <li class="page-item disabled">
+                        <span class="page-link">&raquo;</span>
+                      </li>
+                    {% endif %}
+                  </ul>
+                </nav>
+                {% endif %}
+
+                {% else %}
+                <div class="alert alert-info">
+                  <i class="bi bi-info-circle me-2"></i>
+                  Nenhum dispositivo encontrado para esta migração.
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Tarefas Recentes -->
+        {% if tarefas_recentes %}
+        <div class="row mt-5">
+          <div class="col-12">
+            <div class="card shadow-sm border-0">
+              <div class="card-body p-4">
+                <h4 class="mb-4 fw-bold">
+                  <i class="bi bi-clock-history text-secondary me-2"></i>
+                  Histórico Recente
+                </h4>
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="text-center">ID</th>
+                        <th class="text-center">Aplicativo</th>
+                        <th class="text-center">Tipo</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Progresso</th>
+                        <th class="text-center">Data</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for tarefa in tarefas_recentes %}
+                      <tr>
+                        <td class="text-center">
+                          <a href="?tarefa_id={{ tarefa.id }}" class="text-decoration-none fw-bold text-primary">
+                            #{{ tarefa.id }}
+                          </a>
+                        </td>
+                        <td class="text-center">{{ tarefa.aplicativo.nome }}</td>
+                        <td class="text-center">
+                          {% if tarefa.tipo_migracao == 'todos' %}
+                            <span class="badge bg-primary">Todos</span>
+                          {% else %}
+                            <span class="badge bg-info">Específico</span>
+                          {% endif %}
+                        </td>
+                        <td class="text-center">
+                          {% if tarefa.status == 'concluida' %}
+                            <span class="badge bg-success">Concluída</span>
+                          {% elif tarefa.status == 'em_andamento' %}
+                            <span class="badge bg-warning">Em andamento</span>
+                          {% elif tarefa.status == 'erro_login' %}
+                            <span class="badge bg-danger">Erro no login</span>
+                          {% else %}
+                            <span class="badge bg-secondary">{{ tarefa.get_status_display }}</span>
+                          {% endif %}
+                        </td>
+                        <td class="text-center">{{ tarefa.sucessos }}/{{ tarefa.total_dispositivos }}</td>
+                        <td class="text-center">{{ tarefa.criada_em|date:"d/m/Y H:i" }}</td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Paginação do Histórico -->
+                {% if tarefas_recentes.has_other_pages %}
+                <nav aria-label="Navegação do histórico" class="mt-4">
+                  <ul class="pagination justify-content-center">
+                    {% if tarefas_recentes.has_previous %}
+                      <li class="page-item">
+                        <a class="page-link" href="?page={{ tarefas_recentes.previous_page_number }}" aria-label="Anterior">
+                          <span aria-hidden="true">&laquo;</span>
+                        </a>
+                      </li>
+                    {% else %}
+                      <li class="page-item disabled">
+                        <span class="page-link">&laquo;</span>
+                      </li>
+                    {% endif %}
+
+                    {% for num in tarefas_recentes.paginator.page_range %}
+                      {% if tarefas_recentes.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                      {% elif num > tarefas_recentes.number|add:'-3' and num < tarefas_recentes.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                      {% endif %}
+                    {% endfor %}
+
+                    {% if tarefas_recentes.has_next %}
+                      <li class="page-item">
+                        <a class="page-link" href="?page={{ tarefas_recentes.next_page_number }}" aria-label="Próximo">
+                          <span aria-hidden="true">&raquo;</span>
+                        </a>
+                      </li>
+                    {% else %}
+                      <li class="page-item disabled">
+                        <span class="page-link">&raquo;</span>
+                      </li>
+                    {% endif %}
+                  </ul>
+                </nav>
+                {% endif %}
+
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+
+      {% include 'partials/footer.html' %}
+    </div>
+  </div>
+
+  {% include 'partials/scripts.html' %}
+  <script src="{% static 'assets/js/gestao_dns.js' %}"></script>
+
+  <!-- Inicialização de paginação AJAX para detalhes de migração -->
+  <script>
+    // Inicializa paginação AJAX se estiver visualizando detalhes de tarefa
+    {% if tarefa_selecionada %}
+    document.addEventListener('DOMContentLoaded', function() {
+        // Armazena ID da tarefa atual
+        GestaoDNS.tarefaIdAtual = {{ tarefa_selecionada.id }};
+
+        // Intercepta cliques nos links de paginação (inicialização inicial)
+        const paginationContainer = document.querySelector('#dispositivos-detalhes-paginacao');
+        if (paginationContainer) {
+            paginationContainer.addEventListener('click', function(e) {
+                if (e.target.matches('a.page-link') || e.target.closest('a.page-link')) {
+                    e.preventDefault();
+                    const link = e.target.closest('a.page-link');
+                    const page = parseInt(link.getAttribute('data-page'));
+
+                    if (page) {
+                        GestaoDNS.carregarDispositivosPaginados(page);
+
+                        // Scroll suave até a tabela
+                        document.getElementById('dispositivos-detalhes-tbody')?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                }
+            });
+        }
+
+        // Marca card "Todos" como ativo inicialmente
+        const cardTodos = document.querySelector('.card-filter-clickable-detalhes[data-filter="all"]');
+        if (cardTodos) {
+            cardTodos.classList.add('card-filter-active');
+        }
+    });
+    {% endif %}
+  </script>
+</body>
+</html>

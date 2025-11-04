@@ -25,6 +25,9 @@ from .models import (
     NotificationRead,
     LoginLog,
     OfertaPromocionalEnviada,
+    ContaReseller,
+    TarefaMigracaoDNS,
+    DispositivoMigracaoDNS,
 )
 
 # --- ADMINISTRADORES ---
@@ -241,6 +244,116 @@ class OfertaPromocionalEnviadaAdmin(admin.ModelAdmin):
     list_per_page = 50
 
 
+class ContaResellerAdmin(admin.ModelAdmin):
+    """Admin para gerenciar contas de reseller (credenciais e sessões)."""
+    list_display = ("id", "usuario", "aplicativo", "email_login", "sessao_valida", "ultimo_login", "data_atualizacao")
+    list_filter = ("aplicativo", "sessao_valida", "usuario")
+    search_fields = ("usuario__username", "email_login", "aplicativo__nome")
+    readonly_fields = ("data_criacao", "data_atualizacao", "ultimo_login")
+    ordering = ("-data_atualizacao",)
+    list_per_page = 30
+
+    fieldsets = (
+        ("Informações Básicas", {
+            "fields": ("usuario", "aplicativo", "email_login")
+        }),
+        ("Senha (Criptografada)", {
+            "fields": ("senha_login",),
+            "description": "A senha é criptografada automaticamente. Nunca exiba ou compartilhe."
+        }),
+        ("Sessão e Autenticação", {
+            "fields": ("sessao_valida", "ultimo_login", "session_data"),
+            "description": "Dados de sessão para reutilização de login (cookies e localStorage)."
+        }),
+        ("Metadados", {
+            "fields": ("data_criacao", "data_atualizacao"),
+            "classes": ("collapse",),
+        }),
+    )
+
+
+class DispositivoMigracaoDNSInline(admin.TabularInline):
+    """Inline para mostrar dispositivos dentro da tarefa de migração."""
+    model = DispositivoMigracaoDNS
+    extra = 0
+    readonly_fields = ("device_id", "nome_dispositivo", "status", "dns_encontrado", "dns_atualizado", "mensagem_erro", "processado_em")
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        """Não permite adicionar dispositivos manualmente."""
+        return False
+
+
+class TarefaMigracaoDNSAdmin(admin.ModelAdmin):
+    """Admin para visualizar e gerenciar tarefas de migração DNS."""
+    list_display = ("id", "usuario", "aplicativo", "tipo_migracao", "status", "progresso_display", "criada_em")
+    list_filter = ("status", "tipo_migracao", "aplicativo", "usuario", "criada_em")
+    search_fields = ("usuario__username", "mac_alvo", "dominio_origem", "dominio_destino")
+    readonly_fields = (
+        "usuario", "aplicativo", "conta_reseller", "tipo_migracao", "mac_alvo",
+        "dominio_origem", "dominio_destino", "status", "total_dispositivos",
+        "processados", "sucessos", "falhas", "criada_em", "iniciada_em",
+        "concluida_em", "erro_geral", "progresso_display"
+    )
+    ordering = ("-criada_em",)
+    list_per_page = 30
+    date_hierarchy = "criada_em"
+    inlines = [DispositivoMigracaoDNSInline]
+
+    fieldsets = (
+        ("Informações da Tarefa", {
+            "fields": ("usuario", "aplicativo", "conta_reseller", "tipo_migracao", "mac_alvo")
+        }),
+        ("Configuração DNS", {
+            "fields": ("dominio_origem", "dominio_destino")
+        }),
+        ("Status e Progresso", {
+            "fields": ("status", "progresso_display", "total_dispositivos", "processados", "sucessos", "falhas")
+        }),
+        ("Timestamps", {
+            "fields": ("criada_em", "iniciada_em", "concluida_em")
+        }),
+        ("Erros", {
+            "fields": ("erro_geral",),
+            "classes": ("collapse",),
+        }),
+    )
+
+    def progresso_display(self, obj):
+        """Exibe o progresso visualmente."""
+        if obj.total_dispositivos == 0:
+            return "N/A"
+        percentual = obj.get_progresso_percentual()
+        return f"{obj.processados}/{obj.total_dispositivos} ({percentual}%)"
+    progresso_display.short_description = "Progresso"
+
+    def has_add_permission(self, request):
+        """Não permite criar tarefas manualmente - só via interface web."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Tarefas são readonly."""
+        return False
+
+
+class DispositivoMigracaoDNSAdmin(admin.ModelAdmin):
+    """Admin para visualizar dispositivos em migração (geralmente acessado via inline)."""
+    list_display = ("id", "tarefa", "device_id", "nome_dispositivo", "status", "processado_em")
+    list_filter = ("status", "processado_em")
+    search_fields = ("device_id", "nome_dispositivo", "dns_encontrado", "dns_atualizado")
+    readonly_fields = ("tarefa", "device_id", "nome_dispositivo", "status", "dns_encontrado", "dns_atualizado", "mensagem_erro", "processado_em")
+    ordering = ("-processado_em",)
+    list_per_page = 50
+
+    def has_add_permission(self, request):
+        """Não permite adicionar dispositivos manualmente."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Dispositivos são readonly."""
+        return False
+
+
 # --- REGISTRO NO ADMIN ---
 
 admin.site.register(Plano, PlanoAdmin)
@@ -268,6 +381,9 @@ admin.site.register(NotificationRead, NotificationReadAdmin)
 admin.site.register(UserActionLog, UserActionLogAdmin)
 admin.site.register(LoginLog, LoginLogAdmin)
 admin.site.register(OfertaPromocionalEnviada, OfertaPromocionalEnviadaAdmin)
+admin.site.register(ContaReseller, ContaResellerAdmin)
+admin.site.register(TarefaMigracaoDNS, TarefaMigracaoDNSAdmin)
+admin.site.register(DispositivoMigracaoDNS, DispositivoMigracaoDNSAdmin)
 
 # Configurações adicionais do admin
 admin.site.site_header = "Administração do Sistema"
