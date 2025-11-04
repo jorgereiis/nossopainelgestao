@@ -232,6 +232,103 @@ class Aplicativo(models.Model):
     device_has_mac = models.BooleanField(default=False)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
+    def tem_automacao_implementada(self):
+        """Verifica se este aplicativo possui automação DNS implementada."""
+        return self.nome.lower() == 'dreamtv'
+
+    def get_logo_url(self):
+        """
+        Retorna o caminho da logo do aplicativo usando matching inteligente com 3 níveis de prioridade.
+
+        Sistema de matching que elimina falsos positivos:
+        - Nível 1 (Exato): "duplexplay" == "duplexplay" → duplexplay.png ✅
+        - Nível 2 (Início): "duplexplayiptv" começa com "duplexplay" → duplexplay.png ✅
+        - Nível 3 (Contém): "smartersplayer" contém "smarters" → Validação contra blacklist
+
+        Apps sem logo específica retornam default.png corretamente.
+        """
+        import re
+
+        # Normalização agressiva: remove espaços, acentos, caracteres especiais
+        nome_normalizado = re.sub(r'[^a-z0-9]', '', self.nome.lower())
+
+        # Blacklist: palavras muito genéricas que causam falsos positivos
+        # Não podem ser usadas sozinhas para matching por "contém"
+        GENERIC_WORDS = {'play', 'player', 'tv', 'iptv', 'app', 'mobile'}
+
+        # Mapeamento de logos para suas palavras-chave
+        # Organizadas por especificidade (mais específicas primeiro)
+        logo_keywords = {
+            # Multiplayers (específicos primeiro)
+            'multiplayer.png': ['multiplayerxc', 'multiplayeribo', 'multiplayer', 'multi'],
+
+            # Duplex family (específico → genérico)
+            'duplextv.png': ['duplextv'],
+            'duplexplay.png': ['duplexplayer', 'duplexplay', 'duplex'],
+            'duplecast.png': ['duplecast', 'duple'],
+
+            # Players (específicos)
+            'xp.png': ['xpplayer', 'xp'],
+            'quick.png': ['quickplayer', 'quick'],
+            'smarters.png': ['smartersplayer', 'smarters'],
+            'iboplayer.png': ['iboplayer', 'ibo'],
+            'bobplayer.png': ['bobplayer', 'bob'],
+            'capplayer.png': ['capplayer', 'capp', 'cap'],
+            'ultraplayer.png': ['ultraplayer', 'ultraplay', 'ultra'],
+            'vuplayer.png': ['vuplayer', 'vuplay', 'vu'],
+            'lazerplay.png': ['lazerplay', 'lazer'],
+
+            # Smart family
+            'smartone.png': ['smartone'],
+            'smartup.png': ['smartup'],
+            'stb.png': ['smartstb', 'stb'],
+
+            # SS IPTV
+            'ssiptv.png': ['ssiptv', 'ss'],
+
+            # Cloud/XCloud/XCIPTV
+            'xciptv.png': ['xciptv', 'xc'],
+            'xcloud.png': ['xcloud'],
+            'clouddy.png': ['clouddy', 'cloud'],
+
+            # TV apps
+            'dreamtv.png': ['dreamtv', 'dream'],
+            'seven.png': ['sevenxc', 'seven'],
+
+            # Outros específicos
+            'maximus.png': ['maximus', 'maxi'],
+            'vizzion.png': ['vizzion', 'viz'],
+            'prime.png': ['prime'],
+            'playon.png': ['playon'],
+            'alpha.png': ['alpha'],
+            'club.png': ['club'],
+            'five.png': ['five'],
+            'warez.png': ['warez'],
+            'gf.png': ['globalfilmes', 'gf'],
+        }
+
+        # Matching por prioridade (3 níveis)
+        for logo_file, keywords in logo_keywords.items():
+            # Ordena keywords por tamanho (desc) para priorizar matches específicos
+            for keyword in sorted(keywords, key=len, reverse=True):
+
+                # NÍVEL 1: Match Exato (prioridade máxima)
+                if nome_normalizado == keyword:
+                    return f'/static/assets/images/logo-apps/{logo_file}'
+
+                # NÍVEL 2: Match por Início (prioridade alta)
+                # Nome começa com keyword e keyword tem pelo menos 3 caracteres
+                if nome_normalizado.startswith(keyword) and len(keyword) >= 3:
+                    return f'/static/assets/images/logo-apps/{logo_file}'
+
+                # NÍVEL 3: Match por Contém (prioridade baixa, com validação)
+                # Keyword está contida no nome, mas NÃO pode ser palavra genérica
+                if keyword in nome_normalizado and keyword not in GENERIC_WORDS:
+                    return f'/static/assets/images/logo-apps/{logo_file}'
+
+        # Fallback para logo padrão
+        return '/static/assets/images/logo-apps/default.png'
+
     def __str__(self):
         return self.nome
 
@@ -1179,5 +1276,387 @@ class LoginLog(models.Model):
             'os': os_name,
             'device': device
         }
+
+
+class ContaReseller(models.Model):
+    """
+    Armazena credenciais e sessão de autenticação para painéis reseller de aplicativos IPTV.
+
+    Suporta login manual com reCAPTCHA e reutilização de sessão para evitar logins repetidos.
+    A senha é criptografada usando Fernet antes de ser armazenada no banco.
+    """
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='contas_reseller',
+        help_text='Usuário proprietário desta conta reseller'
+    )
+    aplicativo = models.ForeignKey(
+        Aplicativo,
+        on_delete=models.CASCADE,
+        related_name='contas_reseller',
+        help_text='Aplicativo/plataforma do reseller (ex: DreamTV, NetFlox)'
+    )
+    email_login = models.EmailField(
+        max_length=255,
+        verbose_name='Email/Usuário',
+        help_text='Email ou username usado para login no painel reseller'
+    )
+    senha_login = models.CharField(
+        max_length=500,
+        verbose_name='Senha',
+        help_text='Senha criptografada com Fernet'
+    )
+    session_data = models.TextField(
+        blank=True,
+        verbose_name='Dados de Sessão',
+        help_text='JSON contendo cookies e localStorage para reutilização de sessão'
+    )
+    ultimo_login = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Último Login',
+        help_text='Data/hora do último login manual bem-sucedido'
+    )
+    sessao_valida = models.BooleanField(
+        default=False,
+        verbose_name='Sessão Válida',
+        help_text='Indica se a sessão armazenada ainda está ativa'
+    )
+    data_criacao = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Data de Criação'
+    )
+    data_atualizacao = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Última Atualização'
+    )
+
+    class Meta:
+        verbose_name = 'Conta de Reseller'
+        verbose_name_plural = 'Contas de Reseller'
+        unique_together = [['usuario', 'aplicativo']]
+        ordering = ['-data_atualizacao']
+        indexes = [
+            models.Index(fields=['usuario', 'aplicativo'], name='conta_reseller_user_app_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.usuario.username} - {self.aplicativo.nome} ({self.email_login})"
+
+
+class TarefaMigracaoDNS(models.Model):
+    """
+    Registra execuções de migração de domínios DNS para dispositivos IPTV.
+
+    Cada tarefa pode atualizar um dispositivo específico ou todos os dispositivos
+    do usuário no painel reseller.
+    """
+
+    STATUS_AGUARDANDO_LOGIN = 'aguardando_login'
+    STATUS_INICIANDO = 'iniciando'
+    STATUS_EM_ANDAMENTO = 'em_andamento'
+    STATUS_CONCLUIDA = 'concluida'
+    STATUS_ERRO_LOGIN = 'erro_login'
+    STATUS_CANCELADA = 'cancelada'
+
+    STATUS_CHOICES = [
+        (STATUS_AGUARDANDO_LOGIN, 'Aguardando Login'),
+        (STATUS_INICIANDO, 'Iniciando'),
+        (STATUS_EM_ANDAMENTO, 'Em Andamento'),
+        (STATUS_CONCLUIDA, 'Concluída'),
+        (STATUS_ERRO_LOGIN, 'Erro no Login'),
+        (STATUS_CANCELADA, 'Cancelada'),
+    ]
+
+    TIPO_TODOS = 'todos'
+    TIPO_ESPECIFICO = 'especifico'
+
+    TIPO_CHOICES = [
+        (TIPO_TODOS, 'Todos os Dispositivos'),
+        (TIPO_ESPECIFICO, 'Dispositivo Específico'),
+    ]
+
+    # Relacionamentos
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='tarefas_migracao_dns',
+        help_text='Usuário que iniciou a migração'
+    )
+    aplicativo = models.ForeignKey(
+        Aplicativo,
+        on_delete=models.CASCADE,
+        related_name='tarefas_migracao_dns',
+        help_text='Aplicativo/plataforma onde a migração será executada'
+    )
+    conta_reseller = models.ForeignKey(
+        ContaReseller,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tarefas_migracao',
+        help_text='Conta reseller usada para executar a migração'
+    )
+
+    # Configuração da migração
+    tipo_migracao = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default=TIPO_ESPECIFICO,
+        verbose_name='Tipo de Migração',
+        help_text='Se migração é para todos os dispositivos ou apenas um específico'
+    )
+    mac_alvo = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='MAC Alvo',
+        help_text='MAC Address do dispositivo específico (se tipo_migracao=especifico)'
+    )
+
+    # Domínios DNS (protocolo + host + porta opcional)
+    dominio_origem = models.CharField(
+        max_length=255,
+        verbose_name='Domínio Origem',
+        help_text='Domínio DNS atual (protocolo + host + porta, ex: http://dominio.com:8080)'
+    )
+    dominio_destino = models.CharField(
+        max_length=255,
+        verbose_name='Domínio Destino',
+        help_text='Novo domínio DNS (protocolo + host + porta, ex: http://dominio-novo.com)'
+    )
+
+    # Status e progresso
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_INICIANDO,
+        db_index=True
+    )
+    total_dispositivos = models.IntegerField(
+        default=0,
+        verbose_name='Total de Dispositivos',
+        help_text='Quantidade total de dispositivos a serem migrados'
+    )
+    processados = models.IntegerField(
+        default=0,
+        verbose_name='Dispositivos Processados',
+        help_text='Quantidade de dispositivos já processados'
+    )
+    sucessos = models.IntegerField(
+        default=0,
+        verbose_name='Sucessos',
+        help_text='Quantidade de dispositivos migrados com sucesso'
+    )
+    falhas = models.IntegerField(
+        default=0,
+        verbose_name='Falhas',
+        help_text='Quantidade de dispositivos com erro na migração'
+    )
+
+    pulados = models.IntegerField(
+        default=0,
+        verbose_name='Pulados',
+        help_text='Quantidade de dispositivos pulados (DNS não corresponde ao domínio origem)'
+    )
+
+    # Campos de progresso em tempo real (UX)
+    etapa_atual = models.CharField(
+        max_length=50,
+        default='iniciando',
+        verbose_name='Etapa Atual',
+        help_text='Etapa atual da execução (iniciando, analisando, processando, concluida, cancelada)'
+    )
+    mensagem_progresso = models.TextField(
+        blank=True,
+        verbose_name='Mensagem de Progresso',
+        help_text='Mensagem dinâmica exibida durante a execução'
+    )
+    progresso_percentual = models.IntegerField(
+        default=0,
+        verbose_name='Progresso (%)',
+        help_text='Percentual de conclusão da tarefa (0-100)'
+    )
+
+    # Timestamps
+    criada_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Data de Criação'
+    )
+    iniciada_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Data de Início',
+        help_text='Quando a execução efetivamente começou'
+    )
+    concluida_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Data de Conclusão'
+    )
+
+    # Erro geral (não específico de dispositivo)
+    erro_geral = models.TextField(
+        blank=True,
+        verbose_name='Erro Geral',
+        help_text='Mensagem de erro que impediu a execução da tarefa inteira'
+    )
+
+    class Meta:
+        verbose_name = 'Tarefa de Migração DNS'
+        verbose_name_plural = 'Tarefas de Migração DNS'
+        ordering = ['-criada_em']
+        indexes = [
+            models.Index(fields=['usuario', '-criada_em'], name='tarefa_dns_user_created_idx'),
+            models.Index(fields=['status', '-criada_em'], name='tarefa_dns_status_idx'),
+        ]
+
+    def __str__(self):
+        tipo_display = 'Todos' if self.tipo_migracao == self.TIPO_TODOS else f'MAC:{self.mac_alvo}'
+        return f"Migração DNS #{self.id} - {tipo_display} - {self.get_status_display()}"
+
+    def get_progresso_percentual(self):
+        """Retorna o progresso em percentual (0-100)."""
+        if self.total_dispositivos == 0:
+            return 0
+        return int((self.processados / self.total_dispositivos) * 100)
+
+    def esta_concluida(self):
+        """Verifica se a tarefa está em um estado final."""
+        return self.status in [
+            self.STATUS_CONCLUIDA,
+            self.STATUS_ERRO_LOGIN,
+            self.STATUS_CANCELADA
+        ]
+
+
+class DispositivoMigracaoDNS(models.Model):
+    """
+    Registra o status individual de cada dispositivo em uma tarefa de migração DNS.
+
+    Permite rastrear exatamente quais dispositivos foram migrados com sucesso
+    e quais falharam (com mensagens de erro específicas).
+    """
+
+    STATUS_PENDENTE = 'pendente'
+    STATUS_PROCESSANDO = 'processando'
+    STATUS_SUCESSO = 'sucesso'
+    STATUS_ERRO = 'erro'
+    STATUS_PULADO = 'pulado'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDENTE, 'Pendente'),
+        (STATUS_PROCESSANDO, 'Processando'),
+        (STATUS_SUCESSO, 'Sucesso'),
+        (STATUS_ERRO, 'Erro'),
+        (STATUS_PULADO, 'Pulado'),
+    ]
+
+    tarefa = models.ForeignKey(
+        TarefaMigracaoDNS,
+        on_delete=models.CASCADE,
+        related_name='dispositivos',
+        help_text='Tarefa de migração à qual este dispositivo pertence'
+    )
+    device_id = models.CharField(
+        max_length=100,
+        verbose_name='MAC Address',
+        help_text='Identificador do dispositivo (MAC Address)'
+    )
+    nome_dispositivo = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Nome/Comentário',
+        help_text='Nome ou comentário do dispositivo no painel reseller'
+    )
+
+    # URLs DNS
+    dns_encontrado = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name='DNS Encontrado',
+        help_text='URL do DNS que estava configurada no painel antes da migração'
+    )
+    dns_atualizado = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name='DNS Atualizado',
+        help_text='URL do DNS que foi configurada após a migração'
+    )
+
+    # Status
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDENTE,
+        db_index=True
+    )
+    mensagem_erro = models.TextField(
+        blank=True,
+        verbose_name='Mensagem de Erro',
+        help_text='Detalhes do erro ocorrido (se status=erro)'
+    )
+    processado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Data de Processamento',
+        help_text='Quando este dispositivo foi processado'
+    )
+
+    class Meta:
+        verbose_name = 'Dispositivo em Migração'
+        verbose_name_plural = 'Dispositivos em Migração'
+        ordering = ['id']
+        indexes = [
+            models.Index(fields=['tarefa', 'status'], name='disp_dns_tarefa_status_idx'),
+        ]
+
+    def get_dns_encontrado_formatado(self):
+        """Retorna apenas protocolo + domínio + porta do DNS encontrado."""
+        from .utils import extrair_dominio_de_url
+        return extrair_dominio_de_url(self.dns_encontrado) if self.dns_encontrado else '-'
+
+    def get_dns_atualizado_formatado(self):
+        """Retorna apenas protocolo + domínio + porta do DNS atualizado."""
+        from .utils import extrair_dominio_de_url
+        return extrair_dominio_de_url(self.dns_atualizado) if self.dns_atualizado else '-'
+
+    def __str__(self):
+        return f"{self.device_id} - {self.get_status_display()}"
+
+
+class ConfiguracaoAutomacao(models.Model):
+    """
+    Configurações de automação por usuário (principalmente para debug).
+    Permite controlar comportamento do Playwright (headless mode, etc).
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='config_automacao',
+        verbose_name='Usuário'
+    )
+    debug_headless_mode = models.BooleanField(
+        default=False,
+        verbose_name='Modo Debug (Navegador Visível)',
+        help_text='Quando ativado, o navegador Playwright ficará visível durante automações (útil para debug)'
+    )
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Criado Em'
+    )
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Atualizado Em'
+    )
+
+    class Meta:
+        verbose_name = 'Configuração de Automação'
+        verbose_name_plural = 'Configurações de Automação'
+
+    def __str__(self):
+        status = "Debug ON" if self.debug_headless_mode else "Debug OFF"
+        return f"{self.user.username} - {status}"
 
 

@@ -294,27 +294,108 @@ function carregarContasApps(clienteId) {
             }
 
             contas.forEach(function(conta) {
-                let card = $('<div class="card rounded py-4 px-5 d-flex flex-column align-items-center justify-content-center border mb-3" data-app-id="' + (conta.id != null ? conta.id : '') + '"></div>');
-                let badge = $('<span class="badge rounded-pill bg-secondary mb-3">' + (conta.nome_aplicativo != null ? conta.nome_aplicativo : '--') + '</span>');
-                let infoDiv = $('<div class="my-0 text-center"></div>');
-                let btn_exclude = $('<div class="mt-2 mb-0" style="cursor: pointer;" data-app-id="' + (conta.id != null ? conta.id : '') + '"><iconify-icon icon="feather:trash-2" style="color: #dc3545;" width="15" height="15"></iconify-icon></div>');
-                btn_exclude.on('click', function() { exibirModalConfirmacaoExclusao(this); });
+                // Sanitizar valores para evitar problemas com aspas
+                const contaId = conta.id != null ? conta.id : '';
+                const nomeApp = conta.nome_aplicativo != null ? conta.nome_aplicativo : '--';
+                const logoUrl = conta.logo_url || '/static/assets/images/logo-apps/default.png';
 
-                // Device ID ou E-mail
-                if (conta.device_id) {
-                    infoDiv.append('<span>Device ID: </span><span>' + conta.device_id + '</span><br>');
-                    if (conta.device_key && conta.device_key !== 'null' && String(conta.device_key).trim() !== "") {
-                        infoDiv.append('<span>Device Key: </span><span>' + conta.device_key + '</span>');
-                    }
-                } else if (conta.email) {
-                    infoDiv.append('<span>E-mail: </span><span>' + conta.email + '</span><br>');
-                    if (conta.device_key && conta.device_key !== 'null' && String(conta.device_key).trim() !== "") {
-                        infoDiv.append('<span>Device Key: </span><span>' + conta.device_key + '</span>');
-                    }
+                // Determinar qual informação primária exibir (Device ID ou Email)
+                const hasDeviceId = conta.device_id && conta.device_id.trim() !== '';
+                const hasEmail = conta.email && conta.email.trim() !== '';
+                const hasDeviceKey = conta.device_key && conta.device_key !== 'null' && String(conta.device_key).trim() !== "";
+
+                // Construir HTML do card moderno
+                let cardHtml = `
+                    <div class="app-card-modern" data-app-id="${contaId}">
+                        <div class="app-card-content">
+                            <!-- Logo -->
+                            <img src="${logoUrl}"
+                                 alt="${nomeApp} Logo"
+                                 class="app-card-logo">
+
+                            <!-- Título -->
+                            <h3 class="app-card-title">${nomeApp}</h3>
+
+                            <!-- Informações técnicas -->
+                            <div class="app-card-info">
+                `;
+
+                // Device ID ou Email
+                if (hasDeviceId) {
+                    const deviceIdSafe = String(conta.device_id).replace(/'/g, "\\'");
+                    cardHtml += `
+                        <div class="app-card-info-item">
+                            <span class="app-card-info-label">Device ID</span>
+                            <div class="app-card-info-value-wrapper">
+                                <span class="app-card-info-value">${conta.device_id}</span>
+                                <button class="app-card-copy-btn"
+                                        onclick="copiarParaClipboard(this, '${deviceIdSafe}')"
+                                        title="Copiar Device ID"
+                                        type="button">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else if (hasEmail) {
+                    const emailSafe = String(conta.email).replace(/'/g, "\\'");
+                    cardHtml += `
+                        <div class="app-card-info-item">
+                            <span class="app-card-info-label">E-mail</span>
+                            <div class="app-card-info-value-wrapper">
+                                <span class="app-card-info-value">${conta.email}</span>
+                                <button class="app-card-copy-btn"
+                                        onclick="copiarParaClipboard(this, '${emailSafe}')"
+                                        title="Copiar E-mail"
+                                        type="button">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
                 }
 
-                card.append(badge, infoDiv, btn_exclude);
-                container.append(card);
+                // Device Key (se houver)
+                if (hasDeviceKey) {
+                    const deviceKeySafe = String(conta.device_key).replace(/'/g, "\\'");
+                    cardHtml += `
+                        <div class="app-card-info-item">
+                            <span class="app-card-info-label">Device Key</span>
+                            <div class="app-card-info-value-wrapper">
+                                <span class="app-card-info-value">${conta.device_key}</span>
+                                <button class="app-card-copy-btn"
+                                        onclick="copiarParaClipboard(this, '${deviceKeySafe}')"
+                                        title="Copiar Device Key"
+                                        type="button">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Fechar seção de info e adicionar botão deletar
+                cardHtml += `
+                            </div>
+
+                            <!-- Botão deletar -->
+                            <button class="app-card-delete-btn"
+                                    data-app-id="${contaId}"
+                                    title="Deletar conta"
+                                    type="button">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                // Criar elemento jQuery e adicionar event listener
+                const cardElement = $(cardHtml);
+                cardElement.find('.app-card-delete-btn').on('click', function() {
+                    exibirModalConfirmacaoExclusao(this);
+                });
+
+                container.append(cardElement);
             });
         },
         error: function(error) {
@@ -531,6 +612,91 @@ function exibirModalConfirmacaoExclusao(botao) {
 }
 
 // ----------------------
+// COPIAR PARA CLIPBOARD
+// ----------------------
+
+/**
+ * Copia texto para o clipboard com feedback visual
+ * @param {HTMLElement} botao - Botão que foi clicado
+ * @param {string} texto - Texto a ser copiado
+ */
+function copiarParaClipboard(botao, texto) {
+    // Verifica se a API moderna do Clipboard está disponível
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto).then(() => {
+            mostrarFeedbackCopia(botao, true);
+        }).catch(err => {
+            console.error('Erro ao copiar:', err);
+            // Tenta fallback se API moderna falhar
+            tentarFallbackCopia(botao, texto);
+        });
+    } else {
+        // Fallback para navegadores mais antigos
+        tentarFallbackCopia(botao, texto);
+    }
+}
+
+/**
+ * Fallback para copiar usando método antigo (document.execCommand)
+ * @param {HTMLElement} botao - Botão que foi clicado
+ * @param {string} texto - Texto a ser copiado
+ */
+function tentarFallbackCopia(botao, texto) {
+    const textarea = document.createElement('textarea');
+    textarea.value = texto;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
+    document.body.appendChild(textarea);
+
+    try {
+        textarea.select();
+        textarea.setSelectionRange(0, 99999); // Para mobile
+        const sucesso = document.execCommand('copy');
+        mostrarFeedbackCopia(botao, sucesso);
+    } catch (err) {
+        console.error('Erro ao copiar (fallback):', err);
+        mostrarFeedbackCopia(botao, false);
+    } finally {
+        document.body.removeChild(textarea);
+    }
+}
+
+/**
+ * Mostra feedback visual no botão de copiar
+ * @param {HTMLElement} botao - Botão que foi clicado
+ * @param {boolean} sucesso - Se a cópia foi bem sucedida
+ */
+function mostrarFeedbackCopia(botao, sucesso) {
+    const $botao = $(botao);
+    const iconOriginal = $botao.html();
+
+    if (sucesso) {
+        // Feedback de sucesso
+        $botao.addClass('copied');
+        $botao.html('<i class="bi bi-check-circle-fill"></i>');
+
+        // Mostrar toast de sucesso (se disponível)
+        if (typeof window.ToastManager !== 'undefined') {
+            ToastManager.success('Copiado para a área de transferência!', 'Sucesso');
+        }
+
+        // Voltar ao estado original após 2 segundos
+        setTimeout(() => {
+            $botao.removeClass('copied');
+            $botao.html(iconOriginal);
+        }, 2000);
+    } else {
+        // Feedback de erro
+        if (typeof window.ToastManager !== 'undefined') {
+            ToastManager.error('Erro ao copiar para a área de transferência', 'Erro');
+        } else {
+            console.error('Não foi possível copiar para a área de transferência');
+        }
+    }
+}
+
+// ----------------------
 // EXPORTAÇÕES GLOBAIS
 // ----------------------
 // Exporta todas as funções para o escopo global para que possam ser chamadas via onclick no HTML
@@ -540,3 +706,4 @@ window.exibirModalConfirmacaoExclusao = exibirModalConfirmacaoExclusao;
 window.carregarContasApps = carregarContasApps;
 window.carregarQuantidadeMensalidadesPagas = carregarQuantidadeMensalidadesPagas;
 window.carregarIndicacoes = carregarIndicacoes;
+window.copiarParaClipboard = copiarParaClipboard;

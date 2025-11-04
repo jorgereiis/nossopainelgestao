@@ -889,3 +889,285 @@ def get_envios_hoje(usuario):
         usuario=usuario,
         data_envio=hoje
     ).count()
+
+
+# ==================== CRIPTOGRAFIA (RESELLER PASSWORDS) ====================
+
+def get_cipher():
+    """
+    Retorna uma instância do cipher Fernet usando a chave configurada em .env.
+
+    Returns:
+        Fernet: Instância do cipher para criptografia/descriptografia
+
+    Raises:
+        ValueError: Se FERNET_KEY não estiver configurada ou for inválida
+    """
+    from cryptography.fernet import Fernet
+    from django.conf import settings
+
+    fernet_key = getattr(settings, 'FERNET_KEY', None)
+
+    if not fernet_key:
+        raise ValueError(
+            "FERNET_KEY não configurada. "
+            "Adicione FERNET_KEY ao arquivo .env. "
+            "Gere uma chave com: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+        )
+
+    try:
+        return Fernet(fernet_key.encode())
+    except Exception as e:
+        raise ValueError(f"FERNET_KEY inválida: {e}")
+
+
+def encrypt_password(plaintext):
+    """
+    Criptografa uma senha em texto plano.
+
+    Args:
+        plaintext (str): Senha em texto plano
+
+    Returns:
+        str: Senha criptografada em formato string
+
+    Raises:
+        ValueError: Se plaintext for vazio ou None
+        Exception: Se houver erro na criptografia
+
+    Example:
+        >>> senha_criptografada = encrypt_password("senha123")
+        >>> print(senha_criptografada)
+        'gAAAAABhj...'
+    """
+    if not plaintext:
+        raise ValueError("Senha não pode ser vazia")
+
+    try:
+        cipher = get_cipher()
+        encrypted_bytes = cipher.encrypt(plaintext.encode('utf-8'))
+        return encrypted_bytes.decode('utf-8')
+    except Exception as e:
+        raise Exception(f"Erro ao criptografar senha: {e}")
+
+
+def decrypt_password(ciphertext):
+    """
+    Descriptografa uma senha criptografada.
+
+    Args:
+        ciphertext (str): Senha criptografada
+
+    Returns:
+        str: Senha em texto plano
+
+    Raises:
+        ValueError: Se ciphertext for vazio ou None
+        Exception: Se houver erro na descriptografia (chave inválida ou dados corrompidos)
+
+    Example:
+        >>> senha_original = decrypt_password('gAAAAABhj...')
+        >>> print(senha_original)
+        'senha123'
+    """
+    if not ciphertext:
+        raise ValueError("Senha criptografada não pode ser vazia")
+
+    try:
+        cipher = get_cipher()
+        decrypted_bytes = cipher.decrypt(ciphertext.encode('utf-8'))
+        return decrypted_bytes.decode('utf-8')
+    except Exception as e:
+        raise Exception(f"Erro ao descriptografar senha: {e}")
+
+
+def test_encryption():
+    """
+    Função de teste para verificar se a criptografia está funcionando corretamente.
+
+    Retorna True se os testes passarem, caso contrário levanta uma exceção.
+
+    Example:
+        >>> test_encryption()
+        True
+    """
+    test_password = "test_password_123!@#"
+
+    # Teste 1: Encriptar e decriptar
+    encrypted = encrypt_password(test_password)
+    decrypted = decrypt_password(encrypted)
+
+    if decrypted != test_password:
+        raise AssertionError(
+            f"Teste de criptografia falhou: "
+            f"senha original '{test_password}' != senha descriptografada '{decrypted}'"
+        )
+
+    # Teste 2: Garantir que senhas diferentes geram outputs diferentes
+    encrypted2 = encrypt_password(test_password + "_different")
+    if encrypted == encrypted2:
+        raise AssertionError("Senhas diferentes geraram o mesmo hash criptografado")
+
+    return True
+
+
+# ==================== MANIPULAÇÃO DE DOMÍNIOS DNS ====================
+
+def validar_formato_dominio(dominio: str) -> bool:
+    """
+    Valida se o domínio possui formato correto (protocolo + host + porta opcional).
+
+    Formato esperado:
+    - http://dominio.com
+    - https://dominio.com
+    - http://dominio.com:8080
+    - http://192.168.1.1:80
+
+    Args:
+        dominio (str): Domínio a ser validado
+
+    Returns:
+        bool: True se válido, False caso contrário
+
+    Examples:
+        >>> validar_formato_dominio('http://exemplo.com')
+        True
+        >>> validar_formato_dominio('http://exemplo.com:8080')
+        True
+        >>> validar_formato_dominio('ftp://exemplo.com')
+        False
+        >>> validar_formato_dominio('exemplo.com')
+        False
+    """
+    if not dominio or not isinstance(dominio, str):
+        return False
+
+    # Regex para validar: ^(http|https)://[host](:[porta])?$
+    # - Protocolo: http ou https
+    # - Host: letras, números, pontos, hífens
+    # - Porta (opcional): : seguido de 1-5 dígitos
+    pattern = r'^https?://[a-zA-Z0-9.-]+(:[0-9]{1,5})?$'
+
+    return bool(re.match(pattern, dominio.strip()))
+
+
+def extrair_dominio_de_url(url: str) -> str:
+    """
+    Extrai apenas o domínio (protocolo + netloc) de uma URL completa.
+
+    Args:
+        url (str): URL completa
+
+    Returns:
+        str: Domínio extraído (protocolo + netloc)
+
+    Examples:
+        >>> extrair_dominio_de_url('http://exemplo.com/get.php?user=123')
+        'http://exemplo.com'
+        >>> extrair_dominio_de_url('http://exemplo.com:8080/path/to/file')
+        'http://exemplo.com:8080'
+        >>> extrair_dominio_de_url('https://sub.exemplo.com/file')
+        'https://sub.exemplo.com'
+    """
+    from urllib.parse import urlparse
+
+    if not url or not isinstance(url, str):
+        return ''
+
+    try:
+        parsed = urlparse(url.strip())
+
+        # Reconstrói apenas protocolo + netloc
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+
+        return ''
+    except Exception as e:
+        logger.error(f"Erro ao extrair domínio da URL '{url}': {e}")
+        return ''
+
+
+def substituir_dominio_em_url(url_completa: str, dominio_origem: str, dominio_destino: str) -> str:
+    """
+    Substitui o domínio em uma URL completa, preservando path, query params e fragment.
+
+    Fluxo:
+    1. Extrai domínio da URL completa
+    2. Verifica se corresponde ao dominio_origem
+    3. Substitui pelo dominio_destino
+    4. Preserva path, query string e fragment
+
+    Args:
+        url_completa (str): URL completa a ser modificada
+        dominio_origem (str): Domínio esperado (para validação)
+        dominio_destino (str): Novo domínio a ser aplicado
+
+    Returns:
+        str: URL com domínio substituído
+
+    Raises:
+        ValueError: Se o domínio da URL não corresponder ao dominio_origem
+
+    Examples:
+        >>> substituir_dominio_em_url(
+        ...     'http://old.com/get.php?user=123',
+        ...     'http://old.com',
+        ...     'http://new.com:8080'
+        ... )
+        'http://new.com:8080/get.php?user=123'
+
+        >>> substituir_dominio_em_url(
+        ...     'http://old.com:80/path/to/file?param=value#section',
+        ...     'http://old.com:80',
+        ...     'http://new.com'
+        ... )
+        'http://new.com/path/to/file?param=value#section'
+    """
+    from urllib.parse import urlparse, urlunparse
+
+    if not url_completa or not isinstance(url_completa, str):
+        raise ValueError("URL completa não pode ser vazia")
+
+    if not dominio_origem or not isinstance(dominio_origem, str):
+        raise ValueError("Domínio origem não pode ser vazio")
+
+    if not dominio_destino or not isinstance(dominio_destino, str):
+        raise ValueError("Domínio destino não pode ser vazio")
+
+    try:
+        # Parse da URL completa
+        parsed_url = urlparse(url_completa.strip())
+
+        # Extrai domínio da URL
+        dominio_atual = f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+        # Valida se corresponde ao domínio origem
+        if dominio_atual != dominio_origem.strip():
+            raise ValueError(
+                f"Domínio da URL ({dominio_atual}) não corresponde ao domínio origem esperado ({dominio_origem})"
+            )
+
+        # Parse do domínio destino
+        parsed_destino = urlparse(dominio_destino.strip())
+
+        # Reconstrói URL com novo domínio, preservando path, params, query, fragment
+        nova_url = urlunparse((
+            parsed_destino.scheme,      # scheme (http/https)
+            parsed_destino.netloc,      # netloc (host:port)
+            parsed_url.path,            # path (preservado)
+            parsed_url.params,          # params (preservado)
+            parsed_url.query,           # query string (preservado)
+            parsed_url.fragment         # fragment (preservado)
+        ))
+
+        return nova_url
+
+    except ValueError:
+        # Re-lança ValueError (já tratado acima)
+        raise
+    except Exception as e:
+        logger.error(
+            f"Erro ao substituir domínio: URL='{url_completa}', "
+            f"Origem='{dominio_origem}', Destino='{dominio_destino}'. Erro: {e}"
+        )
+        raise Exception(f"Erro ao substituir domínio: {e}")

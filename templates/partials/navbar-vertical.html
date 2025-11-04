@@ -179,6 +179,13 @@
                     <i data-feather="users" class="nav-icon icon-xs me-2"></i> Migrar Clientes
                 </a>
             </li>
+
+            <!-- Nav item - Gestão DNS -->
+            <li class="nav-item">
+                <a class="nav-link {% if page == 'gestao-dns' %}active{% endif %}" href="{% url 'gestao-dns' %}">
+                    <i data-feather="server" class="nav-icon icon-xs me-2"></i> Gestão de Domínios DNS
+                </a>
+            </li>
             {% endif %}
         </ul>
     </div>

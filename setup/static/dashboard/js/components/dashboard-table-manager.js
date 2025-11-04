@@ -285,19 +285,10 @@ class DashboardTableManager {
      * @param {string} type - Tipo: 'info', 'success' ou 'error'
      */
     showToast(message, type = 'info') {
-        // Usa função global existente se disponível
+        // Usa função global do toast-manager.js
         if (typeof window.showToast === 'function') {
-            const icons = {
-                info: '<i class="bi bi-info-circle" style="color: #0078D7;"></i>',
-                success: '<i class="bi bi-check-circle-fill" style="color: #624bff;"></i>',
-                error: '❌'
-            };
-
-            window.showToast({
-                message,
-                icon: icons[type] || icons.info,
-                raw: true
-            });
+            // Nova assinatura: showToast(type, message, options)
+            window.showToast(type, message);
         } else {
             // Fallback simples
             console.log(`[Toast ${type.toUpperCase()}] ${message}`);

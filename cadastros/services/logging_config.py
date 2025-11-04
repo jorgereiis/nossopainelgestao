@@ -287,6 +287,28 @@ def get_telegram_logger() -> logging.Logger:
     )
 
 
+def get_reseller_logger() -> logging.Logger:
+    """
+    Retorna logger específico para automação de painéis reseller.
+
+    Configuração:
+    - Console: INFO e superior
+    - Arquivo: DEBUG e superior com rotação
+    - Usado para login manual, migração DNS, e operações Playwright
+
+    Exemplo:
+        >>> logger = get_reseller_logger()
+        >>> logger.info("Iniciando migração DNS", extra={"usuario": "admin", "tarefa_id": 123})
+        >>> logger.error("Falha no login", extra={"aplicativo": "DreamTV", "erro": "timeout"})
+    """
+    return get_logger(
+        name="ResellerAutomation",
+        log_file=BASE_LOG_DIR / "Reseller" / "automation.log",
+        console_level=logging.INFO,
+        file_level=logging.DEBUG,
+    )
+
+
 # ==================== TEMPLATES DE MENSAGENS ====================
 
 class LogTemplates:

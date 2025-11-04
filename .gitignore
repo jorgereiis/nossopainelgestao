@@ -23,6 +23,7 @@ teste*
 *.md
 docker
 *.sh
+logs/Reseller/debug_screenshots
 
 # Docker - IGNORAR apenas dados sensíveis, NÃO arquivos de configuração
 docker/**/.env

@@ -37,6 +37,14 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise ImproperlyConfigured("SECRET_KEY environment variable is not set.")
 
+# Fernet encryption key for reseller passwords
+FERNET_KEY = os.getenv("FERNET_KEY")
+if not FERNET_KEY:
+    raise ImproperlyConfigured(
+        "FERNET_KEY environment variable is not set. "
+        "Generate one with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+    )
+
 # reCaptcha Configs
 
 RECAPTCHA_PUBLIC_KEY = os.getenv("RECAPTCHA_PUBLIC_KEY")

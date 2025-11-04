@@ -392,7 +392,7 @@
     link.innerHTML = 'Processando…';
 
     if (!csrftoken) {
-      alert("Token CSRF indisponível. Recarregue a página e tente novamente.");
+      showToast('error', 'Token CSRF indisponível. Recarregue a página e tente novamente.');
       link.innerHTML = oldHtml;
       return;
     }
@@ -409,7 +409,7 @@
       refreshDropdown();
       refreshBadge();
     })
-    .catch(() => { alert("Falha ao marcar notificações."); })
+    .catch(() => { showToast('error', 'Falha ao marcar notificações.'); })
     .finally(() => { link.innerHTML = oldHtml; });
   });
 })();
