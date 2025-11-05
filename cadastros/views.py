@@ -5933,9 +5933,12 @@ def gestao_dns_page(request):
     from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
     from django.db.models import Case, When, Value, IntegerField
 
-    # Busca apenas aplicativos que usam MAC (device_has_mac=True)
+    # Busca apenas aplicativos que usam MAC e foram cadastrados pelo superuser
     # Ordenação: aplicativos com automação primeiro (DreamTV = 0), depois alfabético
-    aplicativos = Aplicativo.objects.filter(device_has_mac=True).annotate(
+    aplicativos = Aplicativo.objects.filter(
+        device_has_mac=True,
+        usuario__is_superuser=True
+    ).annotate(
         prioridade=Case(
             When(nome__iexact='dreamtv', then=Value(0)),
             default=Value(1),

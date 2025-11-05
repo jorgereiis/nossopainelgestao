@@ -264,7 +264,7 @@ class Aplicativo(models.Model):
 
             # Duplex family
             'duplextv.png': ['duplextv'],
-            'duplecast.png': ['duplecast', 'duple'],
+            'duplecast.png': ['duplecast',],
             'duplexplay.png': ['duplexplayer', 'duplexplay', 'duplex'],
 
             # Players diversos
