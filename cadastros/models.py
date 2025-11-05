@@ -275,12 +275,17 @@ class Aplicativo(models.Model):
             'quick.png': ['quickplayer', 'quick'],
             'iboplayer.png': ['iboplayer', 'ibo'],
             'bobplayer.png': ['bobplayer', 'bob'],
+            'webplayer.png': ['webplayer', 'dns'],
             'lazerplay.png': ['lazerplay', 'lazer'],
+            'metaplayer.png': ['metaplayer', 'meta'],
+            'ninjaplayer.png': ['ninjaplayer', 'ninja'],
             'vuplayer.png': ['vuplayer', 'vuplay', 'vu'],
             'capplayer.png': ['capplayer', 'capp', 'cap'],
+            'xtreamplayer.png': ['xtreamplayer', 'xtream'],
             'smarters.png': ['smartersplayer', 'smarters'],
             'ultraplayer.png': ['ultraplayer', 'ultraplay', 'ultra'],
-
+            'webcastvideo.png': ['webcastvideo', 'castvideo', 'cast'],
+            
             # Smart family
             'smartup.png': ['smartup'],
             'smartone.png': ['smartone'],
@@ -301,8 +306,8 @@ class Aplicativo(models.Model):
             'warez.png': ['warez'],
             'playon.png': ['playon'],
             'gf.png': ['globalfilmes', 'gf'],
-            'seven.png': ['sevenxc', 'seven'],
             'club.png': ['club', 'cplayer', 'clite'],
+            'seven.png': ['sevenxc', 'seven', '7flix'],
         }
 
         # Matching por prioridade (3 níveis)
