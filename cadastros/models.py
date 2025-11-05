@@ -241,8 +241,8 @@ class Aplicativo(models.Model):
         Retorna o caminho da logo do aplicativo usando matching inteligente com 3 níveis de prioridade.
 
         Sistema de matching que elimina falsos positivos:
-        - Nível 1 (Exato): "duplexplay" == "duplexplay" → duplexplay.png ✅
-        - Nível 2 (Início): "duplexplayiptv" começa com "duplexplay" → duplexplay.png ✅
+        - Nível 1 (Exato): "duplexplay" == "duplexplay" → duplexplay.png 
+        - Nível 2 (Início): "duplexplayiptv" começa com "duplexplay" → duplexplay.png 
         - Nível 3 (Contém): "smartersplayer" contém "smarters" → Validação contra blacklist
 
         Apps sem logo específica retornam default.png corretamente.
@@ -259,52 +259,50 @@ class Aplicativo(models.Model):
         # Mapeamento de logos para suas palavras-chave
         # Organizadas por especificidade (mais específicas primeiro)
         logo_keywords = {
-            # Multiplayers (específicos primeiro)
+            # Multiplayers
             'multiplayer.png': ['multiplayerxc', 'multiplayeribo', 'multiplayer', 'multi'],
 
-            # Duplex family (específico → genérico)
+            # Duplex family
             'duplextv.png': ['duplextv'],
-            'duplexplay.png': ['duplexplayer', 'duplexplay', 'duplex'],
             'duplecast.png': ['duplecast', 'duple'],
+            'duplexplay.png': ['duplexplayer', 'duplexplay', 'duplex'],
 
-            # Players (específicos)
+            # Players diversos
             'xp.png': ['xpplayer', 'xp'],
+            'vizzion.png': ['vizzion', 'viz'],
+            'maximus.png': ['maximus', 'maxi'],
+            'dreamtv.png': ['dreamtv', 'dream'],
             'quick.png': ['quickplayer', 'quick'],
-            'smarters.png': ['smartersplayer', 'smarters'],
             'iboplayer.png': ['iboplayer', 'ibo'],
             'bobplayer.png': ['bobplayer', 'bob'],
-            'capplayer.png': ['capplayer', 'capp', 'cap'],
-            'ultraplayer.png': ['ultraplayer', 'ultraplay', 'ultra'],
-            'vuplayer.png': ['vuplayer', 'vuplay', 'vu'],
             'lazerplay.png': ['lazerplay', 'lazer'],
+            'vuplayer.png': ['vuplayer', 'vuplay', 'vu'],
+            'capplayer.png': ['capplayer', 'capp', 'cap'],
+            'smarters.png': ['smartersplayer', 'smarters'],
+            'ultraplayer.png': ['ultraplayer', 'ultraplay', 'ultra'],
 
             # Smart family
-            'smartone.png': ['smartone'],
             'smartup.png': ['smartup'],
+            'smartone.png': ['smartone'],
             'stb.png': ['smartstb', 'stb'],
 
             # SS IPTV
             'ssiptv.png': ['ssiptv', 'ss'],
 
             # Cloud/XCloud/XCIPTV
-            'xciptv.png': ['xciptv', 'xc'],
+            'xciptv.png': ['xciptv'],
             'xcloud.png': ['xcloud'],
             'clouddy.png': ['clouddy', 'cloud'],
 
-            # TV apps
-            'dreamtv.png': ['dreamtv', 'dream'],
-            'seven.png': ['sevenxc', 'seven'],
-
-            # Outros específicos
-            'maximus.png': ['maximus', 'maxi'],
-            'vizzion.png': ['vizzion', 'viz'],
-            'prime.png': ['prime'],
-            'playon.png': ['playon'],
-            'alpha.png': ['alpha'],
-            'club.png': ['club'],
+            # Servers
             'five.png': ['five'],
+            'prime.png': ['prime'],
+            'alpha.png': ['alpha'],
             'warez.png': ['warez'],
+            'playon.png': ['playon'],
             'gf.png': ['globalfilmes', 'gf'],
+            'seven.png': ['sevenxc', 'seven'],
+            'club.png': ['club', 'cplayer', 'clite'],
         }
 
         # Matching por prioridade (3 níveis)
