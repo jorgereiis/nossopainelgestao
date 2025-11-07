@@ -27,6 +27,7 @@ Uso:
     service.executar_migracao(tarefa_id=123)
 """
 
+import base64
 import json
 import os
 import re
@@ -34,7 +35,9 @@ import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Dict, List, Optional, Set
+from urllib.parse import urlparse
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils import timezone
 from playwright.sync_api import (
@@ -53,6 +56,10 @@ from cadastros.models import (
 )
 from cadastros.utils import decrypt_password
 from cadastros.services.logging_config import get_reseller_logger
+from cadastros.services.capsolver_integration import (
+    CapSolverException,
+    CapSolverService,
+)
 
 
 class ResellerAutomationService(ABC):
@@ -105,6 +112,317 @@ class ResellerAutomationService(ABC):
                 f"Conta reseller não encontrada para usuário '{self.user.username}' "
                 f"e aplicativo '{self.aplicativo.nome}'"
             )
+
+    # ------------------------------------------------------------------
+    # Utilitários CapSolver / Playwright
+    # ------------------------------------------------------------------
+
+    def _extrair_anchor_html(self, page: Page) -> Optional[str]:
+        """Extrai o HTML completo do iframe anchor (checkbox) e codifica em Base64."""
+        try:
+            page.wait_for_timeout(1500)
+            for frame in page.frames:
+                if "google.com/recaptcha/api2/anchor" not in frame.url:
+                    continue
+                anchor_html = frame.content()
+                if anchor_html and len(anchor_html) > 100:
+                    encoded = base64.b64encode(anchor_html.encode("utf-8")).decode("utf-8")
+                    self.logger.info(
+                        f"[USER:{self.user.username}] ✓ HTML anchor extraído ({len(anchor_html)} chars)"
+                    )
+                    return encoded
+            self.logger.warning(
+                f"[USER:{self.user.username}] Iframe anchor não encontrado ou muito curto"
+            )
+            return None
+        except Exception as exc:
+            self.logger.error(
+                f"[USER:{self.user.username}] Erro ao extrair anchor HTML: {str(exc)[:180]}"
+            )
+            return None
+
+    def _build_playwright_proxy(self, proxy_url: Optional[str]) -> Optional[Dict[str, str]]:
+        """Converte a string do proxy para o formato aceito pelo Playwright."""
+        if not proxy_url:
+            return None
+        try:
+            parsed = urlparse(proxy_url)
+            if not (parsed.scheme and parsed.hostname and parsed.port):
+                raise ValueError("Proxy inválido. Formato esperado: protocol://user:pass@host:port")
+            proxy_dict: Dict[str, str] = {
+                "server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
+            }
+            if parsed.username:
+                proxy_dict["username"] = parsed.username
+            if parsed.password:
+                proxy_dict["password"] = parsed.password
+            self.logger.info(
+                f"[USER:{self.user.username}] Proxy configurado no Playwright ({parsed.scheme})"
+            )
+            return proxy_dict
+        except Exception as exc:
+            self.logger.error(
+                f"[USER:{self.user.username}] Proxy inválido para Playwright: {exc}"
+            )
+            return None
+
+    def _format_cookies_for_capsolver(self, context) -> Optional[str]:
+        """Serializa cookies atuais do contexto para enviar ao CapSolver."""
+        try:
+            cookies = context.cookies()
+            cookie_pairs = []
+            for cookie in cookies:
+                name = cookie.get("name")
+                value = cookie.get("value")
+                if name and value:
+                    cookie_pairs.append(f"{name}={value}")
+            return "; ".join(cookie_pairs) if cookie_pairs else None
+        except Exception as exc:
+            self.logger.debug(
+                f"[USER:{self.user.username}] Não foi possível coletar cookies para CapSolver: {exc}"
+            )
+            return None
+
+    def _start_recaptcha_reload_capture(self, page: Page):
+        """Registra listener de requests e captura a próxima chamada /recaptcha/api2/reload."""
+        captured = {"raw": None}
+
+        def handle_request(request):
+            try:
+                if captured["raw"]:
+                    return
+                if "google.com/recaptcha/api2/reload" not in request.url:
+                    return
+                info = {
+                    "method": request.method,
+                    "url": request.url,
+                    "headers": dict(request.headers),
+                    "postData": request.post_data if request.method == "POST" else None,
+                }
+                fetch_repr = f"""fetch("{info['url']}", {{
+    method: "{info['method']}",
+    headers: {json.dumps(info['headers'], indent=8)},
+    body: {json.dumps(info['postData']) if info['postData'] else 'null'}
+}})"""
+                captured["raw"] = fetch_repr
+                self.logger.info(
+                    f"[USER:{self.user.username}] ✓ Requisição /reload capturada"
+                )
+            except Exception as exc:
+                self.logger.debug(
+                    f"[USER:{self.user.username}] Erro ao capturar reload request: {exc}"
+                )
+
+        try:
+            page.on("request", handle_request)
+        except Exception as exc:
+            self.logger.error(
+                f"[USER:{self.user.username}] Falha ao registrar listener /reload: {exc}"
+            )
+            return None, captured
+        return handle_request, captured
+
+    def _finish_recaptcha_reload_capture(
+        self,
+        page: Page,
+        handler,
+        captured_request: Dict[str, Optional[str]],
+        wait_timeout_ms: int = 4000,
+    ) -> Optional[str]:
+        """Finaliza listener e retorna payload Base64 da requisição /reload."""
+        if not handler:
+            return None
+        try:
+            waited = 0
+            interval = 200
+            while not captured_request.get("raw") and waited < wait_timeout_ms:
+                page.wait_for_timeout(interval)
+                waited += interval
+        except Exception:
+            pass
+        finally:
+            try:
+                page.remove_listener("request", handler)
+            except Exception:
+                pass
+
+        raw_data = captured_request.get("raw")
+        if not raw_data:
+            self.logger.warning(
+                f"[USER:{self.user.username}] Requisição /reload não foi capturada"
+            )
+            return None
+        encoded = base64.b64encode(raw_data.encode("utf-8")).decode("utf-8")
+        self.logger.info(
+            f"[USER:{self.user.username}] ✓ Payload reload codificado ({len(encoded)} chars)"
+        )
+        return encoded
+
+    def _reset_recaptcha_widget(self, page: Page) -> None:
+        """Tenta resetar o widget reCAPTCHA para uma nova tentativa."""
+        try:
+            page.evaluate(
+                """
+                () => {
+                    if (typeof window.grecaptcha !== 'undefined' && typeof window.grecaptcha.reset === 'function') {
+                        window.grecaptcha.reset();
+                    }
+                }
+                """
+            )
+            page.wait_for_timeout(1500)
+        except Exception as exc:
+            self.logger.debug(
+                f"[USER:{self.user.username}] Não foi possível resetar reCAPTCHA: {exc}"
+            )
+
+    def _injetar_token_recaptcha(self, page: Page, token: str) -> None:
+        """Preenche textareas, aciona callbacks globais e tenta marcar checkbox."""
+        page.evaluate(
+            """
+            (token) => {
+                const textareas = document.querySelectorAll('[name="g-recaptcha-response"]');
+                textareas.forEach((el) => {
+                    el.value = token;
+                    el.innerHTML = token;
+                    el.style.display = 'block';
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+
+                if (typeof ___grecaptcha_cfg !== 'undefined') {
+                    Object.keys(___grecaptcha_cfg.clients || {}).forEach((key) => {
+                        const client = ___grecaptcha_cfg.clients[key];
+                        if (!client) return;
+                        client.response = token;
+                        if (client.A) client.A.response = token;
+                        if (typeof client.callback === 'function') {
+                            try { client.callback(token); } catch (e) {}
+                        }
+                    });
+                }
+            }
+            """,
+            token,
+        )
+
+    def _challenge_visivel(self, page: Page) -> bool:
+        """Retorna True se o iframe do desafio visual ainda estiver aberto."""
+        return page.evaluate(
+            """
+            () => {
+                const challengeIframes = document.querySelectorAll('iframe[src*="recaptcha"][src*="bframe"]');
+                return Array.from(challengeIframes).some((iframe) => {
+                    const style = window.getComputedStyle(iframe);
+                    return style.display !== 'none' && style.visibility !== 'hidden';
+                });
+            }
+            """
+        )
+
+    def _submeter_formulario(self, page: Page) -> bool:
+        """Executa múltiplas estratégias para submeter o formulário."""
+        try:
+            button_enabled = page.evaluate(
+                """
+                () => {
+                    const selectors = [
+                        'button[type="submit"]',
+                        '.ant-btn-primary',
+                        'button.ant-btn',
+                        'button[class*="submit"]',
+                        'button[class*="login"]'
+                    ];
+                    return selectors.some((selector) => {
+                        const btn = document.querySelector(selector);
+                        return btn && !btn.disabled && !btn.classList.contains('ant-btn-disabled');
+                    });
+                }
+                """
+            )
+        except Exception:
+            button_enabled = False
+
+        if button_enabled:
+            try:
+                self._clicar_botao_submit(page)
+                return True
+            except Exception:
+                pass
+
+        # Método JS manual
+        try:
+            clicked = page.evaluate(
+                """
+                () => {
+                    const selectors = [
+                        '.ant-btn-primary',
+                        'button.ant-btn',
+                        'button[type="submit"]'
+                    ];
+                    for (const selector of selectors) {
+                        const btn = document.querySelector(selector);
+                        if (btn) {
+                            btn.click();
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                """
+            )
+            if clicked:
+                return True
+        except Exception:
+            pass
+
+        # Submit direto
+        try:
+            submitted = page.evaluate(
+                """
+                () => {
+                    const form = document.querySelector('form#form-login') ||
+                                 document.querySelector('form.login-form') ||
+                                 document.querySelector('form');
+                    if (form) {
+                        form.submit();
+                        return True;
+                    }
+                    return False;
+                }
+                """
+            )
+            return bool(submitted)
+        except Exception:
+            return False
+
+    def _fazer_login_com_extensao(self, page: Page, timeout: Optional[int] = None) -> Optional[str]:
+        """Aguarda a extensão CapSolver injetar o token no textarea."""
+        timeout = timeout or getattr(settings, "CAPSOLVER_EXTENSION_TIMEOUT", 60)
+        self.logger.info(
+            f"[USER:{self.user.username}] Aguardando até {timeout}s para a extensão resolver o reCAPTCHA..."
+        )
+        start = time.time()
+        while time.time() - start < timeout:
+            token = page.evaluate(
+                """
+                () => {
+                    const textarea = document.querySelector('[name="g-recaptcha-response"]');
+                    return textarea ? textarea.value || '' : '';
+                }
+                """
+            )
+            if token and len(token) > 100:
+                self.logger.info(
+                    f"[USER:{self.user.username}] ✓ Extensão CapSolver injetou o token (len={len(token)})"
+                )
+                return token
+            page.wait_for_timeout(1000)
+        self.logger.warning(
+            f"[USER:{self.user.username}] Extensão não resolveu o reCAPTCHA dentro de {timeout}s"
+        )
+        return None
+
 
     def fazer_login_manual(self) -> bool:
         """
@@ -222,6 +540,270 @@ class ResellerAutomationService(ABC):
             )
             return False
 
+    def fazer_login_automatico(self, capsolver_api_key: Optional[str] = None) -> bool:
+        """
+        Login automático com resolução de reCAPTCHA via CapSolver
+        (prioriza extensão quando disponível, fallback para API com proxy próprio).
+        """
+        self.logger.info(
+            f"[USER:{self.user.username}] Iniciando login automático com CapSolver"
+        )
+
+        storage_state = None
+
+        try:
+            capsolver = CapSolverService(api_key=capsolver_api_key)
+            balance = capsolver.get_balance()
+            if balance is not None and balance < 0.01:
+                self.logger.error(
+                    f"[USER:{self.user.username}] Saldo CapSolver insuficiente: ${balance:.4f}"
+                )
+                return False
+
+            proxy_config = getattr(settings, "CAPSOLVER_PROXY", None)
+            playwright_proxy = self._build_playwright_proxy(proxy_config)
+            capsolver_method = getattr(settings, "CAPSOLVER_METHOD", "api").lower()
+            extension_path_setting = getattr(settings, "CAPSOLVER_EXTENSION_PATH", None)
+            extension_timeout = getattr(settings, "CAPSOLVER_EXTENSION_TIMEOUT", 60)
+
+            usar_extensao = False
+            extension_path = None
+            if capsolver_method in ("extension", "auto"):
+                if extension_path_setting and os.path.exists(extension_path_setting):
+                    usar_extensao = True
+                    extension_path = extension_path_setting
+                else:
+                    self.logger.warning(
+                        f"[USER:{self.user.username}] Extensão CapSolver não encontrada (CAPSOLVER_EXTENSION_PATH)"
+                    )
+                    if capsolver_method == "extension":
+                        self.logger.error(
+                            f"[USER:{self.user.username}] Modo 'extension' exige extensão instalada."
+                        )
+                        return False
+
+            debug_mode = False
+            try:
+                config = ConfiguracaoAutomacao.objects.filter(user=self.user).first()
+                if config:
+                    debug_mode = config.debug_headless_mode
+                    self.logger.info(
+                        f"[USER:{self.user.username}] ConfiguracaoAutomacao encontrada: debug_mode={debug_mode}"
+                    )
+                else:
+                    self.logger.warning(
+                        f"[USER:{self.user.username}] ConfiguracaoAutomacao não encontrada"
+                    )
+            except Exception as exc:
+                self.logger.error(
+                    f"[USER:{self.user.username}] Erro ao consultar ConfiguracaoAutomacao: {exc}"
+                )
+
+            if usar_extensao and not debug_mode:
+                self.logger.info(
+                    f"[USER:{self.user.username}] Extensão requer navegador visível - forçando headless=False"
+                )
+                debug_mode = True
+
+            with sync_playwright() as p:
+                browser_args: List[str] = []
+                if debug_mode:
+                    browser_args.extend(["--start-maximized", "--force-device-scale-factor=0.8"])
+                if usar_extensao and extension_path:
+                    browser_args.extend([
+                        f"--disable-extensions-except={extension_path}",
+                        f"--load-extension={extension_path}",
+                    ])
+
+                browser = p.chromium.launch(
+                    headless=not debug_mode,
+                    args=browser_args,
+                    proxy=playwright_proxy,
+                )
+
+                browser_user_agent = (
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                )
+                context = browser.new_context(
+                    user_agent=browser_user_agent,
+                    viewport={"width": 1920, "height": 1080},
+                    locale="pt-BR",
+                    timezone_id="America/Recife",
+                )
+
+                page = context.new_page()
+                login_url = self.get_login_url()
+                page.goto(login_url, wait_until="networkidle")
+
+                self.logger.info(f"[USER:{self.user.username}] Página de login carregada")
+                senha_descriptografada = decrypt_password(self.conta.senha_login)
+                self._preencher_formulario_login(
+                    page, self.conta.email_login, senha_descriptografada
+                )
+                self.logger.info(f"[USER:{self.user.username}] Credenciais preenchidas")
+
+                login_concluido = False
+
+                if usar_extensao:
+                    self.logger.info(
+                        f"[USER:{self.user.username}] Tentando resolver reCAPTCHA com CapSolver Extension..."
+                    )
+                    extension_token = self._fazer_login_com_extensao(
+                        page, timeout=extension_timeout
+                    )
+                    if extension_token:
+                        self._injetar_token_recaptcha(page, extension_token)
+                        if self._challenge_visivel(page):
+                            self.logger.warning(
+                                f"[USER:{self.user.username}] Desafio visual permaneceu após extensão - fallback API"
+                            )
+                            self._reset_recaptcha_widget(page)
+                        elif self._submeter_formulario(page):
+                            login_concluido = True
+                        else:
+                            self.logger.warning(
+                                f"[USER:{self.user.username}] Submit falhou após token da extensão - usando API"
+                            )
+                    else:
+                        if capsolver_method == "extension":
+                            self.logger.error(
+                                f"[USER:{self.user.username}] Extensão não resolveu o reCAPTCHA no tempo limite"
+                            )
+                            browser.close()
+                            return False
+                        self.logger.info(
+                            f"[USER:{self.user.username}] Extensão indisponível - usando API CapSolver"
+                        )
+
+                max_captcha_attempts = 2
+                if not login_concluido:
+                    for attempt in range(1, max_captcha_attempts + 1):
+                        sitekey = page.evaluate(
+                            """
+                            () => {
+                                let el = document.querySelector('[data-sitekey]');
+                                if (el) return el.getAttribute('data-sitekey');
+
+                                el = document.querySelector('.g-recaptcha');
+                                if (el) return el.getAttribute('data-sitekey');
+
+                                const scripts = document.querySelectorAll('script');
+                                for (const script of scripts) {
+                                    const match = script.textContent.match(/sitekey['\":\s]+['\"]([-\w]+)['\"]/);
+                                    if (match) return match[1];
+                                }
+
+                                const iframes = document.querySelectorAll('iframe[src*="google.com/recaptcha"]');
+                                for (const iframe of iframes) {
+                                    const match = iframe.src.match(/[?&]k=([^&]+)/);
+                                    if (match) return match[1];
+                                }
+                                return null;
+                            }
+                            """
+                        )
+
+                        if not sitekey:
+                            self.logger.warning(
+                                f"[USER:{self.user.username}] reCAPTCHA não detectado - tentando login direto"
+                            )
+                            self._clicar_botao_submit(page)
+                            login_concluido = True
+                            break
+
+                        if attempt > 1:
+                            self.logger.info(
+                                f"[USER:{self.user.username}] 🔁 Nova tentativa ({attempt}/{max_captcha_attempts})"
+                            )
+
+                        reload_handler, reload_state = self._start_recaptcha_reload_capture(page)
+                        anchor_base64 = self._extrair_anchor_html(page)
+                        page.wait_for_timeout(500)
+                        reload_base64 = self._finish_recaptcha_reload_capture(
+                            page, reload_handler, reload_state
+                        )
+                        cookies_header = self._format_cookies_for_capsolver(context)
+
+                        self.logger.info(
+                            f"[USER:{self.user.username}] Resolvendo reCAPTCHA com CapSolver..."
+                        )
+                        token = capsolver.solve_recaptcha_v2(
+                            sitekey=sitekey,
+                            url=page.url,
+                            proxy=proxy_config,
+                            anchor=anchor_base64,
+                            reload=reload_base64,
+                            user_agent=browser_user_agent,
+                            cookies=cookies_header,
+                        )
+                        self.logger.info(
+                            f"[USER:{self.user.username}] Token CapSolver obtido: {token[:50]}..."
+                        )
+
+                        self._injetar_token_recaptcha(page, token)
+                        page.wait_for_timeout(1500)
+
+                        if self._challenge_visivel(page):
+                            self.logger.warning(
+                                f"[USER:{self.user.username}] Google abriu desafio visual - repetindo fluxo..."
+                            )
+                            self._reset_recaptcha_widget(page)
+                            continue
+
+                        if self._submeter_formulario(page):
+                            login_concluido = True
+                            break
+
+                if not login_concluido:
+                    self.logger.error(
+                        f"[USER:{self.user.username}] Não foi possível concluir login automático."
+                    )
+                    browser.close()
+                    return False
+
+                try:
+                    page.wait_for_url(
+                        self.get_dashboard_url_pattern(),
+                        timeout=30000,
+                    )
+                    self.logger.info(
+                        f"[USER:{self.user.username}] Login automático bem-sucedido!"
+                    )
+                    storage_state = context.storage_state()
+                except PlaywrightTimeoutError:
+                    final_url = page.url
+                    self.logger.error(
+                        f"[USER:{self.user.username}] Timeout aguardando dashboard (URL final: {final_url})"
+                    )
+                    browser.close()
+                    return False
+
+                browser.close()
+
+            if storage_state:
+                self.conta.session_data = json.dumps(storage_state)
+                self.conta.sessao_valida = True
+                self.conta.ultimo_login = timezone.now()
+                self.conta.save()
+                self.logger.info(
+                    f"[USER:{self.user.username}] Sessão automática salva com sucesso"
+                )
+                return True
+
+            self.logger.error(
+                f"[USER:{self.user.username}] Falha ao capturar storage_state após login automático"
+            )
+            return False
+
+        except CapSolverException as exc:
+            self.logger.error(f"[USER:{self.user.username}] Erro no CapSolver: {exc}")
+            return False
+        except Exception as exc:
+            self.logger.exception(
+                f"[USER:{self.user.username}] Erro no login automático: {exc}"
+            )
+            return False
     def verificar_sessao_valida(self) -> bool:
         """
         Testa se a sessão salva ainda está ativa.
