@@ -1327,6 +1327,23 @@ class ContaReseller(models.Model):
         verbose_name='Sessão Válida',
         help_text='Indica se a sessão armazenada ainda está ativa'
     )
+    login_progresso = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name='Progresso do Login',
+        help_text='Etapa atual do processo de login automático',
+        choices=[
+            ('', 'Não iniciado'),
+            ('conectando', 'Conectando ao painel'),
+            ('pagina_carregada', 'Página carregada'),
+            ('resolvendo_captcha', 'Resolvendo reCAPTCHA'),
+            ('captcha_resolvido', 'reCAPTCHA resolvido'),
+            ('validando', 'Validando credenciais'),
+            ('concluido', 'Login concluído'),
+            ('erro', 'Erro no login'),
+        ]
+    )
     data_criacao = models.DateTimeField(
         auto_now_add=True,
         verbose_name='Data de Criação'

@@ -19,9 +19,23 @@ const GestaoDNS = {
     tarefaAtualId: null,
     pollingInterval: null,
     pollingIntervalMs: 3000, // 3 segundos
+    loginEmAndamento: false, // Flag para prevenir interrupções durante login
+    loginPollingInterval: null, // Intervalo de polling do login
+    loginTentativas: 0, // Contador de tentativas de verificação
+    loginMaxTentativas: 20, // Máximo de tentativas (60 segundos)
     filtroAtivo: 'all', // Filtro atual ativo (tabela de progresso em tempo real)
     filtroDispositivosDetalhes: 'all', // Filtro de detalhes históricos
     tarefaIdAtual: null, // ID da tarefa de detalhes sendo visualizada
+
+    // Novas variáveis para seleção dinâmica de domínios
+    dominiosCarregados: false, // Flag para evitar recarregar domínios
+    dispositivoBuscado: null, // Dispositivo encontrado por MAC
+    playlistSelecionada: null, // Playlist escolhida pelo usuário
+    dominioOrigemAtual: null, // Domínio origem selecionado
+
+    // Proteção contra requisições paralelas
+    isLoadingDominios: false, // Flag para prevenir execução paralela de carregarDominios()
+    dominiosAbortController: null, // Controller para cancelar requisições anteriores
 
     /**
      * Filtra a tabela de dispositivos por status
@@ -352,6 +366,230 @@ function getCsrfToken() {
     return document.querySelector('[name=csrfmiddlewaretoken]').value;
 }
 
+// ==================== CACHE DE DOMÍNIOS ====================
+
+/**
+ * Gerencia cache de domínios em sessionStorage
+ *
+ * Recursos:
+ * - Armazenamento por aplicativo
+ * - Expiração de 6 horas
+ * - Invalidação manual
+ * - Limpeza automática de cache expirado
+ */
+const DominiosCache = {
+    CACHE_KEY: 'gestao_dns_cache',
+    TTL_HOURS: 6,  // 6 horas
+    CACHE_VERSION: '1.0',
+
+    /**
+     * Retorna estrutura vazia do cache
+     */
+    _getEmptyCache() {
+        return {
+            cache_version: this.CACHE_VERSION,
+            caches: {}
+        };
+    },
+
+    /**
+     * Carrega cache completo do sessionStorage
+     */
+    _loadCache() {
+        try {
+            const data = sessionStorage.getItem(this.CACHE_KEY);
+            if (!data) return this._getEmptyCache();
+
+            const parsed = JSON.parse(data);
+
+            // Validar versão do cache
+            if (parsed.cache_version !== this.CACHE_VERSION) {
+                console.log('[Cache] Versão desatualizada, limpando cache');
+                return this._getEmptyCache();
+            }
+
+            return parsed;
+        } catch (error) {
+            console.error('[Cache] Erro ao carregar cache:', error);
+            return this._getEmptyCache();
+        }
+    },
+
+    /**
+     * Salva cache completo no sessionStorage
+     */
+    _saveCache(cacheData) {
+        try {
+            sessionStorage.setItem(this.CACHE_KEY, JSON.stringify(cacheData));
+        } catch (error) {
+            console.error('[Cache] Erro ao salvar cache:', error);
+            // Quota exceeded - limpar cache antigo
+            this.clear();
+        }
+    },
+
+    /**
+     * Verifica se cache do aplicativo está válido
+     */
+    isValid(aplicativoId) {
+        const cache = this._loadCache();
+        const key = `app_${aplicativoId}`;
+        const entry = cache.caches[key];
+
+        if (!entry) return false;
+
+        const now = new Date();
+        const expiresAt = new Date(entry.expires_at);
+
+        return now < expiresAt;
+    },
+
+    /**
+     * Retorna domínios do cache (se válido)
+     */
+    get(aplicativoId) {
+        if (!this.isValid(aplicativoId)) {
+            console.log(`[Cache] Cache inválido ou expirado para app ${aplicativoId}`);
+            return null;
+        }
+
+        const cache = this._loadCache();
+        const key = `app_${aplicativoId}`;
+        const entry = cache.caches[key];
+
+        console.log(`[Cache] ✓ Cache HIT para app ${aplicativoId} (${entry.total_dominios} domínios)`);
+
+        // Calcular idade do cache
+        const now = new Date();
+        const cachedAt = new Date(entry.cached_at);
+        const ageMinutes = Math.floor((now - cachedAt) / 60000);
+        console.log(`[Cache] Idade do cache: ${ageMinutes} minutos`);
+
+        return {
+            dominios: entry.dominios,
+            cached_at: entry.cached_at,
+            expires_at: entry.expires_at,
+            age_minutes: ageMinutes
+        };
+    },
+
+    /**
+     * Armazena domínios no cache
+     */
+    set(aplicativoId, aplicativoNome, dominios) {
+        const cache = this._loadCache();
+        const key = `app_${aplicativoId}`;
+
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + (this.TTL_HOURS * 60 * 60 * 1000));
+
+        cache.caches[key] = {
+            aplicativo_id: aplicativoId,
+            aplicativo_nome: aplicativoNome,
+            dominios: dominios,
+            total_dominios: dominios.length,
+            total_dispositivos: dominios.reduce((sum, d) => sum + d.count, 0),
+            cached_at: now.toISOString(),
+            expires_at: expiresAt.toISOString()
+        };
+
+        this._saveCache(cache);
+        console.log(`[Cache] ✓ Domínios salvos no cache para app ${aplicativoId} (expira em ${this.TTL_HOURS}h)`);
+    },
+
+    /**
+     * Invalida cache de um aplicativo específico
+     */
+    invalidate(aplicativoId) {
+        const cache = this._loadCache();
+        const key = `app_${aplicativoId}`;
+
+        if (cache.caches[key]) {
+            delete cache.caches[key];
+            this._saveCache(cache);
+            console.log(`[Cache] Cache invalidado para app ${aplicativoId}`);
+            return true;
+        }
+
+        return false;
+    },
+
+    /**
+     * Limpa todo o cache
+     */
+    clear() {
+        sessionStorage.removeItem(this.CACHE_KEY);
+        console.log('[Cache] Cache completo limpo');
+    },
+
+    /**
+     * Remove entradas expiradas (garbage collection)
+     */
+    cleanup() {
+        const cache = this._loadCache();
+        const now = new Date();
+        let removed = 0;
+
+        Object.keys(cache.caches).forEach(key => {
+            const entry = cache.caches[key];
+            const expiresAt = new Date(entry.expires_at);
+
+            if (now >= expiresAt) {
+                delete cache.caches[key];
+                removed++;
+            }
+        });
+
+        if (removed > 0) {
+            this._saveCache(cache);
+            console.log(`[Cache] Cleanup: ${removed} cache(s) expirado(s) removido(s)`);
+        }
+
+        return removed;
+    },
+
+    /**
+     * Retorna estatísticas do cache
+     */
+    getStats() {
+        const cache = this._loadCache();
+        const now = new Date();
+        const stats = {
+            total_caches: 0,
+            valid_caches: 0,
+            expired_caches: 0,
+            total_dominios: 0,
+            apps: []
+        };
+
+        Object.values(cache.caches).forEach(entry => {
+            stats.total_caches++;
+
+            const expiresAt = new Date(entry.expires_at);
+            const isValid = now < expiresAt;
+
+            if (isValid) {
+                stats.valid_caches++;
+                stats.total_dominios += entry.total_dominios;
+            } else {
+                stats.expired_caches++;
+            }
+
+            stats.apps.push({
+                id: entry.aplicativo_id,
+                nome: entry.aplicativo_nome,
+                dominios: entry.total_dominios,
+                dispositivos: entry.total_dispositivos,
+                cached_at: entry.cached_at,
+                expires_at: entry.expires_at,
+                is_valid: isValid
+            });
+        });
+
+        return stats;
+    }
+};
+
 // ==================== HELPERS ====================
 
 function showStep(stepId) {
@@ -494,6 +732,310 @@ function mostrarFormularioLogin() {
     document.getElementById('login-aplicativo-id').value = GestaoDNS.aplicativoSelecionado.id;
 }
 
+/**
+ * Atualiza interface visual das etapas de login baseado no progresso
+ * @param {string} progresso - Etapa atual do login
+ */
+function atualizarEtapasVisuais(progresso) {
+    console.log(`[Etapas Visuais] Atualizando para progresso: ${progresso}`);
+
+    // Mapeamento de progresso para ações visuais
+    switch(progresso) {
+        case 'conectando':
+            // Etapa 1: mostra spinner
+            mostrarSpinner(1);
+            break;
+
+        case 'pagina_carregada':
+            // Etapa 1: completa (check)
+            marcarEtapaConcluida(1);
+            // Etapa 2: inicia spinner
+            mostrarSpinner(2);
+            break;
+
+        case 'resolvendo_captcha':
+            // Etapa 1: completa
+            marcarEtapaConcluida(1);
+            // Etapa 2: mostra spinner
+            mostrarSpinner(2);
+            break;
+
+        case 'captcha_resolvido':
+            // Etapa 1 e 2: completas
+            marcarEtapaConcluida(1);
+            marcarEtapaConcluida(2);
+            // Etapa 3: inicia spinner
+            mostrarSpinner(3);
+            break;
+
+        case 'validando':
+            // Etapa 1 e 2: completas
+            marcarEtapaConcluida(1);
+            marcarEtapaConcluida(2);
+            // Etapa 3: mostra spinner
+            mostrarSpinner(3);
+            break;
+
+        case 'concluido':
+            // Todas as etapas completas
+            marcarEtapaConcluida(1);
+            marcarEtapaConcluida(2);
+            marcarEtapaConcluida(3);
+            break;
+
+        case 'erro':
+            // Marca etapa atual como erro (opcional)
+            console.error('[Etapas Visuais] Erro no processo de login');
+            break;
+
+        default:
+            console.log(`[Etapas Visuais] Progresso desconhecido: ${progresso}`);
+    }
+}
+
+/**
+ * Mostra spinner para uma etapa específica
+ * @param {number} etapaNum - Número da etapa (1, 2 ou 3)
+ */
+function mostrarSpinner(etapaNum) {
+    const spinner = document.getElementById(`etapa-${etapaNum}-spinner`);
+    const check = document.getElementById(`etapa-${etapaNum}-check`);
+
+    if (spinner && check) {
+        spinner.classList.remove('d-none');
+        check.classList.add('d-none');
+    }
+}
+
+/**
+ * Marca etapa como concluída (troca spinner por check)
+ * @param {number} etapaNum - Número da etapa (1, 2 ou 3)
+ */
+function marcarEtapaConcluida(etapaNum) {
+    const spinner = document.getElementById(`etapa-${etapaNum}-spinner`);
+    const check = document.getElementById(`etapa-${etapaNum}-check`);
+
+    if (spinner && check) {
+        spinner.classList.add('d-none');
+        check.classList.remove('d-none');
+        console.log(`[Etapas Visuais] ✓ Etapa ${etapaNum} concluída`);
+    }
+}
+
+/**
+ * Verifica status do login em andamento (polling silencioso sem mudar telas)
+ * Chama a API de verificação de conta mas não altera a UI, apenas atualiza mensagens de progresso
+ */
+function verificarLoginEmAndamento() {
+    if (!GestaoDNS.loginEmAndamento || !GestaoDNS.aplicativoSelecionado) {
+        console.log('[Login Polling] Polling cancelado - loginEmAndamento=false ou app não selecionado');
+        return;
+    }
+
+    // Incrementa contador de tentativas
+    GestaoDNS.loginTentativas++;
+
+    console.log(`[Login Polling] Tentativa ${GestaoDNS.loginTentativas}/${GestaoDNS.loginMaxTentativas} - Verificando status...`);
+
+    // Verifica se atingiu o timeout máximo
+    if (GestaoDNS.loginTentativas > GestaoDNS.loginMaxTentativas) {
+        console.warn('[Login Polling] Timeout atingido - Parando polling');
+
+        // Para o polling
+        if (GestaoDNS.loginPollingInterval) {
+            clearInterval(GestaoDNS.loginPollingInterval);
+            GestaoDNS.loginPollingInterval = null;
+        }
+
+        // Mostra mensagem de timeout com opção de continuar aguardando
+        mostrarMensagemLoginProgresso('warning',
+            '<i class="bi bi-clock-history fs-1 text-warning mb-3"></i>' +
+            '<h5 class="text-warning">O login está demorando mais que o esperado</h5>' +
+            '<p class="text-muted">O processo de autenticação pode levar até 2 minutos em alguns casos.</p>' +
+            '<p class="text-muted small">Tentativas realizadas: ' + GestaoDNS.loginTentativas + '</p>' +
+            '<div class="d-grid gap-2 mt-3">' +
+                '<button class="btn btn-primary" onclick="continuarAguardandoLogin()">Continuar Aguardando</button>' +
+                '<button class="btn btn-outline-secondary" onclick="location.reload()">Recarregar Página</button>' +
+            '</div>'
+        );
+
+        return;
+    }
+
+    // Atualiza feedback visual de progresso
+    atualizarProgressoLogin(GestaoDNS.loginTentativas, GestaoDNS.loginMaxTentativas);
+
+    fetch(`/api/gestao-dns/verificar-conta/?aplicativo_id=${GestaoDNS.aplicativoSelecionado.id}`, {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': getCsrfToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('[Login Polling] Resposta da API:', data);
+
+        // Atualizar etapas visuais baseado no progresso reportado pelo backend
+        if (data.login_progresso) {
+            console.log('[Login Polling] Progresso do backend:', data.login_progresso);
+            atualizarEtapasVisuais(data.login_progresso);
+        }
+
+        if (data.status === 'ok') {
+            // Login completado com sucesso!
+            console.log('[Login Polling] ✅ Login concluído com sucesso!');
+            console.log('[Login Polling] Sessão válida:', data.sessao_valida);
+            console.log('[Login Polling] Email:', data.email);
+            console.log('[Login Polling] Último login:', data.ultimo_login);
+
+            // Garantir que todas as etapas aparecem como concluídas
+            atualizarEtapasVisuais('concluido');
+
+            GestaoDNS.loginEmAndamento = false;
+
+            // Para o polling
+            if (GestaoDNS.loginPollingInterval) {
+                clearInterval(GestaoDNS.loginPollingInterval);
+                GestaoDNS.loginPollingInterval = null;
+            }
+
+            // Aguardar 2 segundos antes de mostrar mensagem final (para ver todas as etapas completas)
+            setTimeout(() => {
+                // Atualiza mensagem de sucesso
+                mostrarMensagemLoginProgresso('success',
+                    '<i class="bi bi-check-circle-fill fs-1 text-success mb-3"></i>' +
+                    '<h5 class="text-success">Login realizado com sucesso!</h5>' +
+                    '<p class="text-muted">Sessão autenticada. Redirecionando...</p>' +
+                    '<p class="text-muted small">Total de tentativas: ' + GestaoDNS.loginTentativas + '</p>'
+                );
+
+                // Aguarda mais 2 segundos e redireciona para configuração de migração
+                setTimeout(() => {
+                    console.log('[Login Polling] Redirecionando para configuração de migração...');
+                    mostrarConfiguracaoMigracao();
+                }, 2000);
+            }, 2000);
+
+        } else if (data.status === 'sessao_expirada' || data.status === 'sem_conta') {
+            // Login ainda em andamento, continua aguardando...
+            console.log('[Login Polling] ⏳ Status:', data.status, '- Aguardando conclusão do login...');
+            console.log('[Login Polling] Mensagem:', data.mensagem);
+            // Continua polling (não faz nada)
+
+        } else if (data.error) {
+            // Erro durante o login
+            console.error('[Login Polling] ❌ Erro retornado pela API:', data.error);
+
+            GestaoDNS.loginEmAndamento = false;
+
+            // Para o polling
+            if (GestaoDNS.loginPollingInterval) {
+                clearInterval(GestaoDNS.loginPollingInterval);
+                GestaoDNS.loginPollingInterval = null;
+            }
+
+            // Mostra erro e permite tentar novamente
+            mostrarMensagemLoginProgresso('error',
+                '<i class="bi bi-x-circle-fill fs-1 text-danger mb-3"></i>' +
+                '<h5 class="text-danger">Erro no login automático</h5>' +
+                '<p class="text-muted">' + (data.error || 'Erro desconhecido') + '</p>' +
+                '<p class="text-muted small">Tentativas realizadas: ' + GestaoDNS.loginTentativas + '</p>' +
+                '<button class="btn btn-primary mt-3" onclick="location.reload()">Tentar Novamente</button>'
+            );
+        } else {
+            // Status desconhecido
+            console.warn('[Login Polling] ⚠️ Status desconhecido:', data.status);
+        }
+    })
+    .catch(error => {
+        console.error('[Login Polling] ❌ Erro de rede ao verificar status:', error);
+        // Não para o polling em caso de erro de rede, continua tentando
+        console.log('[Login Polling] Continuando polling apesar do erro de rede...');
+    });
+}
+
+/**
+ * Atualiza indicador visual de progresso do login
+ */
+function atualizarProgressoLogin(tentativa, maxTentativas) {
+    const progresso = Math.min((tentativa / maxTentativas) * 100, 100);
+    const tempoDecorrido = tentativa * 3; // segundos
+
+    // Atualiza a área de progresso se existir
+    const progressoElement = document.getElementById('login-progresso-info');
+    if (progressoElement) {
+        progressoElement.innerHTML = `
+            <small class="text-muted">
+                <i class="bi bi-hourglass-split me-1"></i>
+                Verificação ${tentativa}/${maxTentativas} (${tempoDecorrido}s decorridos)
+            </small>
+            <div class="progress mt-2" style="height: 4px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                     role="progressbar"
+                     style="width: ${progresso}%"
+                     aria-valuenow="${progresso}"
+                     aria-valuemin="0"
+                     aria-valuemax="100">
+                </div>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Continua aguardando o login após timeout
+ */
+function continuarAguardandoLogin() {
+    console.log('[Login Polling] Usuário optou por continuar aguardando');
+
+    // Reseta contador e adiciona mais 20 tentativas
+    GestaoDNS.loginTentativas = 0;
+    GestaoDNS.loginMaxTentativas += 20;
+
+    // Reinicia polling
+    if (GestaoDNS.loginPollingInterval) {
+        clearInterval(GestaoDNS.loginPollingInterval);
+    }
+
+    GestaoDNS.loginPollingInterval = setInterval(() => {
+        verificarLoginEmAndamento();
+    }, 3000);
+
+    // Mostra mensagem de continuação
+    mostrarMensagemLoginProgresso('progress',
+        '<div class="mb-4">' +
+            '<div class="spinner-border text-primary mb-3" style="width: 4rem; height: 4rem;" role="status">' +
+                '<span class="visually-hidden">Processando...</span>' +
+            '</div>' +
+        '</div>' +
+        '<h5 class="mb-3">Continuando verificação...</h5>' +
+        '<p class="text-muted">Aguardando conclusão do processo de autenticação.</p>' +
+        '<div id="login-progresso-info" class="mt-3"></div>'
+    );
+
+    // Verifica imediatamente
+    verificarLoginEmAndamento();
+}
+
+/**
+ * Mostra mensagem de progresso na área de login (sem mudar de tela)
+ */
+function mostrarMensagemLoginProgresso(tipo, conteudoHtml) {
+    const loginArea = document.getElementById('login-form-area');
+    if (!loginArea) return;
+
+    const corFundo = tipo === 'success' ? 'bg-success-subtle' :
+                     tipo === 'error' ? 'bg-danger-subtle' : 'bg-primary-subtle';
+
+    loginArea.innerHTML = `
+        <div class="card ${corFundo} border-0">
+            <div class="card-body text-center py-5">
+                ${conteudoHtml}
+            </div>
+        </div>
+    `;
+}
+
 function initLoginForm() {
     const form = document.getElementById('form-login-manual');
 
@@ -505,7 +1047,7 @@ function initLoginForm() {
 
         // Desabilita botão
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Abrindo navegador...';
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Iniciando automação...';
 
         // Envia requisição
         const formData = new FormData(form);
@@ -520,10 +1062,60 @@ function initLoginForm() {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'login_iniciado') {
-                showToast('info', data.mensagem);
+                console.log('[Login Form] ✅ Automação iniciada - Configurando polling...');
 
-                // Aguarda login ser completado (polling)
-                verificarLoginCompletado();
+                // Marca que login está em andamento e reseta contador
+                GestaoDNS.loginEmAndamento = true;
+                GestaoDNS.loginTentativas = 0;
+                GestaoDNS.loginMaxTentativas = 20; // Reset para valor padrão
+
+                // Substitui formulário por interface de progresso
+                mostrarMensagemLoginProgresso('progress',
+                    '<div class="mb-4">' +
+                        '<div class="spinner-border text-primary mb-3" style="width: 4rem; height: 4rem;" role="status">' +
+                            '<span class="visually-hidden">Processando...</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<h5 class="mb-3">Autenticação em andamento</h5>' +
+                    '<div class="text-start bg-white rounded p-3 mb-3" style="max-width: 400px; margin: 0 auto;">' +
+                        // Etapa 1: Conectando
+                        '<div class="d-flex align-items-center mb-2" id="etapa-1">' +
+                            '<div class="spinner-border spinner-border-sm text-primary me-2" id="etapa-1-spinner"></div>' +
+                            '<i class="bi bi-check-circle-fill text-success me-2 d-none" style="font-size: 1.2rem;" id="etapa-1-check"></i>' +
+                            '<span class="text-muted">Conectando ao painel reseller...</span>' +
+                        '</div>' +
+                        // Etapa 2: reCAPTCHA
+                        '<div class="d-flex align-items-center mb-2" id="etapa-2">' +
+                            '<div class="spinner-border spinner-border-sm text-primary me-2 d-none" id="etapa-2-spinner"></div>' +
+                            '<i class="bi bi-check-circle-fill text-success me-2 d-none" style="font-size: 1.2rem;" id="etapa-2-check"></i>' +
+                            '<span class="text-muted">Resolvendo reCAPTCHA automaticamente...</span>' +
+                        '</div>' +
+                        // Etapa 3: Validando
+                        '<div class="d-flex align-items-center" id="etapa-3">' +
+                            '<div class="spinner-border spinner-border-sm text-primary me-2 d-none" id="etapa-3-spinner"></div>' +
+                            '<i class="bi bi-check-circle-fill text-success me-2 d-none" style="font-size: 1.2rem;" id="etapa-3-check"></i>' +
+                            '<span class="text-muted">Validando credenciais...</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div id="login-progresso-info" class="mt-3"></div>' +
+                    '<p class="text-muted small mt-3"><i class="bi bi-info-circle me-1"></i>Este processo pode levar até 60 segundos. Por favor, aguarde...</p>'
+                );
+
+                showToast('success', 'Automação iniciada! Aguarde o processamento...');
+
+                console.log('[Login Form] Iniciando polling com intervalo de 3 segundos');
+
+                // Inicia polling silencioso para verificar conclusão (a cada 3 segundos)
+                GestaoDNS.loginPollingInterval = setInterval(() => {
+                    verificarLoginEmAndamento();
+                }, 3000);
+
+                // Primeira verificação após 1 segundo (mais rápida para logins instantâneos)
+                setTimeout(() => {
+                    console.log('[Login Form] Executando primeira verificação...');
+                    verificarLoginEmAndamento();
+                }, 1000);
+
             } else {
                 showToast('error', data.error || 'Erro ao iniciar login');
                 submitBtn.disabled = false;
@@ -539,16 +1131,6 @@ function initLoginForm() {
     });
 }
 
-function verificarLoginCompletado() {
-    // Polling para verificar se login foi completado
-    const checkInterval = setInterval(() => {
-        verificarConta(GestaoDNS.aplicativoSelecionado.id);
-
-        // Para de verificar após 5 minutos (timeout)
-        setTimeout(() => clearInterval(checkInterval), 300000);
-    }, 5000); // Verifica a cada 5 segundos
-}
-
 // ==================== ETAPA 4: CONFIGURAÇÃO DA MIGRAÇÃO ====================
 
 function mostrarConfiguracaoMigracao() {
@@ -558,27 +1140,406 @@ function mostrarConfiguracaoMigracao() {
     document.getElementById('migracao-aplicativo-id').value = GestaoDNS.aplicativoSelecionado.id;
 }
 
+/**
+ * Popula o select de domínios com os dados
+ */
+function popularSelectDominios(dominios, fromCache = false, ageMinutes = null) {
+    const select = document.getElementById('dominio-origem-select');
+    select.innerHTML = '<option value="">-- Selecione um domínio --</option>';
+
+    dominios.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.dominio;
+
+        let label = `${item.dominio} (${item.count} dispositivos)`;
+        if (fromCache && ageMinutes !== null) {
+            const ageText = ageMinutes < 60
+                ? `${ageMinutes}min`
+                : `${Math.floor(ageMinutes / 60)}h${ageMinutes % 60}min`;
+            label += ` [cache: ${ageText}]`;
+        }
+
+        option.textContent = label;
+        select.appendChild(option);
+    });
+
+    select.disabled = false;
+}
+
+/**
+ * Mostra loading indicator
+ */
+function mostrarLoadingDominios() {
+    const loadingDiv = document.getElementById('loading-dominios');
+    const sectionOrigemDiv = document.getElementById('section-dominio-origem');
+    const sectionDestinoDiv = document.getElementById('section-dominio-destino');
+    const sectionSubmitDiv = document.getElementById('section-submit');
+
+    loadingDiv.classList.remove('hidden');
+    sectionOrigemDiv.classList.add('hidden');
+    sectionDestinoDiv.classList.add('hidden');
+    sectionSubmitDiv.classList.add('hidden');
+
+    const select = document.getElementById('dominio-origem-select');
+    select.innerHTML = '<option value="">Carregando domínios...</option>';
+    select.disabled = true;
+}
+
+/**
+ * Mostra seções de migração após carregar domínios
+ */
+function mostrarSecoesMigracao() {
+    const loadingDiv = document.getElementById('loading-dominios');
+    const sectionOrigemDiv = document.getElementById('section-dominio-origem');
+    const sectionDestinoDiv = document.getElementById('section-dominio-destino');
+    const sectionSubmitDiv = document.getElementById('section-submit');
+
+    loadingDiv.classList.add('hidden');
+    sectionOrigemDiv.classList.remove('hidden');
+    sectionDestinoDiv.classList.remove('hidden');
+    sectionSubmitDiv.classList.remove('hidden');
+}
+
+/**
+ * Trata erro ao carregar domínios
+ */
+function tratarErroDominios(errorMsg) {
+    const select = document.getElementById('dominio-origem-select');
+    select.innerHTML = '<option value="">Erro ao carregar domínios</option>';
+
+    const loadingDiv = document.getElementById('loading-dominios');
+    const sectionOrigemDiv = document.getElementById('section-dominio-origem');
+
+    loadingDiv.classList.add('hidden');
+    sectionOrigemDiv.classList.remove('hidden');
+
+    showToast('error', errorMsg || 'Erro ao carregar domínios');
+}
+
+/**
+ * Carrega lista de domínios únicos do reseller account
+ * Chamado quando usuário seleciona "Todos os dispositivos"
+ */
+async function carregarDominios() {
+    if (!GestaoDNS.aplicativoSelecionado) return;
+
+    // ===== CAMADA 1: PREVENIR EXECUÇÃO PARALELA =====
+    if (GestaoDNS.isLoadingDominios) {
+        console.warn('[DNS] Já há um carregamento de domínios em andamento - operação ignorada');
+        return;
+    }
+
+    // Marca que começou o carregamento
+    GestaoDNS.isLoadingDominios = true;
+
+    // ===== CAMADA 2: VERIFICAR CACHE =====
+    const appId = GestaoDNS.aplicativoSelecionado.id;
+    const cached = DominiosCache.get(appId);
+
+    if (cached) {
+        // Usar dados do cache
+        console.log('[DNS] Usando domínios do cache');
+
+        popularSelectDominios(cached.dominios, true, cached.age_minutes);
+        mostrarSecoesMigracao();
+
+        GestaoDNS.dominiosCarregados = true;
+        GestaoDNS.isLoadingDominios = false;
+
+        const ageText = cached.age_minutes < 60
+            ? `${cached.age_minutes}min atrás`
+            : `${Math.floor(cached.age_minutes / 60)}h${cached.age_minutes % 60}min atrás`;
+
+        showToast('info', `${cached.dominios.length} domínios carregados do cache (${ageText})`);
+        return;
+    }
+
+    // ===== CAMADA 3: CANCELAR REQUISIÇÃO ANTERIOR =====
+    if (GestaoDNS.dominiosAbortController) {
+        console.log('[DNS] Cancelando requisição anterior de domínios');
+        GestaoDNS.dominiosAbortController.abort();
+    }
+
+    // Cria novo AbortController para esta requisição
+    GestaoDNS.dominiosAbortController = new AbortController();
+
+    // Mostrar loading indicator
+    mostrarLoadingDominios();
+
+    try {
+        const response = await fetch(`/api/gestao-dns/listar-dominios/?aplicativo_id=${appId}`, {
+            method: 'GET',
+            headers: { 'X-CSRFToken': getCsrfToken() },
+            signal: GestaoDNS.dominiosAbortController.signal // ⚠️ Permite cancelamento
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // ===== SALVAR NO CACHE =====
+            DominiosCache.set(appId, GestaoDNS.aplicativoSelecionado.nome, data.dominios);
+
+            popularSelectDominios(data.dominios, false);
+            mostrarSecoesMigracao();
+
+            GestaoDNS.dominiosCarregados = true;
+
+            showToast('success', `${data.dominios.length} domínios encontrados`);
+        } else {
+            tratarErroDominios(data.error);
+        }
+    } catch (error) {
+        // Detecta se foi um cancelamento proposital (AbortError)
+        if (error.name === 'AbortError') {
+            console.log('[DNS] ✓ Requisição de domínios cancelada com sucesso');
+            return; // Não mostra erro para o usuário (cancelamento é intencional)
+        }
+
+        console.error('Erro ao carregar domínios:', error);
+        tratarErroDominios('Erro de conexão');
+    } finally {
+        // ===== SEMPRE RESETA FLAG =====
+        GestaoDNS.isLoadingDominios = false;
+    }
+}
+
+/**
+ * Busca dispositivo por MAC e lista playlists
+ * Chamado quando usuário digita MAC em "Dispositivo específico"
+ */
+async function buscarDispositivoPorMAC(mac) {
+    if (!mac || mac.length < 17) return; // MAC incompleto
+
+    const playlistsDiv = document.getElementById('div-playlists');
+    const loadingDiv = document.getElementById('playlists-loading');
+    const containerDiv = document.getElementById('playlists-container');
+
+    // Mostrar loading
+    playlistsDiv.classList.remove('hidden');
+    loadingDiv.classList.remove('d-none');
+    containerDiv.classList.add('d-none');
+    containerDiv.innerHTML = '';
+
+    try {
+        const response = await fetch('/api/gestao-dns/buscar-dispositivo/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                aplicativo_id: GestaoDNS.aplicativoSelecionado.id,
+                mac_address: mac
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            GestaoDNS.dispositivoBuscado = data.device;
+
+            // Esconder loading
+            loadingDiv.classList.add('d-none');
+
+            if (data.playlists.length === 0) {
+                containerDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Nenhuma playlist encontrada para este dispositivo.
+                    </div>
+                `;
+                containerDiv.classList.remove('d-none');
+                return;
+            }
+
+            // Renderizar radio buttons para cada playlist
+            data.playlists.forEach((playlist, index) => {
+                const radioDiv = document.createElement('div');
+                radioDiv.className = 'form-check mb-2 p-3 border rounded';
+                if (playlist.is_selected) {
+                    radioDiv.classList.add('bg-light');
+                }
+
+                radioDiv.innerHTML = `
+                    <input class="form-check-input" type="radio"
+                           name="playlist_origem"
+                           id="playlist-${playlist.id}"
+                           value="${playlist.id}"
+                           data-dominio="${playlist.dominio}"
+                           data-url="${playlist.url}"
+                           ${playlist.is_selected ? 'checked' : ''} required>
+                    <label class="form-check-label w-100" for="playlist-${playlist.id}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>${playlist.name}</strong>
+                                ${playlist.is_selected ? '<span class="badge bg-success ms-2">Padrão</span>' : ''}
+                                <br>
+                                <small class="text-muted">Domínio: <code>${playlist.dominio}</code></small>
+                            </div>
+                        </div>
+                    </label>
+                `;
+
+                containerDiv.appendChild(radioDiv);
+            });
+
+            // Adicionar event listeners aos radios
+            containerDiv.querySelectorAll('input[name="playlist_origem"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    GestaoDNS.playlistSelecionada = {
+                        id: parseInt(this.value),
+                        dominio: this.dataset.dominio,
+                        url: this.dataset.url
+                    };
+
+                    // Atualizar campo read-only de domínio origem
+                    const inputReadonly = document.getElementById('dominio-origem-input');
+                    inputReadonly.value = this.dataset.dominio;
+                    GestaoDNS.dominioOrigemAtual = this.dataset.dominio;
+
+                    console.log('Playlist selecionada:', GestaoDNS.playlistSelecionada);
+                });
+            });
+
+            // Selecionar automaticamente a playlist padrão se houver
+            const defaultRadio = containerDiv.querySelector('input[type="radio"]:checked');
+            if (defaultRadio) {
+                defaultRadio.dispatchEvent(new Event('change'));
+            }
+
+            containerDiv.classList.remove('d-none');
+
+            // Revelar seções de Domínio Destino e Submit após playlists carregadas
+            document.getElementById('section-dominio-destino').classList.remove('hidden');
+            document.getElementById('section-submit').classList.remove('hidden');
+
+            showToast('success', `${data.playlists.length} playlist(s) encontrada(s)`);
+
+        } else {
+            loadingDiv.classList.add('d-none');
+            containerDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle me-2"></i>
+                    ${data.error || 'Dispositivo não encontrado'}
+                </div>
+            `;
+            containerDiv.classList.remove('d-none');
+            showToast('error', data.error || 'Dispositivo não encontrado');
+        }
+
+    } catch (error) {
+        console.error('Erro ao buscar dispositivo:', error);
+        loadingDiv.classList.add('d-none');
+        containerDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-x-circle me-2"></i>
+                Erro de conexão ao buscar dispositivo
+            </div>
+        `;
+        containerDiv.classList.remove('d-none');
+        showToast('error', 'Erro ao buscar dispositivo');
+    }
+}
+
 function initMigracaoForm() {
     const form = document.getElementById('form-migracao');
     const tipoTodos = document.getElementById('tipo-todos');
     const tipoEspecifico = document.getElementById('tipo-especifico');
     const divMacEspecifico = document.getElementById('div-mac-especifico');
+    const divPlaylists = document.getElementById('div-playlists');
     const macInput = document.getElementById('mac-alvo');
 
-    // Toggle MAC input baseado no tipo de migração
+    // Elementos de seções
+    const loadingDominios = document.getElementById('loading-dominios');
+    const sectionOrigemDiv = document.getElementById('section-dominio-origem');
+    const sectionDestinoDiv = document.getElementById('section-dominio-destino');
+    const sectionSubmitDiv = document.getElementById('section-submit');
+    const dominioOrigemSelect = document.getElementById('dominio-origem-select');
+
+    // ===== TOGGLE: Todos os dispositivos =====
     tipoTodos.addEventListener('change', function() {
+        // Esconder MAC e playlists
         divMacEspecifico.classList.add('hidden');
+        divPlaylists.classList.add('hidden');
         macInput.required = false;
+
+        // Esconder loading indicator (caso esteja visível)
+        loadingDominios.classList.add('hidden');
+
+        // Esconder todas as seções de migração inicialmente
+        sectionOrigemDiv.classList.add('hidden');
+        sectionDestinoDiv.classList.add('hidden');
+        sectionSubmitDiv.classList.add('hidden');
+
+        // Carregar domínios (apenas uma vez) - revelará seções progressivamente
+        if (!GestaoDNS.dominiosCarregados) {
+            carregarDominios();
+        } else {
+            // Se já carregou antes, mostrar seções imediatamente
+            sectionOrigemDiv.classList.remove('hidden');
+            sectionDestinoDiv.classList.remove('hidden');
+            sectionSubmitDiv.classList.remove('hidden');
+        }
     });
 
+    // ===== TOGGLE: Dispositivo específico =====
     tipoEspecifico.addEventListener('change', function() {
+        // ===== CAMADA 3: CANCELAR CARREGAMENTO AO TROCAR PARA ESPECÍFICO =====
+        if (GestaoDNS.dominiosAbortController) {
+            console.log('[DNS] Cancelando carregamento de domínios ao trocar para modo específico');
+            GestaoDNS.dominiosAbortController.abort();
+            GestaoDNS.isLoadingDominios = false; // Reseta flag manualmente
+        }
+
+        // Mostrar APENAS campo MAC
         divMacEspecifico.classList.remove('hidden');
         macInput.required = true;
+
+        // Esconder loading indicator (caso esteja visível)
+        loadingDominios.classList.add('hidden');
+
+        // Esconder todas as outras seções
+        sectionOrigemDiv.classList.add('hidden');
+        sectionDestinoDiv.classList.add('hidden');
+        sectionSubmitDiv.classList.add('hidden');
+        divPlaylists.classList.add('hidden');
     });
 
-    // Submit do formulário
+    // ===== EVENT: Buscar dispositivo ao digitar MAC =====
+    let macTimeout;
+    macInput.addEventListener('input', function() {
+        const mac = this.value.trim();
+
+        // Limpar timeout anterior
+        clearTimeout(macTimeout);
+
+        // Esperar usuário terminar de digitar (500ms)
+        macTimeout = setTimeout(() => {
+            if (mac.length === 17) { // MAC completo: XX:XX:XX:XX:XX:XX
+                buscarDispositivoPorMAC(mac);
+            }
+        }, 500);
+    });
+
+    // ===== SUBMIT DO FORMULÁRIO =====
     form.addEventListener('submit', function(e) {
         e.preventDefault();
+
+        const tipoMigracao = document.querySelector('input[name="tipo_migracao"]:checked').value;
+
+        // Validações específicas por tipo
+        if (tipoMigracao === 'especifico') {
+            if (!GestaoDNS.playlistSelecionada) {
+                showToast('error', 'Selecione uma playlist para continuar');
+                return;
+            }
+        } else {
+            if (!dominioOrigemSelect.value) {
+                showToast('error', 'Selecione um domínio origem');
+                return;
+            }
+            GestaoDNS.dominioOrigemAtual = dominioOrigemSelect.value;
+        }
 
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
@@ -587,9 +1548,20 @@ function initMigracaoForm() {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Iniciando...';
 
-        // Envia requisição
-        const formData = new FormData(form);
+        // Montar payload
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', getCsrfToken());
+        formData.append('aplicativo_id', GestaoDNS.aplicativoSelecionado.id);
+        formData.append('tipo_migracao', tipoMigracao);
+        formData.append('dominio_origem', GestaoDNS.dominioOrigemAtual);
+        formData.append('dominio_destino', document.getElementById('dominio-destino').value);
 
+        if (tipoMigracao === 'especifico') {
+            formData.append('mac_alvo', macInput.value);
+            formData.append('playlist_id', GestaoDNS.playlistSelecionada.id);
+        }
+
+        // Envia requisição
         fetch('/api/gestao-dns/iniciar-migracao/', {
             method: 'POST',
             headers: {
@@ -679,12 +1651,24 @@ function atualizarProgresso(data) {
     if (progressMessageElement && data.mensagem_progresso) {
         progressMessageElement.textContent = data.mensagem_progresso;
 
-        // Muda cor do alert baseado na etapa
+        // Muda cor do alert baseado na etapa e resultados
         const etapa = data.etapa_atual || 'iniciando';
         progressMessageDiv.className = 'alert mb-3 text-center';
 
         if (etapa === 'concluida') {
-            progressMessageDiv.classList.add('alert-success');
+            // Usar mesma lógica de cor da barra de progresso
+            // Verde: 100% sucesso (sucessos > 0 e nenhuma falha)
+            if (data.sucessos > 0 && data.falhas === 0) {
+                progressMessageDiv.classList.add('alert-success');
+            }
+            // Amarelo: Sucesso parcial (tem sucessos E falhas) OU todos pulados
+            else if ((data.sucessos > 0 && data.falhas > 0) || (data.sucessos === 0 && data.pulados > 0)) {
+                progressMessageDiv.classList.add('alert-warning');
+            }
+            // Vermelho: Todos falharam (nenhum sucesso e tem falhas)
+            else {
+                progressMessageDiv.classList.add('alert-danger');
+            }
         } else if (etapa === 'cancelada') {
             progressMessageDiv.classList.add('alert-danger');
         } else if (etapa === 'analisando') {
@@ -849,12 +1833,57 @@ function mostrarResumo(data) {
         Falhas: ${data.falhas}
     `;
 
+    // ===== INVALIDAR CACHE APÓS MIGRAÇÃO BEM-SUCEDIDA =====
+    // Se houve pelo menos um sucesso, os domínios podem ter mudado
+    if (data.sucessos > 0 && GestaoDNS.aplicativoSelecionado) {
+        DominiosCache.invalidate(GestaoDNS.aplicativoSelecionado.id);
+        console.log('[Cache] Cache invalidado automaticamente após migração com sucessos');
+    }
+
     resumoDiv.classList.remove('hidden');
 
     // Botão nova migração
     document.getElementById('btn-nova-migracao').addEventListener('click', function() {
         location.reload();
     });
+}
+
+// ==================== FORÇAR ATUALIZAÇÃO DO CACHE ====================
+
+/**
+ * Força atualização do cache, ignorando dados armazenados
+ */
+async function forcarAtualizacaoCache() {
+    if (!GestaoDNS.aplicativoSelecionado) return;
+
+    const appId = GestaoDNS.aplicativoSelecionado.id;
+
+    // Invalida cache
+    DominiosCache.invalidate(appId);
+
+    // Reseta flag
+    GestaoDNS.dominiosCarregados = false;
+
+    // Desabilita botão durante reload
+    const btn = document.getElementById('btn-atualizar-cache');
+    if (btn) {
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Atualizando...';
+
+        showToast('info', 'Atualizando lista de domínios...');
+
+        try {
+            await carregarDominios();
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    } else {
+        // Se botão não existe, apenas recarrega
+        showToast('info', 'Atualizando lista de domínios...');
+        await carregarDominios();
+    }
 }
 
 // ==================== MODO DEBUG HEADLESS (Apenas Admin) ====================
@@ -965,6 +1994,19 @@ function getCookie(name) {
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Gestão DNS - Inicializando...');
+
+    // ===== CLEANUP AUTOMÁTICO DO CACHE =====
+    // Remove entradas expiradas ao carregar a página
+    const removed = DominiosCache.cleanup();
+    if (removed > 0) {
+        console.log(`[Cache] ${removed} cache(s) expirado(s) removido(s) automaticamente`);
+    }
+
+    // Log de estatísticas (modo debug via query param)
+    if (window.location.search.includes('debug=cache')) {
+        console.log('[Cache] Modo debug ativado - Exibindo estatísticas:');
+        console.table(DominiosCache.getStats());
+    }
 
     initAppSelection();
     initLoginForm();

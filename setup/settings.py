@@ -46,7 +46,6 @@ if not FERNET_KEY:
     )
 
 # reCaptcha Configs
-
 RECAPTCHA_PUBLIC_KEY = os.getenv("RECAPTCHA_PUBLIC_KEY")
 RECAPTCHA_PRIVATE_KEY = os.getenv("RECAPTCHA_PRIVATE_KEY")
 SILENCED_SYSTEM_CHECKS = ['captcha.recaptcha_test_key_error']
@@ -54,11 +53,6 @@ RECAPTCHA_REQUIRED_SCORE = 0.85
 
 # CapSolver
 CAPSOLVER_API_KEY = os.getenv("CAPSOLVER_API_KEY")
-CAPSOLVER_TIMEOUT = int(os.getenv("CAPSOLVER_TIMEOUT", "120"))
-CAPSOLVER_PROXY = os.getenv("CAPSOLVER_PROXY")
-CAPSOLVER_METHOD = os.getenv("CAPSOLVER_METHOD", "api").lower()
-CAPSOLVER_EXTENSION_PATH = os.getenv("CAPSOLVER_EXTENSION_PATH")
-CAPSOLVER_EXTENSION_TIMEOUT = int(os.getenv("CAPSOLVER_EXTENSION_TIMEOUT", "60"))
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # SEGURANÇA: Default é False. Para desenvolvimento, configure DEBUG=True no .env

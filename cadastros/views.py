@@ -6109,12 +6109,12 @@ def obter_dispositivos_paginados_api(request):
 
 
 @login_required
-@require_POST
+@require_http_methods(['GET', 'POST'])
 def verificar_conta_reseller_api(request):
     """
     API para verificar se usuário possui conta reseller válida para o aplicativo.
 
-    POST Params:
+    GET/POST Params:
         aplicativo_id: ID do aplicativo
 
     Returns:
@@ -6126,7 +6126,8 @@ def verificar_conta_reseller_api(request):
             - mensagem: Mensagem descritiva
     """
     try:
-        aplicativo_id = request.POST.get('aplicativo_id')
+        # Aceita tanto GET quanto POST (GET usado no polling de login)
+        aplicativo_id = request.POST.get('aplicativo_id') or request.GET.get('aplicativo_id')
 
         if not aplicativo_id:
             return JsonResponse({
@@ -6164,9 +6165,9 @@ def verificar_conta_reseller_api(request):
             })
 
         # Verifica se sessão ainda é válida
-        from cadastros.services.reseller_automation import DreamTVAutomation
+        from cadastros.services.reseller_automation import DreamTVSeleniumAutomation
 
-        service = DreamTVAutomation(user=request.user, aplicativo=aplicativo)
+        service = DreamTVSeleniumAutomation(user=request.user, aplicativo=aplicativo)
         sessao_valida = service.verificar_sessao_valida()
 
         if not sessao_valida:
@@ -6175,6 +6176,7 @@ def verificar_conta_reseller_api(request):
                 'email': conta.email_login,
                 'ultimo_login': conta.ultimo_login.isoformat() if conta.ultimo_login else None,
                 'sessao_valida': False,
+                'login_progresso': conta.login_progresso,  # Progresso do login em andamento
                 'mensagem': 'Sua sessão expirou. Faça login novamente.'
             })
 
@@ -6183,6 +6185,7 @@ def verificar_conta_reseller_api(request):
             'email': conta.email_login,
             'ultimo_login': conta.ultimo_login.isoformat() if conta.ultimo_login else None,
             'sessao_valida': True,
+            'login_progresso': conta.login_progresso,  # Progresso do login
             'mensagem': 'Conta autenticada e sessão válida.'
         })
 
@@ -6198,10 +6201,10 @@ def verificar_conta_reseller_api(request):
 @require_POST
 def iniciar_login_manual_api(request):
     """
-    API para iniciar processo de login manual no painel reseller.
+    API para iniciar processo de login automático no painel reseller.
 
-    Abre um navegador Playwright visível para que o usuário faça login
-    manualmente e resolva o reCAPTCHA.
+    Utiliza CapSolver para resolver reCAPTCHA automaticamente.
+    O navegador pode ser visível ou headless dependendo da configuração de debug.
 
     POST Params:
         aplicativo_id: ID do aplicativo
@@ -6259,27 +6262,30 @@ def iniciar_login_manual_api(request):
             f"({'criadas' if created else 'atualizadas'})"
         )
 
-        # Inicia login manual em thread separada
+        # Inicia login automático em thread separada
         def fazer_login_thread():
-            """Thread que executa o login manual."""
             try:
-                from cadastros.services.reseller_automation import DreamTVAutomation
+                from cadastros.services.reseller_automation import DreamTVSeleniumAutomation
 
-                service = DreamTVAutomation(user=request.user, aplicativo=aplicativo)
-                sucesso = service.fazer_login_manual()
+                service = DreamTVSeleniumAutomation(user=request.user, aplicativo=aplicativo)
+
+                logger.info(
+                    f"[USER:{request.user.username}] Iniciando login AUTOMÁTICO com CapSolver"
+                )
+                sucesso = service.fazer_login_automatico()
 
                 if sucesso:
                     logger.info(
-                        f"[USER:{request.user.username}] Login manual concluído com sucesso"
+                        f"[USER:{request.user.username}] Login automático concluído com sucesso"
                     )
                 else:
                     logger.warning(
-                        f"[USER:{request.user.username}] Login manual não foi concluído (timeout ou erro)"
+                        f"[USER:{request.user.username}] Login automático falhou (timeout ou erro)"
                     )
 
             except Exception as e:
                 logger.exception(
-                    f"[USER:{request.user.username}] Erro na thread de login manual: {e}"
+                    f"[USER:{request.user.username}] Erro na thread de login automático: {e}"
                 )
 
         thread = threading.Thread(target=fazer_login_thread, daemon=True)
@@ -6287,11 +6293,11 @@ def iniciar_login_manual_api(request):
 
         return JsonResponse({
             'status': 'login_iniciado',
-            'mensagem': 'Navegador será aberto. Faça login e resolva o reCAPTCHA.',
+            'mensagem': 'Automação iniciada. O sistema resolverá o reCAPTCHA automaticamente.',
         })
 
     except Exception as e:
-        logger.exception(f"Erro ao iniciar login manual: {e}")
+        logger.exception(f"Erro ao iniciar login automático: {e}")
         return JsonResponse({
             'success': False,
             'error': f'Erro interno: {str(e)}'
@@ -6439,9 +6445,9 @@ def iniciar_migracao_dns_api(request):
         def executar_migracao_thread():
             """Thread que executa a migração DNS."""
             try:
-                from cadastros.services.reseller_automation import DreamTVAutomation
+                from cadastros.services.reseller_automation import DreamTVSeleniumAutomation
 
-                service = DreamTVAutomation(user=request.user, aplicativo=aplicativo)
+                service = DreamTVSeleniumAutomation(user=request.user, aplicativo=aplicativo)
                 service.executar_migracao(tarefa_id=tarefa.id)
 
             except Exception as e:
@@ -6510,12 +6516,21 @@ def consultar_progresso_migracao_api(request, tarefa_id):
             'processado_em'
         )
 
-        # Serializa processado_em para ISO format
+        # Serializa processado_em para ISO format e extrai domínios
+        from cadastros.utils import extrair_dominio_de_url
+
         dispositivos_list = []
         for disp in dispositivos:
             disp_dict = dict(disp)
             if disp_dict['processado_em']:
                 disp_dict['processado_em'] = disp_dict['processado_em'].isoformat()
+
+            # Extrair apenas domínio (não URL completa) para DNS encontrado e atualizado
+            if disp_dict['dns_encontrado']:
+                disp_dict['dns_encontrado'] = extrair_dominio_de_url(disp_dict['dns_encontrado'])
+            if disp_dict['dns_atualizado']:
+                disp_dict['dns_atualizado'] = extrair_dominio_de_url(disp_dict['dns_atualizado'])
+
             dispositivos_list.append(disp_dict)
 
         return JsonResponse({
@@ -6542,6 +6557,252 @@ def consultar_progresso_migracao_api(request, tarefa_id):
             'success': False,
             'error': f'Erro interno: {str(e)}'
         }, status=500)
+
+
+@login_required
+def listar_dominios_api(request):
+    """
+    API para listar domínios únicos de todos os dispositivos do reseller account.
+
+    GET Params:
+        aplicativo_id: ID do aplicativo
+
+    Returns:
+        JSON:
+            - success: bool
+            - dominios: List[{'dominio': str, 'count': int}]
+            - error: str (se houver erro)
+    """
+    try:
+        aplicativo_id = request.GET.get('aplicativo_id')
+
+        if not aplicativo_id:
+            return JsonResponse({'success': False, 'error': 'aplicativo_id é obrigatório'}, status=400)
+
+        try:
+            aplicativo = Aplicativo.objects.get(id=aplicativo_id)
+        except Aplicativo.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Aplicativo não encontrado'}, status=404)
+
+        # Obter conta reseller
+        conta_reseller = ContaReseller.objects.filter(
+            usuario=request.user,
+            aplicativo=aplicativo
+        ).first()
+
+        if not conta_reseller or not conta_reseller.session_data:
+            return JsonResponse({
+                'success': False,
+                'error': 'Conta reseller não encontrada ou sem sessão válida'
+            }, status=400)
+
+        # Extrair JWT do session_data
+        try:
+            session_data = json.loads(conta_reseller.session_data)
+            jwt = session_data.get('jwt') or session_data.get('token')
+        except:
+            jwt = None
+
+        if not jwt:
+            return JsonResponse({
+                'success': False,
+                'error': 'JWT não encontrado na sessão. Faça login novamente.'
+            }, status=400)
+
+        # Inicializar API client
+        from cadastros.services.lib.dream_tv_api import DreamTVAPI
+        from cadastros.utils import extrair_dominio_de_url
+        from collections import Counter
+
+        api = DreamTVAPI(jwt=jwt)
+
+        # Coletar todos os domínios
+        dominios_counter = Counter()
+        page = 1
+        limit = 100
+
+        logger.info(f"[listar_dominios_api] Iniciando coleta de domínios para user={request.user.username}, app={aplicativo.nome}")
+
+        while True:
+            try:
+                # Listar dispositivos
+                devices_data = api.list_devices(page=page, limit=limit)
+                devices = devices_data.get('rows', [])
+
+                if not devices:
+                    break  # Sem mais dispositivos
+
+                logger.debug(f"[listar_dominios_api] Página {page}: {len(devices)} dispositivos")
+
+                # Para cada dispositivo, listar playlists
+                for device in devices:
+                    device_id = device.get('id')
+
+                    try:
+                        playlists = api.list_playlists(device_id=device_id)
+
+                        for playlist in playlists:
+                            url = playlist.get('url', '')
+                            if url:
+                                dominio = extrair_dominio_de_url(url)
+                                if dominio:
+                                    dominios_counter[dominio] += 1
+
+                    except Exception as e:
+                        logger.warning(f"[listar_dominios_api] Erro ao buscar playlists do device {device_id}: {e}")
+                        continue
+
+                    # Delay para evitar rate limiting da API (429)
+                    import time
+                    time.sleep(0.2)  # 200ms entre cada requisição
+
+                # Verificar se há mais páginas
+                total = devices_data.get('count', 0)
+                if page * limit >= total:
+                    break
+
+                page += 1
+
+            except Exception as e:
+                logger.error(f"[listar_dominios_api] Erro ao listar devices na página {page}: {e}")
+                break
+
+        # Formatar resultado (ordenar por count DESC)
+        dominios_list = [
+            {'dominio': dominio, 'count': count}
+            for dominio, count in dominios_counter.most_common()
+        ]
+
+        logger.info(f"[listar_dominios_api] Total de domínios únicos encontrados: {len(dominios_list)}")
+
+        return JsonResponse({
+            'success': True,
+            'dominios': dominios_list
+        })
+
+    except Exception as e:
+        logger.exception(f"[listar_dominios_api] Erro geral: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def buscar_dispositivo_api(request):
+    """
+    API para buscar dispositivo por MAC e listar suas playlists.
+
+    POST Body:
+        aplicativo_id: ID do aplicativo
+        mac_address: MAC address do dispositivo
+
+    Returns:
+        JSON:
+            - success: bool
+            - device: Dict com dados do dispositivo
+            - playlists: List[Dict] com playlists e domínios extraídos
+            - error: str (se houver erro)
+    """
+    try:
+        data = json.loads(request.body)
+        aplicativo_id = data.get('aplicativo_id')
+        mac_address = data.get('mac_address', '').strip().upper()
+
+        if not aplicativo_id or not mac_address:
+            return JsonResponse({
+                'success': False,
+                'error': 'aplicativo_id e mac_address são obrigatórios'
+            }, status=400)
+
+        try:
+            aplicativo = Aplicativo.objects.get(id=aplicativo_id)
+        except Aplicativo.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Aplicativo não encontrado'}, status=404)
+
+        # Obter conta reseller
+        conta_reseller = ContaReseller.objects.filter(
+            usuario=request.user,
+            aplicativo=aplicativo
+        ).first()
+
+        if not conta_reseller or not conta_reseller.session_data:
+            return JsonResponse({
+                'success': False,
+                'error': 'Conta reseller não encontrada ou sem sessão válida'
+            }, status=400)
+
+        # Extrair JWT
+        try:
+            session_data = json.loads(conta_reseller.session_data)
+            jwt = session_data.get('jwt') or session_data.get('token')
+        except:
+            jwt = None
+
+        if not jwt:
+            return JsonResponse({
+                'success': False,
+                'error': 'JWT não encontrado na sessão. Faça login novamente.'
+            }, status=400)
+
+        # Inicializar API client
+        from cadastros.services.lib.dream_tv_api import DreamTVAPI
+        from cadastros.utils import extrair_dominio_de_url
+
+        api = DreamTVAPI(jwt=jwt)
+
+        # Buscar dispositivo por MAC
+        logger.info(f"[buscar_dispositivo_api] Buscando dispositivo MAC={mac_address} para user={request.user.username}")
+
+        devices_data = api.list_devices(page=1, limit=10, search={'mac': mac_address})
+        devices = devices_data.get('rows', [])
+
+        if not devices:
+            return JsonResponse({
+                'success': False,
+                'error': f'Dispositivo com MAC {mac_address} não encontrado'
+            }, status=404)
+
+        device = devices[0]  # Primeiro resultado (MAC é único)
+        device_id = device.get('id')
+
+        # Extrair comment do reseller_activation
+        reseller_activation = device.get('reseller_activation', {})
+        comment = reseller_activation.get('comment', '')
+
+        logger.debug(f"[buscar_dispositivo_api] Dispositivo encontrado: id={device_id}, comment={comment}")
+
+        # Buscar playlists do dispositivo
+        playlists_raw = api.list_playlists(device_id=device_id)
+
+        # Extrair domínio de cada playlist
+        playlists_formatted = []
+        for playlist in playlists_raw:
+            url = playlist.get('url', '')
+            dominio = extrair_dominio_de_url(url) if url else ''
+
+            playlists_formatted.append({
+                'id': playlist.get('id'),
+                'name': playlist.get('name', 'Sem nome'),
+                'url': url,
+                'dominio': dominio,
+                'is_selected': playlist.get('is_selected', False)
+            })
+
+        logger.info(f"[buscar_dispositivo_api] Dispositivo {mac_address} possui {len(playlists_formatted)} playlist(s)")
+
+        return JsonResponse({
+            'success': True,
+            'device': {
+                'id': device.get('id'),
+                'mac': device.get('mac'),
+                'comment': comment,
+                'activation_expired': device.get('activation_expired')
+            },
+            'playlists': playlists_formatted
+        })
+
+    except Exception as e:
+        logger.exception(f"[buscar_dispositivo_api] Erro geral: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 # =====================================================================
@@ -6616,4 +6877,3 @@ def get_debug_status(request):
             'success': False,
             'erro': f'Erro ao consultar status: {str(e)}'
         }, status=500)
-

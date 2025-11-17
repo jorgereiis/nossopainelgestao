@@ -24,6 +24,7 @@ teste*
 docker
 *.sh
 logs/Reseller/debug_screenshots
+*dreamtv*
 
 # Docker - IGNORAR apenas dados sensíveis, NÃO arquivos de configuração
 docker/**/.env

@@ -89,6 +89,8 @@ from .views import (
     iniciar_login_manual_api,
     iniciar_migracao_dns_api,
     consultar_progresso_migracao_api,
+    listar_dominios_api,
+    buscar_dispositivo_api,
     # API Debug Headless (Admin)
     toggle_debug_headless,
     get_debug_status,
@@ -208,6 +210,8 @@ urlpatterns = [
     path("api/gestao-dns/iniciar-migracao/", iniciar_migracao_dns_api, name="api-iniciar-migracao-dns"),
     path("api/gestao-dns/progresso/<int:tarefa_id>/", consultar_progresso_migracao_api, name="api-progresso-migracao-dns"),
     path("api/gestao-dns/dispositivos-paginados/", obter_dispositivos_paginados_api, name="api-dispositivos-paginados-dns"),
+    path("api/gestao-dns/listar-dominios/", listar_dominios_api, name="api-listar-dominios-dns"),
+    path("api/gestao-dns/buscar-dispositivo/", buscar_dispositivo_api, name="api-buscar-dispositivo-dns"),
 
     # Configuração Debug Headless (Admin)
     path("api/toggle-debug-headless/", toggle_debug_headless, name="api-toggle-debug-headless"),
