@@ -79,6 +79,7 @@ eggs/
 .eggs/
 lib/
 lib64/
+!cadastros/services/lib/
 parts/
 sdist/
 var/
