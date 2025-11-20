@@ -293,9 +293,9 @@
                       <i class="bi bi-diagram-3-fill text-primary me-2"></i>Escopo da Migração <span class="text-danger">*</span>
                     </label>
                     <div class="form-check">
-                      <input class="form-check-input" type="radio" name="tipo_migracao" id="tipo-todos" value="todos" checked>
+                      <input class="form-check-input" type="radio" name="tipo_migracao" id="tipo-todos" value="todos">
                       <label class="form-check-label" for="tipo-todos">
-                        Todos os dispositivos
+                        Todos os domínios
                       </label>
                     </div>
                     <div class="form-check">
@@ -337,7 +337,7 @@
                     <small class="text-muted">Selecione qual playlist deseja usar como origem do domínio</small>
                   </div>
 
-                  <!-- Loading de domínios (apenas modo "Todos os dispositivos") -->
+                  <!-- Loading de domínios (apenas modo "Todos os domínios") -->
                   <div id="loading-dominios" class="mb-4 hidden">
                     <div class="text-center py-3">
                       <div class="spinner-border text-primary" role="status">
@@ -364,7 +364,7 @@
                       </button>
                     </div>
 
-                    <!-- SELECT para "Todos os dispositivos" -->
+                    <!-- SELECT para "Todos os domínios" -->
                     <select class="form-select form-select-lg" id="dominio-origem-select" name="dominio_origem" required>
                       <option value="">Carregando domínios...</option>
                     </select>

@@ -124,10 +124,111 @@ class DreamTVSeleniumAutomation:
 
         chrome_options = Options()
 
+        # Configurar caminho do Chrome baseado no sistema operacional
+        import platform
+        system = platform.system()
+
+        # Detectar WSL (Windows Subsystem for Linux)
+        is_wsl = False
+        if system == 'Linux':
+            # Método 1: Verificar se /mnt/c existe (típico do WSL)
+            if os.path.exists('/mnt/c'):
+                is_wsl = True
+            # Método 2: Verificar /proc/version contém "microsoft"
+            elif os.path.exists('/proc/version'):
+                try:
+                    with open('/proc/version', 'r') as f:
+                        if 'microsoft' in f.read().lower():
+                            is_wsl = True
+                except Exception:
+                    pass
+
+        if is_wsl:
+            # WSL: PRIORIZAR Chrome do Linux (mais compatível e estável)
+            self.log.info("WSL detectado - priorizando Chrome nativo do Linux")
+
+            linux_chrome_paths = [
+                '/usr/bin/google-chrome',
+                '/usr/bin/google-chrome-stable',
+                '/usr/bin/chromium',
+                '/usr/bin/chromium-browser',
+                '/snap/bin/chromium'
+            ]
+
+            chrome_found = False
+            for chrome_path in linux_chrome_paths:
+                if os.path.exists(chrome_path):
+                    chrome_options.binary_location = chrome_path
+                    self.log.info(f"✓ Chrome do Linux encontrado no WSL: {chrome_path}")
+                    chrome_found = True
+                    break
+
+            # Fallback: Chrome do Windows (menos recomendado, pode ser instável)
+            if not chrome_found:
+                self.log.warning("Chrome do Linux não encontrado, tentando Chrome do Windows via /mnt/c/")
+                chrome_binary = "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
+
+                if os.path.exists(chrome_binary):
+                    chrome_options.binary_location = chrome_binary
+                    self.log.warning(f"⚠ Usando Chrome do Windows via WSL: {chrome_binary} (pode ser instável)")
+                    self.log.warning("⚠ RECOMENDAÇÃO: Instale Chrome do Linux com: sudo apt install google-chrome-stable")
+                else:
+                    # Tentar x86
+                    chrome_binary_x86 = "/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe"
+                    if os.path.exists(chrome_binary_x86):
+                        chrome_options.binary_location = chrome_binary_x86
+                        self.log.warning(f"⚠ Usando Chrome do Windows (x86) via WSL: {chrome_binary_x86} (pode ser instável)")
+                    else:
+                        self.log.error("Chrome não encontrado. Instale Chrome do Linux: sudo apt install google-chrome-stable")
+                        raise FileNotFoundError("Chrome não encontrado no WSL. Execute: sudo apt install google-chrome-stable")
+
+        elif system == 'Windows' or 'MINGW' in platform.platform() or 'MSYS' in platform.platform():
+            # Windows nativo/Git Bash - usar Chrome do Windows
+            chrome_binary = "C:/Program Files/Google/Chrome/Application/chrome.exe"
+
+            if os.path.exists(chrome_binary):
+                chrome_options.binary_location = chrome_binary
+                self.log.info(f"Chrome encontrado: {chrome_binary}")
+            else:
+                # Tentar path alternativo (32-bit)
+                chrome_binary_x86 = "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
+
+                if os.path.exists(chrome_binary_x86):
+                    chrome_options.binary_location = chrome_binary_x86
+                    self.log.info(f"Chrome encontrado (x86): {chrome_binary_x86}")
+                else:
+                    self.log.error("Chrome não encontrado no Windows. Instale o Google Chrome em: https://www.google.com/chrome/")
+                    raise FileNotFoundError("Chrome binary não encontrado. Instale o Google Chrome.")
+        else:
+            # Linux nativo - buscar Chrome instalado
+            possible_chrome_paths = [
+                '/usr/bin/google-chrome',
+                '/usr/bin/google-chrome-stable',
+                '/usr/bin/chromium',
+                '/usr/bin/chromium-browser',
+                '/snap/bin/chromium'
+            ]
+
+            chrome_found = False
+            for chrome_path in possible_chrome_paths:
+                if os.path.exists(chrome_path):
+                    chrome_options.binary_location = chrome_path
+                    self.log.info(f"Chrome encontrado (Linux): {chrome_path}")
+                    chrome_found = True
+                    break
+
+            if not chrome_found:
+                self.log.error("Chrome não encontrado no Linux. Instale com: sudo apt-get install chromium-browser")
+                raise FileNotFoundError("Chrome binary não encontrado. Execute: sudo apt-get install chromium-browser")
+
         # Headless mode (desativado se debug_mode=True)
         if not self.debug_mode:
-            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--headless=new')  # Novo modo headless (Chrome 112+)
             chrome_options.add_argument('--disable-gpu')  # GPU apenas em headless
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--remote-debugging-pipe')  # CRÍTICO para WSL headless
+            chrome_options.add_argument('--disable-features=VizDisplayCompositor')  # Previne crashes no WSL
+            chrome_options.add_argument('--window-size=1920,1080')
         else:
             # Configurações para modo visível
             self.log.debug("Modo visível: mantendo aceleração GPU ativa")
@@ -136,13 +237,62 @@ class DreamTVSeleniumAutomation:
 
         # Anti-detecção
         chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
+        if self.debug_mode:
+            # Adicionar --disable-dev-shm-usage apenas em modo visível (já adicionado em headless)
+            chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-        chrome_options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+
+        # User-Agent apropriado para o sistema operacional
+        if system == 'Windows' or 'MINGW' in platform.platform() or 'MSYS' in platform.platform():
+            user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        else:
+            user_agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+        chrome_options.add_argument(f'--user-agent={user_agent}')
 
         # Opções experimentais
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
+
+        # ===== FIX: Argumentos específicos para WSL =====
+        # Chrome do Windows executado via WSL precisa de argumentos específicos
+        if is_wsl:
+            chrome_options.add_argument('--disable-software-rasterizer')
+            chrome_options.add_argument('--disable-extensions')
+            chrome_options.add_argument('--disable-setuid-sandbox')
+            chrome_options.add_argument('--enable-features=NetworkService,NetworkServiceInProcess')
+            chrome_options.add_argument('--disable-crash-reporter')
+            self.log.info("✓ Argumentos WSL adicionados para compatibilidade Chrome/Windows")
+
+        # ===== FIX: Configurar user-data-dir para WSL/Git Bash =====
+        # Chrome do Windows não consegue escrever em /tmp/ do WSL
+        # Solução: usar diretório do Windows acessível
+        import tempfile
+        if system == 'Windows' or 'MINGW' in platform.platform() or 'MSYS' in platform.platform() or is_wsl:
+            # Ambientes Windows/Git Bash/WSL: usar diretório do Windows
+            try:
+                if is_wsl:
+                    # WSL: usar /tmp/ do WSL (Chrome do Windows pode acessar)
+                    windows_temp = tempfile.mkdtemp(prefix='chrome-selenium-', dir='/tmp')
+                else:
+                    # Git Bash/Windows: usar C:/Users/.../AppData/Local/Temp/
+                    localappdata = os.environ.get('LOCALAPPDATA', os.path.expanduser('~/AppData/Local'))
+                    windows_temp = os.path.join(localappdata, 'Temp', 'chrome-selenium-data')
+                    # Criar diretório se não existir
+                    os.makedirs(windows_temp, exist_ok=True)
+
+                chrome_options.add_argument(f'--user-data-dir={windows_temp}')
+                self.log.info(f"✓ user-data-dir configurado (WSL/Windows fix): {windows_temp}")
+            except Exception as e:
+                self.log.warning(f"⚠ Erro ao configurar user-data-dir: {e}, Chrome usará diretório padrão")
+        else:
+            # Linux nativo: /tmp/ funciona normalmente
+            try:
+                linux_temp = tempfile.mkdtemp(prefix='chrome-selenium-')
+                chrome_options.add_argument(f'--user-data-dir={linux_temp}')
+                self.log.info(f"✓ user-data-dir configurado (Linux): {linux_temp}")
+            except Exception as e:
+                self.log.warning(f"⚠ Erro ao configurar user-data-dir: {e}, Chrome usará diretório padrão")
 
         # Instalar ChromeDriver automaticamente
         self.log.debug("Instalando ChromeDriver via webdriver-manager")
@@ -729,9 +879,66 @@ class DreamTVSeleniumAutomation:
 
             raise
 
+    def _normalizar_device_do_cache(self, cached_device: Dict) -> Dict:
+        """
+        Transforma device do cache (frontend) para estrutura da API
+
+        Cache: {device_id: MAC, nome_dispositivo, playlists}
+        API:   {id: MAC, mac: MAC, reseller_activation: {comment}, playlists}
+
+        Nota: device_id no cache contém o MAC real (ex: 00:1A:79:XX:XX:XX)
+        IMPORTANTE: Preserva playlists do cache para evitar chamadas desnecessárias à API
+        """
+        return {
+            'id': cached_device.get('device_id'),  # MAC address
+            'mac': cached_device.get('device_id'),  # MAC address
+            'reseller_activation': {
+                'comment': cached_device.get('nome_dispositivo', '')
+            },
+            'playlists': cached_device.get('playlists', [])  # Preservar playlists do cache
+        }
+
     def _obter_dispositivos_alvo(self, api: dream_tv_api.DreamTVAPI, tarefa: TarefaMigracaoDNS) -> List[Dict]:
-        """Obtém lista de dispositivos a serem processados via API"""
-        self.log.info("Obtendo dispositivos via API...")
+        """Obtém lista de dispositivos a serem processados (prioriza cache, fallback para API)"""
+
+        # ===== OTIMIZAÇÃO v2.0: TENTAR USAR CACHE PRIMEIRO =====
+        if tarefa.cached_devices:
+            try:
+                import json
+                cached_devices = json.loads(tarefa.cached_devices)
+
+                self.log.info(f"[Cache] Usando {len(cached_devices)} devices do cache (0 chamadas à API)")
+
+                # Se MAC específico, filtrar pelo MAC
+                if tarefa.mac_alvo:
+                    dispositivos_filtrados = [
+                        device for device in cached_devices
+                        if device.get('device_id') == tarefa.mac_alvo
+                    ]
+                    self.log.info(f"[Cache] {len(dispositivos_filtrados)} device(s) com MAC={tarefa.mac_alvo}")
+                    return [self._normalizar_device_do_cache(d) for d in dispositivos_filtrados]
+
+                # Filtrar devices pelo domínio origem
+                dispositivos_filtrados = []
+                for device in cached_devices:
+                    for playlist in device.get('playlists', []):
+                        if playlist.get('dominio', '').lower() == tarefa.dominio_origem.lower():
+                            dispositivos_filtrados.append(device)
+                            break
+
+                self.log.info(f"[Cache] {len(dispositivos_filtrados)} devices com domínio '{tarefa.dominio_origem}'")
+
+                # Limpar cache após uso para economizar espaço no banco
+                tarefa.cached_devices = None
+                tarefa.save(update_fields=['cached_devices'])
+
+                return [self._normalizar_device_do_cache(d) for d in dispositivos_filtrados]
+
+            except Exception as e:
+                self.log.warning(f"[Cache] Erro ao usar cache: {e}, buscando da API")
+
+        # ===== FALLBACK: BUSCAR DA API (comportamento original) =====
+        self.log.info("[API] Cache não disponível, obtendo dispositivos via API...")
 
         dispositivos = []
         page = 1
@@ -801,8 +1008,8 @@ class DreamTVSeleniumAutomation:
                         # Em caso de erro, incluir dispositivo (será tratado no processamento)
                         dispositivos_filtrados.append(device)
 
-                    # Rate limiting entre verificações
-                    time.sleep(0.2)
+                    # Rate limiting entre verificações (reduzido de 0.2 para 0.05)
+                    time.sleep(0.05)
 
                 # Verificar se há mais páginas
                 total_count = result.get('count', 0)
@@ -810,7 +1017,7 @@ class DreamTVSeleniumAutomation:
                     break
 
                 page += 1
-                time.sleep(0.5)  # Rate limiting entre páginas
+                time.sleep(0.1)  # Rate limiting entre páginas (reduzido de 0.5 para 0.1)
 
             self.log.info(f"Total de dispositivos listados: {total_listados}")
             self.log.info(f"Dispositivos com domínio origem '{tarefa.dominio_origem}': {len(dispositivos_filtrados)}")
@@ -844,19 +1051,25 @@ class DreamTVSeleniumAutomation:
         self.log.info(f"Processando dispositivo: MAC={mac}, ID={device_id}")
 
         try:
-            # Listar playlists do dispositivo (antes de criar registro para capturar DNS inicial)
-            self.log.debug(f"Listando playlists do dispositivo {device_id}...")
-            playlists = api.list_playlists(device_id=device_id)
+            # Listar playlists do dispositivo (priorizar cache, fallback para API)
+            if 'playlists' in dispositivo and dispositivo.get('playlists'):
+                # Usar playlists do cache (já disponíveis)
+                playlists = dispositivo['playlists']
+                self.log.debug(f"[Cache] Usando {len(playlists)} playlists do cache para device {device_id}")
+            else:
+                # Buscar playlists da API (comportamento original)
+                self.log.debug(f"[API] Listando playlists do dispositivo {device_id} via API...")
+                playlists = api.list_playlists(device_id=device_id)
 
-            # Capturar DNS inicial (primeira playlist)
-            dns_inicial = playlists[0]['url'] if playlists else ''
+            # DNS inicial será capturado dentro do loop (primeira playlist a ser migrada)
+            dns_inicial = None
 
             # Criar registro de dispositivo na migração com o comentário do dispositivo
             disp_migracao = DispositivoMigracaoDNS.objects.create(
                 tarefa=tarefa,
                 device_id=mac,
                 nome_dispositivo=dispositivo.get('reseller_activation', {}).get('comment', ''),
-                dns_encontrado=dns_inicial,
+                dns_encontrado='',  # Será atualizado com a URL da playlist correta
                 status='processando'
             )
 
@@ -892,6 +1105,11 @@ class DreamTVSeleniumAutomation:
                     self.log.debug(f"Domínio atual ({dominio_atual}) diferente do origem ({tarefa.dominio_origem}), pulando...")
                     continue
 
+                # Capturar DNS inicial (primeira playlist que será migrada)
+                if dns_inicial is None:
+                    dns_inicial = url_atual
+                    self.log.debug(f"DNS inicial capturado: {dns_inicial}")
+
                 # Substituir domínio
                 url_nova = substituir_dominio_em_url(
                     url_completa=url_atual,
@@ -907,8 +1125,9 @@ class DreamTVSeleniumAutomation:
                 self.log.info(f"  Antes: {url_atual}")
                 self.log.info(f"  Depois: {url_nova}")
 
-                # Atualizar via API
-                api.update_playlist(id=playlist_id, device_id=device_id, url=url_nova)
+                # Atualizar via API (usar deviceId numérico da playlist)
+                device_id_numerico = playlist.get('deviceId', device_id)
+                api.update_playlist(id=playlist_id, device_id=device_id_numerico, url=url_nova)
                 playlists_atualizadas += 1
 
                 # Salvar DNS atualizado (capturar apenas primeira URL atualizada)
@@ -917,6 +1136,11 @@ class DreamTVSeleniumAutomation:
                     disp_migracao.save(update_fields=['dns_atualizado'])
 
                 self.log.info(f"Playlist '{nome}' atualizada com sucesso!")
+
+            # Atualizar dns_encontrado com a URL da primeira playlist migrada
+            if dns_inicial:
+                disp_migracao.dns_encontrado = dns_inicial
+                disp_migracao.save(update_fields=['dns_encontrado'])
 
             # Atualizar status do dispositivo
             if playlists_atualizadas > 0:

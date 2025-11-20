@@ -1523,6 +1523,14 @@ class TarefaMigracaoDNS(models.Model):
         help_text='Mensagem de erro que impediu a execução da tarefa inteira'
     )
 
+    # Otimização: cache temporário de devices (v2.0)
+    cached_devices = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name='Cache de Devices',
+        help_text='JSON temporário com devices do frontend (evita chamadas à API)'
+    )
+
     class Meta:
         verbose_name = 'Tarefa de Migração DNS'
         verbose_name_plural = 'Tarefas de Migração DNS'

@@ -380,7 +380,7 @@ function getCsrfToken() {
 const DominiosCache = {
     CACHE_KEY: 'gestao_dns_cache',
     TTL_HOURS: 6,  // 6 horas
-    CACHE_VERSION: '1.0',
+    CACHE_VERSION: '2.0',  // v2.0: armazena devices completos ao invés de apenas domínios
 
     /**
      * Retorna estrutura vazia do cache
@@ -445,7 +445,50 @@ const DominiosCache = {
     },
 
     /**
-     * Retorna domínios do cache (se válido)
+     * Extrai lista de domínios únicos a partir dos devices
+     * @param {Array} devices - Array de dispositivos com playlists
+     * @returns {Array} Array de {dominio, count}
+     */
+    _extractDominiosFromDevices(devices) {
+        const dominiosMap = new Map();
+
+        devices.forEach(device => {
+            if (!device.playlists) return;
+
+            device.playlists.forEach(playlist => {
+                const dominio = playlist.dominio;
+                if (dominio) {
+                    if (dominiosMap.has(dominio)) {
+                        dominiosMap.set(dominio, dominiosMap.get(dominio) + 1);
+                    } else {
+                        dominiosMap.set(dominio, 1);
+                    }
+                }
+            });
+        });
+
+        // Converter Map para Array
+        return Array.from(dominiosMap.entries())
+            .map(([dominio, count]) => ({ dominio, count }))
+            .sort((a, b) => b.count - a.count); // Ordenar por count decrescente
+    },
+
+    /**
+     * Extrai apenas o hostname de uma URL completa
+     * Ex: "http://domain1.com:8080" → "domain1.com"
+     */
+    _extrairDominioDeUrl(url) {
+        try {
+            const urlObj = new URL(url);
+            return urlObj.hostname;
+        } catch (e) {
+            // Se não for URL válida, retornar o valor original
+            return url;
+        }
+    },
+
+    /**
+     * Retorna dados do cache (se válido)
      */
     get(aplicativoId) {
         if (!this.isValid(aplicativoId)) {
@@ -457,7 +500,7 @@ const DominiosCache = {
         const key = `app_${aplicativoId}`;
         const entry = cache.caches[key];
 
-        console.log(`[Cache] ✓ Cache HIT para app ${aplicativoId} (${entry.total_dominios} domínios)`);
+        console.log(`[Cache] ✓ Cache HIT para app ${aplicativoId} (${entry.total_dominios} domínios, ${entry.total_dispositivos} dispositivos)`);
 
         // Calcular idade do cache
         const now = new Date();
@@ -466,6 +509,7 @@ const DominiosCache = {
         console.log(`[Cache] Idade do cache: ${ageMinutes} minutos`);
 
         return {
+            devices: entry.devices || [],  // v2.0: retorna devices completos
             dominios: entry.dominios,
             cached_at: entry.cached_at,
             expires_at: entry.expires_at,
@@ -474,27 +518,37 @@ const DominiosCache = {
     },
 
     /**
-     * Armazena domínios no cache
+     * Armazena devices completos no cache (v2.0)
+     * @param {Number} aplicativoId - ID do aplicativo
+     * @param {String} aplicativoNome - Nome do aplicativo
+     * @param {Array} devices - Array de dispositivos com playlists
+     * @param {Array} dominios - (Opcional) Lista de domínios já extraída. Se null, será calculada automaticamente
      */
-    set(aplicativoId, aplicativoNome, dominios) {
+    set(aplicativoId, aplicativoNome, devices, dominios = null) {
         const cache = this._loadCache();
         const key = `app_${aplicativoId}`;
 
         const now = new Date();
         const expiresAt = new Date(now.getTime() + (this.TTL_HOURS * 60 * 60 * 1000));
 
+        // Se dominios não foi fornecido, extrair dos devices
+        if (!dominios) {
+            dominios = this._extractDominiosFromDevices(devices);
+        }
+
         cache.caches[key] = {
             aplicativo_id: aplicativoId,
             aplicativo_nome: aplicativoNome,
-            dominios: dominios,
+            devices: devices,  // v2.0: armazena devices completos
+            dominios: dominios,  // mantém para compatibilidade e acesso rápido
             total_dominios: dominios.length,
-            total_dispositivos: dominios.reduce((sum, d) => sum + d.count, 0),
+            total_dispositivos: devices.length,
             cached_at: now.toISOString(),
             expires_at: expiresAt.toISOString()
         };
 
         this._saveCache(cache);
-        console.log(`[Cache] ✓ Domínios salvos no cache para app ${aplicativoId} (expira em ${this.TTL_HOURS}h)`);
+        console.log(`[Cache] ✓ Cache v2.0 salvo para app ${aplicativoId}: ${devices.length} dispositivos, ${dominios.length} domínios únicos (expira em ${this.TTL_HOURS}h)`);
     },
 
     /**
@@ -1218,7 +1272,7 @@ function tratarErroDominios(errorMsg) {
 
 /**
  * Carrega lista de domínios únicos do reseller account
- * Chamado quando usuário seleciona "Todos os dispositivos"
+ * Chamado quando usuário seleciona "Todos os domínios"
  */
 async function carregarDominios() {
     if (!GestaoDNS.aplicativoSelecionado) return;
@@ -1236,9 +1290,15 @@ async function carregarDominios() {
     const appId = GestaoDNS.aplicativoSelecionado.id;
     const cached = DominiosCache.get(appId);
 
+    console.log('[Cache DEBUG] ==================== CARREGANDO DOMÍNIOS ====================');
+    console.log('[Cache DEBUG] appId:', appId);
+    console.log('[Cache DEBUG] Cache encontrado:', cached ? 'SIM' : 'NÃO');
+
     if (cached) {
         // Usar dados do cache
         console.log('[DNS] Usando domínios do cache');
+        console.log('[Cache DEBUG] Domínios no cache:', cached.dominios);
+        console.log('[Cache DEBUG] Lista de domínios:', cached.dominios.map(d => `${d.dominio} (${d.count})`));
 
         popularSelectDominios(cached.dominios, true, cached.age_minutes);
         mostrarSecoesMigracao();
@@ -1251,6 +1311,7 @@ async function carregarDominios() {
             : `${Math.floor(cached.age_minutes / 60)}h${cached.age_minutes % 60}min atrás`;
 
         showToast('info', `${cached.dominios.length} domínios carregados do cache (${ageText})`);
+        console.log('[Cache DEBUG] ==================== FIM CARREGAMENTO ====================');
         return;
     }
 
@@ -1276,15 +1337,20 @@ async function carregarDominios() {
         const data = await response.json();
 
         if (data.success) {
-            // ===== SALVAR NO CACHE =====
-            DominiosCache.set(appId, GestaoDNS.aplicativoSelecionado.nome, data.dominios);
+            // ===== SALVAR NO CACHE v2.0 =====
+            // Backend agora retorna {devices: [...], dominios: [...]}
+            const devices = data.devices || [];
+            const dominios = data.dominios || [];
 
-            popularSelectDominios(data.dominios, false);
+            // Salvar devices completos no cache
+            DominiosCache.set(appId, GestaoDNS.aplicativoSelecionado.nome, devices, dominios);
+
+            popularSelectDominios(dominios, false);
             mostrarSecoesMigracao();
 
             GestaoDNS.dominiosCarregados = true;
 
-            showToast('success', `${data.dominios.length} domínios encontrados`);
+            showToast('success', `${dominios.length} domínios encontrados em ${devices.length} dispositivos`);
         } else {
             tratarErroDominios(data.error);
         }
@@ -1456,7 +1522,7 @@ function initMigracaoForm() {
     const sectionSubmitDiv = document.getElementById('section-submit');
     const dominioOrigemSelect = document.getElementById('dominio-origem-select');
 
-    // ===== TOGGLE: Todos os dispositivos =====
+    // ===== TOGGLE: Todos os domínios =====
     tipoTodos.addEventListener('change', function() {
         // Esconder MAC e playlists
         divMacEspecifico.classList.add('hidden');
@@ -1555,6 +1621,19 @@ function initMigracaoForm() {
         formData.append('tipo_migracao', tipoMigracao);
         formData.append('dominio_origem', GestaoDNS.dominioOrigemAtual);
         formData.append('dominio_destino', document.getElementById('dominio-destino').value);
+
+        // ===== OTIMIZAÇÃO: Enviar cache de devices para backend =====
+        // Permite backend filtrar devices sem fazer chamadas à API
+        if (tipoMigracao === 'todos') {
+            const cached = DominiosCache.get(GestaoDNS.aplicativoSelecionado.id);
+
+            if (cached && cached.devices && cached.devices.length > 0) {
+                formData.append('cached_devices', JSON.stringify(cached.devices));
+                console.log(`[Cache] Enviando ${cached.devices.length} devices em cache para backend (evita ${cached.devices.length} chamadas à API)`);
+            } else {
+                console.log('[Cache] Nenhum cache disponível, backend usará API');
+            }
+        }
 
         if (tipoMigracao === 'especifico') {
             formData.append('mac_alvo', macInput.value);
@@ -1833,11 +1912,42 @@ function mostrarResumo(data) {
         Falhas: ${data.falhas}
     `;
 
-    // ===== INVALIDAR CACHE APÓS MIGRAÇÃO BEM-SUCEDIDA =====
-    // Se houve pelo menos um sucesso, os domínios podem ter mudado
-    if (data.sucessos > 0 && GestaoDNS.aplicativoSelecionado) {
-        DominiosCache.invalidate(GestaoDNS.aplicativoSelecionado.id);
-        console.log('[Cache] Cache invalidado automaticamente após migração com sucessos');
+    // ===== ATUALIZAÇÃO INTELIGENTE DO CACHE v2.0 =====
+    // Ao invés de invalidar, atualiza URLs dos devices no cache
+    console.log('[Cache DEBUG] Verificando necessidade de atualização de cache');
+    console.log('[Cache DEBUG] GestaoDNS.aplicativoSelecionado:', GestaoDNS.aplicativoSelecionado);
+
+    if (GestaoDNS.aplicativoSelecionado) {
+        const appId = GestaoDNS.aplicativoSelecionado.id;
+
+        console.log('[Cache DEBUG] appId:', appId);
+        console.log('[Cache DEBUG] data:', {
+            total_dispositivos: data.total_dispositivos,
+            sucessos: data.sucessos,
+            falhas: data.falhas
+        });
+
+        // Verificar se é erro crítico que justifica invalidar cache
+        const erroCritico = (
+            data.total_dispositivos === 0 ||  // Nenhum dispositivo encontrado
+            (data.falhas > 0 && data.sucessos === 0)  // Todas as migrações falharam
+        );
+
+        console.log('[Cache DEBUG] erroCritico:', erroCritico);
+
+        if (erroCritico) {
+            DominiosCache.invalidate(appId);
+            console.log('[Cache] Cache invalidado devido a erro crítico na migração');
+        } else if (data.sucessos > 0) {
+            // Atualizar cache in-memory
+            console.log('[Cache DEBUG] CHAMANDO atualizarCacheAposMigracao()...');
+            atualizarCacheAposMigracao(appId, data);
+            console.log('[Cache DEBUG] atualizarCacheAposMigracao() CONCLUÍDO');
+        } else {
+            console.log('[Cache DEBUG] Nenhuma atualização necessária (sem sucessos)');
+        }
+    } else {
+        console.log('[Cache DEBUG] Aplicativo não selecionado - não é possível atualizar cache');
     }
 
     resumoDiv.classList.remove('hidden');
@@ -1846,6 +1956,149 @@ function mostrarResumo(data) {
     document.getElementById('btn-nova-migracao').addEventListener('click', function() {
         location.reload();
     });
+}
+
+// ==================== ATUALIZAÇÃO INTELIGENTE DO CACHE ====================
+
+/**
+ * Atualiza cache in-memory após migração bem-sucedida (v2.0)
+ * Atualiza URLs das playlists sem precisar fazer nova chamada à API
+ *
+ * @param {Number} appId - ID do aplicativo
+ * @param {Object} data - Dados da migração concluída
+ */
+function atualizarCacheAposMigracao(appId, data) {
+    console.log('[Cache DEBUG] ==================== INÍCIO DA ATUALIZAÇÃO ====================');
+    console.log('[Cache DEBUG] appId:', appId);
+    console.log('[Cache DEBUG] Dados da migração:', data);
+
+    const cached = DominiosCache.get(appId);
+
+    if (!cached || !cached.devices || cached.devices.length === 0) {
+        console.log('[Cache DEBUG] Não há devices em cache para atualizar, invalidando');
+        DominiosCache.invalidate(appId);
+        return;
+    }
+
+    console.log('[Cache DEBUG] Cache encontrado:', {
+        total_devices: cached.devices.length,
+        total_dominios: cached.dominios?.length
+    });
+
+    console.log('[Cache] Iniciando atualização inteligente do cache após migração');
+
+    // Criar mapa de dispositivos migrados para acesso rápido
+    const dispositivosMigrados = new Map();
+    data.dispositivos.forEach(device => {
+        if (device.status === 'sucesso') {
+            dispositivosMigrados.set(device.device_id, device);
+        }
+    });
+
+    console.log('[Cache DEBUG] Dispositivos migrados com sucesso:', dispositivosMigrados.size);
+
+    let devicesAtualizados = 0;
+    let playlistsAtualizadas = 0;
+
+    // Extrair hostname do domínio de origem para comparação justa
+    const dominioOrigemExtraido = DominiosCache._extrairDominioDeUrl(data.dominio_origem);
+    const dominioDestinoExtraido = DominiosCache._extrairDominioDeUrl(data.dominio_destino);
+
+    console.log('[Cache DEBUG] Domínio origem (RAW):', data.dominio_origem);
+    console.log('[Cache DEBUG] Domínio origem (EXTRAÍDO):', dominioOrigemExtraido);
+    console.log('[Cache DEBUG] Domínio destino (RAW):', data.dominio_destino);
+    console.log('[Cache DEBUG] Domínio destino (EXTRAÍDO):', dominioDestinoExtraido);
+
+    // Validar que domínios foram extraídos corretamente
+    if (!dominioOrigemExtraido || !dominioDestinoExtraido) {
+        console.error('[Cache DEBUG] ❌ ERRO: Domínios não puderam ser extraídos!');
+        console.error('[Cache DEBUG] Origem RAW:', data.dominio_origem, '→ Extraído:', dominioOrigemExtraido);
+        console.error('[Cache DEBUG] Destino RAW:', data.dominio_destino, '→ Extraído:', dominioDestinoExtraido);
+        console.error('[Cache DEBUG] Abortando atualização de cache para evitar erros');
+        return;
+    }
+
+    // Atualizar devices no cache
+    console.log('[Cache DEBUG] Processando', cached.devices.length, 'devices no cache');
+
+    cached.devices.forEach((device, index) => {
+        const deviceMigrado = dispositivosMigrados.get(device.device_id);
+
+        if (deviceMigrado && device.playlists) {
+            console.log(`[Cache DEBUG] Device #${index + 1} (${device.device_id}): ${device.playlists.length} playlists`);
+
+            // Dispositivo foi migrado com sucesso - atualizar suas playlists
+            device.playlists.forEach((playlist, pIndex) => {
+                const playlistDominio = playlist.dominio?.toLowerCase();
+                const match = playlistDominio && dominioOrigemExtraido &&
+                              playlistDominio === dominioOrigemExtraido.toLowerCase();
+
+                console.log(`[Cache DEBUG]   Playlist #${pIndex + 1}:`, {
+                    dominio: playlist.dominio,
+                    dominioOrigemExtraido: dominioOrigemExtraido,
+                    match: match,
+                    url_preview: playlist.url?.substring(0, 50) + '...'
+                });
+
+                // Verificar se playlist contém domínio de origem (comparar apenas hostname)
+                if (playlist.dominio && match) {
+                    // Substituir domínio na URL (escapar caracteres especiais de regex)
+                    const oldUrl = playlist.url;
+                    const dominioOrigemEscapado = data.dominio_origem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const newUrl = oldUrl.replace(
+                        new RegExp(dominioOrigemEscapado, 'gi'),
+                        data.dominio_destino
+                    );
+
+                    console.log('[Cache DEBUG]     ✓ ATUALIZANDO:', {
+                        oldUrl: oldUrl,
+                        newUrl: newUrl,
+                        old_dominio: playlist.dominio,
+                        new_dominio: dominioDestinoExtraido
+                    });
+
+                    // Atualizar playlist
+                    playlist.url = newUrl;
+                    playlist.dominio = dominioDestinoExtraido;
+
+                    playlistsAtualizadas++;
+                }
+            });
+
+            devicesAtualizados++;
+        } else if (!deviceMigrado) {
+            console.log(`[Cache DEBUG] Device #${index + 1} (${device.device_id}): NÃO foi migrado (não está na lista de sucessos)`);
+        } else if (!device.playlists) {
+            console.log(`[Cache DEBUG] Device #${index + 1} (${device.device_id}): Sem playlists`);
+        }
+    });
+
+    // Validação: verificar se playlists foram realmente atualizadas
+    if (playlistsAtualizadas === 0 && data.sucessos > 0) {
+        console.warn('[Cache] ⚠ AVISO: Nenhuma playlist foi atualizada apesar de migrações bem-sucedidas');
+        console.warn(`[Cache] Domínio origem: "${data.dominio_origem}" (extraído: "${dominioOrigemExtraido}")`);
+        console.warn(`[Cache] Total devices migrados: ${data.sucessos}, Total devices em cache: ${cached.devices.length}`);
+        console.warn('[Cache] Possível mismatch de domínios. Invalidando cache para garantir consistência.');
+        DominiosCache.invalidate(appId);
+        return;
+    }
+
+    // Re-extrair domínios dos devices atualizados
+    const dominiosAtualizados = DominiosCache._extractDominiosFromDevices(cached.devices);
+
+    console.log('[Cache DEBUG] Domínios após atualização:', dominiosAtualizados.map(d => `${d.dominio} (${d.count})`));
+
+    // Salvar cache atualizado
+    DominiosCache.set(
+        appId,
+        GestaoDNS.aplicativoSelecionado.nome,
+        cached.devices,
+        dominiosAtualizados
+    );
+
+    console.log(`[Cache] ✓ Cache atualizado: ${devicesAtualizados} dispositivos, ${playlistsAtualizadas} playlists alteradas`);
+    console.log(`[Cache] ✓ Nova lista de domínios: ${dominiosAtualizados.length} únicos`);
+    console.log('[Cache DEBUG] ==================== FIM DA ATUALIZAÇÃO ====================');
 }
 
 // ==================== FORÇAR ATUALIZAÇÃO DO CACHE ====================

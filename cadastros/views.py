@@ -6424,6 +6424,9 @@ def iniciar_migracao_dns_api(request):
                     "Migração será tentada mesmo assim."
                 )
 
+        # ===== OTIMIZAÇÃO v2.0: Receber cache de devices do frontend =====
+        cached_devices_json = request.POST.get('cached_devices')
+
         # Cria tarefa
         tarefa = TarefaMigracaoDNS.objects.create(
             usuario=request.user,
@@ -6434,6 +6437,7 @@ def iniciar_migracao_dns_api(request):
             dominio_origem=dominio_origem,
             dominio_destino=dominio_destino,
             status=TarefaMigracaoDNS.STATUS_INICIANDO,
+            cached_devices=cached_devices_json if cached_devices_json else None,  # NOVO: cache temporário
         )
 
         logger.info(
@@ -6544,6 +6548,8 @@ def consultar_progresso_migracao_api(request, tarefa_id):
             'falhas': tarefa.falhas,
             'pulados': tarefa.pulados,
             'erro_geral': tarefa.erro_geral,
+            'dominio_origem': tarefa.dominio_origem,  # Domínio DNS de origem (para cache update)
+            'dominio_destino': tarefa.dominio_destino,  # Domínio DNS de destino (para cache update)
             'concluida': tarefa.esta_concluida(),
             'criada_em': tarefa.criada_em.isoformat(),
             'iniciada_em': tarefa.iniciada_em.isoformat() if tarefa.iniciada_em else None,
@@ -6612,16 +6618,30 @@ def listar_dominios_api(request):
         # Inicializar API client
         from cadastros.services.lib.dream_tv_api import DreamTVAPI
         from cadastros.utils import extrair_dominio_de_url
+        from cadastros.services.api_raw_logger import get_api_raw_logger
         from collections import Counter
+        import time
 
         api = DreamTVAPI(jwt=jwt)
 
-        # Coletar todos os domínios
+        # Inicializar logger RAW para registrar dados completos da API
+        api_raw_logger = get_api_raw_logger()
+        collection_start_time = time.time()
+
+        # Log RAW: Início da coleta
+        api_raw_logger.log_collection_start(
+            user=request.user.username,
+            app_name=aplicativo.nome,
+            total_devices=0  # Será atualizado conforme dispositivos são processados
+        )
+
+        # v2.0: Coletar devices completos + domínios
         dominios_counter = Counter()
+        devices_completos = []  # NOVO: armazena devices com playlists
         page = 1
         limit = 100
 
-        logger.info(f"[listar_dominios_api] Iniciando coleta de domínios para user={request.user.username}, app={aplicativo.nome}")
+        logger.info(f"[listar_dominios_api] Iniciando coleta de devices completos para user={request.user.username}, app={aplicativo.nome}")
 
         while True:
             try:
@@ -6636,25 +6656,76 @@ def listar_dominios_api(request):
 
                 # Para cada dispositivo, listar playlists
                 for device in devices:
-                    device_id = device.get('id')
+                    device_id = device.get('id')  # ID numérico (usado para API)
+                    device_mac = device.get('mac')  # MAC address real (usado no cache)
+
+                    # Extrair nome do dispositivo (campo pode variar: comment, name, id)
+                    nome_dispositivo = (
+                        device.get('reseller_activation', {}).get('comment') or
+                        device.get('comment') or
+                        device.get('name') or
+                        device_mac or
+                        str(device_id)
+                    )
+
+                    # Log RAW: Device completo
+                    api_raw_logger.log_device_raw(
+                        device_id=device_id,
+                        device_mac=device_mac or str(device_id),
+                        device_name=nome_dispositivo,
+                        raw_data=device  # JSON completo do device
+                    )
 
                     try:
                         playlists = api.list_playlists(device_id=device_id)
 
+                        # NOVO: Estruturar playlists com domínio extraído
+                        playlists_estruturadas = []
                         for playlist in playlists:
                             url = playlist.get('url', '')
-                            if url:
-                                dominio = extrair_dominio_de_url(url)
-                                if dominio:
-                                    dominios_counter[dominio] += 1
+                            dominio = extrair_dominio_de_url(url) if url else None
+
+                            # Log RAW: Playlist completa
+                            api_raw_logger.log_playlist_raw(
+                                device_id=device_id,
+                                playlist_id=playlist.get('id'),
+                                playlist_name=playlist.get('name', 'Sem nome'),
+                                raw_data=playlist  # JSON completo da playlist
+                            )
+
+                            playlists_estruturadas.append({
+                                'id': playlist.get('id'),
+                                'name': playlist.get('name', 'Sem nome'),
+                                'url': url,
+                                'dominio': dominio,
+                                'is_selected': playlist.get('is_selected', False),
+                                'deviceId': playlist.get('deviceId')  # Preservar deviceId numérico para updates
+                            })
+
+                            # Contar domínios para lista de domínios únicos
+                            if dominio:
+                                dominios_counter[dominio] += 1
+
+                        # NOVO: Adicionar device completo ao array
+                        devices_completos.append({
+                            'device_id': device_mac,  # MAC real (ex: 00:1A:79:XX:XX:XX)
+                            'nome_dispositivo': nome_dispositivo,
+                            'playlists': playlists_estruturadas
+                        })
 
                     except Exception as e:
-                        logger.warning(f"[listar_dominios_api] Erro ao buscar playlists do device {device_id}: {e}")
+                        logger.warning(f"[listar_dominios_api] Erro ao buscar playlists do device {device_mac}: {e}")
+                        # NOVO: Mesmo com erro, adicionar device sem playlists
+                        devices_completos.append({
+                            'device_id': device_mac,  # MAC real (ex: 00:1A:79:XX:XX:XX)
+                            'nome_dispositivo': nome_dispositivo,
+                            'playlists': []
+                        })
                         continue
 
-                    # Delay para evitar rate limiting da API (429)
+                    # Delay para evitar rate limiting da API (429) - reduzido de 0.2 para 0.05
                     import time
-                    time.sleep(0.2)  # 200ms entre cada requisição
+                    time.sleep(0.05)  # 50ms entre cada requisição (economia de ~26s para 175 devices)
 
                 # Verificar se há mais páginas
                 total = devices_data.get('count', 0)
@@ -6673,14 +6744,45 @@ def listar_dominios_api(request):
             for dominio, count in dominios_counter.most_common()
         ]
 
-        logger.info(f"[listar_dominios_api] Total de domínios únicos encontrados: {len(dominios_list)}")
+        logger.info(f"[listar_dominios_api] Coleta finalizada: {len(devices_completos)} dispositivos, {len(dominios_list)} domínios únicos")
+
+        # Log RAW: Fim da coleta (sucesso)
+        collection_duration = time.time() - collection_start_time
+        total_playlists = sum(len(d['playlists']) for d in devices_completos)
+        api_raw_logger.log_collection_end(
+            user=request.user.username,
+            app_name=aplicativo.nome,
+            status="success",
+            duration_seconds=collection_duration,
+            devices_processed=len(devices_completos),
+            playlists_total=total_playlists
+        )
 
         return JsonResponse({
             'success': True,
-            'dominios': dominios_list
+            'devices': devices_completos,  # NOVO: devices completos
+            'dominios': dominios_list,      # mantém para compatibilidade
+            'total_dispositivos': len(devices_completos),
+            'total_dominios': len(dominios_list)
         })
 
     except Exception as e:
+        # Log RAW: Fim da coleta (erro)
+        try:
+            collection_duration = time.time() - collection_start_time
+            total_playlists = sum(len(d['playlists']) for d in devices_completos) if devices_completos else 0
+            api_raw_logger.log_collection_end(
+                user=request.user.username,
+                app_name=aplicativo.nome,
+                status="error",
+                duration_seconds=collection_duration,
+                devices_processed=len(devices_completos),
+                playlists_total=total_playlists,
+                error=str(e)
+            )
+        except:
+            pass  # Se log falhar, não impedir o erro original
+
         logger.exception(f"[listar_dominios_api] Erro geral: {e}")
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
