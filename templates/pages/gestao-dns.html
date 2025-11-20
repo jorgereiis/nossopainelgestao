@@ -222,47 +222,50 @@
           </div>
         </div>
 
-        <!-- ETAPA 3: Login Manual -->
+        <!-- ETAPA 3: Autenticação Automática -->
         <div id="step-login-manual" class="row mb-4 hidden">
           <div class="col-xl-4 col-lg-4 col-md-12 col-12">
             <div class="mb-4 mb-lg-0">
-              <h4 class="mb-1">Login Manual</h4>
-              <p class="mb-0 fs-5 text-muted">Faça login no painel reseller.</p>
+              <h4 class="mb-1">Autenticação Automática</h4>
+              <p class="mb-0 fs-5 text-muted">Insira suas credenciais do painel reseller.</p>
             </div>
           </div>
 
           <div class="col-xl-8 col-lg-8 col-md-12 col-12">
             <div class="card shadow-sm border-0">
               <div class="card-body p-4">
-                <div class="alert alert-info">
-                  <i class="bi bi-info-circle-fill me-2"></i>
-                  <strong>Atenção:</strong> Um navegador será aberto para que você faça login manualmente e resolva o reCAPTCHA.
+                <!-- Área dinâmica que será substituída durante o login -->
+                <div id="login-form-area">
+                  <div class="alert alert-success">
+                    <i class="bi bi-robot me-2"></i>
+                    <strong>Automação Ativa:</strong> O sistema fará login automaticamente e resolverá o reCAPTCHA usando CapSolver.
+                  </div>
+
+                  <form id="form-login-manual">
+                    {% csrf_token %}
+                    <input type="hidden" name="aplicativo_id" id="login-aplicativo-id">
+
+                    <div class="mb-3">
+                      <label for="login-email" class="form-label fw-semibold">
+                        <i class="bi bi-envelope-fill text-primary me-2"></i>Email/Usuário <span class="text-danger">*</span>
+                      </label>
+                      <input type="email" class="form-control form-control-lg" id="login-email" name="email" required>
+                      <small class="text-muted">Email ou usuário usado no painel reseller</small>
+                    </div>
+
+                    <div class="mb-4">
+                      <label for="login-senha" class="form-label fw-semibold">
+                        <i class="bi bi-key-fill text-warning me-2"></i>Senha <span class="text-danger">*</span>
+                      </label>
+                      <input type="password" class="form-control form-control-lg" id="login-senha" name="senha" required>
+                      <small class="text-muted">Senha do painel reseller</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                      <i class="bi bi-robot me-2"></i>Iniciar Autenticação
+                    </button>
+                  </form>
                 </div>
-
-                <form id="form-login-manual">
-                  {% csrf_token %}
-                  <input type="hidden" name="aplicativo_id" id="login-aplicativo-id">
-
-                  <div class="mb-3">
-                    <label for="login-email" class="form-label fw-semibold">
-                      <i class="bi bi-envelope-fill text-primary me-2"></i>Email/Usuário <span class="text-danger">*</span>
-                    </label>
-                    <input type="email" class="form-control form-control-lg" id="login-email" name="email" required>
-                    <small class="text-muted">Email ou usuário usado no painel reseller</small>
-                  </div>
-
-                  <div class="mb-4">
-                    <label for="login-senha" class="form-label fw-semibold">
-                      <i class="bi bi-key-fill text-warning me-2"></i>Senha <span class="text-danger">*</span>
-                    </label>
-                    <input type="password" class="form-control form-control-lg" id="login-senha" name="senha" required>
-                    <small class="text-muted">Senha do painel reseller</small>
-                  </div>
-
-                  <button type="submit" class="btn btn-primary btn-lg w-100">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>Fazer Login Manual
-                  </button>
-                </form>
               </div>
             </div>
           </div>
@@ -290,9 +293,9 @@
                       <i class="bi bi-diagram-3-fill text-primary me-2"></i>Escopo da Migração <span class="text-danger">*</span>
                     </label>
                     <div class="form-check">
-                      <input class="form-check-input" type="radio" name="tipo_migracao" id="tipo-todos" value="todos" checked>
+                      <input class="form-check-input" type="radio" name="tipo_migracao" id="tipo-todos" value="todos">
                       <label class="form-check-label" for="tipo-todos">
-                        Todos os dispositivos
+                        Todos os domínios
                       </label>
                     </div>
                     <div class="form-check">
@@ -312,18 +315,66 @@
                     <small class="text-muted">MAC Address do dispositivo que será atualizado</small>
                   </div>
 
-                  <!-- Domínio Origem -->
-                  <div class="mb-4">
-                    <label for="dominio-origem" class="form-label fw-semibold">
-                      <i class="bi bi-link-45deg text-danger me-2"></i>Domínio Origem <span class="text-danger">*</span>
+                  <!-- Playlists disponíveis (condicional - só aparece para dispositivo específico) -->
+                  <div id="div-playlists" class="mb-4 hidden">
+                    <label class="form-label fw-semibold">
+                      <i class="bi bi-collection-play-fill text-primary me-2"></i>Playlists Encontradas <span class="text-danger">*</span>
                     </label>
-                    <input type="text" class="form-control form-control-lg" id="dominio-origem" name="dominio_origem"
-                           placeholder="http://dominio-atual.com ou http://dominio-atual.com:8080" required>
-                    <small class="text-muted">Protocolo + domínio + porta opcional (ex: http://exemplo.com:8080)</small>
+
+                    <!-- Loading state -->
+                    <div id="playlists-loading" class="text-center py-3">
+                      <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                      </div>
+                      <p class="text-muted mt-2">Buscando playlists do dispositivo...</p>
+                    </div>
+
+                    <!-- Radio buttons container (populated via JS) -->
+                    <div id="playlists-container" class="d-none">
+                      <!-- Será preenchido via JavaScript com radio buttons -->
+                    </div>
+
+                    <small class="text-muted">Selecione qual playlist deseja usar como origem do domínio</small>
+                  </div>
+
+                  <!-- Loading de domínios (apenas modo "Todos os domínios") -->
+                  <div id="loading-dominios" class="mb-4 hidden">
+                    <div class="text-center py-3">
+                      <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                      </div>
+                      <p class="text-muted mt-2">Buscando domínios disponíveis... Isso pode levar alguns minutos.</p>
+                    </div>
+                  </div>
+
+                  <!-- Domínio Origem (dinâmico baseado no escopo) -->
+                  <div id="section-dominio-origem" class="mb-4 hidden">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <label for="dominio-origem" class="form-label fw-semibold mb-0">
+                        <i class="bi bi-link-45deg text-danger me-2"></i>Domínio Origem <span class="text-danger">*</span>
+                      </label>
+
+                      <!-- Botão Atualizar Cache -->
+                      <button type="button"
+                              id="btn-atualizar-cache"
+                              class="btn btn-sm btn-outline-secondary"
+                              onclick="forcarAtualizacaoCache()"
+                              title="Atualizar lista de domínios (ignorar cache)">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                      </button>
+                    </div>
+
+                    <!-- SELECT para "Todos os domínios" -->
+                    <select class="form-select form-select-lg" id="dominio-origem-select" name="dominio_origem" required>
+                      <option value="">Carregando domínios...</option>
+                    </select>
+                    <small class="text-muted" id="dominio-origem-hint">
+                      Selecione o domínio atual dos dispositivos
+                    </small>
                   </div>
 
                   <!-- Domínio Destino -->
-                  <div class="mb-4">
+                  <div id="section-dominio-destino" class="mb-4 hidden">
                     <label for="dominio-destino" class="form-label fw-semibold">
                       <i class="bi bi-link-45deg text-success me-2"></i>Domínio Destino <span class="text-danger">*</span>
                     </label>
@@ -332,7 +383,7 @@
                     <small class="text-muted">Protocolo + domínio + porta opcional (ex: http://novo.com)</small>
                   </div>
 
-                  <div class="d-grid gap-2">
+                  <div id="section-submit" class="d-grid gap-2 hidden">
                     <button type="submit" class="btn btn-success btn-lg">
                       <i class="bi bi-lightning-fill me-2"></i>Iniciar Migração DNS
                     </button>

@@ -1327,6 +1327,23 @@ class ContaReseller(models.Model):
         verbose_name='Sessão Válida',
         help_text='Indica se a sessão armazenada ainda está ativa'
     )
+    login_progresso = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name='Progresso do Login',
+        help_text='Etapa atual do processo de login automático',
+        choices=[
+            ('', 'Não iniciado'),
+            ('conectando', 'Conectando ao painel'),
+            ('pagina_carregada', 'Página carregada'),
+            ('resolvendo_captcha', 'Resolvendo reCAPTCHA'),
+            ('captcha_resolvido', 'reCAPTCHA resolvido'),
+            ('validando', 'Validando credenciais'),
+            ('concluido', 'Login concluído'),
+            ('erro', 'Erro no login'),
+        ]
+    )
     data_criacao = models.DateTimeField(
         auto_now_add=True,
         verbose_name='Data de Criação'
@@ -1504,6 +1521,14 @@ class TarefaMigracaoDNS(models.Model):
         blank=True,
         verbose_name='Erro Geral',
         help_text='Mensagem de erro que impediu a execução da tarefa inteira'
+    )
+
+    # Otimização: cache temporário de devices (v2.0)
+    cached_devices = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name='Cache de Devices',
+        help_text='JSON temporário com devices do frontend (evita chamadas à API)'
     )
 
     class Meta:

@@ -24,6 +24,8 @@ teste*
 docker
 *.sh
 logs/Reseller/debug_screenshots
+*dreamtv*
+.claude
 
 # Docker - IGNORAR apenas dados sensíveis, NÃO arquivos de configuração
 docker/**/.env
@@ -78,6 +80,7 @@ eggs/
 .eggs/
 lib/
 lib64/
+!cadastros/services/lib/
 parts/
 sdist/
 var/

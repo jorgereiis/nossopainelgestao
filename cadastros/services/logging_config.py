@@ -309,6 +309,27 @@ def get_reseller_logger() -> logging.Logger:
     )
 
 
+def get_api_logger() -> logging.Logger:
+    """
+    Retorna logger específico para logs RAW de API (devices/playlists).
+
+    Configuração:
+    - Console: WARNING e superior (não polui durante operação normal)
+    - Arquivo: DEBUG e superior com rotação
+    - Formato: JSON Lines para fácil processamento
+
+    Exemplo:
+        >>> logger = get_api_logger()
+        >>> logger.debug("Device data", extra={"type": "device", "data": {...}})
+    """
+    return get_logger(
+        name="APIRaw",
+        log_file=BASE_LOG_DIR / "Reseller" / "devices_raw.log",
+        console_level=logging.WARNING,
+        file_level=logging.DEBUG,
+    )
+
+
 # ==================== TEMPLATES DE MENSAGENS ====================
 
 class LogTemplates:
