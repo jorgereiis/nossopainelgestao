@@ -4900,7 +4900,7 @@ def create_payment_plan(request):
 
             try:
                 # Consultando o objeto requisitado. Caso não exista, será criado.
-                plano, created = Plano.objects.get_or_create(nome=request.POST.get('nome'), valor=int(request.POST.get('valor')), usuario=usuario)
+                plano, created = Plano.objects.get_or_create(nome=request.POST.get('nome'), valor=int(request.POST.get('valor')), telas=int(request.POST.get('telas')), usuario=usuario)
 
                 if created:
                     log_user_action(
