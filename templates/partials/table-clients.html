@@ -96,7 +96,7 @@
                     <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border"
                          style="width: 36px; height: 36px;"
                          title="Cartão de Crédito">
-                        <i class="bi bi-credit-card" style="color: #624BFF; font-size: 1.1rem;"></i>
+                        <i class="bi bi-credit-card text-warning" style="font-size: 1.1rem;"></i>
                     </div>
                 </td>
                 {% elif cliente.forma_pgto.nome == "Boleto" %}
@@ -104,7 +104,7 @@
                     <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border"
                          style="width: 36px; height: 36px;"
                          title="Boleto">
-                        <i class="bi bi-upc-scan" style="color: #624BFF; font-size: 1.1rem;"></i>
+                        <i class="bi bi-upc-scan text-danger" style="font-size: 1.1rem;"></i>
                     </div>
                 </td>
                 {% endif %}

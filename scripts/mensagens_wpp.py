@@ -188,12 +188,15 @@ def obter_mensalidades_a_vencer(usuario_query):
 
             mensagem = None
 
+            # Verificar forma de pagamento
+            forma_pgto = cliente.forma_pgto.nome
+
             if tipo_mensagem == "à vencer 1 dias":
-                dados = DadosBancarios.objects.filter(usuario=usuario).first()
-                if not dados:
+                # Não enviar mensagens de vencimento para clientes com CARTÃO
+                if forma_pgto == "Cartão de Crédito":
                     registrar_log_auditoria({
                         "funcao": "obter_mensalidades_a_vencer",
-                        "status": "dados_bancarios_ausentes",
+                        "status": "ignorado_cartao_credito",
                         "usuario": str(usuario),
                         "cliente": cliente.nome,
                         "cliente_id": cliente.id,
@@ -202,25 +205,68 @@ def obter_mensalidades_a_vencer(usuario_query):
                     })
                     continue
 
-                mensagem = (
-                    f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
-                    f"▫️ *DETALHES DO SEU PLANO:*\n"
-                    f"_________________________________\n"
-                    f"🔖 *Plano*: {plano_nome}\n"
-                    f"📆 *Vencimento*: {dt_formatada}\n"
-                    f"💰 *Valor*: R$ {mensalidade.valor}\n"
-                    f"_________________________________\n\n"
-                    f"▫️ *PAGAMENTO COM PIX:*\n"
-                    f"_________________________________\n"
-                    f"🔑 *Tipo*: {dados.tipo_chave}\n"
-                    f"🔢 *Chave*: {dados.chave}\n"
-                    f"🏦 *Banco*: {dados.instituicao}\n"
-                    f"👤 *Beneficiário*: {dados.beneficiario}\n"
-                    f"_________________________________\n\n"
-                    f"‼️ _Caso já tenha pago, por favor, nos envie o comprovante._"
-                )
+                # Template para BOLETO
+                if forma_pgto == "Boleto":
+                    mensagem = (
+                        f"⚠️ *ATENÇÃO, {primeiro_nome}!* ⚠️\n\n"
+                        f"▫️ *DETALHES DO SEU PLANO:*\n"
+                        f"_________________________________\n"
+                        f"🔖 *Plano*: {plano_nome}\n"
+                        f"📆 *Vencimento*: {dt_formatada}\n"
+                        f"💰 *Valor*: R$ {mensalidade.valor}\n"
+                        f"_________________________________\n\n"
+                        f"▫️ *PAGAMENTO COM BOLETO:*\n"
+                        f"✉️ O seu boleto já foi emitido\n"
+                        f"📧 Caso não o identifique em seu e-mail, solicite aqui no WhatsApp\n\n"
+                        f"‼️ _Caso já tenha pago, desconsidere esta mensagem._"
+                    )
+                else:
+                    # Template para PIX (padrão)
+                    dados = DadosBancarios.objects.filter(usuario=usuario).first()
+                    if not dados:
+                        registrar_log_auditoria({
+                            "funcao": "obter_mensalidades_a_vencer",
+                            "status": "dados_bancarios_ausentes",
+                            "usuario": str(usuario),
+                            "cliente": cliente.nome,
+                            "cliente_id": cliente.id,
+                            "tipo_envio": tipo_mensagem,
+                            "mensalidade_id": mensalidade.id,
+                        })
+                        continue
+
+                    mensagem = (
+                        f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
+                        f"▫️ *DETALHES DO SEU PLANO:*\n"
+                        f"_________________________________\n"
+                        f"🔖 *Plano*: {plano_nome}\n"
+                        f"📆 *Vencimento*: {dt_formatada}\n"
+                        f"💰 *Valor*: R$ {mensalidade.valor}\n"
+                        f"_________________________________\n\n"
+                        f"▫️ *PAGAMENTO COM PIX:*\n"
+                        f"_________________________________\n"
+                        f"🔑 *Tipo*: {dados.tipo_chave}\n"
+                        f"🔢 *Chave*: {dados.chave}\n"
+                        f"🏦 *Banco*: {dados.instituicao}\n"
+                        f"👤 *Beneficiário*: {dados.beneficiario}\n"
+                        f"_________________________________\n\n"
+                        f"‼️ _Caso já tenha pago, por favor, nos envie o comprovante._"
+                    )
 
             elif tipo_mensagem == "vence hoje":
+                # Não enviar mensagens de vencimento para clientes com CARTÃO
+                if forma_pgto == "Cartão de Crédito":
+                    registrar_log_auditoria({
+                        "funcao": "obter_mensalidades_a_vencer",
+                        "status": "ignorado_cartao_credito",
+                        "usuario": str(usuario),
+                        "cliente": cliente.nome,
+                        "cliente_id": cliente.id,
+                        "tipo_envio": tipo_mensagem,
+                        "mensalidade_id": mensalidade.id,
+                    })
+                    continue
+
                 mensagem = (
                     f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
                     f"O seu plano *{plano_nome}* *vence hoje* ({dt_formatada}).\n\n"

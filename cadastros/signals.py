@@ -43,6 +43,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         - A mensalidade atual estiver marcada como paga (`pgto=True`) e possuir `dt_pagamento`.
         - A data de vencimento da mensalidade não for muito antiga (até 7 dias de defasagem).
         - Não existir já uma mensalidade futura não paga para o cliente (evita duplicidade).
+        - NÃO estiver em processo de reativação (mudança de cancelado=True para cancelado=False).
     - A data base para o novo vencimento será:
         - A data de vencimento anterior (caso tenha sido pagamento antecipado), ou
         - A data atual (caso tenha sido em atraso).
@@ -56,6 +57,16 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         kwargs: Argumentos adicionais do signal.
     """
     hoje = timezone.localdate()
+
+    # PROTEÇÃO CONTRA REATIVAÇÃO: Se a mensalidade está sendo reativada, não cria nova mensalidade
+    if instance.pk:  # Se já existe (é um update, não um create)
+        try:
+            mensalidade_original = Mensalidade.objects.get(pk=instance.pk)
+            # Se estava cancelada e agora não está mais, é uma reativação - NÃO criar nova mensalidade
+            if mensalidade_original.cancelado and not instance.cancelado:
+                return
+        except Mensalidade.DoesNotExist:
+            pass
 
     if instance.dt_pagamento and instance.pgto and not instance.dt_vencimento < hoje - timedelta(days=7):
         if Mensalidade.objects.filter(
