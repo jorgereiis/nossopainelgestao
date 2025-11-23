@@ -2462,10 +2462,16 @@ def session_wpp(request):
 
 
 @login_required
+@transaction.atomic
 def reactivate_customer(request, cliente_id):
     """
     View para reativar um cliente anteriormente cancelado.
     Avalia a última mensalidade e cria nova se necessário.
+
+    Regras:
+    - Se cancelado há menos de 7 dias: reativa mensalidade existente
+    - Se cancelado há mais de 7 dias: cria nova mensalidade com vencimento atual
+    - Sempre verifica se já existe mensalidade em aberto para evitar duplicação
     """
     try:
         cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
@@ -2477,11 +2483,17 @@ def reactivate_customer(request, cliente_id):
     nova_mensalidade_criada = False
     mensalidade_reativada = False
 
+    logger.info('[%s] [USER][%s] Iniciando reativação do cliente ID: %s',
+                timezone.localtime(), request.user, cliente_id)
+
     # Atualiza os campos de reativação
     cliente.cancelado = False
     cliente.data_cancelamento = None
     cliente.data_vencimento = data_hoje
     cliente.save()
+
+    logger.info('[%s] [USER][%s] Cliente ID %s marcado como ativo',
+                timezone.localtime(), request.user, cliente_id)
 
     # histórico: inicia novo período vigente
     try:
@@ -2505,40 +2517,76 @@ def reactivate_customer(request, cliente_id):
         else:
             valor_mensalidade = valor_base
 
-        # Obtém a última mensalidade do cliente
-        ultima_mensalidade = Mensalidade.objects.filter(cliente=cliente).order_by('-dt_vencimento').first()
+        logger.info('[%s] [USER][%s] Valor mensalidade calculado para cliente ID %s: R$ %s',
+                    timezone.localtime(), request.user, cliente_id, valor_mensalidade)
 
-        if ultima_mensalidade:
-            if sete_dias_atras <= ultima_mensalidade.dt_vencimento <= data_hoje:
-                # Remove o cancelamento da mensalidade e ajusta o valor
-                ultima_mensalidade.cancelado = False
-                ultima_mensalidade.dt_cancelamento = None
-                ultima_mensalidade.valor = valor_mensalidade
-                ultima_mensalidade.save()
-                mensalidade_reativada = True
+        # PROTEÇÃO CONTRA DUPLICAÇÃO: Verifica se já existe mensalidade em aberto
+        mensalidade_em_aberto = Mensalidade.objects.filter(
+            cliente=cliente,
+            pgto=False,
+            cancelado=False,
+            dt_vencimento__gte=data_hoje
+        ).first()
+
+        if mensalidade_em_aberto:
+            # Já existe mensalidade em aberto, apenas atualiza o valor
+            logger.info('[%s] [USER][%s] Cliente ID %s já possui mensalidade em aberto (ID: %s). Atualizando valor.',
+                        timezone.localtime(), request.user, cliente_id, mensalidade_em_aberto.id)
+            mensalidade_em_aberto.valor = valor_mensalidade
+            mensalidade_em_aberto.save()
+            mensalidade_reativada = True
+        else:
+            # Obtém a última mensalidade do cliente
+            ultima_mensalidade = Mensalidade.objects.filter(cliente=cliente).order_by('-dt_vencimento').first()
+
+            if ultima_mensalidade:
+                # Verifica se a mensalidade foi cancelada há menos de 7 dias
+                if sete_dias_atras <= ultima_mensalidade.dt_vencimento <= data_hoje:
+                    # CASO 1: Cancelado há menos de 7 dias - Reativa a mensalidade existente
+                    logger.info('[%s] [USER][%s] Cliente ID %s cancelado há menos de 7 dias. Reativando mensalidade ID: %s',
+                                timezone.localtime(), request.user, cliente_id, ultima_mensalidade.id)
+
+                    ultima_mensalidade.cancelado = False
+                    ultima_mensalidade.dt_cancelamento = None
+                    ultima_mensalidade.valor = valor_mensalidade
+                    ultima_mensalidade.save()
+                    mensalidade_reativada = True
+                else:
+                    # CASO 2: Cancelado há mais de 7 dias - Cria nova mensalidade
+                    logger.info('[%s] [USER][%s] Cliente ID %s cancelado há mais de 7 dias. Criando nova mensalidade.',
+                                timezone.localtime(), request.user, cliente_id)
+
+                    # Mantém a mensalidade anterior como cancelada
+                    ultima_mensalidade.cancelado = True
+                    ultima_mensalidade.dt_cancelamento = data_hoje
+                    ultima_mensalidade.save()
+
+                    # Cria nova mensalidade com desconto progressivo aplicado
+                    nova_mensalidade = Mensalidade.objects.create(
+                        cliente=cliente,
+                        valor=valor_mensalidade,
+                        dt_vencimento=data_hoje,
+                        usuario=cliente.usuario
+                    )
+                    nova_mensalidade_criada = True
+
+                    logger.info('[%s] [USER][%s] Nova mensalidade ID %s criada para cliente ID %s',
+                                timezone.localtime(), request.user, nova_mensalidade.id, cliente_id)
             else:
-                # Mantém a mensalidade anterior como cancelada
-                ultima_mensalidade.cancelado = True
-                ultima_mensalidade.dt_cancelamento = data_hoje
-                ultima_mensalidade.save()
+                # CASO 3: Não existe mensalidade anterior - Cria primeira mensalidade
+                logger.info('[%s] [USER][%s] Cliente ID %s sem mensalidade anterior. Criando primeira mensalidade.',
+                            timezone.localtime(), request.user, cliente_id)
 
-                # Cria nova mensalidade com desconto progressivo aplicado
-                Mensalidade.objects.create(
+                nova_mensalidade = Mensalidade.objects.create(
                     cliente=cliente,
                     valor=valor_mensalidade,
                     dt_vencimento=data_hoje,
                     usuario=cliente.usuario
                 )
                 nova_mensalidade_criada = True
-        else:
-            # Caso não exista mensalidade anterior, cria uma nova com desconto progressivo
-            Mensalidade.objects.create(
-                cliente=cliente,
-                valor=valor_mensalidade,
-                dt_vencimento=data_hoje,
-                usuario=cliente.usuario
-            )
-            nova_mensalidade_criada = True
+
+                logger.info('[%s] [USER][%s] Primeira mensalidade ID %s criada para cliente ID %s',
+                            timezone.localtime(), request.user, nova_mensalidade.id, cliente_id)
 
     except Exception as erro:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
@@ -2546,6 +2594,9 @@ def reactivate_customer(request, cliente_id):
                      get_client_ip(request) or 'N/A', erro,
                      exc_info=True)
         return JsonResponse({"error_message": "Erro ao processar mensalidade na reativação."}, status=500)
+
+    logger.info('[%s] [USER][%s] Reativação do cliente ID %s concluída. Nova mensalidade: %s | Mensalidade reativada: %s',
+                timezone.localtime(), request.user, cliente_id, nova_mensalidade_criada, mensalidade_reativada)
 
     log_user_action(
         request=request,
