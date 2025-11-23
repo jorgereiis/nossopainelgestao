@@ -1546,7 +1546,7 @@ def profile_page(request):
     # Total de clientes ativos
     total_clientes = Cliente.objects.filter(usuario=user, cancelado=False).count()
 
-    # Receita mensal estimada (soma dos valores dos planos dos clientes ativos)
+    # Valor de negócio (soma dos valores dos planos dos clientes ativos)
     receita_mensal = Cliente.objects.filter(
         usuario=user,
         cancelado=False

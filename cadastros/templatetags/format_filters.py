@@ -53,3 +53,45 @@ def servidor_imagem_url(servidor, user=None):
     if hasattr(servidor, 'get_imagem_url'):
         return servidor.get_imagem_url(usuario_atual=user)
     return ''
+
+
+@register.filter
+def format_valor_negocio(valor):
+    """
+    Formata valores usando padrões k (mil), mi (milhão), bi (bilhão).
+
+    Exemplos:
+        850 → 850,00
+        1500 → 1,5 k
+        50000 → 50 k
+        1500000 → 1,5 mi
+        1000000000 → 1 bi
+
+    Uso no template:
+        {{ receita_mensal|format_valor_negocio }}
+    """
+    if not valor:
+        return '0'
+
+    try:
+        valor = float(valor)
+    except (ValueError, TypeError):
+        return '0'
+
+    if valor >= 1_000_000_000:  # Bilhão
+        resultado = valor / 1_000_000_000
+        if resultado == int(resultado):
+            return f"{int(resultado)} bi"
+        return f"{resultado:,.1f} bi".replace(',', 'X').replace('.', ',').replace('X', '.')
+    elif valor >= 1_000_000:  # Milhão
+        resultado = valor / 1_000_000
+        if resultado == int(resultado):
+            return f"{int(resultado)} mi"
+        return f"{resultado:,.1f} mi".replace(',', 'X').replace('.', ',').replace('X', '.')
+    elif valor >= 1_000:  # Mil
+        resultado = valor / 1_000
+        if resultado == int(resultado):
+            return f"{int(resultado)} k"
+        return f"{resultado:,.1f} k".replace(',', 'X').replace('.', ',').replace('X', '.')
+    else:
+        return f"{valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
