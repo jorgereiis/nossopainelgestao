@@ -123,8 +123,8 @@
                         <div class="mb-2">
                           <i class="fe fe-dollar-sign text-success" style="font-size: 32px;"></i>
                         </div>
-                        <h3 class="mb-1 fw-bold">R$ {{ receita_mensal|floatformat:2 }}</h3>
-                        <p class="text-muted mb-0 small">Receita Mensal</p>
+                        <h3 class="mb-1 fw-bold">R$ {{ receita_mensal|format_valor_negocio }}</h3>
+                        <p class="text-muted mb-0 small">Valor de negócio</p>
                       </div>
                     </div>
                     <div class="col-6 col-md-3">
@@ -164,15 +164,43 @@
                     </div>
                     <div class="col-12 col-md-4">
                       <div class="p-2">
-                        <p class="text-muted mb-1 small">Taxa de Retenção</p>
-                        <h5 class="mb-0 fw-bold">
-                          {% if total_clientes > 0 or total_cancelados > 0 %}
-                            {{ total_clientes|add:total_cancelados|floatformat:0|add:0 }}
-                            {% widthratio total_clientes total_clientes|add:total_cancelados 100 %}%
-                          {% else %}
-                            0%
-                          {% endif %}
-                        </h5>
+                        <p class="text-muted mb-1 small d-flex align-items-center justify-content-center">
+                          Taxa de Retenção
+                          <i class="bi bi-question-circle ms-1"
+                             data-bs-toggle="tooltip"
+                             data-bs-placement="top"
+                             data-bs-html="true"
+                             title="<strong>Taxa de Retenção</strong><br>Percentual de clientes ativos em relação ao total histórico.<br><br><strong>Cálculo:</strong><br>(Clientes Ativos / Total) × 100<br><br><strong>Faixas:</strong><br>90-100%: Excelente<br>70-89%: Bom<br>50-69%: Moderado<br>&lt;50%: Crítico"
+                             style="cursor: help; font-size: 0.875rem; opacity: 0.7;">
+                          </i>
+                        </p>
+
+                        {% if total_clientes > 0 or total_cancelados > 0 %}
+                          {% widthratio total_clientes total_clientes|add:total_cancelados 100 as taxa_retencao %}
+                          <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
+                            <h5 class="mb-0 fw-bold">{{ taxa_retencao }}%</h5>
+
+                            {% if taxa_retencao|add:0 >= 90 %}
+                              <span class="badge bg-success d-inline-flex align-items-center gap-1" style="font-size: 0.7rem;">
+                                <i class="bi bi-check-circle-fill"></i> Excelente
+                              </span>
+                            {% elif taxa_retencao|add:0 >= 70 %}
+                              <span class="badge bg-primary d-inline-flex align-items-center gap-1" style="font-size: 0.7rem;">
+                                <i class="bi bi-hand-thumbs-up"></i> Bom
+                              </span>
+                            {% elif taxa_retencao|add:0 >= 50 %}
+                              <span class="badge bg-warning text-dark d-inline-flex align-items-center gap-1" style="font-size: 0.7rem;">
+                                <i class="bi bi-exclamation-triangle"></i> Moderado
+                              </span>
+                            {% else %}
+                              <span class="badge bg-danger d-inline-flex align-items-center gap-1" style="font-size: 0.7rem;">
+                                <i class="bi bi-exclamation-circle-fill"></i> Crítico
+                              </span>
+                            {% endif %}
+                          </div>
+                        {% else %}
+                          <h5 class="mb-0 fw-bold text-muted">0%</h5>
+                        {% endif %}
                       </div>
                     </div>
                   </div>
