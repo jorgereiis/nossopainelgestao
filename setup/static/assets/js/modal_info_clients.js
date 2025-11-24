@@ -513,27 +513,90 @@ $(function () {
             headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
         })
             .then(response => {
-                if (response.status === 200 || response.ok) {
-                    // Fecha o modal de criação
-                    $('#create-app-info-modal').modal('hide');
-                    // Quando o modal de criação terminar de fechar, atualiza contas e reabre info
-                    $('#create-app-info-modal').one('hidden.bs.modal', function () {
-                        carregarContasApps(clienteId);
-                        $('#info-cliente-modal').modal('show');
+                // ⭐ FASE 1: Parse JSON para verificar avisos de limite
+                var contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    return response.json().then(data => {
+                        return { status: response.status, ok: response.ok, data: data };
                     });
                 } else {
-                    // Tenta fazer parse do JSON apenas se houver conteúdo
-                    var contentType = response.headers.get("content-type");
-                    if (contentType && contentType.indexOf("application/json") !== -1) {
-                        response.json().then(data => {
-                            var errorMsg = (data && data.error) ? data.error : 'Erro ao cadastrar conta do app.';
-                            $('#create-app-error-message').text(errorMsg);
-                        }).catch(function() {
-                            $('#create-app-error-message').text('Erro ao cadastrar conta do app.');
+                    return { status: response.status, ok: response.ok, data: null };
+                }
+            })
+            .then(result => {
+                if (result.status === 200 || result.ok) {
+                    // ⭐ FASE 1: Verificar se há aviso de limite
+                    if (result.data && result.data.warning) {
+                        // Fechar modal de cadastro temporariamente
+                        $('#create-app-info-modal').modal('hide');
+
+                        // Exibir modal de aviso de limite
+                        if (typeof exibirAvisoLimite === 'function') {
+                            exibirAvisoLimite({
+                                plano: result.data.dados_aviso.plano,
+                                usado: result.data.dados_aviso.usado,
+                                callback: function() {
+                                    // Usuário clicou em "Prosseguir Mesmo Assim"
+                                    // Adicionar flag force_create e reenviar
+                                    formData.append('force_create', 'true');
+
+                                    fetch(url, {
+                                        method: 'POST',
+                                        body: formData,
+                                        headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
+                                    })
+                                    .then(resp => resp.json())
+                                    .then(respData => {
+                                        if (respData.success_message_cancel) {
+                                            // Sucesso - recarregar contas
+                                            carregarContasApps(clienteId);
+                                            $('#info-cliente-modal').modal('show');
+
+                                            // Opcional: exibir mensagem de sucesso
+                                            if (typeof Swal !== 'undefined') {
+                                                Swal.fire({
+                                                    icon: 'success',
+                                                    title: 'Sucesso!',
+                                                    text: respData.success_message_cancel,
+                                                    timer: 2000
+                                                });
+                                            }
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Erro ao forçar criação:', error);
+                                        $('#create-app-error-message').text("Erro ao cadastrar conta do app.");
+                                    });
+                                }
+                            });
+                        } else {
+                            // Função de aviso não disponível, seguir fluxo normal
+                            console.warn('[FASE 1] Função exibirAvisoLimite não encontrada. Prosseguindo sem aviso.');
+                            $('#create-app-info-modal').modal('hide');
+                            $('#create-app-info-modal').one('hidden.bs.modal', function () {
+                                carregarContasApps(clienteId);
+                                $('#info-cliente-modal').modal('show');
+                            });
+                        }
+                    } else if (result.data && result.data.success_message_cancel) {
+                        // Sucesso normal - sem aviso
+                        $('#create-app-info-modal').modal('hide');
+                        $('#create-app-info-modal').one('hidden.bs.modal', function () {
+                            carregarContasApps(clienteId);
+                            $('#info-cliente-modal').modal('show');
                         });
                     } else {
-                        $('#create-app-error-message').text('Erro ao cadastrar conta do app. Status: ' + response.status);
+                        // Resposta 200 mas sem dados esperados
+                        $('#create-app-info-modal').modal('hide');
+                        $('#create-app-info-modal').one('hidden.bs.modal', function () {
+                            carregarContasApps(clienteId);
+                            $('#info-cliente-modal').modal('show');
+                        });
                     }
+                } else {
+                    // Erro HTTP
+                    var errorMsg = (result.data && result.data.error_message) ? result.data.error_message : 'Erro ao cadastrar conta do app. Status: ' + result.status;
+                    $('#create-app-error-message').text(errorMsg);
                 }
             })
             .catch(error => {

@@ -1,0 +1,134 @@
+<!-- Modal de Aviso de Excesso de Limite -->
+<!-- FASE 1: MVP - Sistema de Avisos (Não Bloqueia) -->
+
+<div class="modal fade" id="modalAvisoLimite" tabindex="-1" aria-labelledby="modalAvisoLimiteLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-warning">
+      <div class="modal-header bg-warning bg-opacity-10 border-bottom border-warning">
+        <h5 class="modal-title" id="modalAvisoLimiteLabel">
+          <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+          <span id="avisoTitulo">Atenção - Limite Atingido</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Informação do Plano -->
+        <div class="alert alert-warning d-flex align-items-start mb-3">
+          <i class="bi bi-info-circle-fill me-2 mt-1"></i>
+          <div>
+            <strong>Plano: <span id="avisoPlanoNome">-</span></strong>
+            <p class="mb-0 mt-1 small" id="avisoPlanoDetalhes">
+              <span id="avisoPlanoDispositivos">-</span> dispositivos
+            </p>
+          </div>
+        </div>
+
+        <!-- Mensagem Principal -->
+        <div class="mb-3">
+          <p class="mb-2" id="avisoMensagem">
+            O cliente atingiu ou excedeu o limite recomendado de recursos conforme o plano contratado.
+          </p>
+        </div>
+
+        <!-- Status Atual -->
+        <div class="card bg-light border-0">
+          <div class="card-body">
+            <h6 class="card-title mb-3">
+              <i class="bi bi-clipboard-data me-2"></i>Status Atual
+            </h6>
+
+            <div class="row g-2">
+              <!-- Dispositivos -->
+              <div class="col-12">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-phone text-warning me-2"></i>
+                  <small class="text-muted">Dispositivos</small>
+                </div>
+                <div class="progress" style="height: 8px;">
+                  <div class="progress-bar bg-warning" role="progressbar" style="width: 0%;"
+                       id="avisoProgressDispositivos" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                  </div>
+                </div>
+                <div class="mt-1">
+                  <strong id="avisoContadorDispositivos">0/0</strong>
+                  <span class="badge bg-warning ms-2 d-none" id="avisoExcessoDispositivos">+0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Observação -->
+        <div class="alert alert-info d-flex align-items-start mt-3 mb-0">
+          <i class="bi bi-lightbulb-fill me-2 mt-1"></i>
+          <div>
+            <strong>Importante:</strong>
+            <p class="mb-0 small">
+              Este é apenas um aviso informativo. Você pode prosseguir com a ação normalmente.
+              O sistema não bloqueia operações, mas mantém registro dos excessos para controle.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-circle me-1"></i>Cancelar
+        </button>
+        <button type="button" class="btn btn-warning" id="btnProsseguirMesmoAssim">
+          <i class="bi bi-check-circle me-1"></i>Prosseguir Mesmo Assim
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Função para exibir o modal de aviso de limite
+function exibirAvisoLimite(dados) {
+  // dados = {
+  //   plano: { nome, max_dispositivos },
+  //   usado: { dispositivos },
+  //   callback: function() { /* ação ao prosseguir */ }
+  // }
+
+  const modal = new bootstrap.Modal(document.getElementById('modalAvisoLimite'));
+
+  // Atualizar informações do plano
+  document.getElementById('avisoPlanoNome').textContent = dados.plano.nome;
+  document.getElementById('avisoPlanoDispositivos').textContent = dados.plano.max_dispositivos;
+
+  // Mensagem
+  const mensagem = `O plano "${dados.plano.nome}" permite no máximo ${dados.plano.max_dispositivos} dispositivo(s).
+                    Adicionar este dispositivo resultará em ${dados.usado.dispositivos + 1} dispositivo(s) cadastrado(s).`;
+  document.getElementById('avisoMensagem').textContent = mensagem;
+
+  // Atualizar contadores de dispositivos
+  const percDispositivos = Math.min((dados.usado.dispositivos / dados.plano.max_dispositivos) * 100, 100);
+  document.getElementById('avisoProgressDispositivos').style.width = percDispositivos + '%';
+  document.getElementById('avisoContadorDispositivos').textContent =
+    `${dados.usado.dispositivos}/${dados.plano.max_dispositivos}`;
+
+  if (dados.usado.dispositivos > dados.plano.max_dispositivos) {
+    const excesso = dados.usado.dispositivos - dados.plano.max_dispositivos;
+    const badgeExcesso = document.getElementById('avisoExcessoDispositivos');
+    badgeExcesso.textContent = `+${excesso}`;
+    badgeExcesso.classList.remove('d-none');
+  } else {
+    document.getElementById('avisoExcessoDispositivos').classList.add('d-none');
+  }
+
+  // Configurar callback do botão "Prosseguir"
+  const btnProsseguir = document.getElementById('btnProsseguirMesmoAssim');
+  btnProsseguir.onclick = function() {
+    modal.hide();
+    if (dados.callback && typeof dados.callback === 'function') {
+      dados.callback();
+    }
+  };
+
+  // Exibir modal
+  modal.show();
+}
+</script>

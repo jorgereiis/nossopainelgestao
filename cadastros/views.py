@@ -4343,6 +4343,7 @@ def test(request):
 def create_app_account(request):
     app_id = request.POST.get('app_id')
     cliente_id = request.POST.get('cliente-id')
+    force_create = request.POST.get('force_create') == 'true'  # Prosseguir mesmo com aviso
 
     app = get_object_or_404(Aplicativo, id=app_id, usuario=request.user)
     cliente = get_object_or_404(Cliente, id=cliente_id, usuario=request.user)
@@ -4350,6 +4351,36 @@ def create_app_account(request):
     device_id = request.POST.get('device-id') or None
     device_key = request.POST.get('device-key') or None
     app_email = request.POST.get('app-email') or None
+
+    # ⭐ FASE 1: Validação de limite de dispositivos
+    try:
+        assinatura = cliente.assinatura
+
+        # Verificar limite ANTES de criar (se não for forced)
+        if not force_create:
+            validacao = assinatura.validar_limite_dispositivos()
+
+            # Se está no limite ou já excedeu, retornar aviso
+            if validacao['no_limite'] or validacao['excedeu']:
+                return JsonResponse({
+                    'warning': True,
+                    'dados_aviso': {
+                        'plano': {
+                            'nome': assinatura.plano.nome,
+                            'max_dispositivos': assinatura.plano.max_dispositivos
+                        },
+                        'usado': {
+                            'dispositivos': assinatura.dispositivos_usados
+                        }
+                    }
+                }, status=200)
+
+    except AttributeError:
+        # Cliente não tem assinatura - permitir criação mas logar aviso
+        logger.warning(
+            f"[ASSINATURA] Cliente {cliente.nome} (ID: {cliente.id}) não possui AssinaturaCliente. "
+            f"Criando dispositivo sem validação de limite."
+        )
 
     nova_conta_app = ContaDoAplicativo(
         cliente=cliente,
@@ -4362,6 +4393,24 @@ def create_app_account(request):
 
     try:
         nova_conta_app.save()
+
+        # ⭐ FASE 1: Incrementar contador após criação bem-sucedida
+        try:
+            assinatura = cliente.assinatura
+            assinatura.dispositivos_usados += 1
+            assinatura.save(update_fields=['dispositivos_usados'])
+
+            # Logar se excedeu o limite
+            validacao = assinatura.validar_limite_dispositivos()
+            if validacao['excedeu']:
+                logger.warning(
+                    f"[LIMITE_EXCEDIDO] Cliente {cliente.nome} - "
+                    f"Dispositivos: {assinatura.dispositivos_usados}/{assinatura.plano.max_dispositivos} "
+                    f"(Excesso: +{validacao['excesso']})"
+                )
+        except AttributeError:
+            pass  # Cliente sem assinatura, já logado acima
+
         log_user_action(
             request=request,
             action=UserActionLog.ACTION_CREATE,
@@ -4900,7 +4949,15 @@ def create_payment_plan(request):
 
             try:
                 # Consultando o objeto requisitado. Caso não exista, será criado.
-                plano, created = Plano.objects.get_or_create(nome=request.POST.get('nome'), valor=int(request.POST.get('valor')), telas=int(request.POST.get('telas')), usuario=usuario)
+                # FASE 1: max_dispositivos = telas (automaticamente)
+                telas = int(request.POST.get('telas'))
+                plano, created = Plano.objects.get_or_create(
+                    nome=request.POST.get('nome'),
+                    valor=int(request.POST.get('valor')),
+                    telas=telas,
+                    max_dispositivos=telas,  # ⭐ FASE 1: Dispositivos = Telas
+                    usuario=usuario
+                )
 
                 if created:
                     log_user_action(
@@ -4912,6 +4969,7 @@ def create_payment_plan(request):
                             "nome": plano.nome,
                             "valor": str(plano.valor),
                             "telas": plano.telas,
+                            "max_dispositivos": plano.max_dispositivos,  # ⭐ FASE 1
                         },
                     )
                     return render(

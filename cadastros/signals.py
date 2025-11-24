@@ -8,11 +8,11 @@ import logging
 from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
 
-from .models import Cliente, Mensalidade, SessaoWpp, UserProfile
+from .models import Cliente, Mensalidade, SessaoWpp, UserProfile, AssinaturaCliente
 from wpp.api_connection import add_or_remove_label_contact, criar_label_se_nao_existir, get_label_contact
 
 logger = logging.getLogger(__name__)
@@ -483,3 +483,82 @@ def log_user_login_failure(sender, credentials, request, **kwargs):
 
     except Exception as e:
         logger.error(f'[LOGIN_LOG] Erro ao registrar login falhado: {str(e)}', exc_info=True)
+
+
+# ============================================================================
+# FASE 1: MVP - SIGNALS PARA ASSINATURA E CONTROLE DE RECURSOS
+# ============================================================================
+
+@receiver(post_save, sender=Cliente)
+def criar_assinatura_cliente(sender, instance, created, **kwargs):
+    """
+    Cria automaticamente AssinaturaCliente ao cadastrar novo cliente.
+
+    FASE 1: MVP - Controle de Dispositivos e Apps
+
+    A AssinaturaCliente serve como camada de controle entre Cliente e Plano,
+    rastreando recursos utilizados e preparando para funcionalidades futuras
+    (ofertas e valores progressivos nas Fases 2 e 3).
+    """
+    if created:
+        try:
+            AssinaturaCliente.objects.create(
+                cliente=instance,
+                plano=instance.plano,
+                data_inicio_assinatura=instance.data_adesao or timezone.localdate(),
+                ativo=not instance.cancelado
+            )
+            logger.info(
+                f"[ASSINATURA] AssinaturaCliente criada automaticamente para {instance.nome} "
+                f"(Plano: {instance.plano.nome})"
+            )
+        except Exception as e:
+            logger.error(
+                f"[ASSINATURA] Erro ao criar AssinaturaCliente para {instance.nome}: {str(e)}",
+                exc_info=True
+            )
+
+
+# ============================================================================
+# FASE 1: Sincronização de contadores de dispositivos
+# ============================================================================
+
+@receiver(post_delete, sender='cadastros.ContaDoAplicativo')
+def decrementar_contador_dispositivos(sender, instance, **kwargs):
+    """
+    Decrementa contador de dispositivos quando ContaDoAplicativo é excluída.
+
+    FASE 1: MVP - Controle de Dispositivos
+
+    Mantém sincronizado o contador dispositivos_usados em AssinaturaCliente
+    quando um dispositivo/conta de aplicativo é removido do sistema.
+    """
+    try:
+        assinatura = instance.cliente.assinatura
+
+        # Decrementar apenas se contador > 0 (evitar valores negativos)
+        if assinatura.dispositivos_usados > 0:
+            assinatura.dispositivos_usados -= 1
+            assinatura.save(update_fields=['dispositivos_usados'])
+
+            logger.info(
+                f"[CONTADOR] Dispositivo removido. Cliente: {instance.cliente.nome} - "
+                f"Dispositivos: {assinatura.dispositivos_usados}/{assinatura.plano.max_dispositivos}"
+            )
+        else:
+            logger.warning(
+                f"[CONTADOR] Tentativa de decrementar contador já zerado. "
+                f"Cliente: {instance.cliente.nome}"
+            )
+
+    except AttributeError:
+        # Cliente não tem assinatura
+        logger.warning(
+            f"[CONTADOR] Cliente {instance.cliente.nome} (ID: {instance.cliente.id}) "
+            f"não possui AssinaturaCliente ao remover dispositivo."
+        )
+    except Exception as e:
+        logger.error(
+            f"[CONTADOR] Erro ao decrementar dispositivos para {instance.cliente.nome}: {str(e)}",
+            exc_info=True
+        )

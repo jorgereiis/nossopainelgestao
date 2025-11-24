@@ -351,8 +351,27 @@ class Plano(models.Model):
     valor = models.DecimalField("Valor", max_digits=5, decimal_places=2)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
+    # ⭐ FASE 1: Controle de recursos (Dispositivos = Telas)
+    max_dispositivos = models.IntegerField(
+        "Máximo de dispositivos",
+        default=1,
+        help_text="Quantidade máxima de dispositivos (sempre igual ao número de telas)"
+    )
+
+    def save(self, *args, **kwargs):
+        """Garante que max_dispositivos sempre seja igual ao número de telas."""
+        self.max_dispositivos = self.telas
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.nome} - {self.valor}"
+        return f"{self.nome} - {self.telas} tela(s) - R$ {self.valor}"
+
+    def get_descricao_completa(self):
+        """Retorna descrição completa do plano para exibição."""
+        return (
+            f"{self.nome} - R$ {self.valor}\n"
+            f"• {self.telas} tela(s) simultânea(s) e dispositivo(s)"
+        )
 
 
 class Cliente(models.Model):
@@ -512,6 +531,141 @@ class ClientePlanoHistorico(models.Model):
 
     def __str__(self):
         return f"{self.cliente} - {self.plano_nome} ({self.valor_plano}) {self.inicio} -> {self.fim or '...'}"
+
+
+class AssinaturaCliente(models.Model):
+    """
+    Gerencia a assinatura ativa do cliente com controle de recursos.
+
+    FASE 1: MVP - Controle de Dispositivos e Apps
+
+    Este modelo serve como camada intermediária entre Cliente e Plano,
+    permitindo:
+    - Rastrear recursos utilizados (dispositivos, contas app)
+    - Aplicar ofertas promocionais (Fase 2)
+    - Aplicar valores progressivos (Fase 3)
+    - Calcular valor da mensalidade dinamicamente
+    - Emitir avisos de excesso de limites (não bloqueia)
+    """
+
+    cliente = models.OneToOneField(
+        'Cliente',
+        on_delete=models.CASCADE,
+        related_name='assinatura',
+        verbose_name="Cliente"
+    )
+
+    plano = models.ForeignKey(
+        'Plano',
+        on_delete=models.PROTECT,
+        verbose_name="Plano"
+    )
+
+    data_inicio_assinatura = models.DateField(
+        "Data de início da assinatura",
+        help_text="Data em que o cliente aderiu ao plano atual"
+    )
+
+    # Contadores de recursos utilizados
+    dispositivos_usados = models.IntegerField(
+        "Dispositivos em uso",
+        default=0,
+        help_text="Quantidade atual de dispositivos cadastrados (informativo)"
+    )
+
+    # Campos para Fase 2 e 3 (preparação futura)
+    # oferta_aplicada = FK OfertaPromocional (Fase 2)
+    # valor_progressivo = FK PlanoValorProgressivo (Fase 3)
+
+    ativo = models.BooleanField("Ativo", default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Assinatura de Cliente"
+        verbose_name_plural = "Assinaturas de Clientes"
+        indexes = [
+            models.Index(fields=['cliente', 'ativo']),
+        ]
+
+    def __str__(self):
+        return f"Assinatura: {self.cliente.nome} - {self.plano.nome}"
+
+    # ===== MÉTODOS DE VALIDAÇÃO (FASE 1) =====
+
+    def validar_limite_dispositivos(self):
+        """
+        Verifica se há excesso de dispositivos.
+        Retorna dict com informações para exibir aviso.
+        """
+        limite = self.plano.max_dispositivos
+        usado = self.dispositivos_usados
+
+        return {
+            'dentro_limite': usado < limite,
+            'no_limite': usado == limite,
+            'excedeu': usado > limite,
+            'limite': limite,
+            'usado': usado,
+            'disponivel': max(0, limite - usado),
+            'excesso': max(0, usado - limite),
+            'percentual': (usado / limite * 100) if limite > 0 else 0
+        }
+
+    def obter_avisos_necessarios(self):
+        """
+        Retorna lista de avisos que devem ser exibidos ao usuário.
+        Sistema NÃO BLOQUEIA, apenas avisa.
+        """
+        avisos = []
+
+        # Verificar dispositivos
+        disp = self.validar_limite_dispositivos()
+        if disp['excedeu']:
+            avisos.append({
+                'tipo': 'dispositivos',
+                'nivel': 'warning',
+                'mensagem': f"Cliente possui {disp['excesso']} dispositivo(s) acima do limite ({disp['usado']}/{disp['limite']})"
+            })
+        elif disp['no_limite']:
+            avisos.append({
+                'tipo': 'dispositivos',
+                'nivel': 'info',
+                'mensagem': f"Limite de dispositivos atingido ({disp['usado']}/{disp['limite']})"
+            })
+
+        return avisos
+
+    def obter_status_recursos(self):
+        """Retorna dicionário completo com status de todos os recursos."""
+        return {
+            'telas': {
+                'usado': None,  # Implementar futuramente com controle de streaming
+                'maximo': self.plano.telas,
+            },
+            'dispositivos': self.validar_limite_dispositivos(),
+        }
+
+    # ===== MÉTODOS DE CÁLCULO DE VALOR (FASE 1, 2, 3) =====
+
+    def calcular_valor_atual(self):
+        """
+        Calcula o valor atual da mensalidade do cliente.
+
+        FASE 1: Retorna apenas valor base do plano
+        FASE 2: Adicionará verificação de oferta promocional
+        FASE 3: Adicionará verificação de valor progressivo
+
+        Ordem de prioridade (implementação futura):
+        1. Oferta promocional (se vigente) - Fase 2
+        2. Valor progressivo (se configurado) - Fase 3
+        3. Valor base do plano
+
+        Returns:
+            Decimal: Valor calculado para a próxima mensalidade
+        """
+        # FASE 1: Retorna apenas valor base
+        return self.plano.valor
 
 
 class HorarioEnvios(models.Model):
