@@ -70,9 +70,9 @@
                                 <option value="">Selecione um plano de adesão</option>
                                 {% for plano in planos %}
                                     {% if plano.telas > 1 %}
-                                <option value="{{ plano.nome }} - {{ plano.valor }}">{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }} telas</option>
+                                <option value="{{ plano.nome }} - {{ plano.valor }}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }} telas</option>
                                     {% else %}
-                                <option value="{{ plano.nome }} - {{ plano.valor }}">{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }} tela</option>
+                                <option value="{{ plano.nome }} - {{ plano.valor }}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }} tela</option>
                                     {% endif %}
                                 {% endfor %}
                             </select>

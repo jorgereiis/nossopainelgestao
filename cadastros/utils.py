@@ -178,6 +178,131 @@ def calcular_desconto_progressivo_total(cliente):
     }
 
 
+def calcular_valor_mensalidade(cliente, numero_mensalidade_oferta=None):
+    """
+    ⭐ FASE 2.5: Calcula valor final da mensalidade considerando campanhas promocionais (Simplificado).
+
+    Prioridade de aplicação:
+    1. Campanha promocional ativa (se cliente está inscrito) - PRIORIDADE MÁXIMA
+    2. Desconto progressivo por indicação (existente)
+    3. Valor base do plano
+
+    Args:
+        cliente: Instância do Cliente
+        numero_mensalidade_oferta: Número da mensalidade dentro da campanha (1, 2, 3...)
+                                    Se None, usa o contador da assinatura
+
+    Returns:
+        Decimal: Valor final calculado para a mensalidade
+    """
+    from .models import AssinaturaCliente
+
+    # 1. Verificar se cliente está em campanha
+    try:
+        assinatura = AssinaturaCliente.objects.get(cliente=cliente, ativo=True)
+
+        # ⭐ SIMPLIFICAÇÃO: Sempre usa o plano atual do cliente, não precisa buscar por ID
+        if assinatura.em_campanha and cliente.plano.campanha_ativa:
+            # Determine which month of campaign
+            numero_mes_campanha = assinatura.campanha_mensalidades_pagas + 1
+
+            # Check if campaign is still valid (hasn't exceeded duration)
+            if assinatura.campanha_duracao_total and numero_mes_campanha <= assinatura.campanha_duracao_total:
+                # Calculate value based on campaign type
+                if cliente.plano.campanha_tipo == 'FIXO':
+                    if cliente.plano.campanha_valor_fixo:
+                        return cliente.plano.campanha_valor_fixo
+                else:  # PERSONALIZADO
+                    # Get value for specific month (up to 12 months)
+                    campo_valor = f'campanha_valor_mes_{min(numero_mes_campanha, 12)}'
+                    valor_mes = getattr(cliente.plano, campo_valor, None)
+                    if valor_mes:
+                        return valor_mes
+    except AssinaturaCliente.DoesNotExist:
+        pass  # No subscription record, fallback to regular pricing
+
+    # 2. Sem oferta - usar valor base do plano
+    valor_base = cliente.plano.valor
+
+    # 3. Aplicar desconto progressivo (sistema existente)
+    desconto_info = calcular_desconto_progressivo_total(cliente)
+
+    if desconto_info["valor_total"] > Decimal("0.00") and desconto_info["plano"]:
+        valor_com_desconto = valor_base - desconto_info["valor_total"]
+        valor_minimo = desconto_info["plano"].valor_minimo_mensalidade
+        return max(valor_com_desconto, valor_minimo)
+
+    return valor_base
+
+
+def enroll_client_in_campaign_if_eligible(cliente):
+    """
+    ⭐ FASE 2: Verifica se o cliente é elegível para uma campanha e inscreve-o automaticamente.
+
+    Regras de elegibilidade:
+    - O plano do cliente deve ter uma campanha ativa (campanha_ativa=True)
+    - A data atual deve estar dentro do período de validade (campanha_data_inicio <= hoje <= campanha_data_fim)
+    - O cliente deve ter um registro de AssinaturaCliente
+
+    Args:
+        cliente: Instância do Cliente
+
+    Returns:
+        bool: True se foi inscrito na campanha, False caso contrário
+    """
+    from .models import AssinaturaCliente
+    import logging
+
+    logger = logging.getLogger(__name__)
+    hoje = timezone.localdate()
+
+    try:
+        plano = cliente.plano
+
+        # Check if plan has an active campaign
+        if not plano.campanha_ativa:
+            return False
+
+        # Check if campaign is within validity period
+        if plano.campanha_data_inicio and hoje < plano.campanha_data_inicio:
+            return False
+
+        if plano.campanha_data_fim and hoje > plano.campanha_data_fim:
+            return False
+
+        # Check if campaign has required data
+        if not plano.campanha_duracao_meses:
+            return False
+
+        # Get or create subscription record
+        assinatura, created = AssinaturaCliente.objects.get_or_create(
+            cliente=cliente,
+            defaults={
+                'plano': plano,
+                'data_inicio_assinatura': hoje,
+                'ativo': True
+            }
+        )
+
+        # ⭐ SIMPLIFICAÇÃO: Enroll in campaign (sem persistência de plano_id)
+        assinatura.em_campanha = True
+        assinatura.campanha_data_adesao = hoje
+        assinatura.campanha_mensalidades_pagas = 0
+        assinatura.campanha_duracao_total = plano.campanha_duracao_meses
+        assinatura.save()
+
+        logger.info(
+            f"[CAMPANHA] Cliente {cliente.nome} inscrito na campanha do plano {plano.nome} "
+            f"(duração: {plano.campanha_duracao_meses} meses)"
+        )
+
+        return True
+
+    except Exception as e:
+        logger.error(f"[CAMPANHA] Erro ao inscrever cliente {cliente.nome} na campanha: {e}")
+        return False
+
+
 def registrar_log(mensagem: str, usuario: str, log_directory: str) -> None:
     """Anexa ``mensagem`` ao arquivo de log associado ao ``usuario``."""
     if not log_directory:
@@ -806,11 +931,69 @@ def criar_mensalidade(cliente):
         elif "anual" in plano_nome:
             vencimento += relativedelta(years=1)
 
+    # ⭐ FASE 2.5: Calcular valor com rastreamento detalhado de campanha e descontos
+    valor_base = cliente.plano.valor
+    gerada_em_campanha = False
+    desconto_campanha = Decimal("0.00")
+    desconto_progressivo = Decimal("0.00")
+    tipo_campanha = None
+    numero_mes_campanha = None
+
+    # Verificar se há campanha ativa
+    try:
+        from cadastros.models import AssinaturaCliente
+        assinatura = AssinaturaCliente.objects.get(cliente=cliente, ativo=True)
+
+        if assinatura.em_campanha and cliente.plano.campanha_ativa:
+            numero_mes = assinatura.campanha_mensalidades_pagas + 1
+
+            if numero_mes <= assinatura.campanha_duracao_total:
+                gerada_em_campanha = True
+                tipo_campanha = cliente.plano.campanha_tipo
+                numero_mes_campanha = numero_mes
+
+                # Calcular valor com campanha
+                if tipo_campanha == 'FIXO':
+                    valor_com_campanha = cliente.plano.campanha_valor_fixo
+                else:  # PERSONALIZADO
+                    campo = f'campanha_valor_mes_{min(numero_mes, 12)}'
+                    valor_com_campanha = getattr(cliente.plano, campo, None)
+
+                if valor_com_campanha:
+                    desconto_campanha = valor_base - valor_com_campanha
+                    valor_final = valor_com_campanha
+    except:
+        pass
+
+    # Se não tem campanha, verificar desconto progressivo
+    if not gerada_em_campanha:
+        desconto_info = calcular_desconto_progressivo_total(cliente)
+        desconto_progressivo = desconto_info["valor_total"]
+
+        if desconto_progressivo > Decimal("0.00"):
+            valor_com_desconto = valor_base - desconto_progressivo
+            valor_minimo = desconto_info["plano"].valor_minimo_mensalidade if desconto_info["plano"] else valor_base
+            valor_final = max(valor_com_desconto, valor_minimo)
+        else:
+            valor_final = valor_base
+    else:
+        # Se tem campanha, não aplica desconto progressivo
+        desconto_progressivo = Decimal("0.00")
+
+    # ⭐ FASE 2.5: Criar mensalidade com rastreamento completo
     Mensalidade.objects.create(
         cliente=cliente,
-        valor=cliente.plano.valor,
+        valor=valor_final,
         dt_vencimento=vencimento.date(),
         usuario=cliente.usuario,
+        # Novos campos de rastreamento
+        gerada_em_campanha=gerada_em_campanha,
+        valor_base_plano=valor_base,
+        desconto_campanha=desconto_campanha,
+        desconto_progressivo=desconto_progressivo,
+        tipo_campanha=tipo_campanha,
+        numero_mes_campanha=numero_mes_campanha,
+        dados_historicos_verificados=True,  # Dados precisos (mensalidade nova)
     )
 
 

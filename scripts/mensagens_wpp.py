@@ -428,12 +428,12 @@ def obter_mensalidades_canceladas():
         {
             "dias": 240,
             "numero_oferta": 2,
-            "mensagem": "*{}, {}!* 😊\n\nSentimos muito a sua falta por aqui!\n\nQue tal voltar para a nossa família com uma *SUPER OFERTA EXCLUSIVA*?\n\nEstamos oferecendo *3 meses por apenas R$ 24,90* para você que já foi nosso cliente! 🎉\n\nEsta é uma oportunidade única de retornar com um preço especial. Não perca!\n\nTem interesse? É só responder aqui! 🙌"
+            "mensagem": "*{}, {}!* 😊\n\nSentimos muito a sua falta por aqui!\n\nQue tal voltar para a nossa família com uma *SUPER OFERTA EXCLUSIVA*?\n\nEstamos oferecendo *os próximos 3 meses por apenas R$ 24,90 cada* para você que já foi nosso cliente! 🎉\n\nEsta é uma oportunidade única de retornar com um preço especial. Não perca!\n\nTem interesse? É só responder aqui! 🙌"
         },
         {
             "dias": 420,
             "numero_oferta": 3,
-            "mensagem": "*{}, {}!* 🌟\n\nEsta é a nossa *ÚLTIMA OFERTA ESPECIAL* para você!\n\nSabemos que você já foi parte da nossa família e queremos muito ter você de volta.\n\n✨ *OFERTA FINAL: R$ 24,90 por 3 meses* ✨\n\nEsta é realmente a última oportunidade de aproveitar este preço exclusivo.\n\nO que acha? Vamos renovar essa parceria? 🤝"
+            "mensagem": "*{}, {}!* 🌟\n\nEsta é a nossa *ÚLTIMA OFERTA ESPECIAL* para você!\n\nSabemos que você já foi parte da nossa família e queremos muito ter você de volta.\n\n✨ *OFERTA FINAL: R$ 24,90 para os próximos 3 meses* ✨\n\nEsta é realmente a última oportunidade de aproveitar este preço exclusivo.\n\nO que acha? Vamos renovar essa parceria? 🤝"
         }
     ]
 
