@@ -27,6 +27,21 @@
                             </div>
                         </div>
                         <!-- row -->
+                        <div class="form-group mt-2">
+                            <label for="dispositivo-id"><strong>Dispositivo</strong> <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <select id="dispositivo-id" name="dispositivo_id" class="form-control" required>
+                                    <option value="">Selecione um tipo de dispositivo</option>
+                                    {% for dispositivo in dispositivos %}
+                                      <option value="{{ dispositivo.id }}">
+                                        {{ dispositivo.nome }}
+                                      </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <small class="text-muted">Em qual dispositivo esta conta será instalada</small>
+                        </div>
+                        <!-- row -->
                         <div class="form-group mt-2" id="div-device-id" style="display: none;">
                             <label for="device-id"><strong>Device ID (obrigatório)</strong></label>
                             <input type="text" placeholder="Informe o ID da conta do aplicativo" class="form-control" id="device-id" name="device-id" minlength="6">
@@ -42,8 +57,8 @@
                             <input type="text" placeholder="Informe a Senha da conta do aplicativo" class="form-control" id="device-key" name="device-key" minlength="5">
                         </div>
                         <!-- row -->
-                        <p class="text-muted mt-2" id="app-sem-conta">
-                            Escolha um aplicativo que utilize uma conta de ativação.
+                        <p class="text-info mt-2" id="app-sem-conta" style="display: none;">
+                            Este aplicativo não requer conta. Você pode cadastrá-lo sem informar credenciais.
                         </p>
                         <input type="hidden" name="cliente-id" id="app-info-cliente-id">
                         <div class="text-danger small" id="create-app-error-message"></div>

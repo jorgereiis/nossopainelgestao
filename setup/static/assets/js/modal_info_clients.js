@@ -109,16 +109,61 @@ function carregarQuantidadeMensalidadesPagas(clienteId) {
 
                 // Status
                 var tdStatus = document.createElement('td');
+                tdStatus.className = 'text-center'; // Centralizar
+
                 var vencimentoJS = new Date(mensalidade.dt_vencimento);
+
+                // Container flex para múltiplos badges
+                var badgeContainer = document.createElement('div');
+                badgeContainer.className = 'd-flex gap-1 align-items-center justify-content-center flex-wrap';
+
+                // Badge de status (Pago/Cancelado/Inadimplente/Em aberto)
+                var statusBadge = document.createElement('span');
+                statusBadge.className = 'badge rounded-pill pill-invoice-small';
+
                 if (mensalidade.pgto) {
-                    tdStatus.innerHTML = '<span class="badge rounded-pill bg-success pill-invoice"><i class="bi bi-check-circle"></i>  Pago</span>';
+                    statusBadge.classList.add('bg-success');
+                    statusBadge.innerHTML = '<i class="bi bi-check-circle"></i> Pago';
                 } else if (mensalidade.cancelado) {
-                    tdStatus.innerHTML = '<span class="badge rounded-pill bg-warning pill-invoice"><i class="bi bi-x-square"></i>  Cancelado</span>';
+                    statusBadge.classList.add('bg-warning');
+                    statusBadge.innerHTML = '<i class="bi bi-x-square"></i> Cancelado';
                 } else if (vencimentoJS < hoje) {
-                    tdStatus.innerHTML = '<span class="badge rounded-pill bg-danger pill-invoice"><i class="bi bi-exclamation-triangle"></i>  Inadimplente</span>';
+                    statusBadge.classList.add('bg-danger');
+                    statusBadge.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Inadimplente';
                 } else {
-                    tdStatus.innerHTML = '<span class="badge rounded-pill bg-secondary pill-invoice"><i class="bi bi-clock"></i>  Em aberto</span>';
+                    statusBadge.classList.add('bg-secondary');
+                    statusBadge.innerHTML = '<i class="bi bi-clock"></i> Em aberto';
                 }
+
+                badgeContainer.appendChild(statusBadge);
+
+                // ⭐ FASE 2.5: Badge de CAMPANHA / REGULAR com rastreamento preciso
+                if (mensalidade.dados_historicos_verificados) {
+                    // Dados PRECISOS (mensalidades novas - após implementação do rastreamento)
+                    if (mensalidade.gerada_em_campanha) {
+                        // Mensalidade foi gerada durante uma campanha
+                        var campanhaBadge = document.createElement('span');
+                        campanhaBadge.className = 'badge rounded-pill bg-warning-subtle text-warning border border-warning pill-invoice-small';
+                        campanhaBadge.innerHTML = '<i class="bi bi-megaphone-fill"></i> Campanha';
+                        badgeContainer.appendChild(campanhaBadge);
+                    } else {
+                        // Mensalidade foi gerada em plano regular
+                        var regularBadge = document.createElement('span');
+                        regularBadge.className = 'badge rounded-pill bg-secondary-subtle text-secondary border border-secondary pill-invoice-small';
+                        regularBadge.innerHTML = '<i class="bi bi-check-circle-fill"></i> Regular';
+                        badgeContainer.appendChild(regularBadge);
+                    }
+                } else {
+                    // Dados ESTIMADOS (mensalidades antigas - antes da implementação)
+                    // Mostrar badge neutro indicando que é dado histórico
+                    var historicoBadge = document.createElement('span');
+                    historicoBadge.className = 'badge rounded-pill bg-light text-dark border pill-invoice-small';
+                    historicoBadge.innerHTML = '<i class="bi bi-clock-history"></i> Histórico';
+                    historicoBadge.title = 'Dado estimado (mensalidade anterior ao sistema de rastreamento)';
+                    badgeContainer.appendChild(historicoBadge);
+                }
+
+                tdStatus.appendChild(badgeContainer);
                 tr.appendChild(tdStatus);
 
                 // Vencimento
@@ -297,6 +342,7 @@ function carregarContasApps(clienteId) {
                 // Sanitizar valores para evitar problemas com aspas
                 const contaId = conta.id != null ? conta.id : '';
                 const nomeApp = conta.nome_aplicativo != null ? conta.nome_aplicativo : '--';
+                const nomeDispositivo = conta.nome_dispositivo != null ? conta.nome_dispositivo : 'Não especificado';
                 const logoUrl = conta.logo_url || '/static/assets/images/logo-apps/default.png';
 
                 // Determinar qual informação primária exibir (Device ID ou Email)
@@ -315,6 +361,9 @@ function carregarContasApps(clienteId) {
 
                             <!-- Título -->
                             <h3 class="app-card-title">${nomeApp}</h3>
+
+                            <!-- Dispositivo abaixo -->
+                            <p class="app-card-device">${nomeDispositivo}</p>
 
                             <!-- Informações técnicas -->
                             <div class="app-card-info">
@@ -369,6 +418,18 @@ function carregarContasApps(clienteId) {
                                         type="button">
                                     <i class="bi bi-clipboard"></i>
                                 </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Se NÃO houver nenhuma credencial, exibir mensagem
+                if (!hasDeviceId && !hasEmail && !hasDeviceKey) {
+                    cardHtml += `
+                        <div class="app-card-info-item">
+                            <div class="app-card-no-account">
+                                <i class="bi bi-info-circle"></i>
+                                <span>Aplicativo sem conta cadastrada</span>
                             </div>
                         </div>
                     `;
@@ -473,8 +534,13 @@ $(function () {
                     if (deviceId) deviceId.setAttribute('required', 'required');
                 }
             } else {
-                if (avisoSemConta) avisoSemConta.style.display = 'block';
-                if (btnSalvar) btnSalvar.disabled = true;
+                // App sem conta - permitir cadastro mas avisar usuário
+                if (avisoSemConta) {
+                    avisoSemConta.style.display = 'block';
+                    avisoSemConta.textContent = 'Este aplicativo não requer conta. Você pode cadastrá-lo sem informar credenciais.';
+                    avisoSemConta.className = 'text-info mt-2';
+                }
+                if (btnSalvar) btnSalvar.disabled = false;
             }
         });
     }

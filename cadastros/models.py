@@ -4,12 +4,14 @@ Inclui entidades como Cliente, Plano, Mensalidade, Aplicativo, Sessão WhatsApp,
 """
 
 from datetime import date, timedelta
+from decimal import Decimal
 import re
 import os
 import uuid
 
 from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator, FileExtensionValidator
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
@@ -358,6 +360,106 @@ class Plano(models.Model):
         help_text="Quantidade máxima de dispositivos (sempre igual ao número de telas)"
     )
 
+    # ⭐ FASE 2: Campanhas Promocionais (Redesign)
+    campanha_ativa = models.BooleanField(
+        "Campanha Ativa",
+        default=False,
+        help_text="Define se este plano possui uma campanha promocional ativa"
+    )
+
+    DESCONTO_FIXO = "FIXO"
+    DESCONTO_PERSONALIZADO = "PERSONALIZADO"
+    CAMPANHA_TIPO_CHOICES = (
+        (DESCONTO_FIXO, "Desconto Fixo"),
+        (DESCONTO_PERSONALIZADO, "Desconto Personalizado"),
+    )
+
+    campanha_tipo = models.CharField(
+        "Tipo de Campanha",
+        max_length=20,
+        choices=CAMPANHA_TIPO_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Tipo de desconto da campanha"
+    )
+
+    campanha_data_inicio = models.DateField(
+        "Campanha - Data Início",
+        null=True,
+        blank=True,
+        help_text="Data de início da validade (controla adesão de NOVOS clientes)"
+    )
+
+    campanha_data_fim = models.DateField(
+        "Campanha - Data Fim",
+        null=True,
+        blank=True,
+        help_text="Data de fim da validade (controla adesão de NOVOS clientes)"
+    )
+
+    campanha_duracao_meses = models.IntegerField(
+        "Campanha - Duração (meses)",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+        help_text="Quantos meses a campanha dura para clientes inscritos (1-12)"
+    )
+
+    # Para DESCONTO_FIXO
+    campanha_valor_fixo = models.DecimalField(
+        "Campanha - Valor Fixo",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor fixo da mensalidade durante a campanha (DESCONTO_FIXO)"
+    )
+
+    # Para DESCONTO_PERSONALIZADO (valores progressivos)
+    campanha_valor_mes_1 = models.DecimalField(
+        "Campanha - Valor Mês 1",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor da 1ª mensalidade (DESCONTO_PERSONALIZADO)"
+    )
+    campanha_valor_mes_2 = models.DecimalField(
+        "Campanha - Valor Mês 2",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_3 = models.DecimalField(
+        "Campanha - Valor Mês 3",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_4 = models.DecimalField(
+        "Campanha - Valor Mês 4",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_5 = models.DecimalField(
+        "Campanha - Valor Mês 5",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_6 = models.DecimalField(
+        "Campanha - Valor Mês 6",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
     def save(self, *args, **kwargs):
         """Garante que max_dispositivos sempre seja igual ao número de telas."""
         self.max_dispositivos = self.telas
@@ -373,12 +475,79 @@ class Plano(models.Model):
             f"• {self.telas} tela(s) simultânea(s) e dispositivo(s)"
         )
 
+    def get_campanha_duracao_display(self):
+        """
+        Retorna informações sobre a duração da campanha considerando o tipo de plano.
+
+        Como o sistema rastreia PAGAMENTOS (não meses calendário), a duração real
+        em meses varia de acordo com a periodicidade do plano:
+        - Mensal: 1 pagamento = 1 mês
+        - Bimestral: 1 pagamento = 2 meses
+        - Trimestral: 1 pagamento = 3 meses
+        - Semestral: 1 pagamento = 6 meses
+        - Anual: 1 pagamento = 12 meses
+
+        Returns:
+            dict: Dicionário com informações formatadas da campanha
+                {
+                    'pagamentos': int - Número de pagamentos com desconto,
+                    'meses_reais': int - Duração aproximada em meses,
+                    'texto_curto': str - "3 pagtos" para tabelas,
+                    'texto_completo': str - "3 pagamentos (~9 meses)" para tooltips,
+                    'multiplicador': int - Fator de multiplicação (1, 2, 3, 6, 12)
+                }
+        """
+        if not self.campanha_duracao_meses:
+            return {
+                'pagamentos': 0,
+                'meses_reais': 0,
+                'texto_curto': '-',
+                'texto_completo': 'Sem campanha',
+                'multiplicador': 1
+            }
+
+        # Mapeamento de multiplicadores por tipo de plano
+        multiplicadores = {
+            'mensal': 1,
+            'bimestral': 2,
+            'trimestral': 3,
+            'semestral': 6,
+            'anual': 12,
+        }
+
+        # Detecta o tipo de plano (case-insensitive)
+        plano_tipo = self.nome.lower().split()[0] if self.nome else 'mensal'
+        multiplicador = multiplicadores.get(plano_tipo, 1)
+
+        pagamentos = self.campanha_duracao_meses
+        meses_reais = pagamentos * multiplicador
+
+        # Texto curto para tabelas
+        texto_curto = f"{pagamentos} pagto{'s' if pagamentos != 1 else ''}"
+
+        # Texto completo para tooltips e modais
+        if multiplicador == 1:
+            # Plano mensal: pagamentos = meses
+            texto_completo = f"{pagamentos} pagamento{'s' if pagamentos != 1 else ''}"
+        else:
+            # Outros planos: mostrar equivalência
+            texto_completo = f"{pagamentos} pagamento{'s' if pagamentos != 1 else ''} (~{meses_reais} meses)"
+
+        return {
+            'pagamentos': pagamentos,
+            'meses_reais': meses_reais,
+            'texto_curto': texto_curto,
+            'texto_completo': texto_completo,
+            'multiplicador': multiplicador
+        }
+
 
 class Cliente(models.Model):
     """Modela o cliente da plataforma com todos os seus dados cadastrais e plano."""
     servidor = models.ForeignKey(Servidor, on_delete=models.CASCADE)
-    dispositivo = models.ForeignKey(Dispositivo, on_delete=models.CASCADE, default=None)
-    sistema = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, default=None)
+    # Campos opcionais - representam o dispositivo/aplicativo "principal" (primeiro cadastrado)
+    dispositivo = models.ForeignKey(Dispositivo, on_delete=models.CASCADE, null=True, blank=True, default=None)
+    sistema = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, null=True, blank=True, default=None)
     nome = models.CharField(max_length=255)
     email = models.EmailField(max_length=255, blank=True, null=True)
     telefone = models.CharField(max_length=20)
@@ -484,6 +653,53 @@ class Mensalidade(models.Model):
     isencao_anuidade = models.BooleanField("Isenção por bônus anuidade", default=False)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
+    # ⭐ FASE 2.5: Rastreamento de Campanhas e Descontos
+    gerada_em_campanha = models.BooleanField(
+        "Gerada em Campanha",
+        default=False,
+        help_text="Indica se esta mensalidade foi gerada durante uma campanha promocional"
+    )
+    valor_base_plano = models.DecimalField(
+        "Valor Base do Plano",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor original do plano no momento da criação (antes de descontos)"
+    )
+    desconto_campanha = models.DecimalField(
+        "Desconto de Campanha",
+        max_digits=7,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Valor de desconto aplicado por campanha promocional"
+    )
+    desconto_progressivo = models.DecimalField(
+        "Desconto Progressivo",
+        max_digits=7,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Valor de desconto aplicado por indicações progressivas"
+    )
+    tipo_campanha = models.CharField(
+        "Tipo de Campanha",
+        max_length=20,
+        null=True,
+        blank=True,
+        help_text="FIXO ou PERSONALIZADO (se gerada em campanha)"
+    )
+    numero_mes_campanha = models.IntegerField(
+        "Número do Mês na Campanha",
+        null=True,
+        blank=True,
+        help_text="Qual mês/pagamento da campanha esta mensalidade representa (1, 2, 3...)"
+    )
+    dados_historicos_verificados = models.BooleanField(
+        "Dados Históricos Verificados",
+        default=True,
+        help_text="False = dados estimados (mensalidades antigas). True = dados precisos (mensalidades novas)"
+    )
+
     def __str__(self):
         return f"[{self.dt_vencimento.strftime('%d/%m/%Y')}] {self.valor} - {self.cliente}"
 
@@ -573,8 +789,34 @@ class AssinaturaCliente(models.Model):
         help_text="Quantidade atual de dispositivos cadastrados (informativo)"
     )
 
-    # Campos para Fase 2 e 3 (preparação futura)
-    # oferta_aplicada = FK OfertaPromocional (Fase 2)
+    # ⭐ FASE 2.5: Rastreamento de Campanhas Promocionais (Simplificado)
+    em_campanha = models.BooleanField(
+        "Em Campanha",
+        default=False,
+        help_text="Cliente está participando de uma campanha promocional"
+    )
+
+    campanha_data_adesao = models.DateField(
+        "Data de Adesão à Campanha",
+        null=True,
+        blank=True,
+        help_text="Quando o cliente se inscreveu na campanha"
+    )
+
+    campanha_mensalidades_pagas = models.IntegerField(
+        "Mensalidades Pagas (Campanha)",
+        default=0,
+        help_text="Contador de mensalidades pagas durante a campanha"
+    )
+
+    campanha_duracao_total = models.IntegerField(
+        "Duração Total da Campanha",
+        null=True,
+        blank=True,
+        help_text="Snapshot da duração quando cliente aderiu (usado para calcular progresso)"
+    )
+
+    # Campos para Fase 3 (preparação futura)
     # valor_progressivo = FK PlanoValorProgressivo (Fase 3)
 
     ativo = models.BooleanField("Ativo", default=True)
@@ -666,6 +908,167 @@ class AssinaturaCliente(models.Model):
         """
         # FASE 1: Retorna apenas valor base
         return self.plano.valor
+
+
+class OfertaPromocional(models.Model):
+    """
+    ⭐ FASE 2: Ofertas promocionais com valores progressivos por mensalidade.
+
+    Permite criar ofertas com valores diferenciados por mês (ex: R$10, R$20, R$30)
+    que expiram automaticamente após número definido de mensalidades pagas.
+    """
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='ofertas_promocionais',
+        verbose_name="Cliente"
+    )
+
+    plano_oferta = models.ForeignKey(
+        Plano,
+        on_delete=models.PROTECT,
+        limit_choices_to={'permite_oferta_promocional': True},
+        verbose_name="Plano Promocional",
+        help_text="Apenas planos marcados como promocionais"
+    )
+
+    # Controle de duração
+    numero_mensalidades = models.IntegerField(
+        "Número de Mensalidades",
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+        help_text="Quantos meses a oferta dura (1-12)"
+    )
+
+    mensalidades_restantes = models.IntegerField(
+        "Mensalidades Restantes",
+        validators=[MinValueValidator(0)],
+        help_text="Contador de meses restantes"
+    )
+
+    # Valores progressivos (até 6 meses - suficiente para maioria dos casos)
+    valor_mes_1 = models.DecimalField(
+        "Valor Mês 1",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor da 1ª mensalidade"
+    )
+    valor_mes_2 = models.DecimalField(
+        "Valor Mês 2",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    valor_mes_3 = models.DecimalField(
+        "Valor Mês 3",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    valor_mes_4 = models.DecimalField(
+        "Valor Mês 4",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    valor_mes_5 = models.DecimalField(
+        "Valor Mês 5",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    valor_mes_6 = models.DecimalField(
+        "Valor Mês 6",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    # Datas
+    data_inicio = models.DateField("Data de Início", default=date.today)
+    data_fim = models.DateField("Data de Fim", null=True, blank=True)
+
+    # Status
+    ativo = models.BooleanField("Ativo", default=True)
+
+    # Metadados
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Oferta Promocional"
+        verbose_name_plural = "Ofertas Promocionais"
+        ordering = ['-criado_em']
+        indexes = [
+            models.Index(fields=['cliente', 'ativo']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(mensalidades_restantes__gte=0),
+                name='mensalidades_restantes_nao_negativo'
+            ),
+        ]
+
+    def clean(self):
+        """Validações customizadas."""
+        super().clean()
+
+        # ✅ VALIDAÇÃO 1: Plano deve permitir ofertas promocionais
+        if self.plano_oferta and not self.plano_oferta.permite_oferta_promocional:
+            raise ValidationError({
+                'plano_oferta':
+                    'Este plano não está habilitado para ofertas promocionais. '
+                    'Marque a opção "Plano Promocional" antes de usar em ofertas.'
+            })
+
+        # ✅ VALIDAÇÃO 2: Pelo menos um valor mensal deve ser definido
+        valores_definidos = sum([
+            1 for i in range(1, 7)
+            if getattr(self, f'valor_mes_{i}') is not None
+        ])
+
+        if valores_definidos == 0:
+            raise ValidationError(
+                'Defina pelo menos um valor mensal para a oferta promocional.'
+            )
+
+    def calcular_valor_mensalidade(self, numero_mes):
+        """
+        Calcula valor da mensalidade baseado no mês da oferta.
+
+        Args:
+            numero_mes: Número do mês na oferta (1, 2, 3...)
+
+        Returns:
+            Decimal: Valor a cobrar ou valor do plano_oferta como fallback
+        """
+        # Tentar valor específico do mês
+        if numero_mes <= 6:
+            valor_campo = getattr(self, f'valor_mes_{numero_mes}', None)
+            if valor_campo:
+                return valor_campo
+
+        # Fallback: valor do plano promocional
+        return self.plano_oferta.valor
+
+    def save(self, *args, **kwargs):
+        """Executa validação antes de salvar."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"Oferta {self.plano_oferta.nome} - {self.cliente.nome} "
+            f"({self.mensalidades_restantes}/{self.numero_mensalidades})"
+        )
 
 
 class HorarioEnvios(models.Model):
@@ -819,6 +1222,7 @@ class DescontoProgressivoIndicacao(models.Model):
 class ContaDoAplicativo(models.Model):
     """Armazena as credenciais de acesso de um cliente a um determinado aplicativo."""
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name="conta_aplicativo")
+    dispositivo = models.ForeignKey(Dispositivo, on_delete=models.CASCADE, null=True, blank=True, verbose_name="Tipo de Dispositivo", help_text="Em qual dispositivo esta conta está instalada")
     app = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, related_name="aplicativos", verbose_name="Aplicativo")
     device_id = models.CharField("ID", max_length=255, blank=True, null=True)
     email = models.EmailField("E-mail", max_length=255, blank=True, null=True)
@@ -843,6 +1247,8 @@ class ContaDoAplicativo(models.Model):
         ]
 
     def __str__(self):
+        if self.dispositivo:
+            return f"{self.app.nome} ({self.dispositivo.nome})"
         return self.app.nome
 
 

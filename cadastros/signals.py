@@ -96,28 +96,102 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         elif "anual" in plano_nome:
             nova_data_vencimento += relativedelta(years=1)
 
-        # Calcular valor da mensalidade com desconto progressivo
-        from cadastros.utils import calcular_desconto_progressivo_total
-        from .models import PlanoIndicacao
+        # ⭐ FASE 2.5: Calcular valor considerando campanhas promocionais (Simplificado)
+        from cadastros.utils import calcular_valor_mensalidade
+        from .models import AssinaturaCliente
+
+        # Verificar e processar campanha ativa
+        try:
+            assinatura = AssinaturaCliente.objects.get(cliente=instance.cliente, ativo=True)
+
+            # ⭐ SIMPLIFICAÇÃO: Verifica se está em campanha usando apenas o flag
+            if assinatura.em_campanha:
+                # Increment campaign counter
+                assinatura.campanha_mensalidades_pagas += 1
+
+                # Check if campaign is finished
+                if assinatura.campanha_duracao_total and assinatura.campanha_mensalidades_pagas >= assinatura.campanha_duracao_total:
+                    assinatura.em_campanha = False
+                    logger.info(
+                        f"[CAMPANHA] Campanha finalizada para {instance.cliente.nome}. "
+                        f"Próximas mensalidades usarão valor regular do plano."
+                    )
+                else:
+                    logger.info(
+                        f"[CAMPANHA] Mensalidade {assinatura.campanha_mensalidades_pagas}/{assinatura.campanha_duracao_total} "
+                        f"para {instance.cliente.nome}"
+                    )
+
+                assinatura.save()
+        except AssinaturaCliente.DoesNotExist:
+            pass  # No subscription record
+
+        # ⭐ FASE 2.5: Calcular valor com rastreamento detalhado de campanha e descontos
         from decimal import Decimal
+        from cadastros.utils import calcular_desconto_progressivo_total
 
-        valor_base = instance.cliente.plano.valor
-        desconto_info = calcular_desconto_progressivo_total(instance.cliente)
+        cliente = instance.cliente
+        valor_base = cliente.plano.valor
+        gerada_em_campanha = False
+        desconto_campanha = Decimal("0.00")
+        desconto_progressivo = Decimal("0.00")
+        tipo_campanha = None
+        numero_mes_campanha = None
 
-        # Aplicar desconto se houver
-        if desconto_info["valor_total"] > Decimal("0.00") and desconto_info["plano"]:
-            valor_com_desconto = valor_base - desconto_info["valor_total"]
-            # Respeitar valor mínimo configurado
-            valor_minimo = desconto_info["plano"].valor_minimo_mensalidade
-            valor_final = max(valor_com_desconto, valor_minimo)
+        # Verificar se há campanha ativa
+        try:
+            assinatura = AssinaturaCliente.objects.get(cliente=cliente, ativo=True)
+
+            if assinatura.em_campanha and cliente.plano.campanha_ativa:
+                numero_mes = assinatura.campanha_mensalidades_pagas + 1
+
+                if numero_mes <= assinatura.campanha_duracao_total:
+                    gerada_em_campanha = True
+                    tipo_campanha = cliente.plano.campanha_tipo
+                    numero_mes_campanha = numero_mes
+
+                    # Calcular valor com campanha
+                    if tipo_campanha == 'FIXO':
+                        valor_com_campanha = cliente.plano.campanha_valor_fixo
+                    else:  # PERSONALIZADO
+                        campo = f'campanha_valor_mes_{min(numero_mes, 12)}'
+                        valor_com_campanha = getattr(cliente.plano, campo, None)
+
+                    if valor_com_campanha:
+                        desconto_campanha = valor_base - valor_com_campanha
+                        valor_final = valor_com_campanha
+        except:
+            pass
+
+        # Se não tem campanha, verificar desconto progressivo
+        if not gerada_em_campanha:
+            desconto_info = calcular_desconto_progressivo_total(cliente)
+            desconto_progressivo = desconto_info["valor_total"]
+
+            if desconto_progressivo > Decimal("0.00"):
+                valor_com_desconto = valor_base - desconto_progressivo
+                valor_minimo = desconto_info["plano"].valor_minimo_mensalidade if desconto_info["plano"] else valor_base
+                valor_final = max(valor_com_desconto, valor_minimo)
+            else:
+                valor_final = valor_base
         else:
-            valor_final = valor_base
+            # Se tem campanha, não aplica desconto progressivo
+            desconto_progressivo = Decimal("0.00")
 
+        # ⭐ FASE 2.5: Criar mensalidade com rastreamento completo
         Mensalidade.objects.create(
-            cliente=instance.cliente,
+            cliente=cliente,
             valor=valor_final,
             dt_vencimento=nova_data_vencimento,
             usuario=instance.usuario,
+            # Novos campos de rastreamento
+            gerada_em_campanha=gerada_em_campanha,
+            valor_base_plano=valor_base,
+            desconto_campanha=desconto_campanha,
+            desconto_progressivo=desconto_progressivo,
+            tipo_campanha=tipo_campanha,
+            numero_mes_campanha=numero_mes_campanha,
+            dados_historicos_verificados=True,  # Dados precisos (mensalidade nova)
         )
 
         instance.cliente.data_vencimento = nova_data_vencimento

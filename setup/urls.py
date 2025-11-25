@@ -62,13 +62,13 @@ def should_serve_media_files():
     """
     # 1. Se DEBUG=True, sempre serve (desenvolvimento)
     if settings.DEBUG:
-        print(f"  [Detecção] DEBUG={settings.DEBUG} → SERVE")
+        print(f"  [Detecção] DEBUG={settings.DEBUG} -> SERVE")
         return True
 
     # 2. Verificar se está rodando com runserver (development server)
     # runserver passa 'runserver' nos argumentos do sys.argv
     if 'runserver' in sys.argv:
-        print(f"  [Detecção] 'runserver' detectado em sys.argv → SERVE")
+        print(f"  [Detecção] 'runserver' detectado em sys.argv -> SERVE")
         return True
 
     # 3. Verificar se está rodando em localhost (desenvolvimento comum)
@@ -87,21 +87,21 @@ def should_serve_media_files():
             # Verificar se não está forçando produção
             django_env = os.getenv('DJANGO_ENV', '').lower()
             if django_env != 'production':
-                print(f"  [Detecção] localhost detectado em ALLOWED_HOSTS → SERVE")
+                print(f"  [Detecção] localhost detectado em ALLOWED_HOSTS -> SERVE")
                 return True
             else:
-                print(f"  [Detecção] localhost em ALLOWED_HOSTS mas DJANGO_ENV=production → continua verificando...")
+                print(f"  [Detecção] localhost em ALLOWED_HOSTS mas DJANGO_ENV=production -> continua verificando...")
 
     # 4. Variável de ambiente para override manual
     serve_media_env = os.getenv('DJANGO_SERVE_MEDIA', '').lower()
     if serve_media_env in ('true', '1', 'yes'):
-        print(f"  [Detecção] DJANGO_SERVE_MEDIA={serve_media_env} → SERVE")
+        print(f"  [Detecção] DJANGO_SERVE_MEDIA={serve_media_env} -> SERVE")
         return True
 
     # 5. Se DJANGO_ENV=production, NÃO serve (produção explícita)
     django_env = os.getenv('DJANGO_ENV', '').lower()
     if django_env == 'production':
-        print(f"  [Detecção] DJANGO_ENV={django_env} → NÃO SERVE")
+        print(f"  [Detecção] DJANGO_ENV={django_env} -> NÃO SERVE")
         return False
 
     # 6. Detectar servidores WSGI/ASGI (gunicorn, uwsgi, etc)
@@ -109,12 +109,12 @@ def should_serve_media_files():
     production_servers = ['gunicorn', 'uwsgi', 'daphne', 'hypercorn', 'waitress']
     for server in production_servers:
         if server in sys.argv[0].lower() or any(server in arg.lower() for arg in sys.argv):
-            print(f"  [Detecção] Servidor de produção '{server}' detectado → NÃO SERVE")
+            print(f"  [Detecção] Servidor de produção '{server}' detectado -> NÃO SERVE")
             return False
 
     # 7. Default: SERVE se tiver dúvida (melhor servir em dev que falhar)
     # Só não serve se tiver certeza que é produção
-    print(f"  [Detecção] Ambiente incerto, sys.argv={sys.argv[:2]} → SERVE (safe default)")
+    print(f"  [Detecção] Ambiente incerto, sys.argv={sys.argv[:2]} -> SERVE (safe default)")
     return True
 
 # Servir arquivos automaticamente quando apropriado
@@ -129,7 +129,7 @@ if should_serve_media_files():
                 'document_root': settings.MEDIA_ROOT,
             }),
         ]
-        print(f"  [Media] ✓ Pattern adicionado para {settings.MEDIA_URL}")
+        print(f"  [Media] [OK] Pattern adicionado para {settings.MEDIA_URL}")
 
         # Adicionar pattern de static manualmente (funciona com DEBUG=False)
         urlpatterns += [
@@ -137,17 +137,17 @@ if should_serve_media_files():
                 'document_root': settings.STATIC_ROOT,
             }),
         ]
-        print(f"  [Static] ✓ Pattern adicionado para {settings.STATIC_URL}")
+        print(f"  [Static] [OK] Pattern adicionado para {settings.STATIC_URL}")
 
         print("📁 [Django] Servindo arquivos de media e static via Django (desenvolvimento)")
     except Exception as e:
-        print(f"❌ [ERRO] Falha ao adicionar patterns: {e}")
+        print(f"[ERRO] [ERRO] Falha ao adicionar patterns: {e}")
         import traceback
         traceback.print_exc()
 else:
     print("🚀 [Django] Arquivos de media/static devem ser servidos via nginx/apache (produção)")
     print("   Configure seu servidor web para servir:")
-    print(f"   - {settings.MEDIA_URL} → {settings.MEDIA_ROOT}")
-    print(f"   - {settings.STATIC_URL} → {settings.STATIC_ROOT}")
+    print(f"   - {settings.MEDIA_URL} -> {settings.MEDIA_ROOT}")
+    print(f"   - {settings.STATIC_URL} -> {settings.STATIC_ROOT}")
 
 handler404 = 'cadastros.views.not_found'

@@ -109,6 +109,21 @@ class DashboardTableManager {
         } else {
             console.warn('[DashboardTableManager] Função initializeTableDropdowns não encontrada');
         }
+
+        // Reinicializa tooltips Bootstrap após AJAX
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                // Destrói tooltip existente se houver
+                const existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                if (existingTooltip) {
+                    existingTooltip.dispose();
+                }
+                // Cria novo tooltip
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            console.debug('[DashboardTableManager] Tooltips reinicializados');
+        }
     }
 
     /**

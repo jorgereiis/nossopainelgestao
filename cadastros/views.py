@@ -20,7 +20,7 @@ import threading
 import time
 import unicodedata
 from pathlib import Path
-from django.db.models import Sum, Q, Count, F, ExpressionWrapper, DurationField, Exists, OuterRef, Min
+from django.db.models import Sum, Q, Count, F, ExpressionWrapper, DurationField, Exists, OuterRef, Min, Prefetch
 from django.db.models.functions import Upper, Coalesce, ExtractDay, Trim
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -91,6 +91,7 @@ from .utils import (
     historico_encerrar_vigente,
     get_client_ip,
     extrair_dominio_de_url,
+    calcular_valor_mensalidade,
 )
 from .wpp_views import (
     cancelar_sessao_wpp,
@@ -390,15 +391,17 @@ class CarregarContasDoAplicativo(LoginRequiredMixin, View):
         cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
         conta_app = (
             ContaDoAplicativo.objects.filter(cliente=cliente, usuario=self.request.user)
-            .select_related('app')
+            .select_related('app', 'dispositivo')
         )
 
         conta_app_json = []
 
         for conta in conta_app:
             nome_aplicativo = conta.app.nome
+            nome_dispositivo = conta.dispositivo.nome if conta.dispositivo else 'Não especificado'
             conta_json = model_to_dict(conta)
             conta_json['nome_aplicativo'] = nome_aplicativo
+            conta_json['nome_dispositivo'] = nome_dispositivo
             conta_json['logo_url'] = conta.app.get_logo_url()
             conta_app_json.append(conta_json)
 
@@ -415,7 +418,21 @@ class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
         cliente_id = self.request.GET.get("cliente_id")
         cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
         hoje = timezone.localtime().date()
-        mensalidades_totais = Mensalidade.objects.filter(usuario=self.request.user, cliente=cliente).order_by('-id').values()
+        mensalidades_totais = Mensalidade.objects.filter(
+            usuario=self.request.user,
+            cliente=cliente
+        ).select_related('cliente__assinatura').order_by('-id').values(
+            'id', 'dt_vencimento', 'dt_pagamento', 'valor', 'pgto', 'cancelado',
+            'cliente__assinatura__em_campanha',
+            # ⭐ FASE 2.5: Novos campos de rastreamento de campanhas
+            'gerada_em_campanha',
+            'dados_historicos_verificados',
+            'valor_base_plano',
+            'desconto_campanha',
+            'desconto_progressivo',
+            'tipo_campanha',
+            'numero_mes_campanha'
+        )
         mensalidades_pagas = Mensalidade.objects.filter(usuario=self.request.user, pgto=True, cliente=cliente)
         mensalidades_pendentes = Mensalidade.objects.filter(usuario=self.request.user, dt_pagamento=None, pgto=False, cancelado=False, dt_cancelamento=None, dt_vencimento__lt=hoje, cliente=cliente)
         mensalidades_canceladas = Mensalidade.objects.filter(usuario=self.request.user, cancelado=True, cliente=cliente)
@@ -555,7 +572,25 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
         """
         query = self.request.GET.get("q")
         queryset = (
-            Cliente.objects.filter(cancelado=False).filter(
+            Cliente.objects
+            .select_related('dispositivo', 'sistema', 'servidor', 'forma_pgto', 'plano')
+            .prefetch_related(
+                Prefetch(
+                    'conta_aplicativo',
+                    queryset=ContaDoAplicativo.objects.select_related('dispositivo', 'app'),
+                    to_attr='contas_list'
+                ),
+                Prefetch(
+                    'mensalidade_set',
+                    queryset=Mensalidade.objects.filter(
+                        cancelado=False,
+                        dt_cancelamento=None,
+                        dt_pagamento=None,
+                        pgto=False
+                    )
+                )
+            )
+            .filter(cancelado=False).filter(
                 mensalidade__cancelado=False,
                 mensalidade__dt_cancelamento=None,
                 mensalidade__dt_pagamento=None,
@@ -744,7 +779,25 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 
         query = self.request.GET.get("q")
         queryset = (
-            Cliente.objects.filter(cancelado=False).filter(
+            Cliente.objects
+            .select_related('dispositivo', 'sistema', 'servidor', 'forma_pgto', 'plano')
+            .prefetch_related(
+                Prefetch(
+                    'conta_aplicativo',
+                    queryset=ContaDoAplicativo.objects.select_related('dispositivo', 'app'),
+                    to_attr='contas_list'
+                ),
+                Prefetch(
+                    'mensalidade_set',
+                    queryset=Mensalidade.objects.filter(
+                        cancelado=False,
+                        dt_cancelamento=None,
+                        dt_pagamento=None,
+                        pgto=False
+                    )
+                )
+            )
+            .filter(cancelado=False).filter(
                 mensalidade__cancelado=False,
                 mensalidade__dt_cancelamento=None,
                 mensalidade__dt_pagamento=None,
@@ -2501,21 +2554,16 @@ def reactivate_customer(request, cliente_id):
     except Exception:
         pass
 
+    # ⭐ FASE 2: Auto-enroll in campaign if eligible
     try:
-        # Calcula desconto progressivo total do cliente
-        from cadastros.utils import calcular_desconto_progressivo_total
-        from decimal import Decimal
+        from cadastros.utils import enroll_client_in_campaign_if_eligible
+        enroll_client_in_campaign_if_eligible(cliente)
+    except Exception as e:
+        logger.error(f"Erro ao inscrever cliente na campanha durante reativação: {e}", exc_info=True)
 
-        desconto_info = calcular_desconto_progressivo_total(cliente)
-        valor_base = cliente.plano.valor
-
-        # Aplica desconto progressivo se houver
-        if desconto_info["valor_total"] > Decimal("0.00") and desconto_info["plano"]:
-            valor_com_desconto = valor_base - desconto_info["valor_total"]
-            valor_minimo = desconto_info["plano"].valor_minimo_mensalidade
-            valor_mensalidade = max(valor_com_desconto, valor_minimo)
-        else:
-            valor_mensalidade = valor_base
+    try:
+        # ⭐ FASE 2: Calcula valor considerando campanhas promocionais + descontos progressivos
+        valor_mensalidade = calcular_valor_mensalidade(cliente)
 
         logger.info('[%s] [USER][%s] Valor mensalidade calculado para cliente ID %s: R$ %s',
                     timezone.localtime(), request.user, cliente_id, valor_mensalidade)
@@ -2831,7 +2879,7 @@ def edit_customer(request, cliente_id):
             plano = Plano.objects.filter(nome=plano_nome, valor=plano_valor, usuario=user).first()
             if plano and cliente.plano != plano:
                 cliente.plano = plano
-                mensalidade.valor = plano.valor
+                mensalidade.valor = calcular_valor_mensalidade(cliente)
                 # Atualiza histórico de planos: encerra vigente e inicia novo
                 hoje = timezone.localdate()
                 try:
@@ -2839,6 +2887,33 @@ def edit_customer(request, cliente_id):
                     historico_iniciar(cliente, plano=plano, inicio=hoje, motivo='plan_change')
                 except Exception:
                     pass
+
+                # ⭐ FASE 2.5: Reset campaign tracking when plan changes
+                try:
+                    from .models import AssinaturaCliente
+                    assinatura = AssinaturaCliente.objects.get(cliente=cliente, ativo=True)
+                    if assinatura.em_campanha:
+                        assinatura.em_campanha = False
+                        assinatura.campanha_data_adesao = None
+                        assinatura.campanha_mensalidades_pagas = 0
+                        assinatura.campanha_duracao_total = None
+                        assinatura.save()
+                        logger.info(
+                            f"[CAMPANHA] Rastreamento de campanha resetado para {cliente.nome} devido a mudança de plano"
+                        )
+                except AssinaturaCliente.DoesNotExist:
+                    pass  # No subscription record
+
+                # ⭐ FASE 2.5: Re-enroll client in new plan's campaign if applicable
+                if plano.campanha_ativa:
+                    from .utils import enroll_client_in_campaign_if_eligible
+                    enroll_result = enroll_client_in_campaign_if_eligible(cliente)
+                    if enroll_result:
+                        # Recalculate mensalidade value with new campaign
+                        mensalidade.valor = calcular_valor_mensalidade(cliente)
+                        logger.info(
+                            f"[CAMPANHA] Cliente {cliente.nome} inscrito na campanha do novo plano '{plano.nome}'"
+                        )
 
         # Data de vencimento
         data_vencimento_str = post.get("dt_pgto", "").strip()
@@ -2863,7 +2938,7 @@ def edit_customer(request, cliente_id):
             cliente.data_vencimento = nova_data_vencimento
             mensalidade.dt_vencimento = nova_data_vencimento
             if plano:
-                mensalidade.valor = plano.valor
+                mensalidade.valor = calcular_valor_mensalidade(cliente)
 
         # Dispositivo
         dispositivo = get_object_or_404(Dispositivo, nome=post.get("dispositivo"), usuario=user)
@@ -2940,6 +3015,7 @@ def edit_payment_plan(request, plano_id):
         "nome": plano_mensal.nome,
         "telas": plano_mensal.telas,
         "valor": plano_mensal.valor,
+        "campanha_ativa": plano_mensal.campanha_ativa,  # ⭐ FASE 2
     }
 
     planos_mensalidades = Plano.objects.all().order_by('nome')
@@ -2954,6 +3030,39 @@ def edit_payment_plan(request, plano_id):
             plano_mensal.telas = telas
             plano_mensal.valor = valor
 
+            # ⭐ FASE 2: Update campaign data
+            campanha_ativa = request.POST.get('campanha_ativa') == 'on'
+            plano_mensal.campanha_ativa = campanha_ativa
+
+            if campanha_ativa:
+                plano_mensal.campanha_tipo = request.POST.get('campanha_tipo', 'FIXO')
+                plano_mensal.campanha_data_inicio = request.POST.get('campanha_data_inicio') or None
+                plano_mensal.campanha_data_fim = request.POST.get('campanha_data_fim') or None
+                plano_mensal.campanha_duracao_meses = request.POST.get('campanha_duracao_meses') or None
+
+                if plano_mensal.campanha_tipo == 'FIXO':
+                    plano_mensal.campanha_valor_fixo = request.POST.get('campanha_valor_fixo') or None
+                else:  # PERSONALIZADO
+                    plano_mensal.campanha_valor_mes_1 = request.POST.get('campanha_valor_mes_1') or None
+                    plano_mensal.campanha_valor_mes_2 = request.POST.get('campanha_valor_mes_2') or None
+                    plano_mensal.campanha_valor_mes_3 = request.POST.get('campanha_valor_mes_3') or None
+                    plano_mensal.campanha_valor_mes_4 = request.POST.get('campanha_valor_mes_4') or None
+                    plano_mensal.campanha_valor_mes_5 = request.POST.get('campanha_valor_mes_5') or None
+                    plano_mensal.campanha_valor_mes_6 = request.POST.get('campanha_valor_mes_6') or None
+            else:
+                # Clear campaign data if not active
+                plano_mensal.campanha_tipo = None
+                plano_mensal.campanha_data_inicio = None
+                plano_mensal.campanha_data_fim = None
+                plano_mensal.campanha_duracao_meses = None
+                plano_mensal.campanha_valor_fixo = None
+                plano_mensal.campanha_valor_mes_1 = None
+                plano_mensal.campanha_valor_mes_2 = None
+                plano_mensal.campanha_valor_mes_3 = None
+                plano_mensal.campanha_valor_mes_4 = None
+                plano_mensal.campanha_valor_mes_5 = None
+                plano_mensal.campanha_valor_mes_6 = None
+
             try:
                 plano_mensal.save()
                 changes = {}
@@ -2963,6 +3072,12 @@ def edit_payment_plan(request, plano_id):
                     changes["telas"] = (original_plano["telas"], plano_mensal.telas)
                 if original_plano["valor"] != plano_mensal.valor:
                     changes["valor"] = (original_plano["valor"], plano_mensal.valor)
+                # ⭐ FASE 2: Tracking de mudanças da campanha
+                if original_plano["campanha_ativa"] != plano_mensal.campanha_ativa:
+                    changes["campanha_ativa"] = (
+                        original_plano["campanha_ativa"],
+                        plano_mensal.campanha_ativa
+                    )
                 mensagem_plano = "Plano atualizado." if changes else "Plano salvo sem alteracoes."
                 log_user_action(
                     request=request,
@@ -4343,10 +4458,12 @@ def test(request):
 def create_app_account(request):
     app_id = request.POST.get('app_id')
     cliente_id = request.POST.get('cliente-id')
+    dispositivo_id = request.POST.get('dispositivo_id')
     force_create = request.POST.get('force_create') == 'true'  # Prosseguir mesmo com aviso
 
     app = get_object_or_404(Aplicativo, id=app_id, usuario=request.user)
     cliente = get_object_or_404(Cliente, id=cliente_id, usuario=request.user)
+    dispositivo = get_object_or_404(Dispositivo, id=dispositivo_id, usuario=request.user)
 
     device_id = request.POST.get('device-id') or None
     device_key = request.POST.get('device-key') or None
@@ -4384,6 +4501,7 @@ def create_app_account(request):
 
     nova_conta_app = ContaDoAplicativo(
         cliente=cliente,
+        dispositivo=dispositivo,
         app=app,
         device_id=device_id,
         device_key=device_key,
@@ -4418,6 +4536,7 @@ def create_app_account(request):
             message="Conta de aplicativo criada.",
             extra={
                 "cliente": cliente.nome,
+                "dispositivo": dispositivo.nome,
                 "app": app.nome,
                 "device_id": device_id or '',
                 "email": app_email or '',
@@ -4736,10 +4855,8 @@ def create_customer(request):
         telefone = post.get('telefone', '').strip()
         notas = post.get('notas', '').strip()
         indicador_nome = post.get('indicador_list', '').strip()
-        sistema_nome = post.get('sistema', '').strip()
         servidor_nome = post.get('servidor', '').strip()
         forma_pgto_nome = post.get('forma_pgto', '').strip()
-        dispositivo_nome = post.get('dispositivo', '').strip()
         plano_info = post.get('plano', '').replace(' ', '').split('-')
 
         if not telefone:
@@ -4810,7 +4927,7 @@ def create_customer(request):
         try:
             plano_nome = plano_info[0]
             plano_valor = float(plano_info[1].replace(',', '.'))
-            plano_telas = plano_info[2]
+            plano_telas = int(plano_info[2])
         except (IndexError, ValueError):
             return render(request, "pages/cadastro-cliente.html", {
                 "error_message": "Plano inválido.",
@@ -4818,36 +4935,74 @@ def create_customer(request):
         plano, _ = Plano.objects.get_or_create(nome=plano_nome, valor=plano_valor, telas=plano_telas, usuario=usuario)
 
         # Trata relacionados
-        sistema, _ = Aplicativo.objects.get_or_create(nome=sistema_nome, usuario=usuario)
         servidor, _ = Servidor.objects.get_or_create(nome=servidor_nome, usuario=usuario)
         forma_pgto, _ = Tipos_pgto.objects.get_or_create(nome=forma_pgto_nome, usuario=usuario)
-        dispositivo, _ = Dispositivo.objects.get_or_create(nome=dispositivo_nome, usuario=usuario)
 
-        # Trata data de vencimento
-        data_vencimento = None
-        data_vencimento_str = post.get('data_vencimento', '').strip()
-        if data_vencimento_str:
-            try:
-                data_vencimento = datetime.strptime(data_vencimento_str, "%Y-%m-%d").date()
-            except ValueError:
+        # Coleta dados de múltiplos dispositivos/apps/contas baseado na quantidade de telas
+        telas_data = []
+        for i in range(plano_telas):
+            dispositivo_nome = post.get(f'dispositivo_{i}', '').strip()
+            sistema_nome = post.get(f'sistema_{i}', '').strip()
+            device_id = post.get(f'device_id_{i}', '').strip()
+            email = post.get(f'email_{i}', '').strip()
+            senha = post.get(f'senha_{i}', '').strip()
+
+            if not dispositivo_nome or not sistema_nome:
                 return render(request, "pages/cadastro-cliente.html", {
-                    "error_message": "Data de vencimento inválida.",
+                    "error_message": f"Dispositivo e Aplicativo são obrigatórios para a Tela {i + 1}.",
+                    'servidores': servidor_queryset,
+                    'dispositivos': dispositivo_queryset,
+                    'sistemas': sistema_queryset,
+                    'indicadores': indicador_por_queryset,
+                    'formas_pgtos': forma_pgto_queryset,
+                    'planos': plano_queryset,
+                    'page_group': page_group,
+                    'page': page,
                 })
+
+            # Get or create dispositivo e sistema
+            dispositivo, _ = Dispositivo.objects.get_or_create(nome=dispositivo_nome, usuario=usuario)
+            sistema, _ = Aplicativo.objects.get_or_create(nome=sistema_nome, usuario=usuario)
+
+            # Valida se conta é obrigatória
+            if sistema.device_has_mac and not device_id and not email:
+                return render(request, "pages/cadastro-cliente.html", {
+                    "error_message": f"Conta do aplicativo é obrigatória para a Tela {i + 1}.",
+                    'servidores': servidor_queryset,
+                    'dispositivos': dispositivo_queryset,
+                    'sistemas': sistema_queryset,
+                    'indicadores': indicador_por_queryset,
+                    'formas_pgtos': forma_pgto_queryset,
+                    'planos': plano_queryset,
+                    'page_group': page_group,
+                    'page': page,
+                })
+
+            telas_data.append({
+                'dispositivo': dispositivo,
+                'sistema': sistema,
+                'device_id': device_id,
+                'email': email,
+                'senha': senha,
+            })
 
         try:
             with transaction.atomic():
                 # SALVAR CLIENTE
+                # Define dispositivo e sistema como o primeiro da lista (principal)
+                primeiro_dispositivo = telas_data[0]['dispositivo'] if telas_data else None
+                primeiro_sistema = telas_data[0]['sistema'] if telas_data else None
+
                 try:
                     cliente = Cliente(
                         nome=nome,
                         telefone=telefone,
-                        dispositivo=dispositivo,
-                        sistema=sistema,
+                        dispositivo=primeiro_dispositivo,
+                        sistema=primeiro_sistema,
                         indicado_por=indicador,
                         servidor=servidor,
                         forma_pgto=forma_pgto,
                         plano=plano,
-                        data_vencimento=data_vencimento,
                         notas=notas,
                         usuario=usuario,
                     )
@@ -4856,24 +5011,35 @@ def create_customer(request):
                     logger.error("Erro ao salvar o cliente: %s", e, exc_info=True)
                     raise Exception("Falha ao salvar os dados do cliente.")
 
-                # CRIAR CONTA DO APLICATIVO
-                if sistema.device_has_mac:
-                    try:
-                        device_id = post.get('id', '')
-                        email = post.get('email', '')
-                        senha = post.get('senha', '')
+                # CRIAR MÚLTIPLAS CONTAS DO APLICATIVO
+                contas_criadas = 0
+                try:
+                    for tela in telas_data:
+                        # Só cria conta se o aplicativo requer MAC/conta
+                        if tela['sistema'].device_has_mac:
+                            ContaDoAplicativo.objects.create(
+                                dispositivo=tela['dispositivo'],
+                                app=tela['sistema'],
+                                device_id=tela['device_id'] or None,
+                                email=tela['email'] or None,
+                                device_key=tela['senha'] or None,
+                                cliente=cliente,
+                                usuario=usuario,
+                            )
+                            contas_criadas += 1
 
-                        ContaDoAplicativo.objects.create(
-                            device_id=device_id,
-                            email=email,
-                            device_key=senha,
-                            app=sistema,
-                            cliente=cliente,
-                            usuario=usuario,
-                        )
-                    except Exception as e:
-                        logger.error("Erro ao criar ContaDoAplicativo: %s", e, exc_info=True)
-                        raise Exception("Falha ao criar a conta do aplicativo.<p>Algum dos dados não pôde ser salvo.</p>")
+                    # Incrementar contador de dispositivos usados
+                    if contas_criadas > 0:
+                        try:
+                            assinatura = cliente.assinatura
+                            assinatura.dispositivos_usados = contas_criadas
+                            assinatura.save()
+                        except Exception as e:
+                            logger.warning(f"Erro ao atualizar contador de dispositivos: {e}")
+
+                except Exception as e:
+                    logger.error("Erro ao criar ContaDoAplicativo: %s", e, exc_info=True)
+                    raise Exception("Falha ao criar as contas dos aplicativos.<p>Algum dos dados não pôde ser salvo.</p>")
 
                 # ENVIO DE MENSAGEM
                 try:
@@ -4895,6 +5061,13 @@ def create_customer(request):
                     historico_iniciar(cliente, plano=plano, inicio=inicio_hist, motivo='create')
                 except Exception:
                     pass
+
+                # ⭐ FASE 2: Auto-enroll in campaign if eligible
+                try:
+                    from cadastros.utils import enroll_client_in_campaign_if_eligible
+                    enroll_client_in_campaign_if_eligible(cliente)
+                except Exception as e:
+                    logger.error(f"Erro ao inscrever cliente na campanha: {e}", exc_info=True)
 
             print(f"[{timestamp}] [SUCCESS] [{func_name}] [{usuario}] Cliente {cliente.nome} ({cliente.telefone}) cadastrado com sucesso!")
             log_user_action(
@@ -4922,10 +5095,27 @@ def create_customer(request):
             })
 
     # Requisição GET (carrega formulário)
+
+    # Serializar dispositivos e aplicativos para JSON (necessário para JavaScript)
+    dispositivos_json = json.dumps([
+        {'nome': d.nome}
+        for d in dispositivo_queryset
+    ])
+
+    sistemas_json = json.dumps([
+        {
+            'nome': a.nome,
+            'device_has_mac': a.device_has_mac
+        }
+        for a in sistema_queryset
+    ])
+
     return render(request, "pages/cadastro-cliente.html", {
         'servidores': servidor_queryset,
         'dispositivos': dispositivo_queryset,
+        'dispositivos_json': dispositivos_json,
         'sistemas': sistema_queryset,
+        'sistemas_json': sistemas_json,
         'indicadores': indicador_por_queryset,
         'formas_pgtos': forma_pgto_queryset,
         'planos': plano_queryset,
@@ -4950,7 +5140,9 @@ def create_payment_plan(request):
             try:
                 # Consultando o objeto requisitado. Caso não exista, será criado.
                 # FASE 1: max_dispositivos = telas (automaticamente)
+                # FASE 2: Campanhas não diferenciam planos (são atributos mutáveis)
                 telas = int(request.POST.get('telas'))
+
                 plano, created = Plano.objects.get_or_create(
                     nome=request.POST.get('nome'),
                     valor=int(request.POST.get('valor')),
@@ -4958,6 +5150,41 @@ def create_payment_plan(request):
                     max_dispositivos=telas,  # ⭐ FASE 1: Dispositivos = Telas
                     usuario=usuario
                 )
+
+                # ⭐ FASE 2: Set campaign data (after creation)
+                campanha_ativa = request.POST.get('campanha_ativa') == 'on'
+                plano.campanha_ativa = campanha_ativa
+
+                if campanha_ativa:
+                    plano.campanha_tipo = request.POST.get('campanha_tipo', 'FIXO')
+                    plano.campanha_data_inicio = request.POST.get('campanha_data_inicio') or None
+                    plano.campanha_data_fim = request.POST.get('campanha_data_fim') or None
+                    plano.campanha_duracao_meses = request.POST.get('campanha_duracao_meses') or None
+
+                    if plano.campanha_tipo == 'FIXO':
+                        plano.campanha_valor_fixo = request.POST.get('campanha_valor_fixo') or None
+                    else:  # PERSONALIZADO
+                        plano.campanha_valor_mes_1 = request.POST.get('campanha_valor_mes_1') or None
+                        plano.campanha_valor_mes_2 = request.POST.get('campanha_valor_mes_2') or None
+                        plano.campanha_valor_mes_3 = request.POST.get('campanha_valor_mes_3') or None
+                        plano.campanha_valor_mes_4 = request.POST.get('campanha_valor_mes_4') or None
+                        plano.campanha_valor_mes_5 = request.POST.get('campanha_valor_mes_5') or None
+                        plano.campanha_valor_mes_6 = request.POST.get('campanha_valor_mes_6') or None
+                else:
+                    # Clear campaign data if not active
+                    plano.campanha_tipo = None
+                    plano.campanha_data_inicio = None
+                    plano.campanha_data_fim = None
+                    plano.campanha_duracao_meses = None
+                    plano.campanha_valor_fixo = None
+                    plano.campanha_valor_mes_1 = None
+                    plano.campanha_valor_mes_2 = None
+                    plano.campanha_valor_mes_3 = None
+                    plano.campanha_valor_mes_4 = None
+                    plano.campanha_valor_mes_5 = None
+                    plano.campanha_valor_mes_6 = None
+
+                plano.save()
 
                 if created:
                     log_user_action(
@@ -4970,6 +5197,8 @@ def create_payment_plan(request):
                             "valor": str(plano.valor),
                             "telas": plano.telas,
                             "max_dispositivos": plano.max_dispositivos,  # ⭐ FASE 1
+                            "campanha_ativa": plano.campanha_ativa,  # ⭐ FASE 2
+                            "campanha_tipo": plano.campanha_tipo if plano.campanha_ativa else None,
                         },
                     )
                     return render(

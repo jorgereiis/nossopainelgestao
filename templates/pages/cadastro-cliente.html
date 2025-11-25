@@ -123,50 +123,18 @@
                     <option value="" selected disabled>Selecione um plano de adesão</option>
                       {% for plano in planos %}
                           {% if plano.telas > 1 %}
-                      <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas}}">{{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} telas</option>
+                      <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas}}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} telas</option>
                           {% else %}
-                      <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas}}">{{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela</option>
+                      <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas}}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela</option>
                           {% endif %}
                       {% endfor %}
                   </select>
                   <small class="text-muted">Plano e valor da assinatura</small>
                 </div>
 
-                <!-- Data vencimento -->
-                <div class="mb-4">
-                  <label for="data_vencimento" class="form-label fw-semibold">
-                    <i class="bi bi-calendar-event-fill text-danger me-2"></i>Data vencimento inicial <span class="badge bg-light text-muted">Opcional</span>
-                  </label>
-                  <input type="date" class="form-control form-control-lg" id="data_vencimento" name="data_vencimento">
-                  <small class="text-muted">Data do primeiro vencimento (deixe em branco para usar padrão)</small>
-                </div>
-
-                <!-- Dispositivo -->
-                <div class="mb-4">
-                  <label for="dispositivo" class="form-label fw-semibold">
-                    <i class="bi bi-tablet-fill text-info me-2"></i>Dispositivo <span class="text-danger">*</span>
-                  </label>
-                  <select class="form-select form-select-lg" id="dispositivo" name="dispositivo" required>
-                    <option value="" selected disabled>Selecione um dispositivo</option>
-                    {% for dispositivo in dispositivos %}
-                    <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
-                    {% endfor %}
-                  </select>
-                  <small class="text-muted">Tipo de dispositivo que será utilizado</small>
-                </div>
-
-                <!-- Aplicativo -->
-                <div class="mb-4" id="teste">
-                  <label for="sistema" class="form-label fw-semibold">
-                    <i class="bi bi-phone-fill text-primary me-2"></i>Aplicativo <span class="text-danger">*</span>
-                  </label>
-                  <select class="form-select form-select-lg" id="sistema" name="sistema" required>
-                    <option value="" selected disabled>Selecione um aplicativo</option>
-                    {% for sistema in sistemas %}
-                    <option value="{{ sistema.nome }}" data-mac="{{ sistema.device_has_mac|yesno:'1,0' }}">{{ sistema.nome }}</option>
-                    {% endfor %}
-                  </select>
-                  <small class="text-muted">Aplicativo de streaming</small>
+                <!-- Container Dinâmico para Dispositivos e Aplicativos -->
+                <div id="dispositivos-apps-container" class="mb-4">
+                  <!-- Os blocos serão gerados dinamicamente aqui -->
                 </div>
 
                 <!-- Anotações -->
@@ -332,97 +300,152 @@
 </script>
 
 <script>
-  //INSERÇÃO DE NOVOS CAMPOS NA TABELA DE ACORDO COM O APLICATIVO ESCOLHIDO
+  // GERAÇÃO DINÂMICA DE BLOCOS DE DISPOSITIVO + APLICATIVO + CONTA baseado na quantidade de telas
   $(document).ready(function () {
-    $('#sistema').change(function () {
-      const selectedOption = $(this).find('option:selected');
-      const hasMac = selectedOption.data('mac') === 1;
+    // Usar variáveis JSON serializadas do backend
+    const dispositivos = {{ dispositivos_json|safe }};
+    const sistemas = {{ sistemas_json|safe }};
+    const container = $('#dispositivos-apps-container');
 
-      // Limpa os campos antes de inserir
-      $('#divID').remove();
-      $('#divSenha').remove();
-      $('#divEmail').remove();
-      $('#divSenha2').remove();
+    // Função para gerar um bloco de dispositivo/app/conta
+    function gerarBloco(index) {
+      // Gerar options dinamicamente com JavaScript puro
+      let dispositivosOptions = '<option value="" selected disabled>Selecione um dispositivo</option>';
+      dispositivos.forEach(dispositivo => {
+        dispositivosOptions += `<option value="${dispositivo.nome}">${dispositivo.nome}</option>`;
+      });
 
-      if (hasMac) {
+      let sistemasOptions = '<option value="" selected disabled>Selecione um aplicativo</option>';
+      sistemas.forEach(sistema => {
+        const macValue = sistema.device_has_mac ? '1' : '0';
+        sistemasOptions += `<option value="${sistema.nome}" data-mac="${macValue}">${sistema.nome}</option>`;
+      });
+
+      const blocoHtml = `
+        <div class="card mb-3 bloco-dispositivo-app" data-index="${index}" style="border-left: 4px solid #007bff;">
+          <div class="card-header bg-light">
+            <h5 class="mb-0 fw-bold">
+              <i class="bi bi-tv-fill text-primary me-2"></i>Tela ${index + 1}
+            </h5>
+          </div>
+          <div class="card-body">
+            <!-- Linha 1: Dispositivo e Aplicativo lado a lado -->
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label for="dispositivo_${index}" class="form-label fw-semibold">
+                  <i class="bi bi-tablet-fill text-info me-2"></i>Dispositivo <span class="text-danger">*</span>
+                </label>
+                <select class="form-select" id="dispositivo_${index}" name="dispositivo_${index}" required>
+                  ${dispositivosOptions}
+                </select>
+                <small class="text-muted">Tipo de dispositivo</small>
+              </div>
+
+              <div class="col-md-6">
+                <label for="sistema_${index}" class="form-label fw-semibold">
+                  <i class="bi bi-phone-fill text-primary me-2"></i>Aplicativo <span class="text-danger">*</span>
+                </label>
+                <select class="form-select aplicativo-select" id="sistema_${index}" name="sistema_${index}" data-index="${index}" required>
+                  ${sistemasOptions}
+                </select>
+                <small class="text-muted">Aplicativo de streaming</small>
+              </div>
+            </div>
+
+            <!-- Container para campos condicionais de conta -->
+            <div id="conta-fields-${index}">
+              <!-- Campos de conta serão inseridos aqui dinamicamente -->
+            </div>
+          </div>
+        </div>
+      `;
+      return blocoHtml;
+    }
+
+    // Listener para mudança no plano
+    $('#plano').change(function () {
+      const selectedValue = $(this).val();
+      if (!selectedValue) return;
+
+      // Extrair quantidade de telas do formato "nome - valor - telas"
+      const parts = selectedValue.split(' - ');
+      const qtdTelas = parseInt(parts[2]);
+
+      // Limpar container
+      container.empty();
+
+      // Gerar blocos
+      for (let i = 0; i < qtdTelas; i++) {
+        container.append(gerarBloco(i));
+      }
+
+      // Adicionar listeners para os selects de aplicativo
+      $('.aplicativo-select').change(function () {
+        const index = $(this).data('index');
+        const selectedOption = $(this).find('option:selected');
+        const hasMac = selectedOption.data('mac') === 1;
         const appName = selectedOption.val().toLowerCase().replace(/\s/g, "");
+        const contaContainer = $(`#conta-fields-${index}`);
 
-        if (appName === 'clouddy') {
-          $('#teste').after(`
-            <div class="mb-3 row" id="divEmail">
-              <label for="Email" class="col-sm-4 col-form-label form-label">
-                E-mail do Aplicativo <span class="text-danger">*</span>
-              </label>
-              <div class="col-sm-5 mb-3 mb-lg-0">
-                <input type="email" class="form-control" placeholder="E-mail" id="Email" name="email" required>
+        // Limpar campos anteriores
+        contaContainer.empty();
+
+        if (hasMac) {
+          if (appName === 'clouddy') {
+            contaContainer.html(`
+              <div class="mb-3">
+                <label for="email_${index}" class="form-label fw-semibold">
+                  <i class="bi bi-envelope-fill text-success me-2"></i>E-mail do Aplicativo <span class="text-danger">*</span>
+                </label>
+                <input type="email" class="form-control" placeholder="Digite o e-mail" id="email_${index}" name="email_${index}" required>
               </div>
-            </div>
-            <div class="mb-3 row" id="divSenha2">
-              <label for="Senha" class="col-sm-4 col-form-label form-label">
-                Senha do Aplicativo <span class="text-danger">*</span>
-              </label>
-              <div class="col-sm-5 mb-3 mb-lg-0">
-                <input type="text" class="form-control" placeholder="Senha" id="Senha" name="senha" minlength="6" required>
+              <div class="mb-3">
+                <label for="senha_${index}" class="form-label fw-semibold">
+                  <i class="bi bi-key-fill text-warning me-2"></i>Senha do Aplicativo <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control" placeholder="Digite a senha" id="senha_${index}" name="senha_${index}" minlength="6" required>
               </div>
-            </div>
-          `);
-        } else {
-          $('#teste').after(`
-            <div class="mb-3 row" id="divID">
-              <label for="ID" class="col-sm-4 col-form-label form-label">
-                ID do Aplicativo <span class="text-danger">*</span>
-              </label>
-              <div class="col-sm-5 mb-3 mb-lg-0">
-                <input type="text" class="form-control" placeholder="Device ID" id="ID" name="id" minlength="6" maxlength="18" required>
+            `);
+          } else {
+            contaContainer.html(`
+              <div class="mb-3">
+                <label for="device_id_${index}" class="form-label fw-semibold">
+                  <i class="bi bi-upc-scan text-success me-2"></i>Device ID (MAC Address) <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control device-id-input" placeholder="AA:BB:CC:DD:EE:FF" id="device_id_${index}" name="device_id_${index}" minlength="6" maxlength="17" required>
+                <small class="text-muted">Formato: AA:BB:CC:DD:EE:FF</small>
               </div>
-            </div>
-            <div class="mb-3 row" id="divSenha">
-              <label for="Senha" class="col-sm-4 col-form-label form-label">Senha do Aplicativo</label>
-              <div class="col-sm-5 mb-3 mb-lg-0">
-                <input type="text" class="form-control" placeholder="Device Key" id="Senha" name="senha" minlength="6">
+              <div class="mb-3">
+                <label for="senha_${index}" class="form-label fw-semibold">
+                  <i class="bi bi-key-fill text-warning me-2"></i>Device Key (Senha)
+                </label>
+                <input type="text" class="form-control" placeholder="Digite a senha (opcional)" id="senha_${index}" name="senha_${index}" minlength="6">
+                <small class="text-muted">Opcional</small>
               </div>
-            </div>
-          `);
+            `);
+
+            // Adicionar formatação automática para MAC address
+            $(`#device_id_${index}`).on('input', function() {
+              let deviceId = this.value.replace(/[^0-9A-Fa-f]/g, '');
+              let formattedDeviceId = '';
+
+              if (deviceId.length > 0) {
+                formattedDeviceId = deviceId.match(/.{1,2}/g).join(':');
+                if (formattedDeviceId.startsWith(':')) {
+                  formattedDeviceId = formattedDeviceId.substring(1);
+                }
+                if (formattedDeviceId.endsWith(':')) {
+                  formattedDeviceId = formattedDeviceId.substring(0, formattedDeviceId.length - 1);
+                }
+              }
+
+              this.value = formattedDeviceId;
+            });
+          }
         }
-      }
+      });
     });
   });
-</script>
-
-<script>
-  // Formatar o valor do campo device-id
-  document.addEventListener('DOMContentLoaded', function() {
-    var deviceIdInput = document.getElementById('ID');
-
-    deviceIdInput.addEventListener('input', function() {
-      var deviceId = this.value.replace(/[^0-9A-Fa-f]/g, ''); // Remove todos os caracteres não alfanuméricos
-
-      var formattedDeviceId = '';
-      if (deviceId.length > 0) {
-        formattedDeviceId = deviceId.match(/.{1,2}/g).join(':'); // Adiciona ":" a cada 2 caracteres
-
-        // Remove ":" do começo e do final, se existirem
-        if (formattedDeviceId.startsWith(':')) {
-          formattedDeviceId = formattedDeviceId.substring(1);
-        }
-        if (formattedDeviceId.endsWith(':')) {
-          formattedDeviceId = formattedDeviceId.substring(0, formattedDeviceId.length - 1);
-        }
-      }
-
-      this.value = formattedDeviceId;
-    });
-  });
-</script>
-
-<script>
-  // Define a data atual no formato AAAA-MM-DD para o campo "Data Vencimento Inicial"
-  const hoje = new Date();
-  const dia = String(hoje.getDate()).padStart(2, '0');
-  const mes = String(hoje.getMonth() + 1).padStart(2, '0'); // mês é 0-based
-  const ano = hoje.getFullYear();
-  const dataFormatada = `${ano}-${mes}-${dia}`;
-  document.getElementById('data_vencimento').value = dataFormatada;
 </script>
 
 <script>
