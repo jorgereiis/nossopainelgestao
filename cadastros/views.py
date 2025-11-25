@@ -574,6 +574,9 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
         queryset = (
             Cliente.objects
             .select_related('dispositivo', 'sistema', 'servidor', 'forma_pgto', 'plano')
+            .annotate(
+                contas_count=Count('conta_aplicativo', distinct=True)
+            )
             .prefetch_related(
                 Prefetch(
                     'conta_aplicativo',
@@ -781,6 +784,9 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         queryset = (
             Cliente.objects
             .select_related('dispositivo', 'sistema', 'servidor', 'forma_pgto', 'plano')
+            .annotate(
+                contas_count=Count('conta_aplicativo', distinct=True)
+            )
             .prefetch_related(
                 Prefetch(
                     'conta_aplicativo',
@@ -5015,18 +5021,17 @@ def create_customer(request):
                 contas_criadas = 0
                 try:
                     for tela in telas_data:
-                        # Só cria conta se o aplicativo requer MAC/conta
-                        if tela['sistema'].device_has_mac:
-                            ContaDoAplicativo.objects.create(
-                                dispositivo=tela['dispositivo'],
-                                app=tela['sistema'],
-                                device_id=tela['device_id'] or None,
-                                email=tela['email'] or None,
-                                device_key=tela['senha'] or None,
-                                cliente=cliente,
-                                usuario=usuario,
-                            )
-                            contas_criadas += 1
+                        # Cria conta para todas as telas (com ou sem MAC/conta)
+                        ContaDoAplicativo.objects.create(
+                            dispositivo=tela['dispositivo'],
+                            app=tela['sistema'],
+                            device_id=tela['device_id'] or None,
+                            email=tela['email'] or None,
+                            device_key=tela['senha'] or None,
+                            cliente=cliente,
+                            usuario=usuario,
+                        )
+                        contas_criadas += 1
 
                     # Incrementar contador de dispositivos usados
                     if contas_criadas > 0:

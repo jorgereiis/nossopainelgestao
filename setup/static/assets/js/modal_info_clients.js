@@ -498,6 +498,7 @@ $(function () {
     if (appNomeSelect) {
         appNomeSelect.addEventListener('change', function () {
             var selectedOption = this.options[this.selectedIndex];
+            var selectedValue = selectedOption.value;
             var deviceHasMac = selectedOption.dataset.deviceHasMac === 'true';
             var appName = selectedOption.textContent.trim().toLowerCase();
 
@@ -522,25 +523,28 @@ $(function () {
             if (deviceKey) deviceKey.removeAttribute('required');
             if (email) email.removeAttribute('required');
 
-            if (deviceHasMac) {
-                if (appName === 'clouddy') {
-                    if (divDeviceKey) divDeviceKey.style.display = 'block';
-                    if (divAppEmail) divAppEmail.style.display = 'block';
-                    if (deviceKey) deviceKey.setAttribute('required', 'required');
-                    if (email) email.setAttribute('required', 'required');
+            // Só processa se um app foi realmente selecionado
+            if (selectedValue) {
+                if (deviceHasMac) {
+                    if (appName === 'clouddy') {
+                        if (divDeviceKey) divDeviceKey.style.display = 'block';
+                        if (divAppEmail) divAppEmail.style.display = 'block';
+                        if (deviceKey) deviceKey.setAttribute('required', 'required');
+                        if (email) email.setAttribute('required', 'required');
+                    } else {
+                        if (divDeviceId) divDeviceId.style.display = 'block';
+                        if (divDeviceKey) divDeviceKey.style.display = 'block';
+                        if (deviceId) deviceId.setAttribute('required', 'required');
+                    }
                 } else {
-                    if (divDeviceId) divDeviceId.style.display = 'block';
-                    if (divDeviceKey) divDeviceKey.style.display = 'block';
-                    if (deviceId) deviceId.setAttribute('required', 'required');
+                    // App sem conta - permitir cadastro mas avisar usuário
+                    if (avisoSemConta) {
+                        avisoSemConta.style.display = 'block';
+                        avisoSemConta.textContent = 'De acordo com o cadastro desse aplicativo, ele não requer conta, então você pode cadastrá-lo sem informar as credenciais da Conta do App.';
+                        avisoSemConta.className = 'text-info mt-2';
+                    }
+                    if (btnSalvar) btnSalvar.disabled = false;
                 }
-            } else {
-                // App sem conta - permitir cadastro mas avisar usuário
-                if (avisoSemConta) {
-                    avisoSemConta.style.display = 'block';
-                    avisoSemConta.textContent = 'Este aplicativo não requer conta. Você pode cadastrá-lo sem informar credenciais.';
-                    avisoSemConta.className = 'text-info mt-2';
-                }
-                if (btnSalvar) btnSalvar.disabled = false;
             }
         });
     }

@@ -11,7 +11,22 @@
                         {% csrf_token %}
                         <!-- row -->
                         <div class="form-group">
-                            <label for="app-nome"><strong>Aplicativo</strong></label>
+                            <label for="dispositivo-id"><strong>Dispositivo</strong> <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <select id="dispositivo-id" name="dispositivo_id" class="form-control" required>
+                                    <option value="">Selecione um tipo de dispositivo</option>
+                                    {% for dispositivo in dispositivos %}
+                                      <option value="{{ dispositivo.id }}">
+                                        {{ dispositivo.nome }}
+                                      </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <small class="text-muted">Em qual dispositivo esta conta será instalada</small>
+                        </div>
+                        <!-- row -->
+                        <div class="form-group mt-2">
+                            <label for="app-nome"><strong>Aplicativo</strong> <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <select id="app-nome" name="app_id" class="form-control" required>
                                     <option value="">Selecione um aplicativo</option>
@@ -25,21 +40,6 @@
                                     {% endfor %}
                                   </select>
                             </div>
-                        </div>
-                        <!-- row -->
-                        <div class="form-group mt-2">
-                            <label for="dispositivo-id"><strong>Dispositivo</strong> <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <select id="dispositivo-id" name="dispositivo_id" class="form-control" required>
-                                    <option value="">Selecione um tipo de dispositivo</option>
-                                    {% for dispositivo in dispositivos %}
-                                      <option value="{{ dispositivo.id }}">
-                                        {{ dispositivo.nome }}
-                                      </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <small class="text-muted">Em qual dispositivo esta conta será instalada</small>
                         </div>
                         <!-- row -->
                         <div class="form-group mt-2" id="div-device-id" style="display: none;">
@@ -58,7 +58,7 @@
                         </div>
                         <!-- row -->
                         <p class="text-info mt-2" id="app-sem-conta" style="display: none;">
-                            Este aplicativo não requer conta. Você pode cadastrá-lo sem informar credenciais.
+                            De acordo com o cadastro desse aplicativo, ele não requer conta, então você pode cadastrá-lo sem informar as credenciais da Conta do App.
                         </p>
                         <input type="hidden" name="cliente-id" id="app-info-cliente-id">
                         <div class="text-danger small" id="create-app-error-message"></div>
