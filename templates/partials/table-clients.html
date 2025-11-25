@@ -43,28 +43,28 @@
                 <td class="text-center" data-sort-value="{{cliente.data_adesao|date:'Y-m-d'}}">
                     <span class="text-muted" style="font-size: 0.875rem;">{{cliente.data_adesao|date:'d/m/Y'}}</span>
                 </td>
-                <td class="text-center" data-sort-value="{{ cliente.contas_list|length }}">
-                    {% with contas=cliente.contas_list contas_count=contas|length plano_telas=cliente.plano.telas %}
-                    {% if contas %}
-                        {% if contas_count == plano_telas %}
+                <td class="text-center" data-sort-value="{{ cliente.contas_count }}">
+                    {% with contas=cliente.contas_list plano_telas=cliente.plano.telas %}
+                    {% if cliente.contas_count > 0 %}
+                        {% if cliente.contas_count == plano_telas %}
                             <!-- CASO 1: Apps = Telas - Badge PRIMARY normal -->
                             <span class="badge bg-primary-subtle text-primary border border-primary"
                                   style="font-size: 0.8rem; padding: 0.35rem 0.7rem; cursor: help;"
                                   data-bs-toggle="tooltip"
                                   data-bs-html="true"
                                   data-bs-placement="top"
-                                  title="{% for conta in contas %}<strong>{{ conta.dispositivo.nome }}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
-                                <i class="bi bi-tv me-1"></i>{{ contas_count }}/{{ plano_telas }}
+                                  title="<i class='bi bi-check-circle-fill text-primary' style='font-size: 1.1rem;'></i> <strong class='text-primary'>Tudo certo!</strong><br>{% for conta in contas %}<strong>{{ conta.dispositivo.nome }}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
+                                <i class="bi bi-tv me-1"></i>{{ cliente.contas_count }}/{{ plano_telas }}
                             </span>
-                        {% elif contas_count < plano_telas %}
+                        {% elif cliente.contas_count < plano_telas %}
                             <!-- CASO 2: Apps < Telas - Badge WARNING com animação -->
                             <span class="badge bg-warning-subtle text-warning border border-warning badge-pulse-warning"
                                   style="font-size: 0.8rem; padding: 0.35rem 0.7rem; cursor: help;"
                                   data-bs-toggle="tooltip"
                                   data-bs-html="true"
                                   data-bs-placement="top"
-                                  title="<strong class='text-warning'>⚠️ Atenção!</strong><br>{{ contas_count }} app(s) cadastrado(s) de {{ plano_telas }} tela(s)<br><br>{% for conta in contas %}<strong>{{ conta.dispositivo.nome }}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
-                                <i class="bi bi-exclamation-circle-fill me-1"></i>{{ contas_count }}/{{ plano_telas }}
+                                  title="<strong class='text-warning'>⚠️ Atenção</strong><br>Falta(m) app(s) a ser cadastrado - {{ cliente.contas_count }} de {{ plano_telas }} registrados<br><br>{% for conta in contas %}<strong>{{ conta.dispositivo.nome }}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
+                                <i class="bi bi-exclamation-circle-fill me-1"></i>{{ cliente.contas_count }}/{{ plano_telas }}
                             </span>
                         {% else %}
                             <!-- CASO 3: Apps > Telas - Badge INFO com leve destaque -->
@@ -73,8 +73,8 @@
                                   data-bs-toggle="tooltip"
                                   data-bs-html="true"
                                   data-bs-placement="top"
-                                  title="<strong class='text-info'>ℹ️ Apps Excedentes</strong><br>{{ contas_count }} app(s) cadastrado(s) de {{ plano_telas }} tela(s)<br><br>{% for conta in contas %}<strong>{{ conta.dispositivo.nome }}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
-                                <i class="bi bi-info-circle-fill me-1"></i>{{ contas_count }}/{{ plano_telas }}
+                                  title="<strong class='text-info'>ℹ️ Excesso de Apps</strong><br>Há app(s) acima da quantidade de telas - {{ cliente.contas_count }} apps de {{ plano_telas }} telas<br><br>{% for conta in contas %}<strong>{{ conta.dispositivo.nome }}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
+                                <i class="bi bi-info-circle-fill me-1"></i>{{ cliente.contas_count }}/{{ plano_telas }}
                             </span>
                         {% endif %}
                     {% else %}
