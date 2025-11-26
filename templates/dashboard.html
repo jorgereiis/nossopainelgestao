@@ -395,6 +395,15 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.error('[Dashboard] Falha ao inicializar DashboardTableManager');
     }
+
+    // ========== VARIÁVEIS GLOBAIS PARA MODAL DE EDIÇÃO ==========
+    // Dispositivos e aplicativos disponíveis (para geração dinâmica de cards)
+    window.dispositivosGlobal = {{ dispositivos_json|safe }};
+    window.aplicativosGlobal = {{ aplicativos_json|safe }};
+    console.log('[Dashboard] Variáveis globais carregadas:', {
+        dispositivos: window.dispositivosGlobal.length,
+        aplicativos: window.aplicativosGlobal.length
+    });
 });
 </script>
 {% endblock %}

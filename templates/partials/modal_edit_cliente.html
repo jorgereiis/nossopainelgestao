@@ -1,133 +1,184 @@
-                <div class="modal fade" id="edit-cliente-modal" tabindex="-1" role="dialog"
-                aria-labelledby="edit-cliente-label">
-                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
-                    <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title" id="edit-cliente-label">Editar Cliente</h4>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+<div class="modal fade" id="edit-cliente-modal" tabindex="-1" role="dialog" aria-labelledby="edit-cliente-label">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h4 class="modal-title" id="edit-cliente-label">
+                    <i class="bi bi-pencil-square me-2"></i>Editar Cliente
+                </h4>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+                <form method="POST" id="edit-cliente-form">
+                    {% csrf_token %}
+
+                    <!-- ====== BLOCO 1: INFORMAÇÕES PRINCIPAIS ====== -->
+                    <div class="card shadow-sm mb-4" style="border-left: 4px solid #0d6efd;">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 fw-bold">
+                                <i class="bi bi-person-fill text-primary me-2"></i>Dados do Cliente
+                            </h5>
+                            <small class="text-muted">Informações básicas e identificação</small>
+                        </div>
+                        <div class="card-body">
+                            <!-- Row: Nome + Telefone -->
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-cliente-nome" class="form-label fw-semibold">
+                                        <i class="bi bi-person-badge text-primary me-2"></i>Nome Completo <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="form-control form-control-lg" id="edit-cliente-nome" name="nome" placeholder="Digite o nome do cliente" autocomplete="off" required>
+                                    <small class="text-muted">Nome completo para identificação</small>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-cliente-telefone" class="form-label fw-semibold">
+                                        <i class="bi bi-telephone-fill text-success me-2"></i>Telefone <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="tel" class="form-control form-control-lg" id="edit-cliente-telefone" name="telefone" placeholder="Digite o telefone" minlength="12" maxlength="15" autocomplete="off" required>
+                                    <small class="text-muted">Telefone com DDD para contato</small>
+                                </div>
+                            </div>
+
+                            <!-- Row: Indicado por + Servidor -->
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-cliente-indicado_por" class="form-label fw-semibold">
+                                        <i class="bi bi-person-check text-info me-2"></i>Indicado por <span class="badge bg-light text-muted">Opcional</span>
+                                    </label>
+                                    <select class="form-select form-select-lg" id="edit-cliente-indicado_por" name="indicado_por">
+                                        <option value="">Selecione um indicador</option>
+                                        {% for indicador in indicadores %}
+                                        <option value="{{ indicador.nome }}">{{ indicador.nome }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">Cliente que indicou (se houver)</small>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-cliente-servidor" class="form-label fw-semibold">
+                                        <i class="bi bi-hdd-network-fill text-warning me-2"></i>Servidor <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select form-select-lg" id="edit-cliente-servidor" name="servidor" required>
+                                        <option value="">Selecione um servidor</option>
+                                        {% for servidor in servidores %}
+                                        <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">Servidor onde o cliente está cadastrado</small>
+                                </div>
+                            </div>
+
+                            <!-- Anotações -->
+                            <div class="mb-0">
+                                <label for="edit-cliente-notas" class="form-label fw-semibold">
+                                    <i class="bi bi-sticky-fill text-warning me-2"></i>Anotações <span class="badge bg-light text-muted">Opcional</span>
+                                </label>
+                                <textarea class="form-control form-control-lg" id="edit-cliente-notas" name="notas" rows="3" placeholder="Detalhes adicionais sobre o cliente..."></textarea>
+                                <small class="text-muted">Observações importantes sobre o cliente</small>
+                            </div>
+                        </div>
                     </div>
-                    <div class="modal-body">
-                        <form method="POST" id="edit-cliente-form">
-                        {% csrf_token %}
-                        <div class="form-group">
-                            <label for="edit-cliente-nome">Nome</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="edit-cliente-nome" name="nome" autocomplete="off" required>
-                            </div>
-                        </div>
 
-                        <div class="form-group">
-                            <label for="edit-cliente-telefone">Telefone</label>
-                            <div class="input-group">
-                                <input type="tel" class="form-control" id="edit-cliente-telefone" name="telefone" minlength="12" maxlength="15" autocomplete="off" required>
-                            </div>
+                    <!-- ====== BLOCO 2: INFORMAÇÕES DA MENSALIDADE ====== -->
+                    <div class="card shadow-sm mb-4" style="border-left: 4px solid #198754;">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 fw-bold">
+                                <i class="bi bi-credit-card-fill text-success me-2"></i>Informações da Mensalidade
+                            </h5>
+                            <small class="text-muted">Plano, pagamento e configurações de cobrança</small>
                         </div>
+                        <div class="card-body">
+                            <!-- Row: Forma de Pagamento + Data de Vencimento -->
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-cliente-forma_pgto" class="form-label fw-semibold">
+                                        <i class="bi bi-wallet2 text-success me-2"></i>Forma de Pagamento <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select form-select-lg" id="edit-cliente-forma_pgto" name="forma_pgto" required>
+                                        <option value="">Selecione uma forma</option>
+                                        {% for forma_pgto in formas_pgtos %}
+                                        <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">Como o cliente realiza o pagamento</small>
+                                </div>
 
-                        <!-- row -->
-                        <div class="form-group">
-                            <label for="edit-cliente-indicador_por">Indicado por</label>
-                            <div class="input-group">
-                                <select class="form-control" id="edit-cliente-indicado_por" name="indicado_por">
-                                <option value="">Selecione um cliente indicador</option>
-                                {% for indicador in indicadores %}
-                                <option value="{{ indicador.nome }}">{{ indicador.nome }}</option>
-                                {% endfor %}
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-cliente-dt_pgto" class="form-label fw-semibold">
+                                        <i class="bi bi-calendar-event text-danger me-2"></i>Data de Vencimento <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="date" class="form-control form-control-lg" id="edit-cliente-dt_pgto" name="dt_pgto" required>
+                                    <small class="text-muted">Dia do mês para vencimento da mensalidade</small>
+                                </div>
+                            </div>
+
+                            <!-- Plano -->
+                            <div class="mb-3">
+                                <label for="edit-cliente-plano" class="form-label fw-semibold">
+                                    <i class="bi bi-box-seam text-primary me-2"></i>Plano <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select form-select-lg" id="edit-cliente-plano" name="plano" required>
+                                    <option value="">Selecione um plano</option>
+                                    {% for plano in planos %}
+                                    <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }}" data-telas="{{ plano.telas }}">
+                                        {% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %}
+                                        {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela{{ plano.telas|pluralize }}
+                                    </option>
+                                    {% endfor %}
                                 </select>
+                                <small class="text-muted">Plano de adesão do cliente</small>
                             </div>
-                        </div>
 
-                        <!-- row -->
-                        <div class="form-group">
-                            <label for="edit-cliente-servidor">Servidor</label>
-                            <div class="input-group">
-                            <select class="form-control" id="edit-cliente-servidor" name="servidor" required>
-                                <option value="">Selecione um servidor</option>
-                                {% for servidor in servidores %}
-                                <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
-                                {% endfor %}
-                            </select>
+                            <!-- Toggle: Não Enviar Mensagens -->
+                            <div class="mb-0">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="edit-cliente-nao_enviar_msgs" name="nao_enviar_msgs" style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                                    <label class="form-check-label fw-semibold ms-2" for="edit-cliente-nao_enviar_msgs" style="cursor: pointer;">
+                                        <i class="bi bi-bell-slash text-warning me-2"></i>Não enviar mensagens automáticas
+                                    </label>
+                                </div>
+                                <small class="text-muted ms-5 ps-2">Ative para desabilitar envio automático de mensagens de vencimento e notificações</small>
                             </div>
                         </div>
-
-                        <!-- row -->
-                        <div class="form-group">
-                            <label for="edit-cliente-forma_pgto">Forma de pagamento</label>
-                            <div class="input-group">
-                            <select class="form-control" id="edit-cliente-forma_pgto" name="forma_pgto" required>
-                                <option value="">Selecione uma forma de pagamento</option>
-                                {% for forma_pgto in formas_pgtos %}
-                                <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
-                                {% endfor %}
-                            </select>
-                            </div>
-                        </div>
-
-                        <!-- row -->
-                        <div class="form-group">
-                            <label for="edit-cliente-plano">Plano</label>
-                            <div class="input-group">
-                            <select class="form-control" id="edit-cliente-plano" name="plano" required>
-                                <option value="">Selecione um plano de adesão</option>
-                                {% for plano in planos %}
-                                    {% if plano.telas > 1 %}
-                                <option value="{{ plano.nome }} - {{ plano.valor }}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }} telas</option>
-                                    {% else %}
-                                <option value="{{ plano.nome }} - {{ plano.valor }}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }} tela</option>
-                                    {% endif %}
-                                {% endfor %}
-                            </select>
-                            </div>
-                        </div>
-
-                        <!-- row -->
-                        <div class="form-group">
-                            <label for="edit-cliente-dt_pgto">Data de vencimento</label>
-                            <div class="input-group">
-                                <input type="date" class="form-control" id="edit-cliente-dt_pgto" name="dt_pgto" required>
-                            </div>
-                        </div>
-
-                        <!-- row -->
-                        <div class="form-group">
-                            <label for="edit-cliente-dispositivo">Dispositivo</label>
-                            <div class="input-group">
-                            <select class="form-control" id="edit-cliente-dispositivo" name="dispositivo" required>
-                                <option value="">Selecione um dispositivo</option>
-                                {% for dispositivo in dispositivos %}
-                                <option value="{{ dispositivo.nome }}">{{ dispositivo.nome }}</option>
-                                {% endfor %}
-                            </select>
-                            </div>
-                        </div>
-
-                        <!-- row -->
-                        <div class="form-group">
-                            <label for="edit-cliente-aplicativo">Aplicativo</label>
-                            <div class="input-group">
-                            <select class="form-control" id="edit-cliente-aplicativo" name="aplicativo" required>
-                                <option value="">Selecione um aplicativo</option>
-                                {% for aplicativo in aplicativos %}
-                                <option value="{{ aplicativo.nome }}">{{ aplicativo.nome }}</option>
-                                {% endfor %}
-                            </select>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="edit-cliente-notas">Anotações</label>
-                            <div class="input-group">
-                                <textarea type="text" class="form-control" id="edit-cliente-notas" name="notas" cols="5" rows="3" placeholder="Detalhes adicionais sobre o cliente..."></textarea>
-                            </div>
-                        </div>
-                        <input type="hidden" name="cliente_id" id="edit-cliente-id">
-                        </form>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" form="edit-cliente-form" class="btn btn-primary btn-confirmar-acao">
-                                Salvar
-                        </button>
+
+                    <!-- ====== BLOCO 3: CONTAS DE APPS ====== -->
+                    <div class="card shadow-sm mb-4" style="border-left: 4px solid #6610f2;">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-0 fw-bold">
+                                    <i class="bi bi-tv-fill text-purple me-2"></i>Contas de Aplicativos
+                                </h5>
+                                <small class="text-muted">Dispositivos e apps cadastrados para este cliente</small>
+                            </div>
+                            <span class="badge bg-info" id="edit-contas-count-badge">
+                                Carregando...
+                            </span>
+                        </div>
+                        <div class="card-body" id="edit-contas-apps-container">
+                            <!-- Cards de contas serão inseridos aqui via JavaScript -->
+                            <div class="text-center text-muted py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Carregando contas...</span>
+                                </div>
+                                <p class="mt-2">Carregando contas de aplicativos...</p>
+                            </div>
+                        </div>
                     </div>
-                    </div>
-                </div>
-                </div>
+
+                    <input type="hidden" name="cliente_id" id="edit-cliente-id">
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>Cancelar
+                </button>
+                <button type="submit" form="edit-cliente-form" class="btn btn-primary" id="btn-salvar-edit-cliente">
+                    <i class="bi bi-check-circle me-1"></i>Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

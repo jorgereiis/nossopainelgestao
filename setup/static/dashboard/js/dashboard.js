@@ -559,6 +559,324 @@ $(document).ready(function() {
   });
 });
 
+// ========================== FUNÇÕES DO MODAL DE EDIÇÃO ==========================
+
+/**
+ * Carrega as contas de aplicativos do cliente via AJAX
+ */
+function carregarContasCliente(clienteId) {
+    const container = document.querySelector('#edit-contas-apps-container');
+    const countBadge = document.querySelector('#edit-contas-count-badge');
+
+    // Mostra loading
+    container.innerHTML = `
+        <div class="text-center text-muted py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando contas...</span>
+            </div>
+            <p class="mt-2">Carregando contas de aplicativos...</p>
+        </div>
+    `;
+
+    // Busca contas via AJAX
+    fetch(`/api/cliente/${clienteId}/contas/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderContasCards(data.contas);
+                countBadge.textContent = `${data.total} conta${data.total !== 1 ? 's' : ''}`;
+
+                // Abre o modal após renderizar os cards
+                const modalElement = document.querySelector("#edit-cliente-modal");
+                const modal = new bootstrap.Modal(modalElement);
+
+                // Adiciona evento para limpar backdrop quando fechar
+                modalElement.addEventListener('hidden.bs.modal', function () {
+                    // Remove qualquer backdrop residual
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(backdrop => backdrop.remove());
+
+                    // Remove classe do body
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+
+                    console.log('[Modal] Backdrop e estilos limpos após fechar modal');
+                }, { once: true }); // Executa apenas uma vez
+
+                modal.show();
+            } else {
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>${data.error || 'Erro ao carregar contas'}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar contas:', error);
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Erro ao carregar contas de aplicativos
+                </div>
+            `;
+        });
+}
+
+/**
+ * Renderiza os cards de contas no container
+ */
+function renderContasCards(contas) {
+    const container = document.querySelector('#edit-contas-apps-container');
+
+    if (!contas || contas.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-info-circle me-2"></i>Nenhuma conta de aplicativo cadastrada para este cliente.
+            </div>
+        `;
+        return;
+    }
+
+    // Gera HTML de todos os cards
+    let cardsHTML = '';
+    contas.forEach((conta, index) => {
+        cardsHTML += gerarCardConta(conta, index);
+    });
+
+    container.innerHTML = cardsHTML;
+
+    // Adiciona event listeners após renderizar
+    adicionarEventListenersContas();
+}
+
+/**
+ * Gera o HTML de um card de conta
+ */
+function gerarCardConta(conta, index) {
+    const isPrincipal = conta.is_principal;
+    const badgePrincipal = isPrincipal ? '<span class="badge bg-warning text-dark ms-2"><i class="bi bi-star-fill me-1"></i>Principal</span>' : '';
+
+    // Debug: Log dos valores da conta
+    console.log('[gerarCardConta] Conta:', {
+        id: conta.id,
+        dispositivo_id: conta.dispositivo_id,
+        dispositivo_nome: conta.dispositivo_nome,
+        app_id: conta.app_id,
+        app_nome: conta.app_nome
+    });
+
+    // Verifica se variáveis globais existem
+    if (!window.dispositivosGlobal || !window.aplicativosGlobal) {
+        console.error('[gerarCardConta] Variáveis globais não carregadas!');
+        return `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>Erro: Dados não carregados. Recarregue a página.
+            </div>
+        `;
+    }
+
+    // Determina campos de credenciais baseado no app
+    let credenciaisHTML = '';
+    if (conta.app_device_has_mac) {
+        // Verifica se é Clouddy
+        if (conta.app_nome && conta.app_nome.toLowerCase().includes('clouddy')) {
+            credenciaisHTML = `
+                <div class="col-md-6 mb-3">
+                    <label for="edit-conta-email-${conta.id}" class="form-label fw-semibold">
+                        <i class="bi bi-envelope-fill text-success me-2"></i>E-mail
+                    </label>
+                    <input type="email" class="form-control" id="edit-conta-email-${conta.id}"
+                           name="conta_${conta.id}_email" value="${conta.email}"
+                           placeholder="Digite o e-mail">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="edit-conta-senha-${conta.id}" class="form-label fw-semibold">
+                        <i class="bi bi-key-fill text-warning me-2"></i>Senha
+                    </label>
+                    <input type="text" class="form-control" id="edit-conta-senha-${conta.id}"
+                           name="conta_${conta.id}_device_key" value="${conta.device_key}"
+                           placeholder="Digite a senha">
+                </div>
+            `;
+        } else {
+            // MAC Address + senha opcional
+            credenciaisHTML = `
+                <div class="col-md-6 mb-3">
+                    <label for="edit-conta-device-id-${conta.id}" class="form-label fw-semibold">
+                        <i class="bi bi-upc-scan text-success me-2"></i>Device ID (MAC)
+                    </label>
+                    <input type="text" class="form-control" id="edit-conta-device-id-${conta.id}"
+                           name="conta_${conta.id}_device_id" value="${conta.device_id}"
+                           placeholder="AA:BB:CC:DD:EE:FF" maxlength="17">
+                    <small class="text-muted">Formato: AA:BB:CC:DD:EE:FF</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="edit-conta-senha-${conta.id}" class="form-label fw-semibold">
+                        <i class="bi bi-key-fill text-warning me-2"></i>Device Key <span class="badge bg-light text-muted">Opcional</span>
+                    </label>
+                    <input type="text" class="form-control" id="edit-conta-senha-${conta.id}"
+                           name="conta_${conta.id}_device_key" value="${conta.device_key}"
+                           placeholder="Digite a senha (opcional)">
+                </div>
+            `;
+        }
+    }
+
+    return `
+        <div class="card mb-3 shadow-sm" style="border-left: 4px solid ${isPrincipal ? '#ffc107' : '#6c757d'};">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-tv text-primary me-2"></i>Conta ${index + 1}
+                        ${badgePrincipal}
+                    </h6>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input conta-principal-checkbox" type="checkbox"
+                           id="edit-conta-principal-${conta.id}"
+                           name="conta_${conta.id}_is_principal"
+                           data-conta-id="${conta.id}"
+                           ${isPrincipal ? 'checked' : ''}
+                           style="width: 2.5rem; height: 1.25rem; cursor: pointer;">
+                    <label class="form-check-label fw-semibold ms-1" for="edit-conta-principal-${conta.id}" style="cursor: pointer;">
+                        <i class="bi bi-star me-1"></i>Principal
+                    </label>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Dispositivo -->
+                    <div class="col-md-6 mb-3">
+                        <label for="edit-conta-dispositivo-${conta.id}" class="form-label fw-semibold">
+                            <i class="bi bi-tablet-fill text-info me-2"></i>Dispositivo <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="edit-conta-dispositivo-${conta.id}"
+                                name="conta_${conta.id}_dispositivo_id" required>
+                            <option value="">Selecione um dispositivo</option>
+                            ${window.dispositivosGlobal ? window.dispositivosGlobal.map(d => {
+                                const isSelected = String(conta.dispositivo_id) === String(d.id);
+                                return `<option value="${d.id}" ${isSelected ? 'selected' : ''}>${d.nome}</option>`;
+                            }).join('') : '<option value="">Erro: dispositivos não carregados</option>'}
+                        </select>
+                    </div>
+
+                    <!-- Aplicativo -->
+                    <div class="col-md-6 mb-3">
+                        <label for="edit-conta-app-${conta.id}" class="form-label fw-semibold">
+                            <i class="bi bi-phone-fill text-primary me-2"></i>Aplicativo <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select edit-conta-app-select" id="edit-conta-app-${conta.id}"
+                                name="conta_${conta.id}_app_id" data-conta-id="${conta.id}" required>
+                            <option value="">Selecione um aplicativo</option>
+                            ${window.aplicativosGlobal ? window.aplicativosGlobal.map(a => {
+                                const isSelected = String(conta.app_id) === String(a.id);
+                                return `<option value="${a.id}" data-has-mac="${a.device_has_mac}" ${isSelected ? 'selected' : ''}>${a.nome}</option>`;
+                            }).join('') : '<option value="">Erro: aplicativos não carregados</option>'}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Credenciais (condicional) -->
+                <div class="row" id="edit-conta-credenciais-${conta.id}">
+                    ${credenciaisHTML}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Adiciona event listeners às contas após renderizar
+ */
+function adicionarEventListenersContas() {
+    // Listener para checkbox de conta principal (apenas uma pode ser marcada)
+    const checkboxes = document.querySelectorAll('.conta-principal-checkbox');
+    const totalContas = checkboxes.length;
+
+    checkboxes.forEach(checkbox => {
+        // Se há apenas 1 conta, ela DEVE ser principal e não pode ser desmarcada
+        if (totalContas === 1) {
+            checkbox.checked = true;
+            checkbox.disabled = true;
+            checkbox.title = 'Conta única - deve permanecer como principal';
+
+            // Adiciona tooltip visual no label
+            const label = checkbox.closest('.form-check').querySelector('label');
+            if (label && !label.querySelector('.text-muted')) {
+                const tooltip = document.createElement('small');
+                tooltip.className = 'text-muted ms-2';
+                tooltip.textContent = '(obrigatório - conta única)';
+                label.appendChild(tooltip);
+            }
+        }
+
+        checkbox.addEventListener('change', function() {
+            if (this.checked) {
+                // Desmarca todas as outras
+                document.querySelectorAll('.conta-principal-checkbox').forEach(other => {
+                    if (other !== this) {
+                        other.checked = false;
+                    }
+                });
+            }
+        });
+    });
+
+    // Listener para mudança de aplicativo (mostrar/ocultar campos de credenciais)
+    document.querySelectorAll('.edit-conta-app-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const contaId = this.dataset.contaId;
+            const selectedOption = this.options[this.selectedIndex];
+            const hasMac = selectedOption.dataset.hasMac === 'true';
+            const appNome = selectedOption.text.toLowerCase();
+
+            const credenciaisContainer = document.querySelector(`#edit-conta-credenciais-${contaId}`);
+
+            if (!hasMac) {
+                credenciaisContainer.innerHTML = '';
+                return;
+            }
+
+            // Gerar campos condicionais
+            if (appNome.includes('clouddy')) {
+                credenciaisContainer.innerHTML = `
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-envelope-fill text-success me-2"></i>E-mail
+                        </label>
+                        <input type="email" class="form-control" name="conta_${contaId}_email" placeholder="Digite o e-mail">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-key-fill text-warning me-2"></i>Senha
+                        </label>
+                        <input type="text" class="form-control" name="conta_${contaId}_device_key" placeholder="Digite a senha">
+                    </div>
+                `;
+            } else {
+                credenciaisContainer.innerHTML = `
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-upc-scan text-success me-2"></i>Device ID (MAC)
+                        </label>
+                        <input type="text" class="form-control" name="conta_${contaId}_device_id"
+                               placeholder="AA:BB:CC:DD:EE:FF" maxlength="17">
+                        <small class="text-muted">Formato: AA:BB:CC:DD:EE:FF</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-key-fill text-warning me-2"></i>Device Key <span class="badge bg-light text-muted">Opcional</span>
+                        </label>
+                        <input type="text" class="form-control" name="conta_${contaId}_device_key"
+                               placeholder="Digite a senha (opcional)">
+                    </div>
+                `;
+            }
+        });
+    });
+}
+
 // FUNÇÃO PARA EXIBIR O MODAL DE EDIÇÃO DOS DADOS DO CLIENTE
 
     function exibirModalEdicao(botao) {
@@ -568,14 +886,13 @@ $(document).ready(function() {
       const clienteTelefone = botao.dataset.telefone;
       const clienteServidor = botao.dataset.servidor;
       const clienteFormaPgto = botao.dataset.forma_pgto;
-      const clienteAplicativo = botao.dataset.aplicativo;
-      const clienteDispositivo = botao.dataset.dispositivo;
-      
+      const clienteNaoEnviarMsgs = botao.dataset.nao_enviar_msgs === 'True';
+
       let clienteNotas = botao.dataset.notas;
       if (clienteNotas == 'None' || clienteNotas == null || clienteNotas == 'undefined'){
         clienteNotas = '';
       }
-      
+
       let clienteIndicadoPor = botao.dataset.indicado_por;
       if (clienteIndicadoPor == 'None' || clienteIndicadoPor == null || clienteIndicadoPor == 'undefined'){
         clienteIndicadoPor = '';
@@ -584,7 +901,8 @@ $(document).ready(function() {
       if (clienteDataVencimento == 'None' || clienteDataVencimento == null || clienteDataVencimento == 'undefined'){
         clienteDataVencimento = '';
       }
-  
+
+      // Preenche campos básicos do cliente
       const form = document.querySelector("#edit-cliente-form");
       form.action = `/editar-cliente/${clienteId}/`;
       form.querySelector("#edit-cliente-id").value = clienteId;
@@ -595,9 +913,11 @@ $(document).ready(function() {
       form.querySelector("#edit-cliente-forma_pgto").value = clienteFormaPgto;
       form.querySelector("#edit-cliente-plano").value = clientePlano;
       form.querySelector("#edit-cliente-dt_pgto").value = clienteDataVencimento;
-      form.querySelector("#edit-cliente-dispositivo").value = clienteDispositivo;
-      form.querySelector("#edit-cliente-aplicativo").value = clienteAplicativo;
+      form.querySelector("#edit-cliente-nao_enviar_msgs").checked = clienteNaoEnviarMsgs;
       form.querySelector("#edit-cliente-notas").value = clienteNotas;
+
+      // Carrega contas de aplicativos via AJAX
+      carregarContasCliente(clienteId);
   
         $('#edit-cliente-form').off('submit').on('submit', function(event) {
             event.preventDefault();

@@ -1578,3 +1578,122 @@ button.dropdown-item.dropdown-action-delete:focus i {
     color: #0d6efd;
     font-weight: bold;
 }
+
+/* ========================================================================== */
+/* ESTILOS PARA MODAL DE EDIÇÃO DE CLIENTE - CONTAS DE APLICATIVOS           */
+/* ========================================================================== */
+
+/* Badge de Conta Principal com animação sutil */
+.badge.bg-warning.text-dark {
+    animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(255, 193, 7, 0);
+    }
+}
+
+/* Estilo para switch de conta principal */
+.conta-principal-checkbox {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.conta-principal-checkbox:checked {
+    background-color: #ffc107 !important;
+    border-color: #ffc107 !important;
+}
+
+.conta-principal-checkbox:focus {
+    box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+}
+
+/* Card de conta de aplicativo - bordas coloridas */
+.card.shadow-sm[style*="border-left: 4px solid #ffc107"] {
+    background: linear-gradient(to right, #fff9e6 0%, #ffffff 5%);
+}
+
+/* Hover effect nos cards de contas */
+#edit-contas-apps-container .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    transition: all 0.3s ease;
+}
+
+/* Estilo para modal XL (mais largo) */
+.modal-xl {
+    max-width: 1140px;
+}
+
+/* Scroll suave no modal body */
+.modal-body {
+    scroll-behavior: smooth;
+}
+
+/* Badge de contador de contas */
+#edit-contas-count-badge {
+    font-size: 0.875rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+}
+
+/* Destaque visual para campos obrigatórios nos cards */
+.card-body label .text-danger {
+    font-size: 1.1em;
+}
+
+/* Estilo para mensagem "Carregando contas" */
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Animação suave para aparecer os cards */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#edit-contas-apps-container .card {
+    animation: fadeInUp 0.4s ease-out;
+    animation-fill-mode: both;
+}
+
+#edit-contas-apps-container .card:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+#edit-contas-apps-container .card:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+#edit-contas-apps-container .card:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+/* Melhoria visual do toggle "Não enviar mensagens" */
+.form-check-input[style*="width: 3rem"] {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.25%29'/%3e%3c/svg%3e");
+}
+
+.form-check-input[style*="width: 3rem"]:checked {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+}
+
+/* Responsividade para tablets */
+@media (max-width: 992px) {
+    .modal-xl {
+        max-width: 90%;
+    }
+}

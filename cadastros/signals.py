@@ -636,3 +636,80 @@ def decrementar_contador_dispositivos(sender, instance, **kwargs):
             f"[CONTADOR] Erro ao decrementar dispositivos para {instance.cliente.nome}: {str(e)}",
             exc_info=True
         )
+
+
+# ============================================================================
+# Sincronização automática Cliente ↔ ContaDoAplicativo (conta principal)
+# ============================================================================
+
+@receiver(post_save, sender='cadastros.ContaDoAplicativo')
+def sincronizar_conta_principal(sender, instance, **kwargs):
+    """
+    Sincroniza Cliente.dispositivo e Cliente.sistema quando uma conta principal é salva.
+
+    Este signal garante que os campos legados do Cliente (dispositivo e sistema)
+    sempre reflitam os dados da conta marcada como principal, mantendo
+    compatibilidade com código legado e relatórios.
+
+    A sincronização ocorre automaticamente quando:
+    - Uma conta é marcada como principal (is_principal=True)
+    - Os dados de uma conta já principal são modificados
+
+    Nota: Se for usar o método marcar_como_principal(), ele já faz a sincronização,
+    então este signal serve como garantia adicional para edições diretas.
+    """
+    from .models import ContaDoAplicativo
+
+    # ========== DEBUG: Log de entrada do signal ==========
+    logger.debug(
+        f"[SINCRONIZAÇÃO] Signal chamado para conta ID {instance.id} - "
+        f"Cliente: {instance.cliente.nome} - "
+        f"is_principal={instance.is_principal}"
+    )
+
+    # Só sincroniza se esta conta é principal
+    if not instance.is_principal:
+        logger.debug(f"[SINCRONIZAÇÃO] Conta {instance.id} NÃO é principal. Saindo sem sincronizar.")
+        return
+
+    try:
+        cliente = instance.cliente
+
+        # Log dos valores antes da atualização
+        logger.debug(
+            f"[SINCRONIZAÇÃO] ANTES - Cliente.dispositivo: {cliente.dispositivo.nome if cliente.dispositivo else 'None'}, "
+            f"Cliente.sistema: {cliente.sistema.nome if cliente.sistema else 'None'} | "
+            f"Conta.dispositivo: {instance.dispositivo.nome if instance.dispositivo else 'None'}, "
+            f"Conta.app: {instance.app.nome}"
+        )
+
+        # Verifica se realmente precisa atualizar (evita save desnecessário)
+        precisa_atualizar = False
+
+        if cliente.dispositivo != instance.dispositivo:
+            logger.debug(f"[SINCRONIZAÇÃO] Dispositivo DIFERENTE - atualizando de {cliente.dispositivo} para {instance.dispositivo}")
+            cliente.dispositivo = instance.dispositivo
+            precisa_atualizar = True
+
+        if cliente.sistema != instance.app:
+            logger.debug(f"[SINCRONIZAÇÃO] Sistema DIFERENTE - atualizando de {cliente.sistema} para {instance.app}")
+            cliente.sistema = instance.app
+            precisa_atualizar = True
+
+        if precisa_atualizar:
+            # Usa update_fields para evitar trigger de outros signals desnecessariamente
+            cliente.save(update_fields=['dispositivo', 'sistema'])
+
+            logger.info(
+                f"[SINCRONIZAÇÃO] ✅ Conta principal atualizada. Cliente: {cliente.nome} - "
+                f"Dispositivo: {instance.dispositivo.nome if instance.dispositivo else 'N/A'} - "
+                f"App: {instance.app.nome}"
+            )
+        else:
+            logger.debug(f"[SINCRONIZAÇÃO] Nenhuma mudança detectada. Não precisa atualizar.")
+
+    except Exception as e:
+        logger.error(
+            f"[SINCRONIZAÇÃO] ❌ Erro ao sincronizar conta principal para cliente {instance.cliente.nome}: {str(e)}",
+            exc_info=True
+        )
