@@ -5365,7 +5365,7 @@ def create_payment_plan(request):
 
                 plano, created = Plano.objects.get_or_create(
                     nome=request.POST.get('nome'),
-                    valor=int(request.POST.get('valor')),
+                    valor=Decimal(request.POST.get('valor').replace(',', '.')),
                     telas=telas,
                     max_dispositivos=telas,  # ⭐ FASE 1: Dispositivos = Telas
                     usuario=usuario
