@@ -359,8 +359,13 @@ function carregarContasApps(clienteId) {
                                  alt="${nomeApp} Logo"
                                  class="app-card-logo">
 
+                            <!-- Badge Principal (acima do título) -->
+                            ${conta.is_principal ? '<span class="badge bg-warning text-dark" style="font-size: 0.6rem; padding: 0.25rem 0.5rem; display: inline-block;"><i class="bi bi-star-fill me-1"></i>Principal</span>' : ''}
+
                             <!-- Título -->
-                            <h3 class="app-card-title">${nomeApp}</h3>
+                            <h3 class="app-card-title">
+                                ${nomeApp}
+                            </h3>
 
                             <!-- Dispositivo abaixo -->
                             <p class="app-card-device">${nomeDispositivo}</p>
@@ -709,8 +714,9 @@ $(function() {
                 $('#confirm-delete-app-conta-modal').modal('hide');
             },
             error: function(response) {
-                var mensagem_erro = (response.responseJSON && response.responseJSON.error_delete) ? response.responseJSON.error_delete : "Erro ao excluir.";
-                $('#mensagem-erro').text(mensagem_erro);
+                var mensagem_erro = (response.responseJSON && response.responseJSON.error_message) ? response.responseJSON.error_message : "Erro ao excluir.";
+                $('#delete-app-error-message').text(mensagem_erro);
+                $('#delete-app-error-message').show();
             }
         });
     });

@@ -53,7 +53,7 @@
                                   data-bs-toggle="tooltip"
                                   data-bs-html="true"
                                   data-bs-placement="top"
-                                  title="<i class='bi bi-check-circle-fill text-primary' style='font-size: 1.1rem;'></i> <strong class='text-primary'>Tudo certo!</strong><br>{% for conta in contas %}<strong>{{ conta.dispositivo.nome }}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
+                                  title="<i class='bi bi-check-circle-fill text-primary' style='font-size: 1.1rem;'></i> <strong class='text-primary'>Tudo certo!</strong><br>{% for conta in contas %}<strong>{% if conta.dispositivo %}{{ conta.dispositivo.nome }}{% elif cliente.dispositivo %}{{ cliente.dispositivo.nome }}{% else %}Dispositivo não especificado{% endif %}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
                                 <i class="bi bi-tv me-1"></i>{{ cliente.contas_count }}/{{ plano_telas }}
                             </span>
                         {% elif cliente.contas_count < plano_telas %}
@@ -63,7 +63,7 @@
                                   data-bs-toggle="tooltip"
                                   data-bs-html="true"
                                   data-bs-placement="top"
-                                  title="<strong class='text-warning'>⚠️ Atenção</strong><br>Falta(m) app(s) a ser cadastrado - {{ cliente.contas_count }} de {{ plano_telas }} registrados<br><br>{% for conta in contas %}<strong>{{ conta.dispositivo.nome }}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
+                                  title="<strong class='text-warning'>⚠️ Atenção</strong><br>Falta(m) app(s) a ser cadastrado - {{ cliente.contas_count }} de {{ plano_telas }} registrados<br><br>{% for conta in contas %}<strong>{% if conta.dispositivo %}{{ conta.dispositivo.nome }}{% elif cliente.dispositivo %}{{ cliente.dispositivo.nome }}{% else %}Dispositivo não especificado{% endif %}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
                                 <i class="bi bi-exclamation-circle-fill me-1"></i>{{ cliente.contas_count }}/{{ plano_telas }}
                             </span>
                         {% else %}
@@ -73,7 +73,7 @@
                                   data-bs-toggle="tooltip"
                                   data-bs-html="true"
                                   data-bs-placement="top"
-                                  title="<strong class='text-info'>ℹ️ Excesso de Apps</strong><br>Há app(s) acima da quantidade de telas - {{ cliente.contas_count }} apps de {{ plano_telas }} telas<br><br>{% for conta in contas %}<strong>{{ conta.dispositivo.nome }}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
+                                  title="<strong class='text-info'>ℹ️ Excesso de Apps</strong><br>Há app(s) acima da quantidade de telas - {{ cliente.contas_count }} apps de {{ plano_telas }} telas<br><br>{% for conta in contas %}<strong>{% if conta.dispositivo %}{{ conta.dispositivo.nome }}{% elif cliente.dispositivo %}{{ cliente.dispositivo.nome }}{% else %}Dispositivo não especificado{% endif %}</strong> + {{ conta.app.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
                                 <i class="bi bi-info-circle-fill me-1"></i>{{ cliente.contas_count }}/{{ plano_telas }}
                             </span>
                         {% endif %}
@@ -196,12 +196,13 @@
                                 data-indicado_por="{{cliente.indicado_por}}"
                                 data-servidor="{{cliente.servidor}}"
                                 data-forma_pgto="{{cliente.forma_pgto}}"
-                                data-plano="{{cliente.plano.nome}} - {{cliente.plano.valor}}"
+                                data-plano="{{cliente.plano.nome}} - {{cliente.plano.valor}} - {{cliente.plano.telas}}"
                                 data-telas="{{cliente.telas}}"
                                 data-data_vencimento="{{cliente.data_vencimento|date:'Y-m-d'}}"
                                 data-dispositivo="{{cliente.dispositivo}}"
                                 data-aplicativo="{{cliente.sistema}}"
                                 data-notas="{{cliente.notas}}"
+                                data-nao_enviar_msgs="{{cliente.nao_enviar_msgs}}"
                                 onclick="exibirModalEdicao(this)">
                                     <i class="bi bi-pencil me-3"></i>
                                     <span>Editar Informações</span>

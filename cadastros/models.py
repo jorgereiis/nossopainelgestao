@@ -1229,6 +1229,7 @@ class ContaDoAplicativo(models.Model):
     device_key = models.CharField("Senha", max_length=255, blank=True, null=True)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
     verificado = models.BooleanField(default=False)
+    is_principal = models.BooleanField("Conta Principal", default=False, help_text="Define esta conta como principal. Os dados desta conta sincronizam com os campos Dispositivo e Aplicativo do cliente.")
 
     def save(self, *args, **kwargs):
         """Normaliza o identificador do dispositivo para formato MAC quando necessário."""
@@ -1250,6 +1251,23 @@ class ContaDoAplicativo(models.Model):
         if self.dispositivo:
             return f"{self.app.nome} ({self.dispositivo.nome})"
         return self.app.nome
+
+    def marcar_como_principal(self):
+        """
+        Marca esta conta como principal e desmarca todas as outras do mesmo cliente.
+        Sincroniza os campos Cliente.dispositivo e Cliente.sistema com esta conta.
+        """
+        # Desmarca todas as outras contas do mesmo cliente
+        ContaDoAplicativo.objects.filter(cliente=self.cliente).exclude(id=self.id).update(is_principal=False)
+
+        # Marca esta conta como principal
+        self.is_principal = True
+        self.save(update_fields=['is_principal'])
+
+        # Sincroniza com o Cliente
+        self.cliente.dispositivo = self.dispositivo
+        self.cliente.sistema = self.app
+        self.cliente.save(update_fields=['dispositivo', 'sistema'])
 
 
 class SessaoWpp(models.Model):

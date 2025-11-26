@@ -391,14 +391,18 @@ class CarregarContasDoAplicativo(LoginRequiredMixin, View):
         cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
         conta_app = (
             ContaDoAplicativo.objects.filter(cliente=cliente, usuario=self.request.user)
-            .select_related('app', 'dispositivo')
+            .select_related('app', 'dispositivo', 'cliente__dispositivo')
         )
 
         conta_app_json = []
 
         for conta in conta_app:
             nome_aplicativo = conta.app.nome
-            nome_dispositivo = conta.dispositivo.nome if conta.dispositivo else 'Não especificado'
+            nome_dispositivo = (
+                conta.dispositivo.nome if conta.dispositivo
+                else (conta.cliente.dispositivo.nome if conta.cliente.dispositivo
+                else 'Não especificado')
+            )
             conta_json = model_to_dict(conta)
             conta_json['nome_aplicativo'] = nome_aplicativo
             conta_json['nome_dispositivo'] = nome_dispositivo
@@ -546,11 +550,29 @@ class ClientesCancelados(LoginRequiredMixin, ListView):
         page = 'lista-clientes'
         range_num = range(1,32)
 
+        # Adiciona dispositivos e aplicativos para o modal de edição
+        dispositivos = Dispositivo.objects.all()
+        aplicativos = Aplicativo.objects.all()
+
+        # Serializa para JSON (para uso no JavaScript)
+        dispositivos_json = [
+            {'id': d.id, 'nome': d.nome}
+            for d in dispositivos
+        ]
+        aplicativos_json = [
+            {'id': a.id, 'nome': a.nome, 'device_has_mac': a.device_has_mac}
+            for a in aplicativos
+        ]
+
         context.update(
             {
                 "range": range_num,
                 "page_group": page_group,
                 "page": page,
+                "dispositivos": dispositivos,
+                "aplicativos": aplicativos,
+                "dispositivos_json": json.dumps(dispositivos_json),
+                "aplicativos_json": json.dumps(aplicativos_json),
             }
         )
         return context
@@ -853,6 +875,16 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         dispositivos = Dispositivo.objects.filter(usuario=self.request.user).order_by('nome')
         aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
 
+        # Serializa dispositivos e aplicativos para JSON (para uso no JavaScript do modal de edição)
+        dispositivos_json = [
+            {'id': d.id, 'nome': d.nome}
+            for d in dispositivos
+        ]
+        aplicativos_json = [
+            {'id': a.id, 'nome': a.nome, 'device_has_mac': a.device_has_mac}
+            for a in aplicativos
+        ]
+
         clientes_em_atraso = Cliente.objects.filter(
             cancelado=False,
             mensalidade__cancelado=False,
@@ -1002,6 +1034,8 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "indicadores": indicadores,
                 "dispositivos": dispositivos,
                 "formas_pgtos": formas_pgtos,
+                "dispositivos_json": json.dumps(dispositivos_json),
+                "aplicativos_json": json.dumps(aplicativos_json),
                 ## context para o gráfico de adesões e cancelamentos
                 "anos_adesao": anos_adesao,
                 "lista_meses": lista_meses,
@@ -2778,6 +2812,57 @@ def calcular_nova_data_vencimento(plano_nome, data_base):
     except ValueError:
         return date(year=ano, month=mes, day=1)
 
+
+@login_required
+def api_cliente_contas(request, cliente_id):
+    """
+    API para carregar as contas de aplicativos de um cliente.
+    Retorna JSON com todas as contas incluindo dispositivo, app, credenciais e status principal.
+    """
+    try:
+        cliente = Cliente.objects.get(id=cliente_id, usuario=request.user)
+
+        # Busca todas as contas do cliente com relacionamentos
+        contas = ContaDoAplicativo.objects.filter(cliente=cliente).select_related(
+            'dispositivo', 'app'
+        ).order_by('-is_principal', 'id')  # Principal primeiro, depois por ordem de criação
+
+        # Serializa para JSON
+        contas_data = []
+        for conta in contas:
+            conta_dict = {
+                'id': conta.id,
+                'dispositivo_id': conta.dispositivo.id if conta.dispositivo else None,
+                'dispositivo_nome': conta.dispositivo.nome if conta.dispositivo else None,
+                'app_id': conta.app.id,
+                'app_nome': conta.app.nome,
+                'app_device_has_mac': conta.app.device_has_mac,
+                'device_id': conta.device_id or '',
+                'email': conta.email or '',
+                'device_key': conta.device_key or '',
+                'is_principal': conta.is_principal,
+                'verificado': conta.verificado,
+            }
+            contas_data.append(conta_dict)
+
+        return JsonResponse({
+            'success': True,
+            'contas': contas_data,
+            'total': len(contas_data)
+        })
+
+    except Cliente.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Cliente não encontrado'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
 @login_required
 @transaction.atomic
 def edit_customer(request, cliente_id):
@@ -2800,8 +2885,7 @@ def edit_customer(request, cliente_id):
             "forma_pgto": cliente.forma_pgto,
             "plano": cliente.plano,
             "data_vencimento": cliente.data_vencimento,
-            "dispositivo": cliente.dispositivo,
-            "sistema": cliente.sistema,
+            "nao_enviar_msgs": cliente.nao_enviar_msgs,
             "notas": cliente.notas,
         }
         original_mensalidade = {
@@ -2879,10 +2963,19 @@ def edit_customer(request, cliente_id):
         # Plano
         plano_str = post.get("plano", "")
         if '-' in plano_str:
-            plano_nome, plano_valor = plano_str.rsplit('-', 1)
-            plano_nome = plano_nome.strip()
-            plano_valor = Decimal(plano_valor.replace(',', '.'))
-            plano = Plano.objects.filter(nome=plano_nome, valor=plano_valor, usuario=user).first()
+            parts = plano_str.rsplit('-', 2)  # Split into 3 parts: nome - valor - telas
+            if len(parts) == 3:
+                plano_nome, plano_valor, plano_telas = parts
+                plano_nome = plano_nome.strip()
+                plano_valor = Decimal(plano_valor.strip().replace(',', '.'))
+                plano_telas = int(plano_telas.strip())
+                plano = Plano.objects.filter(nome=plano_nome, valor=plano_valor, telas=plano_telas, usuario=user).first()
+            else:
+                # Fallback for old format (backwards compatibility)
+                plano_nome, plano_valor = plano_str.rsplit('-', 1)
+                plano_nome = plano_nome.strip()
+                plano_valor = Decimal(plano_valor.replace(',', '.'))
+                plano = Plano.objects.filter(nome=plano_nome, valor=plano_valor, usuario=user).first()
             if plano and cliente.plano != plano:
                 cliente.plano = plano
                 mensalidade.valor = calcular_valor_mensalidade(cliente)
@@ -2894,19 +2987,27 @@ def edit_customer(request, cliente_id):
                 except Exception:
                     pass
 
-                # ⭐ FASE 2.5: Reset campaign tracking when plan changes
+                # ⭐ FASE 2.5: Sync AssinaturaCliente.plano and reset campaign tracking when plan changes
                 try:
                     from .models import AssinaturaCliente
                     assinatura = AssinaturaCliente.objects.get(cliente=cliente, ativo=True)
+
+                    # Sincroniza o plano da assinatura com o novo plano do cliente
+                    assinatura.plano = plano
+
+                    # Se estava em campanha, reseta os campos de rastreamento
                     if assinatura.em_campanha:
                         assinatura.em_campanha = False
                         assinatura.campanha_data_adesao = None
                         assinatura.campanha_mensalidades_pagas = 0
                         assinatura.campanha_duracao_total = None
-                        assinatura.save()
                         logger.info(
                             f"[CAMPANHA] Rastreamento de campanha resetado para {cliente.nome} devido a mudança de plano"
                         )
+
+                    # Salva a assinatura (sempre, não só quando em campanha)
+                    assinatura.save()
+
                 except AssinaturaCliente.DoesNotExist:
                     pass  # No subscription record
 
@@ -2946,22 +3047,114 @@ def edit_customer(request, cliente_id):
             if plano:
                 mensalidade.valor = calcular_valor_mensalidade(cliente)
 
-        # Dispositivo
-        dispositivo = get_object_or_404(Dispositivo, nome=post.get("dispositivo"), usuario=user)
-        if cliente.dispositivo != dispositivo:
-            cliente.dispositivo = dispositivo
-
-        # Aplicativo
-        aplicativo = get_object_or_404(Aplicativo, nome=post.get("aplicativo"), usuario=user)
-        if cliente.sistema != aplicativo:
-            cliente.sistema = aplicativo
+        # Não enviar mensagens automáticas
+        nao_enviar_msgs = post.get("nao_enviar_msgs") == "on"
+        if cliente.nao_enviar_msgs != nao_enviar_msgs:
+            cliente.nao_enviar_msgs = nao_enviar_msgs
 
         # Notas
         notas = post.get("notas", "").strip()
         if cliente.notas != notas:
             cliente.notas = notas
 
-        cliente.save()
+        # ========== PROCESSAMENTO DE CONTAS DE APLICATIVOS ==========
+        # Processa dados de contas do aplicativo enviadas pelo formulário
+        conta_principal_id = None
+        contas_atualizadas = []
+
+        # Verifica se há contas sendo editadas no formulário
+        has_conta_fields = any(key.startswith('conta_') and '_' in key[6:] for key in post.keys())
+
+        # Só desmarca todas as contas se houver contas sendo editadas
+        # (evita desmarcar a principal quando apenas outros campos do cliente são alterados)
+        if has_conta_fields:
+            ContaDoAplicativo.objects.filter(cliente=cliente).update(is_principal=False)
+
+        for key in post.keys():
+            # Identifica campos de contas: conta_{id}_campo
+            if key.startswith('conta_') and '_' in key[6:]:
+                try:
+                    # Extrai ID da conta
+                    parts = key.split('_')
+                    if len(parts) >= 3:
+                        conta_id = int(parts[1])
+                        campo = '_'.join(parts[2:])  # Pode ser 'is_principal', 'dispositivo_id', 'app_id', etc.
+
+                        # Verifica se esta conta já foi processada neste loop
+                        if conta_id not in contas_atualizadas:
+                            contas_atualizadas.append(conta_id)
+
+                            # Busca a conta
+                            conta = ContaDoAplicativo.objects.filter(
+                                id=conta_id,
+                                cliente=cliente
+                            ).first()
+
+                            if conta:
+                                # Atualiza campos da conta
+                                dispositivo_id = post.get(f'conta_{conta_id}_dispositivo_id')
+                                app_id = post.get(f'conta_{conta_id}_app_id')
+                                device_id = post.get(f'conta_{conta_id}_device_id', '').strip()
+                                email = post.get(f'conta_{conta_id}_email', '').strip()
+                                device_key = post.get(f'conta_{conta_id}_device_key', '').strip()
+                                is_principal = post.get(f'conta_{conta_id}_is_principal') == 'on'
+
+                                # Atualiza dispositivo
+                                if dispositivo_id:
+                                    dispositivo = Dispositivo.objects.filter(id=dispositivo_id, usuario=user).first()
+                                    if dispositivo:
+                                        conta.dispositivo = dispositivo
+
+                                # Atualiza aplicativo
+                                if app_id:
+                                    app = Aplicativo.objects.filter(id=app_id, usuario=user).first()
+                                    if app:
+                                        conta.app = app
+
+                                # Atualiza credenciais
+                                conta.device_id = device_id or None
+                                conta.email = email or None
+                                conta.device_key = device_key or None
+
+                                # Atualiza status de conta principal
+                                conta.is_principal = is_principal
+
+                                conta.save()
+
+                                # Log para debug
+                                if is_principal:
+                                    logger.info(
+                                        f"[EDIT_CUSTOMER] Conta {conta_id} marcada como principal para cliente {cliente.nome}"
+                                    )
+
+                except (ValueError, IndexError):
+                    continue  # Ignora campos mal formatados
+
+        # ========== VALIDAÇÃO: GARANTIR QUE SEMPRE HAJA UMA CONTA PRINCIPAL ==========
+        # Se contas foram editadas, garante que ao menos uma seja principal
+        if has_conta_fields:
+            # Verifica se alguma conta foi marcada como principal
+            tem_principal = ContaDoAplicativo.objects.filter(cliente=cliente, is_principal=True).exists()
+
+            if not tem_principal:
+                # Se nenhuma conta foi marcada como principal, marca a primeira
+                primeira_conta = ContaDoAplicativo.objects.filter(cliente=cliente).order_by('id').first()
+                if primeira_conta:
+                    primeira_conta.is_principal = True
+                    primeira_conta.save()
+                    logger.warning(
+                        f"[EDIT_CUSTOMER] Nenhuma conta foi marcada como principal para cliente {cliente.nome}. "
+                        f"Marcando automaticamente a conta ID {primeira_conta.id} como principal."
+                    )
+
+        # A sincronização dos campos Cliente.dispositivo e Cliente.sistema com a conta principal
+        # é feita automaticamente pelo signal sincronizar_conta_principal quando conta.save() é chamado
+        # Por isso, usamos update_fields para salvar APENAS os campos do formulário,
+        # evitando sobrescrever dispositivo/sistema que o signal gerencia
+        cliente.save(update_fields=[
+            'nome', 'telefone', 'uf', 'indicado_por', 'servidor',
+            'forma_pgto', 'plano', 'data_vencimento', 'nao_enviar_msgs', 'notas'
+        ])
         mensalidade.save()
 
         changes = {}
@@ -2978,8 +3171,7 @@ def edit_customer(request, cliente_id):
         _add_change("forma_pgto", original_cliente["forma_pgto"], cliente.forma_pgto)
         _add_change("plano", original_cliente["plano"], cliente.plano)
         _add_change("data_vencimento", original_cliente["data_vencimento"], cliente.data_vencimento)
-        _add_change("dispositivo", original_cliente["dispositivo"], cliente.dispositivo)
-        _add_change("sistema", original_cliente["sistema"], cliente.sistema)
+        _add_change("nao_enviar_msgs", original_cliente["nao_enviar_msgs"], cliente.nao_enviar_msgs)
         _add_change("notas", original_cliente["notas"], cliente.notas)
         _add_change("mensalidade.dt_vencimento", original_mensalidade["dt_vencimento"], mensalidade.dt_vencimento)
         _add_change("mensalidade.valor", original_mensalidade["valor"], mensalidade.valor)
@@ -4483,7 +4675,24 @@ def create_app_account(request):
         if not force_create:
             validacao = assinatura.validar_limite_dispositivos()
 
-            # Se está no limite ou já excedeu, retornar aviso
+            # DEBUG: Log para verificar o estado atual
+            logger.info(
+                f"[VALIDACAO_LIMITE] Cliente: {cliente.nome} - "
+                f"Plano: {assinatura.plano.nome} - "
+                f"Telas: {assinatura.plano.telas} - "
+                f"Max_dispositivos: {assinatura.plano.max_dispositivos} - "
+                f"Dispositivos_usados: {assinatura.dispositivos_usados} - "
+                f"No_limite: {validacao['no_limite']} - "
+                f"Excedeu: {validacao['excedeu']}"
+            )
+
+            # Só exibe aviso se ao adicionar este dispositivo, vai IGUALAR OU EXCEDER o limite
+            # Exemplo: Plano com 3 telas, cliente tem 2 dispositivos
+            #   -> 2 < 3, não exibe aviso (ainda pode adicionar)
+            # Exemplo: Plano com 3 telas, cliente tem 3 dispositivos
+            #   -> 3 >= 3, exibe aviso (vai exceder ao adicionar mais um)
+            # Exemplo: Plano com 3 telas, cliente tem 4 dispositivos
+            #   -> 4 >= 3, exibe aviso (já excedeu)
             if validacao['no_limite'] or validacao['excedeu']:
                 return JsonResponse({
                     'warning': True,
@@ -4505,6 +4714,10 @@ def create_app_account(request):
             f"Criando dispositivo sem validação de limite."
         )
 
+    # Verificar se é a primeira conta deste cliente (deve ser principal)
+    total_contas_existentes = ContaDoAplicativo.objects.filter(cliente=cliente).count()
+    is_primeira_conta = (total_contas_existentes == 0)
+
     nova_conta_app = ContaDoAplicativo(
         cliente=cliente,
         dispositivo=dispositivo,
@@ -4513,6 +4726,7 @@ def create_app_account(request):
         device_key=device_key,
         email=app_email,
         usuario=request.user,
+        is_principal=is_primeira_conta,  # Primeira conta = principal
     )
 
     try:
@@ -5020,8 +5234,8 @@ def create_customer(request):
                 # CRIAR MÚLTIPLAS CONTAS DO APLICATIVO
                 contas_criadas = 0
                 try:
-                    for tela in telas_data:
-                        # Cria conta para todas as telas (com ou sem MAC/conta)
+                    for idx, tela in enumerate(telas_data):
+                        # Primeira conta (idx == 0) deve ser marcada como principal
                         ContaDoAplicativo.objects.create(
                             dispositivo=tela['dispositivo'],
                             app=tela['sistema'],
@@ -5030,6 +5244,7 @@ def create_customer(request):
                             device_key=tela['senha'] or None,
                             cliente=cliente,
                             usuario=usuario,
+                            is_principal=(idx == 0),  # Primeira conta = principal
                         )
                         contas_criadas += 1
 
@@ -5518,6 +5733,28 @@ def delete_app_account(request, pk):
     if request.method == "DELETE":
         try:
             conta_app = ContaDoAplicativo.objects.get(pk=pk, usuario=request.user)
+
+            # ========== VALIDAÇÃO 1: Não pode deletar conta principal ==========
+            if conta_app.is_principal:
+                logger.warning(
+                    f"[DELETE_APP_ACCOUNT] Tentativa de excluir conta principal (ID: {pk}) "
+                    f"do cliente {conta_app.cliente.nome} (ID: {conta_app.cliente.id})"
+                )
+                return JsonResponse({
+                    'error_message': 'Não é possível excluir a conta principal. Marque outra conta como principal antes de excluir esta.'
+                }, status=400)
+
+            # ========== VALIDAÇÃO 2: Cliente deve ter ao menos 1 conta ==========
+            total_contas = ContaDoAplicativo.objects.filter(cliente=conta_app.cliente).count()
+            if total_contas <= 1:
+                logger.warning(
+                    f"[DELETE_APP_ACCOUNT] Tentativa de excluir última conta (ID: {pk}) "
+                    f"do cliente {conta_app.cliente.nome} (ID: {conta_app.cliente.id})"
+                )
+                return JsonResponse({
+                    'error_message': 'Não é possível excluir a única conta do cliente. Todo cliente deve ter pelo menos 1 conta de aplicativo.'
+                }, status=400)
+
             log_extra = {
                 "id": conta_app.id,
                 "cliente": conta_app.cliente_id,
