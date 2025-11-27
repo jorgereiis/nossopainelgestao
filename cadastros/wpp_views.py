@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import inspect
+import os
+import sys
 import time
 
 from django.contrib.auth.decorators import login_required
@@ -25,6 +27,88 @@ from wpp.api_connection import (
 
 # Configuração do logger com rotação automática
 logger = get_logger(__name__, log_file="logs/WhatsApp/wpp_views.log")
+
+
+def is_production() -> bool:
+    """
+    Detecta se o servidor está em produção (gunicorn) ou desenvolvimento (runserver).
+
+    Returns:
+        True se estiver rodando com gunicorn (produção)
+        False se estiver rodando com runserver (desenvolvimento)
+    """
+    # Verifica se gunicorn está no nome do executável
+    if 'gunicorn' in sys.argv[0].lower():
+        return True
+    # Verifica se runserver está nos argumentos (Django dev server)
+    if any('runserver' in arg for arg in sys.argv):
+        return False
+    # Fallback: assumir produção se não for runserver
+    return True
+
+
+def get_webhook_url() -> str:
+    """
+    Retorna a URL do webhook baseada no ambiente de execução.
+
+    Returns:
+        URL do webhook para produção ou desenvolvimento
+    """
+    if is_production():
+        url = os.getenv('WEBHOOK_WPP_URL_PROD', '')
+        logger.info(
+            "Ambiente PRODUÇÃO detectado | webhook_url=%s",
+            url[:50] if url else 'não configurada'
+        )
+    else:
+        url = os.getenv('WEBHOOK_WPP_URL_DEV', '')
+        logger.info(
+            "Ambiente DESENVOLVIMENTO detectado | webhook_url=%s",
+            url[:50] if url else 'não configurada'
+        )
+    return url
+
+
+def _verificar_e_renovar_token(sessao, session_name: str, secret: str):
+    """
+    Verifica se o token da sessão ainda é válido.
+    Se inválido (401/403), gera novo token automaticamente.
+
+    Args:
+        sessao: Instância de SessaoWpp
+        session_name: Nome da sessão (username)
+        secret: Token secreto para gerar novo token
+
+    Returns:
+        tuple: (token_valido, foi_renovado)
+    """
+    # Testa se o token atual funciona
+    _, status_code = status_session(session_name, sessao.token)
+
+    if status_code in (401, 403):
+        # Token expirado/inválido - gerar novo
+        logger.info(
+            "Token expirado, gerando novo | usuario=%s",
+            session_name
+        )
+        token_data, token_status = gerar_token(session_name, secret)
+        if token_status == 201:
+            novo_token = token_data.get("token")
+            sessao.token = novo_token
+            sessao.save(update_fields=["token"])
+            logger.info(
+                "Token renovado com sucesso | usuario=%s",
+                session_name
+            )
+            return novo_token, True
+        logger.error(
+            "Falha ao renovar token | usuario=%s status=%d",
+            session_name,
+            token_status
+        )
+        return sessao.token, False
+
+    return sessao.token, False
 
 
 @login_required
@@ -60,13 +144,22 @@ def conectar_wpp(request):
 
     sessao_existente = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
     if sessao_existente:
-        token = sessao_existente.token
-        logger.info(
-            "Token reutilizado | func=%s usuario=%s session=%s",
-            func_name,
-            usuario,
-            session
-        )
+        # Verificar e renovar token se necessário
+        token, foi_renovado = _verificar_e_renovar_token(sessao_existente, session, secret)
+        if foi_renovado:
+            logger.info(
+                "Token renovado automaticamente | func=%s usuario=%s session=%s",
+                func_name,
+                usuario,
+                session
+            )
+        else:
+            logger.info(
+                "Token reutilizado | func=%s usuario=%s session=%s",
+                func_name,
+                usuario,
+                session
+            )
     else:
         token_data, token_status = gerar_token(session, secret)
         if token_status != 201:
@@ -78,7 +171,7 @@ def conectar_wpp(request):
                 token_status
             )
             return JsonResponse({"erro": "Falha ao gerar token de autenticação."}, status=400)
-        token = token_data["token"]
+        token = token_data.get("token")
         logger.info(
             "Novo token gerado | func=%s usuario=%s session=%s",
             func_name,
@@ -86,13 +179,37 @@ def conectar_wpp(request):
             session
         )
 
-    init_data, _ = start_session(session, token)
+    # Obter URL do webhook baseada no ambiente (produção/desenvolvimento)
+    webhook_url = get_webhook_url()
+
+    init_data, _ = start_session(session, token, webhook_url=webhook_url)
     logger.debug(
         "Resposta de start-session | func=%s usuario=%s data=%s",
         func_name,
         usuario,
         init_data
     )
+
+    # Se start_session já retornou o QR code, usar diretamente
+    if init_data.get("qrcode"):
+        logger.info(
+            "QRCode recebido de start_session | func=%s usuario=%s session=%s",
+            func_name,
+            usuario,
+            session
+        )
+        SessaoWpp.objects.update_or_create(
+            usuario=session,
+            defaults={
+                "user": usuario,
+                "token": token,
+                "dt_inicio": timezone.now(),
+                "is_active": True,
+            },
+        )
+        return JsonResponse(
+            {"qrcode": init_data.get("qrcode"), "status": "QRCODE", "session": session, "token": token}
+        )
 
     status_data, status_code = status_session(session, token)
     status = status_data.get("status")
@@ -106,6 +223,7 @@ def conectar_wpp(request):
         SessaoWpp.objects.update_or_create(
             usuario=session,
             defaults={
+                "user": usuario,
                 "token": token,
                 "dt_inicio": timezone.now(),
                 "is_active": True,
@@ -147,6 +265,7 @@ def conectar_wpp(request):
     SessaoWpp.objects.update_or_create(
         usuario=session,
         defaults={
+            "user": usuario,
             "token": token,
             "dt_inicio": timezone.now(),
             "is_active": True,

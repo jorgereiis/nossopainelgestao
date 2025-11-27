@@ -1272,7 +1272,15 @@ class ContaDoAplicativo(models.Model):
 
 class SessaoWpp(models.Model):
     """Armazena as informações da sessão do WhatsApp integrada."""
-    usuario = models.CharField(max_length=255)
+    usuario = models.CharField(max_length=255)  # Nome da sessão no WPPConnect
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='sessoes_wpp',
+        verbose_name='Usuário Django'
+    )
     token = models.CharField(max_length=255)
     dt_inicio = models.DateTimeField()
     is_active = models.BooleanField(default=True)

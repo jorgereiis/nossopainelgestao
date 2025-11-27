@@ -42,7 +42,7 @@ class CheckUserLoggedInMiddleware:
         if self._public_prefixes is not None:
             return self._public_prefixes
 
-        prefixes = {"/static/", "/media/", "/favicon.ico", "/api/internal/"}
+        prefixes = {"/static/", "/media/", "/favicon.ico", "/api/internal/", "/webhook/"}
         static_url = getattr(settings, "STATIC_URL", None)
         if static_url:
             prefixes.add(static_url if static_url.endswith("/") else f"{static_url}/")
@@ -145,3 +145,68 @@ class InternalAPIMiddleware:
         except (ValueError, AddressValueError):
             # IP inválido = não permitido
             return False
+
+
+class WppRateLimitMiddleware:
+    """
+    Middleware para limitar requisições aos endpoints do WhatsApp.
+
+    Protege contra abuso e ataques de força bruta nos endpoints de conexão.
+
+    Limites por endpoint (por usuário/minuto):
+    - /conectar-wpp/: 3
+    - /desconectar-wpp/: 5
+    - /cancelar-sessao-wpp/: 3
+    - /status-wpp/: 30
+    """
+
+    # Configuração: (limite_requisições, janela_em_segundos)
+    RATE_LIMITS = {
+        '/conectar-wpp/': (3, 60),        # 3 req/min
+        '/desconectar-wpp/': (5, 60),     # 5 req/min
+        '/cancelar-sessao-wpp/': (3, 60), # 3 req/min
+        '/status-wpp/': (30, 60),         # 30 req/min
+    }
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        path = request.path
+
+        if path in self.RATE_LIMITS:
+            limit, window = self.RATE_LIMITS[path]
+
+            # Identificador único: user_id (se autenticado) ou IP
+            if request.user.is_authenticated:
+                identifier = f"user_{request.user.id}"
+            else:
+                identifier = f"ip_{self._get_client_ip(request)}"
+
+            cache_key = f"ratelimit:{identifier}:{path}"
+
+            from django.core.cache import cache
+            count = cache.get(cache_key, 0)
+
+            if count >= limit:
+                from django.http import JsonResponse
+                return JsonResponse({
+                    "erro": "Muitas requisições. Aguarde um momento.",
+                    "retry_after": window,
+                    "limit": f"{limit}/{window}s"
+                }, status=429)
+
+            # Incrementa contador com TTL
+            cache.set(cache_key, count + 1, window)
+
+        return self.get_response(request)
+
+    def _get_client_ip(self, request):
+        """Extrai o IP real do cliente considerando proxies."""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        x_real_ip = request.META.get('HTTP_X_REAL_IP')
+        if x_real_ip:
+            return x_real_ip.strip()
+        return request.META.get('REMOTE_ADDR', 'unknown')
