@@ -21,6 +21,52 @@ from cadastros.services.logging_config import get_wpp_logger
 URL_API_WPP = os.getenv("URL_API_WPP")
 MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
 
+# Timeout padrão para requisições à API WPPConnect (em segundos)
+REQUEST_TIMEOUT = 30
+
+##################################################################
+################ FUNÇÕES AUXILIARES DE REQUISIÇÃO ################
+##################################################################
+
+
+def _safe_json_response(response):
+    """Tenta extrair JSON da resposta, retorna dict de erro se falhar."""
+    try:
+        return response.json()
+    except (ValueError, requests.JSONDecodeError):
+        return {
+            "status": False,
+            "error": "invalid_json",
+            "raw_response": response.text[:500] if response.text else ""
+        }
+
+
+def _make_request(method: str, url: str, headers: dict = None, json_data: dict = None, timeout: int = REQUEST_TIMEOUT):
+    """
+    Executa requisição HTTP com tratamento de erros padronizado.
+
+    Args:
+        method: "GET" ou "POST"
+        url: URL completa do endpoint
+        headers: Headers da requisição
+        json_data: Dados JSON para enviar (apenas POST)
+        timeout: Timeout em segundos
+
+    Returns:
+        tuple: (response_data, status_code)
+    """
+    try:
+        if method.upper() == "GET":
+            response = requests.get(url, headers=headers, timeout=timeout)
+        else:
+            response = requests.post(url, headers=headers, json=json_data, timeout=timeout)
+        return _safe_json_response(response), response.status_code
+    except requests.Timeout:
+        return {"status": False, "error": "timeout", "message": "API não respondeu a tempo"}, 504
+    except requests.RequestException as e:
+        return {"status": False, "error": "request_failed", "message": str(e)}, 503
+
+
 ##################################################################
 ################ FUNÇÃO PARA REGISTRAR LOGS ######################
 ##################################################################
@@ -45,54 +91,72 @@ def registrar_log(mensagem: str, log_path: Optional[str]) -> None:
 ##### FUNÇÕES PARA GERENCIAR SESSÕES DO WHATSAPP #####
 # --- Estas funções permitem gerar token, iniciar sessão, verificar status, obter QR code, verificar conexão, fechar sessão e fazer logout. ---
 def gerar_token(session: str, secret: str):
+    """Gera token de autenticação Bearer para a sessão."""
     url = f"{URL_API_WPP}/{session}/{secret}/generate-token"
-    response = requests.post(url)
-    return response.json(), response.status_code
+    return _make_request("POST", url)
 
-def start_session(session: str, token: str):
+def start_session(session: str, token: str, webhook_url: str = ""):
+    """
+    Inicia sessão WhatsApp e solicita geração de QR Code.
+
+    Args:
+        session: Nome da sessão (username)
+        token: Token Bearer de autenticação
+        webhook_url: URL para receber eventos via webhook (opcional)
+    """
     url = f"{URL_API_WPP}/{session}/start-session"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
     data = {
-        "webhook": "",
+        "webhook": webhook_url,
         "waitQrCode": True
     }
-    response = requests.post(url, json=data, headers=headers)
-    return response.json(), response.status_code
+    return _make_request("POST", url, headers=headers, json_data=data)
 
 def status_session(session: str, token: str):
+    """Consulta status atual da sessão (CONNECTED, QRCODE, CLOSED, etc.)."""
     url = f"{URL_API_WPP}/{session}/status-session"
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(url, headers=headers)
-    return response.json(), response.status_code
+    return _make_request("GET", url, headers=headers)
+
 
 def get_qrcode(session: str, token: str):
+    """
+    Obtém imagem do QR Code em base64.
+
+    Nota: Esta função retorna content binário, não usa _make_request.
+    """
     url = f"{URL_API_WPP}/{session}/qrcode-session"
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(url, headers=headers)
-    return response.content, response.status_code
+    try:
+        response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+        return response.content, response.status_code
+    except requests.Timeout:
+        return b"", 504
+    except requests.RequestException:
+        return b"", 503
+
 
 def check_connection(session: str, token: str):
+    """Ping na API para validar se sessão está ativa."""
     url = f"{URL_API_WPP}/{session}/check-connection-session"
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(url, headers=headers)
-    return response.json(), response.status_code
+    return _make_request("GET", url, headers=headers)
 
 def close_session(session: str, token: str):
+    """Encerra sessão sem fazer logout do WhatsApp (mantém vinculação)."""
     url = f"{URL_API_WPP}/{session}/close-session"
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.post(url, headers=headers)
-    time.sleep(3)  # Aguarda se necessário
-    return response.json(), response.status_code
+    return _make_request("POST", url, headers=headers)
+
 
 def logout_session(session: str, token: str):
+    """Logout completo da sessão WhatsApp (remove vinculação)."""
     url = f"{URL_API_WPP}/{session}/logout-session"
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.post(url, headers=headers)
-    time.sleep(3)
-    return response.json(), response.status_code
+    return _make_request("POST", url, headers=headers)
 
 ##### FUNÇÕES PARA GERENCIAR CONTATOS E LABELS #####
 # --- Função para obter labels de um contato ---
@@ -501,3 +565,149 @@ def upload_imagem_status(imagem, legenda, usuario, token, log_path=None):
     except Exception as e:
         registrar_log(f"[ERRO] {usuario} => {e}", log_path)
         return False, f"exception: {e}"
+
+
+##################################################################
+################ FUNÇÕES PARA O CHAT WHATSAPP ####################
+##################################################################
+
+
+def get_all_chats(session: str, token: str):
+    """Lista todas as conversas do WhatsApp."""
+    url = f"{URL_API_WPP}/{session}/all-chats"
+    headers = {"Authorization": f"Bearer {token}"}
+    return _make_request("GET", url, headers=headers)
+
+
+def get_messages_in_chat(session: str, token: str, phone: str):
+    """
+    Obtém mensagens de uma conversa específica.
+    Usa get-messages que aceita o phone completo (com @c.us ou @g.us).
+
+    Args:
+        session: Nome da sessão
+        token: Token de autenticação
+        phone: Número do contato (com @c.us ou @g.us para grupos)
+    """
+    url = f"{URL_API_WPP}/{session}/get-messages/{phone}"
+    headers = {"Authorization": f"Bearer {token}"}
+    return _make_request("GET", url, headers=headers)
+
+
+def load_earlier_messages(session: str, token: str, phone: str):
+    """Carrega mensagens mais antigas de uma conversa."""
+    url = f"{URL_API_WPP}/{session}/load-messages-in-chat/{phone}"
+    headers = {"Authorization": f"Bearer {token}"}
+    return _make_request("GET", url, headers=headers)
+
+
+def get_profile_picture(session: str, token: str, phone: str):
+    """Obtém URL da foto de perfil de um contato."""
+    url = f"{URL_API_WPP}/{session}/profile-pic/{phone}"
+    headers = {"Authorization": f"Bearer {token}"}
+    return _make_request("GET", url, headers=headers)
+
+
+def send_text_message(session: str, token: str, phone: str, message: str):
+    """Envia mensagem de texto."""
+    url = f"{URL_API_WPP}/{session}/send-message"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    # A API WPPConnect espera o phone SEM sufixo para contatos, mas COM sufixo para grupos
+    # Para grupos (@g.us), enviar com o ID completo
+    # Para contatos, a API adiciona @c.us automaticamente
+    if "@g.us" in phone:
+        # Grupo - usar ID completo
+        data = {"phone": phone, "message": message, "isGroup": True}
+    else:
+        # Contato - remover @c.us se presente
+        clean_phone = phone.replace("@c.us", "")
+        data = {"phone": clean_phone, "message": message}
+    return _make_request("POST", url, headers=headers, json_data=data)
+
+
+def _normalize_phone(phone: str) -> tuple:
+    """
+    Normaliza o número de telefone para a API WPPConnect.
+
+    Returns:
+        tuple: (phone_normalizado, is_group)
+    """
+    if "@g.us" in phone:
+        return phone, True
+    return phone.replace("@c.us", ""), False
+
+
+def send_image_message(session: str, token: str, phone: str, base64_image: str, caption: str = ""):
+    """Envia imagem (base64 ou URL)."""
+    url = f"{URL_API_WPP}/{session}/send-image"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    normalized_phone, is_group = _normalize_phone(phone)
+    data = {"phone": normalized_phone, "base64": base64_image, "caption": caption}
+    if is_group:
+        data["isGroup"] = True
+    return _make_request("POST", url, headers=headers, json_data=data)
+
+
+def send_file_message(session: str, token: str, phone: str, base64_file: str, filename: str):
+    """Envia arquivo (documento, PDF, etc.)."""
+    url = f"{URL_API_WPP}/{session}/send-file-base64"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    normalized_phone, is_group = _normalize_phone(phone)
+    data = {"phone": normalized_phone, "base64": base64_file, "filename": filename}
+    if is_group:
+        data["isGroup"] = True
+    return _make_request("POST", url, headers=headers, json_data=data)
+
+
+def send_audio_message(session: str, token: str, phone: str, base64_audio: str):
+    """Envia mensagem de áudio."""
+    url = f"{URL_API_WPP}/{session}/send-voice-base64"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    normalized_phone, is_group = _normalize_phone(phone)
+    data = {"phone": normalized_phone, "base64Ptt": base64_audio}
+    if is_group:
+        data["isGroup"] = True
+    return _make_request("POST", url, headers=headers, json_data=data)
+
+
+def send_reply_message(session: str, token: str, phone: str, message: str, message_id: str):
+    """Responde a uma mensagem específica."""
+    url = f"{URL_API_WPP}/{session}/send-reply"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    normalized_phone, is_group = _normalize_phone(phone)
+    data = {"phone": normalized_phone, "message": message, "messageId": message_id}
+    if is_group:
+        data["isGroup"] = True
+    return _make_request("POST", url, headers=headers, json_data=data)
+
+
+def download_media(session: str, token: str, message_id: str):
+    """
+    Baixa mídia de uma mensagem (imagem, áudio, documento).
+
+    A API WPPConnect retorna JSON com dados base64:
+    {"status": "success", "response": {"mimetype": "...", "data": "base64..."}}
+
+    Returns:
+        tuple: (data_dict, status_code) onde data_dict contém 'mimetype' e 'data' (base64)
+    """
+    url = f"{URL_API_WPP}/{session}/get-media-by-message/{message_id}"
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        response = requests.get(url, headers=headers, timeout=60)  # Timeout maior para mídia
+
+        if response.status_code == 200:
+            try:
+                json_data = response.json()
+                # Extrair dados do envelope da API
+                media_data = json_data.get("response") or json_data
+                return media_data, 200
+            except (ValueError, requests.JSONDecodeError):
+                # Se não for JSON, retornar como binário
+                return {"data": base64.b64encode(response.content).decode("utf-8")}, 200
+
+        return {"error": f"HTTP {response.status_code}"}, response.status_code
+    except requests.Timeout:
+        return {"error": "timeout"}, 504
+    except requests.RequestException as e:
+        return {"error": str(e)}, 503

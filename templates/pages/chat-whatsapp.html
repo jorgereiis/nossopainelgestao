@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Chat WhatsApp | Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Layout do chat */
+    .chat-layout {
+        z-index: 999;
+        min-height: calc(100vh - 180px);
+    }
+    .chat-window {
+        height: calc(100vh - 180px);
+        display: flex;
+        flex-direction: column;
+    }
+    .chat-sticky-header {
+        background: white;
+        z-index: 10;
+    }
+
+    /* Items da lista de chat */
+    .chat-item {
+        position: relative;
+        transition: background-color 0.3s;
+        cursor: pointer;
+    }
+    .chat-item:hover {
+        background-color: var(--bs-gray-100);
+    }
+    .chat-item.active {
+        background-color: #e7f1ff;
+        border-left: 3px solid #0d6efd;
+    }
+
+    /* Area de mensagens */
+    .chat-body {
+        height: calc(100vh - 180px);
+        display: flex;
+        flex-direction: column;
+    }
+    .messages-area {
+        flex: 1;
+        overflow-y: auto;
+        background-color: #e5ddd5;
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23cccccc' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    /* Bolhas de mensagem */
+    .message-bubble {
+        max-width: 70%;
+        word-wrap: break-word;
+    }
+    .msg-sent {
+        background-color: #dcf8c6;
+        border-radius: 8px 0 8px 8px;
+    }
+    .msg-received {
+        background-color: white;
+        border-radius: 0 8px 8px 8px;
+    }
+
+    /* Footer do chat */
+    .chat-footer {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        border-top: 1px solid #dee2e6;
+    }
+
+    /* Avatar */
+    .chat-avatar {
+        width: 48px;
+        height: 48px;
+        object-fit: cover;
+    }
+    .chat-avatar-sm {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+    }
+
+    /* Responsivo */
+    @media (max-width: 991.98px) {
+        .chat-sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            z-index: 1050;
+            background: white;
+            transform: translateX(0);
+            transition: transform 0.3s;
+        }
+        .chat-sidebar.hidden {
+            transform: translateX(-100%);
+        }
+        .chat-body-wrapper {
+            width: 100%;
+        }
+    }
+
+    /* Scroll customizado */
+    .messages-area::-webkit-scrollbar,
+    #chat-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    .messages-area::-webkit-scrollbar-thumb,
+    #chat-list::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.2);
+        border-radius: 3px;
+    }
+
+    /* Status de mensagem */
+    .msg-status {
+        font-size: 0.7rem;
+    }
+    .msg-status .read {
+        color: #53bdeb;
+    }
+
+    /* Loading spinner */
+    .chat-loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+    }
+
+    /* Emojis e texto */
+    .emoji-picker-toggle {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-6 py-4">
+    {% if not sessao_ativa %}
+    <div class="alert alert-warning d-flex align-items-center" role="alert">
+        <i data-feather="alert-triangle" class="me-2"></i>
+        <div>
+            Sessao WhatsApp nao conectada.
+            <a href="{% url 'whatsapp' %}" class="alert-link">Conectar agora</a>
+        </div>
+    </div>
+    {% else %}
+
+    <div class="card chat-layout shadow-sm">
+        <div class="row g-0">
+            <!-- SIDEBAR: Lista de Conversas -->
+            <div class="col-lg-4 col-xl-3 col-12 border-end chat-sidebar" id="chat-sidebar">
+                <div class="chat-window">
+                    <!-- Header com busca -->
+                    <div class="chat-sticky-header p-3 border-bottom">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">
+                                <i data-feather="message-circle" class="me-2 text-success"></i>
+                                Chat WhatsApp
+                            </h5>
+                            <button class="btn btn-sm btn-outline-primary d-lg-none" id="btn-close-sidebar">
+                                <i data-feather="x"></i>
+                            </button>
+                        </div>
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent border-end-0">
+                                <i data-feather="search" class="icon-xs"></i>
+                            </span>
+                            <input type="text" class="form-control border-start-0"
+                                   id="search-contact" placeholder="Buscar conversa...">
+                        </div>
+                    </div>
+
+                    <!-- Lista de conversas -->
+                    <div id="chat-list" class="flex-grow-1 overflow-auto">
+                        <div class="chat-loading py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AREA DE MENSAGENS -->
+            <div class="col-lg-8 col-xl-9 col-12 chat-body-wrapper">
+                <div class="chat-body" id="chat-body">
+                    <!-- Placeholder quando nenhuma conversa selecionada -->
+                    <div id="no-chat-selected" class="flex-grow-1 d-flex align-items-center justify-content-center bg-light">
+                        <div class="text-center text-muted">
+                            <i data-feather="message-square" style="width: 64px; height: 64px;" class="mb-3"></i>
+                            <h5>Chat WhatsApp</h5>
+                            <p>Selecione uma conversa para comecar</p>
+                        </div>
+                    </div>
+
+                    <!-- Container do chat ativo (hidden por padrao) -->
+                    <div id="active-chat" class="d-none h-100 d-flex flex-column">
+                        <!-- Header do chat -->
+                        <div class="chat-header bg-white border-bottom p-3">
+                            <div class="d-flex align-items-center">
+                                <button class="btn btn-ghost btn-sm d-lg-none me-2" id="btn-show-sidebar">
+                                    <i data-feather="arrow-left"></i>
+                                </button>
+                                <img id="chat-avatar" src="{% static 'assets/images/avatar/default-avatar.svg' %}"
+                                     class="rounded-circle chat-avatar-sm" alt="Avatar">
+                                <div class="ms-3">
+                                    <h6 id="chat-name" class="mb-0">Nome do Contato</h6>
+                                    <small id="chat-status" class="text-muted">Clique para mais informacoes</small>
+                                </div>
+                                <div class="ms-auto">
+                                    <button class="btn btn-ghost btn-icon" title="Atualizar" id="btn-refresh-messages">
+                                        <i data-feather="refresh-cw"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mensagens -->
+                        <div id="messages-container" class="messages-area flex-grow-1 p-3">
+                            <!-- Mensagens serao inseridas aqui via JS -->
+                        </div>
+
+                        <!-- Footer com input -->
+                        <div class="chat-footer p-3">
+                            <!-- Area de reply (hidden por padrao) -->
+                            <div id="reply-preview" class="d-none bg-light rounded p-2 mb-2 border-start border-4 border-success">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-truncate">
+                                        <small class="text-success fw-bold">Respondendo a:</small>
+                                        <p class="mb-0 small text-truncate" id="reply-text"></p>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-ghost" id="btn-cancel-reply">
+                                        <i data-feather="x"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <form id="form-send-message">
+                                {% csrf_token %}
+                                <div class="d-flex align-items-end gap-2">
+                                    <!-- Botao de anexo -->
+                                    <div class="dropdown">
+                                        <button type="button" class="btn btn-light btn-icon rounded-circle"
+                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i data-feather="paperclip"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item" href="#" id="btn-attach-image">
+                                                    <i data-feather="image" class="me-2 text-primary"></i> Imagem
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" id="btn-attach-file">
+                                                    <i data-feather="file" class="me-2 text-warning"></i> Documento
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" id="btn-attach-audio">
+                                                    <i data-feather="mic" class="me-2 text-danger"></i> Audio
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <!-- Input de mensagem -->
+                                    <div class="flex-grow-1">
+                                        <textarea id="message-input" class="form-control"
+                                                  rows="1" placeholder="Digite uma mensagem..."
+                                                  style="resize: none; max-height: 150px;"></textarea>
+                                    </div>
+
+                                    <!-- Botao enviar -->
+                                    <button type="submit" class="btn btn-success btn-icon rounded-circle" id="btn-send">
+                                        <i data-feather="send"></i>
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- Input file hidden -->
+                            <input type="file" id="file-input" class="d-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+<!-- Modal para visualizar imagem -->
+<div class="modal fade" id="imageViewerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content bg-transparent border-0">
+            <div class="modal-body text-center p-0">
+                <img id="image-viewer-img" src="" class="img-fluid rounded" alt="Imagem">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'assets/js/chat-whatsapp.js' %}"></script>
+{% endblock %}

@@ -33,6 +33,7 @@
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     let statusSessao = "UNKNOWN";
     let statusInterval = null;
+    let pollingInterval = 15000;  // Padrão: 15 segundos (ajusta automaticamente)
 
     function exibirMensagemErro(msg) {
         const erro = document.getElementById("mensagem-erro");
@@ -118,7 +119,7 @@
         }
 
         statusInterval = setInterval(() => {
-            console.log("🔄 Verificando status em /status-wpp/");
+            console.log(`🔄 Verificando status em /status-wpp/ (intervalo: ${pollingInterval/1000}s)`);
             fetch("/status-wpp/")
             .then(res => res.json())
             .then(data => {
@@ -131,7 +132,25 @@
                     setBotoes(false, true);
                     atualizarVisibilidadeBotoes();
 
+                    // Reduzir frequência de polling quando conectado (60s)
+                    if (pollingInterval !== 60000) {
+                        console.log("⏱️ Reduzindo polling para 60s (conectado)");
+                        pollingInterval = 60000;
+                        clearInterval(statusInterval);
+                        iniciarVerificacaoStatus();
+                        return;
+                    }
+
                 } else if (data.status === "QRCODE") {
+                    // Aumentar frequência quando aguardando QR (15s)
+                    if (pollingInterval !== 15000) {
+                        console.log("⏱️ Aumentando polling para 15s (aguardando QR)");
+                        pollingInterval = 15000;
+                        clearInterval(statusInterval);
+                        iniciarVerificacaoStatus();
+                        return;
+                    }
+
                     if (data.qrcode) {
                         qrContainer.innerHTML = `<img src="${data.qrcode}" style="max-width: 100%;" />`;
                     } else {
@@ -142,6 +161,7 @@
 
                 } else if (data.status === "CLOSED") {
                     console.warn("⛔ Sessão encerrada. Tentando gerar novo QRCode...");
+                    pollingInterval = 15000;  // Reset para padrão
                     conectar(); // reinicia o ciclo
                 }
             })
@@ -150,7 +170,7 @@
                 console.error("Erro no fetch status:", err.status);
                 setBotoes(true, true);
             });
-        }, 15000); // a cada 5 segundos
+        }, pollingInterval);
     }
 
     function desconectar() {

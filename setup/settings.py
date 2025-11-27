@@ -66,6 +66,10 @@ else:
         'nossopainel.com.br',
         'www.nossopainel.com.br',
     ]
+    # Adiciona domínio extra do .env (ex: ngrok para testes de webhook)
+    extra_host = os.getenv('EXTRA_ALLOWED_HOST', '')
+    if extra_host:
+        ALLOWED_HOSTS.append(extra_host)
 
 # Application definition
 
@@ -96,6 +100,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'setup.middleware.InternalAPIMiddleware',  # Restringe endpoints internos por IP
+    'setup.middleware.WppRateLimitMiddleware',  # Rate limiting para endpoints WPP
     'setup.middleware.CheckUserLoggedInMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware', # whitenoise para servir arquivos estáticos
 ]
@@ -121,6 +126,10 @@ CSRF_TRUSTED_ORIGINS = [
     'https://www.nossopainel.com.br',
     'http://www.nossopainel.com.br',
 ]
+# Adiciona origem extra do .env (ex: ngrok para testes de webhook)
+extra_csrf_origin = os.getenv('EXTRA_CSRF_ORIGIN', '')
+if extra_csrf_origin:
+    CSRF_TRUSTED_ORIGINS.append(extra_csrf_origin)
 
 ROOT_URLCONF = "setup.urls"
 

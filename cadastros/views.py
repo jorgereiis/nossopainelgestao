@@ -2541,9 +2541,12 @@ def session_wpp(request):
         token = body.get('token')
         try:
             sessao, created = SessaoWpp.objects.update_or_create(
-                usuario=request.user,
-                token=token,
-                dt_inicio=timezone.localtime()
+                usuario=request.user.username,
+                defaults={
+                    "user": request.user,
+                    "token": token,
+                    "dt_inicio": timezone.localtime(),
+                }
             )
             # Realizar outras ações necessárias após salvar/atualizar, se houver
             return JsonResponse({"success_message_session": "Sessão salva/atualizada com sucesso."}, status=200)
