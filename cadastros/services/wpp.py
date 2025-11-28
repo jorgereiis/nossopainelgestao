@@ -178,6 +178,55 @@ def send_message(config: MessageSendConfig) -> MessageSendResult:
             last_status = status_code
             last_response = response_payload
             error_message = None
+
+            # Detectar sessão inativa no WPPCONNECT (404)
+            # Retorna imediatamente sem retry - não adianta tentar novamente
+            if status_code == 404:
+                error_msg = ""
+                if isinstance(response_payload, dict):
+                    error_msg = response_payload.get("message", "")
+
+                if "não está ativa" in error_msg or "Disconnected" in str(response_payload):
+                    logger.warning(
+                        f"Sessão {config.usuario} com problema no WPPCONNECT (404) - "
+                        f"não realizará retry, tentará no próximo horário"
+                    )
+
+                    log_line = config.log_templates.failure.format(
+                        timestamp,
+                        config.tipo_envio.upper(),
+                        config.usuario,
+                        config.cliente,
+                        404,
+                        attempts,
+                        "Sessão WhatsApp desconectada no servidor - sem retry",
+                    )
+                    config.log_writer(log_line)
+
+                    if config.audit_callback:
+                        payload = config.build_audit_payload()
+                        payload.update(
+                            {
+                                "status": "falha",
+                                "tentativa": attempts,
+                                "http_status": 404,
+                                "erro": "session_disconnected_wppconnect",
+                                "response": response_payload,
+                            }
+                        )
+                        config.audit_callback(payload)
+
+                    # NÃO marcar sessão como inativa no Django
+                    # Após rebuild do container WPPCONNECT, a sessão volta a funcionar
+                    return MessageSendResult(
+                        success=False,
+                        status_code=404,
+                        response=response_payload,
+                        attempts=attempts,
+                        error="Sessão desconectada no WPPCONNECT",
+                        reason="session_disconnected_wppconnect",
+                    )
+
         except requests.RequestException as exc:
             response = getattr(exc, "response", None)
             last_status = getattr(response, "status_code", None)

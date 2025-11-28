@@ -1191,6 +1191,59 @@ if (editClienteModal) {
     }
 
 // ----------------------
+// VERIFICAÇÃO DE STATUS WHATSAPP
+// ----------------------
+// Verifica inconsistências entre status-session e check-connection ao carregar o dashboard
+async function verificarStatusWhatsApp() {
+    try {
+        // Primeiro verifica se há sessão ativa no banco
+        const statusResp = await fetch('/status-wpp/');
+        if (statusResp.status === 404) {
+            // Sem sessão ativa - não mostrar nada
+            console.log('[Dashboard] Sem sessão WhatsApp ativa para verificar');
+            return;
+        }
+
+        const statusData = await statusResp.json();
+        console.log('[Dashboard] Status WhatsApp:', statusData);
+
+        // Se status-session diz CONNECTED, verificar conexão real
+        if (statusData.status === 'CONNECTED') {
+            const checkResp = await fetch('/check-connection-wpp/');
+            const checkData = await checkResp.json();
+            console.log('[Dashboard] Check connection WhatsApp:', checkData);
+
+            // Inconsistência detectada: status diz conectado mas check diz não
+            if (checkData.status === false || checkData.message === 'Disconnected') {
+                if (window.showToast && window.showToast.warning) {
+                    window.showToast.warning(
+                        'Status da sessão WhatsApp: Desconectado - Faça nova conexão ou contate o Administrador',
+                        { duration: 8000 }
+                    );
+                } else {
+                    console.warn('[Dashboard] WhatsApp desconectado mas showToast não disponível');
+                }
+            }
+        } else if (statusData.status === 'DISCONNECTED' || statusData.status === 'CLOSED') {
+            if (window.showToast && window.showToast.warning) {
+                window.showToast.warning(
+                    `Status da sessão WhatsApp: ${statusData.status} - Faça nova conexão ou contate o Administrador`,
+                    { duration: 8000 }
+                );
+            }
+        }
+    } catch (error) {
+        console.error('[Dashboard] Erro ao verificar status WhatsApp:', error);
+    }
+}
+
+// Chamar verificação de status WhatsApp ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    // Aguarda um pouco para garantir que showToast esteja disponível
+    setTimeout(verificarStatusWhatsApp, 1000);
+});
+
+// ----------------------
 // EXPORTAÇÕES GLOBAIS
 // ----------------------
 // Exporta funções para o escopo global para que possam ser chamadas via onclick no HTML

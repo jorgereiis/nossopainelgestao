@@ -50,23 +50,23 @@ def is_production() -> bool:
 def get_webhook_url() -> str:
     """
     Retorna a URL do webhook baseada no ambiente de execução.
+    Em PRODUÇÃO, retorna vazio pois o webhook já está configurado no servidor WPPConnect.
 
     Returns:
-        URL do webhook para produção ou desenvolvimento
+        URL do webhook (apenas em desenvolvimento)
     """
     if is_production():
-        url = os.getenv('WEBHOOK_WPP_URL_PROD', '')
-        logger.info(
-            "Ambiente PRODUÇÃO detectado | webhook_url=%s",
-            url[:50] if url else 'não configurada'
-        )
+        # Em produção, o webhook já está configurado no servidor WPPConnect
+        # Não precisamos reenviar a cada início de sessão
+        logger.info("Ambiente PRODUÇÃO - webhook já configurado no servidor")
+        return ""
     else:
         url = os.getenv('WEBHOOK_WPP_URL_DEV', '')
         logger.info(
-            "Ambiente DESENVOLVIMENTO detectado | webhook_url=%s",
+            "Ambiente DESENVOLVIMENTO | webhook_url=%s",
             url[:50] if url else 'não configurada'
         )
-    return url
+        return url
 
 
 def _verificar_e_renovar_token(sessao, session_name: str, secret: str):
