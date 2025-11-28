@@ -25,6 +25,8 @@
         position: relative;
         transition: background-color 0.3s;
         cursor: pointer;
+        overflow: hidden;
+        max-width: 100%;
     }
     .chat-item:hover {
         background-color: var(--bs-gray-100);
@@ -32,6 +34,30 @@
     .chat-item.active {
         background-color: #e7f1ff;
         border-left: 3px solid #0d6efd;
+    }
+    /* Forçar contenção do conteúdo interno */
+    .chat-item > .d-flex {
+        overflow: hidden;
+        max-width: 100%;
+        width: 100%;
+    }
+    .chat-item .flex-grow-1,
+    .chat-item .flex-grow-1.min-width-0 {
+        min-width: 0 !important;
+        overflow: hidden;
+        flex: 1;
+    }
+    /* Linha do nome e hora */
+    .chat-item .flex-grow-1 > .d-flex {
+        overflow: hidden;
+    }
+    .chat-item .flex-grow-1 h6 {
+        min-width: 0;
+        flex: 1;
+    }
+    .chat-item .flex-grow-1 small {
+        flex-shrink: 0;
+        white-space: nowrap;
     }
 
     /* Area de mensagens */
@@ -73,11 +99,15 @@
     .chat-avatar {
         width: 48px;
         height: 48px;
+        min-width: 48px;
+        flex-shrink: 0;
         object-fit: cover;
     }
     .chat-avatar-sm {
         width: 40px;
         height: 40px;
+        min-width: 40px;
+        flex-shrink: 0;
         object-fit: cover;
     }
 
@@ -113,6 +143,33 @@
         border-radius: 3px;
     }
 
+    /* Esconder barra horizontal na lista de chats */
+    #chat-list {
+        overflow-x: hidden !important;
+        overflow-y: auto;
+        max-width: 100%;
+    }
+
+    /* Preview da última mensagem - truncar corretamente */
+    .chat-item .chat-preview {
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        white-space: nowrap;
+        max-width: 100%;
+    }
+    .chat-item .chat-preview-text {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    /* Garantir que o nome também trunca */
+    .chat-item h6.text-truncate {
+        max-width: calc(100% - 60px);
+    }
+
     /* Status de mensagem */
     .msg-status {
         font-size: 0.7rem;
@@ -132,6 +189,26 @@
     /* Emojis e texto */
     .emoji-picker-toggle {
         cursor: pointer;
+    }
+
+    /* Twemoji - Emojis estilizados */
+    img.emoji {
+        height: 1.2em;
+        width: 1.2em;
+        margin: 0 0.05em 0 0.1em;
+        vertical-align: -0.15em;
+        display: inline-block;
+    }
+    /* Emojis maiores nas mensagens */
+    .message-bubble img.emoji {
+        height: 1.4em;
+        width: 1.4em;
+    }
+    /* Emojis menores no preview da lista */
+    .chat-preview img.emoji {
+        height: 1em;
+        width: 1em;
+        vertical-align: -0.1em;
     }
 </style>
 {% endblock %}
@@ -305,5 +382,11 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Twemoji - Emojis estilizados (estilo Apple/WhatsApp) -->
+<script src="https://cdn.jsdelivr.net/npm/@twemoji/api@latest/dist/twemoji.min.js" crossorigin="anonymous"></script>
+<!-- Passar nome da sessão para o JavaScript -->
+<script>
+    window.CHAT_SESSION = "{{ sessao_nome|default:'' }}";
+</script>
 <script src="{% static 'assets/js/chat-whatsapp.js' %}"></script>
 {% endblock %}

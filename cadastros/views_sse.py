@@ -42,36 +42,51 @@ def push_event_to_user(user_id: int, event_type: str, data: dict):
                     "data": data,
                     "timestamp": int(time.time())
                 })
-                logger.debug("Evento %s enviado para usuario=%d", event_type, user_id)
+                logger.info("Evento %s enviado para usuario=%d", event_type, user_id)
+                return True
             except queue.Full:
                 logger.warning("Fila cheia para usuario=%d, descartando evento", user_id)
+                return False
+        return False
+
+
+def broadcast_event_to_all(event_type: str, data: dict):
+    """Envia evento para TODOS os usuários com fila SSE ativa."""
+    with _queues_lock:
+        sent_count = 0
+        for user_id, user_queue in _user_queues.items():
+            try:
+                user_queue.put_nowait({
+                    "type": event_type,
+                    "data": data,
+                    "timestamp": int(time.time())
+                })
+                sent_count += 1
+            except queue.Full:
+                logger.warning("Fila cheia para usuario=%d, descartando evento", user_id)
+        if sent_count > 0:
+            logger.info("Evento %s enviado para %d usuarios via broadcast", event_type, sent_count)
+        return sent_count
 
 
 def push_event_to_session(session_name: str, event_type: str, data: dict):
     """
-    Envia evento para o usuário dono de uma sessão WhatsApp.
-    Busca o user via FK na SessaoWpp, ou fallback para username.
+    Envia evento para usuários visualizando uma sessão WhatsApp.
+
+    Como o Chat WhatsApp é acessível apenas por superusuários,
+    fazemos broadcast para todos os usuários conectados ao SSE.
+    Isso garante que admins visualizando o chat recebam os eventos
+    independentemente de qual sessão estejam usando.
     """
-    from cadastros.models import SessaoWpp
-    from django.contrib.auth.models import User
+    # Adicionar session_name aos dados para o frontend poder filtrar se necessário
+    data['session'] = session_name
 
-    # Primeiro, tentar via FK no modelo SessaoWpp
-    sessao = SessaoWpp.objects.filter(
-        usuario=session_name,
-        is_active=True
-    ).select_related('user').first()
+    # Broadcast para todos os usuários conectados ao SSE
+    # Isso é seguro porque apenas superusuários acessam a página de chat
+    sent = broadcast_event_to_all(event_type, data)
 
-    if sessao and sessao.user:
-        logger.debug("Evento SSE via FK: sessao=%s user_id=%d", session_name, sessao.user.id)
-        push_event_to_user(sessao.user.id, event_type, data)
-        return
-
-    # Fallback: tentar encontrar user com username igual ao session_name
-    try:
-        user = User.objects.get(username=session_name)
-        push_event_to_user(user.id, event_type, data)
-    except User.DoesNotExist:
-        logger.warning("Usuario nao encontrado para sessao: %s", session_name)
+    if sent == 0:
+        logger.warning("Nenhum usuario SSE ativo para receber evento %s da sessao %s", event_type, session_name)
 
 
 @login_required
@@ -98,11 +113,12 @@ def sse_chat_stream(request):
         try:
             while True:
                 try:
-                    # Aguardar evento com timeout (30s = heartbeat)
-                    event = user_queue.get(timeout=30)
+                    # Aguardar evento com timeout curto (10s) para forçar flush frequente
+                    # Django runserver tem buffering, heartbeats frequentes ajudam
+                    event = user_queue.get(timeout=10)
                     yield f"data: {json.dumps(event)}\n\n"
                 except queue.Empty:
-                    # Heartbeat para manter conexão viva
+                    # Heartbeat para manter conexão viva e forçar flush
                     yield ": heartbeat\n\n"
         except GeneratorExit:
             # Cliente desconectou
@@ -113,6 +129,7 @@ def sse_chat_stream(request):
         event_stream(),
         content_type='text/event-stream'
     )
-    response['Cache-Control'] = 'no-cache'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response['X-Accel-Buffering'] = 'no'  # Nginx: desabilitar buffering
+    # Nota: Connection é um header hop-by-hop, não pode ser definido em WSGI
     return response

@@ -2,6 +2,7 @@
 
 import base64
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse, HttpResponse
@@ -55,6 +56,7 @@ class ChatPageView(LoginRequiredMixin, SuperuserRequiredMixin, View):
             "page_group": "admin",
             "page": "chat-whatsapp",
             "sessao_ativa": token is not None,
+            "sessao_nome": session_name if token else None,
             "error": error,
         }
         return render(request, "pages/chat-whatsapp.html", context)
@@ -87,6 +89,33 @@ def _is_personal_contact(chat):
     return not any(pattern in chat_id for pattern in excluded_patterns)
 
 
+def _fetch_last_message(session_name: str, token: str, chat_id: str) -> tuple:
+    """
+    Busca a última mensagem de um chat.
+    Retorna (chat_id, last_message) ou (chat_id, None) se falhar.
+    """
+    try:
+        data, status_code = get_messages_in_chat(session_name, token, chat_id)
+        if status_code == 200:
+            # Extrair mensagens do envelope
+            if isinstance(data, dict):
+                messages = data.get("response") or data.get("messages") or data.get("data") or []
+            elif isinstance(data, list):
+                messages = data
+            else:
+                messages = []
+
+            # Retornar a última mensagem (mais recente)
+            if messages and len(messages) > 0:
+                # As mensagens podem vir ordenadas do mais antigo ao mais recente
+                # ou vice-versa. Vamos pegar a última (mais recente por timestamp)
+                sorted_msgs = sorted(messages, key=lambda m: m.get('t', m.get('timestamp', 0)), reverse=True)
+                return (chat_id, sorted_msgs[0])
+    except Exception as e:
+        logger.debug("Erro ao buscar ultima mensagem de %s: %s", chat_id, str(e))
+    return (chat_id, None)
+
+
 @login_required
 def api_chat_list(request):
     """API: Lista todas as conversas (apenas contatos pessoais)."""
@@ -116,8 +145,37 @@ def api_chat_list(request):
     # Filtrar apenas contatos pessoais (remover grupos, broadcasts, status)
     total_before = len(chats)
     chats = [chat for chat in chats if _is_personal_contact(chat)]
+    logger.info("Filtrados %d contatos pessoais (de %d total)", len(chats), total_before)
 
-    logger.info("Retornando %d contatos pessoais (de %d total)", len(chats), total_before)
+    # Buscar última mensagem de cada chat em paralelo (limitar aos primeiros 30)
+    chats_to_fetch = chats[:30]
+    if chats_to_fetch:
+        logger.info("Buscando ultima mensagem de %d chats em paralelo", len(chats_to_fetch))
+        last_messages = {}
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {
+                executor.submit(_fetch_last_message, session_name, token, _get_chat_id(chat)): chat
+                for chat in chats_to_fetch
+            }
+
+            for future in as_completed(futures, timeout=15):
+                try:
+                    chat_id, last_msg = future.result()
+                    if last_msg:
+                        last_messages[chat_id] = last_msg
+                except Exception as e:
+                    logger.debug("Erro ao obter resultado de future: %s", str(e))
+
+        # Adicionar lastMessage a cada chat
+        for chat in chats:
+            chat_id = _get_chat_id(chat)
+            if chat_id in last_messages:
+                chat['lastMessage'] = last_messages[chat_id]
+
+        logger.info("Obtidas %d ultimas mensagens", len(last_messages))
+
+    logger.info("Retornando %d contatos pessoais", len(chats))
     return JsonResponse(chats, safe=False, status=200)
 
 

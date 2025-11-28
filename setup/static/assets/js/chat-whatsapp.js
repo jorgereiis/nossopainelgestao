@@ -14,11 +14,18 @@
     let isFirstLoad = true; // Flag para saber se é primeiro carregamento
     const DEFAULT_AVATAR = '/static/assets/images/avatar/default-avatar.svg';
 
+    // Sessão ativa (definida pelo backend via window.CHAT_SESSION)
+    const currentSession = window.CHAT_SESSION || null;
+
     // === SSE (Server-Sent Events) ===
     let eventSource = null;
     let sseReconnectTimeout = null;
-    const SSE_RECONNECT_DELAY = 5000;
+    let sseReconnectAttempts = 0;
+    const SSE_RECONNECT_DELAY_BASE = 1000;  // 1 segundo inicial
+    const SSE_RECONNECT_DELAY_MAX = 30000;  // Máximo 30 segundos
+    const SSE_MAX_FAILURES = 5;  // Após 5 falhas, ativar polling de fallback
     let sseConnected = false;
+    let fallbackPollingActive = false;
 
     // Cache de fotos de perfil para evitar requisições repetidas
     const profilePicCache = new Map();
@@ -42,14 +49,33 @@
     // Inicializacao
     document.addEventListener('DOMContentLoaded', init);
 
+    // Função helper para aplicar Twemoji (emojis estilizados)
+    function applyTwemoji(element) {
+        if (typeof twemoji !== 'undefined' && element) {
+            twemoji.parse(element, {
+                folder: 'svg',
+                ext: '.svg',
+                className: 'emoji'
+            });
+        }
+    }
+
+    // Polling desabilitado - usamos arquitetura event-driven via Webhook → SSE
+    // Dados são atualizados apenas quando:
+    // 1. Página é carregada/recarregada
+    // 2. Um chat é selecionado
+    // 3. Webhook envia evento via SSE (nova mensagem, ack, etc.)
+    let pollingInterval = null; // Mantido para compatibilidade, mas não usado
+
     function init() {
         // Verificar se elementos existem (pagina de chat esta carregada)
         if (!chatList) return;
 
-        loadChatList();
+        loadChatList();  // Carrega lista apenas uma vez ao abrir a página
         setupEventListeners();
-        connectSSE();  // SSE ao inves de polling
+        connectSSE();  // SSE para receber eventos em tempo real (via webhook)
         setupVisibilityChange();
+        // Polling removido - atualizações vêm via SSE/Webhook
 
         // Solicitar permissao para notificacoes
         if ('Notification' in window && Notification.permission === 'default') {
@@ -120,6 +146,13 @@
         document.getElementById('btn-close-sidebar')?.addEventListener('click', () => {
             chatSidebar?.classList.add('hidden');
         });
+
+        // ESC para fechar conversa aberta
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && currentPhone) {
+                closeChat();
+            }
+        });
     }
 
     // Carrega lista de conversas
@@ -166,6 +199,76 @@
         return chat.id;
     }
 
+    // Extrai a ultima mensagem do chat (tenta varios campos possiveis)
+    function getLastMessage(chat) {
+        // Tentar diferentes campos que a API pode retornar
+        return chat.lastMessage || chat.msgs?.[0] || chat.lastReceivedMessage || chat.last_message || null;
+    }
+
+    // Formata a preview da ultima mensagem (igual ao WhatsApp)
+    // Retorna objeto {statusHtml, content} para permitir icones Bootstrap
+    function formatLastMessagePreview(lastMessage) {
+        if (!lastMessage) return { statusHtml: '', content: '' };
+
+        // Se lastMessage for string, retornar diretamente
+        if (typeof lastMessage === 'string') return { statusHtml: '', content: lastMessage };
+
+        const body = lastMessage.body || lastMessage.caption || lastMessage.content || '';
+        const type = lastMessage.type || 'chat';
+        const fromMe = lastMessage.fromMe || false;
+        const ack = lastMessage.ack || 0;
+
+        // Icones Bootstrap para status (mensagens enviadas)
+        let statusHtml = '';
+        if (fromMe) {
+            if (ack >= 2) {
+                // Recebido/Lido - double check
+                statusHtml = '<i class="bi bi-check-all text-primary me-1"></i>';
+            } else if (ack === 1) {
+                // Enviado - single check
+                statusHtml = '<i class="bi bi-check text-muted me-1"></i>';
+            } else {
+                // Pendente - relogio
+                statusHtml = '<i class="bi bi-clock-history text-muted me-1"></i>';
+            }
+        }
+
+        // Formatar baseado no tipo de mensagem (emojis Apple-style Unicode)
+        let content = '';
+        switch (type) {
+            case 'image':
+                content = '📷 ' + (lastMessage.caption || 'Foto');
+                break;
+            case 'video':
+                content = '📹 ' + (lastMessage.caption || 'Vídeo');
+                break;
+            case 'audio':
+            case 'ptt':
+                content = '🎤 Mensagem de voz';
+                break;
+            case 'document':
+                content = '📄 ' + (lastMessage.filename || 'Documento');
+                break;
+            case 'sticker':
+                content = '😀 Figurinha';
+                break;
+            case 'location':
+                content = '📍 Localização';
+                break;
+            case 'vcard':
+            case 'contact_card':
+                content = '👤 Contato';
+                break;
+            case 'revoked':
+                content = '🚫 Mensagem apagada';
+                break;
+            default:
+                content = body;
+        }
+
+        return { statusHtml, content };
+    }
+
     function renderChatList(chats) {
         if (!chats.length) {
             chatList.innerHTML = `<div class="text-center py-5 text-muted">
@@ -185,7 +288,7 @@
         chatList.innerHTML = chats.map(chat => {
             const chatId = getChatId(chat);
             const name = chat.name || chat.contact?.name || chat.contact?.pushname || formatPhone(chatId);
-            const lastMsg = chat.lastMessage?.body || chat.lastMessage || '';
+            const lastMsgData = formatLastMessagePreview(getLastMessage(chat));
             const unread = chat.unreadCount || 0;
 
             // Verificar se já temos a foto no cache ou na resposta da API
@@ -216,8 +319,8 @@
                                 </h6>
                                 <small class="text-muted ms-2">${formatTime(chat.t || chat.timestamp)}</small>
                             </div>
-                            <p class="mb-0 text-muted text-truncate small">
-                                ${escapeHtml(truncateText(lastMsg, 40))}
+                            <p class="mb-0 text-muted small chat-preview">
+                                ${lastMsgData.statusHtml}<span class="chat-preview-text">${escapeHtml(lastMsgData.content)}</span>
                             </p>
                         </div>
                         ${unread > 0 ? `<span class="badge bg-success rounded-pill ms-2">${unread}</span>` : ''}
@@ -239,6 +342,9 @@
         if (typeof feather !== 'undefined') {
             feather.replace();
         }
+
+        // Aplicar Twemoji nos previews
+        applyTwemoji(chatList);
 
         // Carregar fotos de perfil em background (primeiras 20 visíveis)
         if (phonesToLoadPics.length > 0) {
@@ -264,7 +370,7 @@
         chatName.textContent = name || formatPhone(phone);
         chatAvatar.src = DEFAULT_AVATAR;
 
-        // Marcar item como ativo na lista
+        // Marcar item como ativo na lista (SEM remover badge ainda)
         chatList.querySelectorAll('.chat-item').forEach(item => {
             item.classList.toggle('active', item.dataset.phone === phone);
         });
@@ -275,11 +381,40 @@
         // Carregar mensagens
         await loadMessages(phone);
 
+        // AGORA remover badge (após mensagens carregarem com sucesso)
+        const activeItem = chatList.querySelector(`.chat-item[data-phone="${phone}"]`);
+        if (activeItem) {
+            const badge = activeItem.querySelector('.badge');
+            if (badge) badge.remove();
+        }
+
         // Limpar reply pendente
         cancelReply();
 
         // Focar no input
         messageInput?.focus();
+    }
+
+    // Fecha a conversa atual (volta para tela inicial)
+    function closeChat() {
+        currentPhone = null;
+        currentChat = null;
+
+        // UI: Esconder chat ativo e mostrar mensagem inicial
+        activeChat?.classList.add('d-none');
+        activeChat?.classList.remove('d-flex');
+        noChatSelected?.classList.remove('d-none');
+
+        // Remover classe 'active' de todos os items da lista
+        chatList.querySelectorAll('.chat-item').forEach(item => {
+            item.classList.remove('active');
+        });
+
+        // Limpar reply pendente
+        cancelReply();
+
+        // Mobile: mostrar sidebar
+        chatSidebar?.classList.remove('hidden');
     }
 
     async function loadProfilePicture(phone) {
@@ -473,6 +608,9 @@
         if (typeof feather !== 'undefined') {
             feather.replace();
         }
+
+        // Aplicar Twemoji nas mensagens
+        applyTwemoji(messagesContainer);
     }
 
     function renderQuotedMessage(quoted) {
@@ -550,7 +688,7 @@
                 stickerSrc = `/api/chat/download/${encodeURIComponent(messageId)}/`;
             }
             return `${stickerSrc ? `<img src="${stickerSrc}" class="img-fluid" style="max-width: 150px;"
-                         onerror="this.style.display='none'">` : '<span class="text-muted">🎨 Sticker</span>'}`;
+                         onerror="this.style.display='none'">` : '<span class="text-muted">😀 Figurinha</span>'}`;
         }
 
         if (type === 'location') {
@@ -668,6 +806,9 @@
         if (typeof feather !== 'undefined') {
             feather.replace();
         }
+
+        // Aplicar Twemoji na mensagem otimista
+        applyTwemoji(messagesContainer.lastElementChild);
     }
 
     // Upload de arquivo
@@ -734,34 +875,94 @@
             sseReconnectTimeout = null;
         }
 
-        console.log('[SSE] Conectando...');
+        console.log('[SSE] Conectando... (tentativa', sseReconnectAttempts + 1, ') | sessão:', currentSession || 'não definida');
         eventSource = new EventSource('/api/chat/sse/');
 
         eventSource.onopen = () => {
-            console.log('[SSE] Conectado!');
+            console.log('[SSE] ✓ Conectado! Atualizações virão via webhook.');
             sseConnected = true;
+
+            // Se estava desconectado antes (reconexão), atualizar dados
+            if (sseReconnectAttempts > 0) {
+                console.log('[SSE] Reconexão bem-sucedida - atualizando dados...');
+                loadChatListSilent();
+                if (currentPhone) {
+                    loadMessages(currentPhone, true);
+                }
+            }
+
+            sseReconnectAttempts = 0;  // Reset contador de falhas
+
+            // Desativar polling de fallback se estava ativo
+            if (fallbackPollingActive) {
+                console.log('[SSE] Desativando polling de fallback');
+                fallbackPollingActive = false;
+                if (pollingInterval) {
+                    clearInterval(pollingInterval);
+                    pollingInterval = null;
+                }
+            }
         };
 
         eventSource.onmessage = (e) => {
+            // Ignorar heartbeats (linhas vazias ou comentários)
+            if (!e.data || e.data.trim() === '' || e.data.startsWith(':')) {
+                return;
+            }
+
             try {
                 const event = JSON.parse(e.data);
+                console.log('[SSE] ← Evento:', event.type);
                 handleSSEEvent(event);
             } catch (err) {
-                console.error('[SSE] Erro ao parsear evento:', err);
+                console.error('[SSE] Erro ao parsear:', err.message, '| Data:', e.data.substring(0, 200));
             }
         };
 
         eventSource.onerror = (e) => {
-            console.warn('[SSE] Erro na conexao:', e);
             sseConnected = false;
+            sseReconnectAttempts++;
             eventSource.close();
+
+            console.warn('[SSE] ✗ Erro na conexão (falha #' + sseReconnectAttempts + ')');
+
+            // Calcular delay exponencial: 1s, 2s, 4s, 8s, 16s, 30s (max)
+            const delay = Math.min(
+                SSE_RECONNECT_DELAY_BASE * Math.pow(2, sseReconnectAttempts - 1),
+                SSE_RECONNECT_DELAY_MAX
+            );
+
+            // Se muitas falhas, ativar polling de fallback
+            if (sseReconnectAttempts >= SSE_MAX_FAILURES && !fallbackPollingActive) {
+                console.warn('[SSE] Muitas falhas - ativando polling de fallback (30s)');
+                fallbackPollingActive = true;
+                startFallbackPolling();
+            }
 
             // Reconectar apos delay (se pagina visivel)
             if (document.visibilityState === 'visible') {
-                console.log(`[SSE] Reconectando em ${SSE_RECONNECT_DELAY}ms...`);
-                sseReconnectTimeout = setTimeout(connectSSE, SSE_RECONNECT_DELAY);
+                console.log(`[SSE] Reconectando em ${delay}ms...`);
+                sseReconnectTimeout = setTimeout(connectSSE, delay);
             }
         };
+    }
+
+    // Polling de fallback quando SSE falha repetidamente
+    function startFallbackPolling() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+        }
+
+        console.log('[Polling] Iniciando polling de fallback (30s)');
+        pollingInterval = setInterval(() => {
+            if (document.visibilityState === 'visible' && fallbackPollingActive) {
+                console.log('[Polling] Verificando atualizações...');
+                loadChatListSilent();
+                if (currentPhone) {
+                    loadMessages(currentPhone, true);
+                }
+            }
+        }, 30000);  // 30 segundos
     }
 
     function disconnectSSE() {
@@ -773,65 +974,195 @@
             clearTimeout(sseReconnectTimeout);
             sseReconnectTimeout = null;
         }
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
         sseConnected = false;
+        fallbackPollingActive = false;
         console.log('[SSE] Desconectado');
     }
 
     function handleSSEEvent(event) {
-        console.log('[SSE] Evento recebido:', event.type, event.data);
+        // TODO: Reativar filtro quando resolver incompatibilidade de sessão
+        // O webhook envia session="teste" mas a sessão cadastrada é "jrg"
+        // Por enquanto, processar TODOS os eventos SSE
+        const eventSession = event.data?.session || event.session;
+        console.log('[SSE] Processando evento:', event.type, '| session do evento:', eventSession, '| session esperada:', currentSession);
 
         switch (event.type) {
             case 'connected':
-                console.log('[SSE] Confirmacao de conexao:', event.data);
+                console.log('[SSE] ✓ Conexão confirmada - userId:', event.userId || event.data?.userId);
                 break;
 
             case 'new_message':
-                handleNewMessage(event.data);
+                console.log('[SSE] 📩 Nova mensagem:', event.data?.chatId);
+                if (event.data) {
+                    handleNewMessage(event.data);
+                } else {
+                    console.error('[SSE] Evento new_message sem data:', event);
+                }
                 break;
 
             case 'message_ack':
-                handleMessageAck(event.data);
+                console.log('[SSE] ✓✓ ACK recebido:', event.data?.messageId, 'ack:', event.data?.ack);
+                if (event.data) {
+                    handleMessageAck(event.data);
+                }
                 break;
 
             case 'message_sent':
-                handleMessageSent(event.data);
+                console.log('[SSE] ✓ Mensagem enviada:', event.data?.chatId);
+                if (event.data) {
+                    handleMessageSent(event.data);
+                }
                 break;
 
             case 'chat_update':
-                // Atualizar lista de chats
-                loadChatList();
+                console.log('[SSE] 🔄 Atualização de chat');
+                loadChatListSilent();
                 break;
 
             default:
-                console.log('[SSE] Evento desconhecido:', event.type);
+                console.log('[SSE] Evento desconhecido:', event.type, event);
         }
     }
 
     function handleNewMessage(data) {
         const chatId = data.chatId;
+        const senderName = data.senderName || '';
         const message = data.message;
 
-        console.log('[SSE] Nova mensagem de:', chatId);
+        console.log('[SSE] Nova mensagem de:', chatId, '- Nome:', senderName);
 
-        // Se e o chat atual, adicionar mensagem
-        if (currentPhone && chatId && chatId.includes(formatPhone(currentPhone))) {
+        // Verificar se é o chat atual
+        const isCurrentChat = currentPhone && chatId && chatId.includes(formatPhone(currentPhone));
+
+        // Se é o chat atual, adicionar mensagem instantaneamente
+        if (isCurrentChat) {
             appendNewMessage(message);
         }
 
-        // Atualizar lista de chats (nova mensagem pode mudar ordem)
-        loadChatList();
+        // Atualizar preview do chat na lista (ou criar se não existir)
+        updateChatPreview(chatId, message, senderName);
 
-        // Mostrar notificacao se nao for o chat atual ou aba nao visivel
-        if (!currentPhone || !chatId.includes(formatPhone(currentPhone)) || document.visibilityState !== 'visible') {
+        // Mostrar notificação se não for o chat atual ou aba não visível
+        if (!isCurrentChat || document.visibilityState !== 'visible') {
             showNotification(message);
         }
     }
 
+    // Atualiza o preview de um chat especifico na lista (ou cria se não existir)
+    function updateChatPreview(chatId, message, senderName = '') {
+        // Encontrar o item do chat na lista
+        let chatItem = chatList.querySelector(`.chat-item[data-phone="${chatId}"]`);
+
+        if (chatItem) {
+            // Chat existe - atualizar preview
+            const previewEl = chatItem.querySelector('.chat-preview-text');
+            const previewContainer = chatItem.querySelector('.chat-preview');
+
+            if (previewEl) {
+                const lastMsgData = formatLastMessagePreview(message);
+                previewEl.textContent = lastMsgData.content;
+
+                // Atualizar icone de status se existir
+                const existingIcon = previewContainer?.querySelector('i');
+                if (existingIcon && lastMsgData.statusHtml) {
+                    existingIcon.outerHTML = lastMsgData.statusHtml;
+                } else if (!existingIcon && lastMsgData.statusHtml) {
+                    previewContainer?.insertAdjacentHTML('afterbegin', lastMsgData.statusHtml);
+                }
+            }
+
+            // Atualizar timestamp
+            const timeEl = chatItem.querySelector('small.text-muted');
+            if (timeEl) {
+                timeEl.textContent = formatTime(message.t || message.timestamp || Date.now() / 1000);
+            }
+
+            // Mover chat para o topo da lista (mais recente)
+            if (chatItem.parentElement.firstChild !== chatItem) {
+                chatItem.parentElement.insertBefore(chatItem, chatItem.parentElement.firstChild);
+            }
+
+            // Incrementar badge se não for o chat atual
+            if (!currentPhone || !chatId.includes(formatPhone(currentPhone))) {
+                const badge = chatItem.querySelector('.badge');
+                if (badge) {
+                    badge.textContent = parseInt(badge.textContent || '0') + 1;
+                } else {
+                    const flexDiv = chatItem.querySelector('.d-flex.align-items-center');
+                    if (flexDiv) {
+                        flexDiv.insertAdjacentHTML('beforeend',
+                            `<span class="badge bg-success rounded-pill ms-2">1</span>`);
+                    }
+                }
+            }
+
+            // Aplicar Twemoji no preview atualizado
+            applyTwemoji(chatItem);
+
+            console.log('[SSE] Preview atualizado para:', chatId);
+        } else {
+            // Chat não existe na lista - criar novo item no topo
+            console.log('[SSE] Criando novo chat na lista:', chatId, senderName);
+
+            const name = senderName || message.notifyName || message.pushname || formatPhone(chatId);
+            const lastMsgData = formatLastMessagePreview(message);
+            const timestamp = message.t || message.timestamp || Date.now() / 1000;
+
+            const newChatHtml = `
+                <div class="chat-item p-3 border-bottom" data-phone="${chatId}" data-name="${escapeHtml(name)}">
+                    <div class="d-flex align-items-center">
+                        <img src="${DEFAULT_AVATAR}"
+                             class="rounded-circle chat-avatar me-3"
+                             data-avatar-phone="${chatId}"
+                             onerror="this.src='${DEFAULT_AVATAR}'"
+                             alt="${escapeHtml(name)}">
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 text-truncate">${escapeHtml(name)}</h6>
+                                <small class="text-muted ms-2">${formatTime(timestamp)}</small>
+                            </div>
+                            <p class="mb-0 text-muted small chat-preview">
+                                ${lastMsgData.statusHtml}<span class="chat-preview-text">${escapeHtml(lastMsgData.content)}</span>
+                            </p>
+                        </div>
+                        <span class="badge bg-success rounded-pill ms-2">1</span>
+                    </div>
+                </div>
+            `;
+
+            // Inserir no topo da lista
+            chatList.insertAdjacentHTML('afterbegin', newChatHtml);
+
+            // Adicionar evento de clique no novo item
+            const newItem = chatList.firstElementChild;
+            newItem.addEventListener('click', () => {
+                selectChat(newItem.dataset.phone, newItem.dataset.name);
+                chatSidebar?.classList.add('hidden');
+            });
+
+            // Aplicar Twemoji e Feather
+            applyTwemoji(newItem);
+            if (typeof feather !== 'undefined') feather.replace();
+
+            // Carregar foto de perfil em background
+            loadProfilePicturesInBackground([chatId]);
+
+            console.log('[SSE] Novo chat adicionado à lista:', chatId);
+        }
+    }
+
     function handleMessageAck(data) {
+        const chatId = data.chatId;
         const messageId = data.messageId;
         const ack = data.ack;
 
-        // Atualizar status da mensagem no DOM
+        console.log('[SSE] ACK recebido - chat:', chatId, 'msg:', messageId, 'ack:', ack);
+
+        // Atualizar status da mensagem no DOM (se o chat atual)
         const msgBubble = messagesContainer?.querySelector(`[data-message-id="${messageId}"]`);
         if (msgBubble) {
             const statusEl = msgBubble.querySelector('.msg-status')?.parentElement;
@@ -845,6 +1176,23 @@
                 if (newStatus) {
                     statusEl.insertAdjacentHTML('beforeend', newStatus);
                     if (typeof feather !== 'undefined') feather.replace();
+                }
+            }
+        }
+
+        // Atualizar ícone de status no preview da lista de chats
+        if (chatId) {
+            const chatItem = chatList.querySelector(`.chat-item[data-phone="${chatId}"]`);
+            if (chatItem) {
+                const previewContainer = chatItem.querySelector('.chat-preview');
+                const existingIcon = previewContainer?.querySelector('i.bi');
+                if (existingIcon) {
+                    // Atualizar ícone baseado no ack
+                    if (ack >= 2) {
+                        existingIcon.className = 'bi bi-check-all text-primary me-1';
+                    } else if (ack === 1) {
+                        existingIcon.className = 'bi bi-check text-muted me-1';
+                    }
                 }
             }
         }
@@ -927,6 +1275,9 @@
         }
 
         if (typeof feather !== 'undefined') feather.replace();
+
+        // Aplicar Twemoji na nova mensagem
+        applyTwemoji(messagesContainer.lastElementChild);
     }
 
     function showNotification(msg) {
@@ -962,32 +1313,115 @@
     function setupVisibilityChange() {
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
+                console.log('[Chat] Aba ficou visível - verificando conexão SSE...');
+
                 // Reconectar SSE se desconectado
                 if (!sseConnected && !sseReconnectTimeout) {
+                    console.log('[Chat] SSE desconectado - reconectando...');
+                    sseReconnectAttempts = 0;  // Reset para tentar novamente
                     connectSSE();
                 }
-                // Carregar dados atualizados ao voltar para a aba
-                if (currentPhone) loadMessages(currentPhone, true);
-                loadChatList();
+
+                // Se o SSE estava falhando muito, fazer um refresh dos dados
+                if (fallbackPollingActive) {
+                    console.log('[Chat] Polling ativo - atualizando dados...');
+                    loadChatListSilent();
+                    if (currentPhone) {
+                        loadMessages(currentPhone, true);
+                    }
+                }
             } else {
-                // Desconectar SSE quando aba fica oculta (economizar recursos)
-                // Opcional: manter conectado para receber notificacoes
-                // disconnectSSE();
+                // Manter SSE conectado para receber notificações mesmo com aba oculta
+                console.log('[Chat] Aba ficou oculta - mantendo SSE');
             }
         });
     }
 
-    // Carrega lista de conversas silenciosamente (para atualizacao manual)
+    // Carrega lista de conversas silenciosamente (para refresh manual)
+    // Usado apenas quando o usuário clica em atualizar ou recarrega a página
     async function loadChatListSilent() {
         try {
+            console.log('[Chat] Atualizando lista de chats (manual)...');
             const response = await fetch('/api/chat/list/');
             const data = await response.json();
 
             if (response.ok && Array.isArray(data)) {
-                renderChatList(data);
+                // Atualizar dados sem recriar HTML completamente (evita "piscar")
+                updateChatListData(data);
+                console.log('[Chat] Lista atualizada com', data.length, 'chats');
             }
         } catch (error) {
             console.log('[Chat] Erro ao atualizar chats:', error.message);
+        }
+    }
+
+    // Atualiza apenas os dados dos chats existentes sem recriar todo o HTML
+    function updateChatListData(chats) {
+        const existingItems = chatList.querySelectorAll('.chat-item');
+
+        // Se nao tem items, renderizar normalmente
+        if (existingItems.length === 0) {
+            renderChatList(chats);
+            return;
+        }
+
+        // Criar mapa dos chats recebidos
+        const chatMap = new Map();
+        chats.forEach(chat => {
+            const chatId = getChatId(chat);
+            chatMap.set(chatId, chat);
+        });
+
+        // Atualizar cada item existente
+        existingItems.forEach(item => {
+            const phone = item.dataset.phone;
+            const chat = chatMap.get(phone);
+
+            if (chat) {
+                // Atualizar preview da ultima mensagem
+                const previewEl = item.querySelector('.chat-preview-text');
+                const statusEl = item.querySelector('.chat-preview > i');
+                const lastMsgData = formatLastMessagePreview(getLastMessage(chat));
+
+                if (previewEl && lastMsgData.content) {
+                    previewEl.textContent = lastMsgData.content;
+                }
+
+                // Atualizar timestamp
+                const timeEl = item.querySelector('small.text-muted');
+                if (timeEl) {
+                    timeEl.textContent = formatTime(chat.t || chat.timestamp);
+                }
+
+                // Atualizar badge de nao lidas
+                // NOTA: Não remover badges locais - apenas atualizar se a API tiver valor maior
+                const badge = item.querySelector('.badge');
+                const unread = chat.unreadCount || 0;
+                const currentBadgeCount = badge ? parseInt(badge.textContent || '0') : 0;
+
+                if (unread > 0 && unread > currentBadgeCount) {
+                    // API tem mais não lidas que o badge local
+                    if (badge) {
+                        badge.textContent = unread;
+                    } else {
+                        const flexDiv = item.querySelector('.d-flex.align-items-center');
+                        if (flexDiv) {
+                            flexDiv.insertAdjacentHTML('beforeend',
+                                `<span class="badge bg-success rounded-pill ms-2">${unread}</span>`);
+                        }
+                    }
+                }
+                // NÃO remover badge local - será removido quando usuário abrir o chat
+
+                // Remover do mapa (processado)
+                chatMap.delete(phone);
+            }
+        });
+
+        // Se tem chats novos que nao existiam, NÃO recriar a lista
+        // (isso causa "piscar" da página - novos chats serão adicionados na próxima navegação)
+        if (chatMap.size > 0) {
+            console.log('[Chat] %d novos chats detectados (ignorados para evitar piscar)', chatMap.size);
         }
     }
 
