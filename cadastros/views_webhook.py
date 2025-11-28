@@ -146,16 +146,27 @@ def _handle_message(payload: dict, session: str):
     msg_from = message_data.get('from', '') or payload.get('from', '')
     msg_type = message_data.get('type', '') or payload.get('type', '')
 
-    logger.info(
-        "Nova mensagem recebida | session=%s from=%s type=%s",
-        session,
-        msg_from,
-        msg_type
+    # Extrair nome do contato (pode vir em diferentes campos)
+    sender_name = (
+        message_data.get('notifyName') or
+        message_data.get('pushname') or
+        message_data.get('sender', {}).get('pushname') or
+        message_data.get('sender', {}).get('name') or
+        ''
     )
 
-    # Enviar evento SSE para o frontend
+    logger.info(
+        "Nova mensagem recebida | session=%s from=%s type=%s name=%s",
+        session,
+        msg_from,
+        msg_type,
+        sender_name
+    )
+
+    # Enviar evento SSE para o frontend com dados completos
     push_event_to_session(session, 'new_message', {
         'chatId': msg_from,
+        'senderName': sender_name,
         'message': message_data
     })
 
@@ -166,19 +177,24 @@ def _handle_ack(payload: dict, session: str):
     message_id = ack_data.get('id', {})
     ack_level = ack_data.get('ack', 0)
 
+    # Extrair chatId (para quem a mensagem foi enviada)
+    chat_id = ack_data.get('to', '') or ack_data.get('from', '')
+
     # Extrair ID serializado se for objeto
     if isinstance(message_id, dict):
         message_id = message_id.get('_serialized', '') or message_id.get('id', '')
 
     logger.debug(
-        "ACK recebido | session=%s messageId=%s ack=%s",
+        "ACK recebido | session=%s chatId=%s messageId=%s ack=%s",
         session,
+        chat_id,
         str(message_id)[:50],
         ack_level
     )
 
     # Enviar evento SSE para o frontend
     push_event_to_session(session, 'message_ack', {
+        'chatId': chat_id,
         'messageId': message_id,
         'ack': ack_level
     })
