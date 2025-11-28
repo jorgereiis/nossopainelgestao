@@ -132,7 +132,10 @@ def conectar_wpp(request):
     session = usuario.username
 
     try:
-        user_admin = User.objects.get(is_superuser=True)
+        # Buscar primeiro superusuário disponível (pode haver mais de um)
+        user_admin = User.objects.filter(is_superuser=True).first()
+        if not user_admin:
+            raise User.DoesNotExist("Nenhum superusuário encontrado")
         secret = SecretTokenAPI.objects.get(usuario=user_admin).token
     except (User.DoesNotExist, SecretTokenAPI.DoesNotExist):
         logger.error(
