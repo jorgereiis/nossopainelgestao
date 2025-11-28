@@ -53,6 +53,7 @@ from cadastros.services.wpp import (
 )
 from wpp.api_connection import (
     check_number_status,
+    check_connection,
 )
 from integracoes.openai_chat import consultar_chatgpt
 
@@ -78,6 +79,96 @@ def registrar_log_auditoria(evento: dict) -> None:
     NOTA: Esta função agora usa o sistema centralizado de logging.
     """
     registrar_log_json_auditoria(AUDIT_LOG_PATH, evento, auto_timestamp=True)
+
+
+##################################################################
+######## FUNÇÃO PARA VERIFICAR SAÚDE DA SESSÃO WHATSAPP ##########
+##################################################################
+
+def verificar_saude_sessao(usuario: str, token: str) -> bool:
+    """
+    Verifica se a sessão WhatsApp está realmente ativa via check-connection.
+
+    Detecta inconsistências onde status-session retorna CONNECTED mas
+    check-connection retorna Disconnected (problema de detached frame).
+
+    Args:
+        usuario: Nome da sessão WPPCONNECT
+        token: Token de autenticação da sessão
+
+    Returns:
+        bool: True se sessão está saudável, False se com problema no WPPCONNECT.
+
+    Nota:
+        NÃO marca a sessão como inativa no Django. Após rebuild do container
+        WPPCONNECT, a sessão volta a funcionar automaticamente.
+    """
+    try:
+        dados, status_code = check_connection(usuario, token)
+
+        # API não respondeu corretamente
+        if status_code != 200:
+            logger.warning(
+                "[Health Check] Sessão %s - API não respondeu (HTTP %s) - envios cancelados para este horário",
+                usuario,
+                status_code
+            )
+            registrar_log_auditoria({
+                "funcao": "verificar_saude_sessao",
+                "status": "api_indisponivel",
+                "usuario": usuario,
+                "http_status": status_code,
+                "response": dados,
+            })
+            return False
+
+        # Verifica se conexão está realmente ativa
+        # check-connection retorna {"status": true/false, "message": "Connected"/"Disconnected"}
+        connection_status = dados.get("status") if isinstance(dados, dict) else None
+        connection_message = dados.get("message", "") if isinstance(dados, dict) else ""
+
+        if connection_status is False or connection_message == "Disconnected":
+            logger.warning(
+                "[Health Check] Sessão %s com problema no WPPCONNECT (status=%s, message=%s) - "
+                "envios cancelados para este horário",
+                usuario,
+                connection_status,
+                connection_message
+            )
+            registrar_log_auditoria({
+                "funcao": "verificar_saude_sessao",
+                "status": "sessao_desconectada",
+                "usuario": usuario,
+                "http_status": status_code,
+                "connection_status": connection_status,
+                "connection_message": connection_message,
+            })
+            return False
+
+        logger.debug(
+            "[Health Check] Sessão %s está saudável (status=%s, message=%s)",
+            usuario,
+            connection_status,
+            connection_message
+        )
+        return True
+
+    except Exception as e:
+        logger.error(
+            "[Health Check] Erro ao verificar sessão %s: %s",
+            usuario,
+            str(e),
+            exc_info=True
+        )
+        registrar_log_auditoria({
+            "funcao": "verificar_saude_sessao",
+            "status": "erro",
+            "usuario": usuario,
+            "erro": str(e),
+        })
+        # Em caso de erro, retorna False por segurança (não tenta enviar)
+        return False
+
 
 ##################################################################
 ################ FUNÇÃO PARA ENVIAR MENSAGENS ####################
@@ -1298,6 +1389,26 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
 
             # Transação commitada, lock DB liberado. Agora executa o envio (pode demorar)
             try:
+                # Health check: Verifica se sessão WhatsApp está saudável antes de enviar
+                sessao = SessaoWpp.objects.filter(usuario=h.usuario, is_active=True).first()
+                if sessao and sessao.token:
+                    if not verificar_saude_sessao(str(h.usuario), sessao.token):
+                        logger.warning(
+                            "[Health Check] Sessão com problema - envios cancelados | thread=%s usuario=%s tipo=%s",
+                            threading.current_thread().name,
+                            h.usuario,
+                            h.tipo_envio
+                        )
+                        registrar_log_auditoria({
+                            "funcao": "executar_envio_para_usuario",
+                            "status": "cancelado_sessao_problema",
+                            "usuario": str(h.usuario),
+                            "tipo_envio": h.tipo_envio,
+                            "thread": threading.current_thread().name,
+                            "motivo": "health_check_falhou",
+                        })
+                        return  # Não processa, tentará no próximo horário agendado
+
                 if h.tipo_envio == 'mensalidades_a_vencer':
                     obter_mensalidades_a_vencer(h.usuario)
                 elif h.tipo_envio == 'obter_mensalidades_vencidas':
