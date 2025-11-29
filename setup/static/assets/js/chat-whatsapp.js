@@ -12,6 +12,7 @@
     let replyToMessageId = null;
     let lastMessagesHash = null; // Para comparar se houve mudanças
     let isFirstLoad = true; // Flag para saber se é primeiro carregamento
+    let currentFilter = 'all'; // Filtro atual: 'all' ou 'unread'
     const DEFAULT_AVATAR = '/static/assets/images/avatar/default-avatar.svg';
 
     // Sessão ativa (definida pelo backend via window.CHAT_SESSION)
@@ -26,6 +27,15 @@
     const SSE_MAX_FAILURES = 5;  // Após 5 falhas, ativar polling de fallback
     let sseConnected = false;
     let fallbackPollingActive = false;
+
+    // Polling para desenvolvimento (localhost)
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    let devPollingInterval = null;
+    const DEV_POLLING_INTERVAL = 10000;  // 10 segundos em desenvolvimento
+
+    // Controle de marcação como lida (debounce)
+    let markAsReadTimeout = null;
+    const MARK_AS_READ_DELAY = 2000;  // 2 segundos de debounce
 
     // Cache de fotos de perfil para evitar requisições repetidas
     const profilePicCache = new Map();
@@ -49,15 +59,149 @@
     // Inicializacao
     document.addEventListener('DOMContentLoaded', init);
 
-    // Função helper para aplicar Twemoji (emojis estilizados)
-    function applyTwemoji(element) {
-        if (typeof twemoji !== 'undefined' && element) {
-            twemoji.parse(element, {
-                folder: 'svg',
-                ext: '.svg',
-                className: 'emoji'
+    // === Sistema de Emojis Apple Style ===
+    // Usa sprite sheet do emoji-datasource-apple para renderização idêntica ao WhatsApp/iOS
+    let emojiDataLoaded = false;
+    const emojiMap = new Map();  // Mapa unified code -> {sheet_x, sheet_y}
+    const EMOJI_SPRITE_SIZE = 64;  // Tamanho de cada emoji no sprite (64px)
+    const EMOJI_DISPLAY_SIZE = 20; // Tamanho de exibição padrão
+    const SPRITE_COLS = 61;  // Colunas no sprite sheet
+    const SPRITE_ROWS = 62;  // Linhas no sprite sheet
+
+    // Carregar dados de emoji do JSON
+    async function loadEmojiData() {
+        if (emojiDataLoaded) return;
+
+        try {
+            const response = await fetch('/static/assets/emoji/emoji.json');
+            const data = await response.json();
+
+            // Criar mapa de acesso rápido: unified code -> posição no sprite
+            data.forEach(emoji => {
+                if (emoji.has_img_apple) {
+                    // Normalizar unified code (uppercase, com hífens)
+                    const unified = emoji.unified.toUpperCase();
+                    emojiMap.set(unified, {
+                        x: emoji.sheet_x,
+                        y: emoji.sheet_y,
+                        short_name: emoji.short_name
+                    });
+
+                    // Também mapear versão sem FE0F (variation selector)
+                    const withoutVS = unified.replace(/-FE0F/g, '');
+                    if (withoutVS !== unified) {
+                        emojiMap.set(withoutVS, {
+                            x: emoji.sheet_x,
+                            y: emoji.sheet_y,
+                            short_name: emoji.short_name
+                        });
+                    }
+                }
             });
+
+            emojiDataLoaded = true;
+            console.log(`[Emoji] ✓ Carregados ${emojiMap.size} emojis Apple`);
+        } catch (error) {
+            console.warn('[Emoji] Falha ao carregar dados:', error.message);
+            // Fallback: manter emojis nativos
         }
+    }
+
+    // Converter emoji Unicode para unified code (ex: "😀" -> "1F600")
+    function emojiToUnified(emoji) {
+        return [...emoji]
+            .map(char => char.codePointAt(0).toString(16).toUpperCase().padStart(4, '0'))
+            .join('-');
+    }
+
+    // Renderizar um emoji como span com background do sprite
+    function renderAppleEmoji(unified) {
+        const data = emojiMap.get(unified);
+        if (!data) return null;
+
+        const x = data.x * EMOJI_SPRITE_SIZE;
+        const y = data.y * EMOJI_SPRITE_SIZE;
+
+        // Calcular escala do background para manter proporção
+        const scale = EMOJI_DISPLAY_SIZE / EMOJI_SPRITE_SIZE;
+        const bgWidth = SPRITE_COLS * EMOJI_SPRITE_SIZE * scale;
+        const bgHeight = SPRITE_ROWS * EMOJI_SPRITE_SIZE * scale;
+        const bgX = x * scale;
+        const bgY = y * scale;
+
+        return `<span class="apple-emoji" style="background-position: -${bgX}px -${bgY}px; background-size: ${bgWidth}px ${bgHeight}px;" title="${data.short_name || ''}"></span>`;
+    }
+
+    // Regex para detectar emojis Unicode (ampla cobertura)
+    const emojiRegex = /(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Emoji_Component})+/gu;
+
+    // Aplicar emojis Apple em um elemento (substitui emojis Unicode por sprites)
+    function applyAppleEmoji(element) {
+        if (!element || !emojiDataLoaded) return;
+
+        // Processar todos os nós de texto dentro do elemento
+        const walker = document.createTreeWalker(
+            element,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+        );
+
+        const textNodes = [];
+        while (walker.nextNode()) {
+            textNodes.push(walker.currentNode);
+        }
+
+        textNodes.forEach(node => {
+            const text = node.textContent;
+            if (!text || !emojiRegex.test(text)) return;
+
+            // Reset regex
+            emojiRegex.lastIndex = 0;
+
+            const fragment = document.createDocumentFragment();
+            let lastIndex = 0;
+            let match;
+
+            while ((match = emojiRegex.exec(text)) !== null) {
+                // Adicionar texto antes do emoji
+                if (match.index > lastIndex) {
+                    fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+                }
+
+                // Converter emoji para sprite
+                const emoji = match[0];
+                const unified = emojiToUnified(emoji);
+                const rendered = renderAppleEmoji(unified);
+
+                if (rendered) {
+                    // Criar span com o emoji renderizado
+                    const temp = document.createElement('span');
+                    temp.innerHTML = rendered;
+                    fragment.appendChild(temp.firstChild);
+                } else {
+                    // Fallback: manter emoji nativo
+                    fragment.appendChild(document.createTextNode(emoji));
+                }
+
+                lastIndex = match.index + match[0].length;
+            }
+
+            // Adicionar texto restante
+            if (lastIndex < text.length) {
+                fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+            }
+
+            // Substituir nó de texto pelo fragmento processado
+            if (fragment.childNodes.length > 0) {
+                node.parentNode.replaceChild(fragment, node);
+            }
+        });
+    }
+
+    // Função de compatibilidade (substitui applyTwemoji)
+    function applyTwemoji(element) {
+        applyAppleEmoji(element);
     }
 
     // Polling desabilitado - usamos arquitetura event-driven via Webhook → SSE
@@ -67,15 +211,24 @@
     // 3. Webhook envia evento via SSE (nova mensagem, ack, etc.)
     let pollingInterval = null; // Mantido para compatibilidade, mas não usado
 
-    function init() {
+    async function init() {
         // Verificar se elementos existem (pagina de chat esta carregada)
         if (!chatList) return;
+
+        // Carregar dados de emoji antes de renderizar conteúdo
+        await loadEmojiData();
 
         loadChatList();  // Carrega lista apenas uma vez ao abrir a página
         setupEventListeners();
         connectSSE();  // SSE para receber eventos em tempo real (via webhook)
         setupVisibilityChange();
-        // Polling removido - atualizações vêm via SSE/Webhook
+
+        // Em localhost (desenvolvimento), ativar polling como complemento ao SSE
+        // (Django runserver tem buffering que atrasa eventos SSE)
+        if (isLocalhost) {
+            console.log('[Chat] 🔧 Ambiente de desenvolvimento detectado - polling ativado (10s)');
+            startDevPolling();
+        }
 
         // Solicitar permissao para notificacoes
         if ('Notification' in window && Notification.permission === 'default') {
@@ -105,6 +258,13 @@
 
         // Busca de conversas
         searchInput?.addEventListener('input', filterChats);
+
+        // Filtros de chat (Tudo / Não lidas)
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                applyFilter(btn.dataset.filter);
+            });
+        });
 
         // Anexar arquivos
         document.getElementById('btn-attach-image')?.addEventListener('click', (e) => {
@@ -191,12 +351,19 @@
 
     // Extrai o ID do chat (pode ser objeto ou string)
     function getChatId(chat) {
-        if (!chat.id) return '';
+        if (!chat.id) {
+            console.warn('[Chat] Chat sem ID:', chat);
+            return '';
+        }
         // Se id for objeto, usar _serialized ou user
         if (typeof chat.id === 'object') {
-            return chat.id._serialized || chat.id.user || '';
+            const chatId = chat.id._serialized || chat.id.user || '';
+            if (!chatId) {
+                console.warn('[Chat] Chat com ID objeto sem _serialized/user:', chat.id);
+            }
+            return chatId;
         }
-        return chat.id;
+        return String(chat.id);
     }
 
     // Extrai a ultima mensagem do chat (tenta varios campos possiveis)
@@ -282,20 +449,51 @@
         // Ordenar por ultima mensagem (usar t ao inves de timestamp)
         chats.sort((a, b) => (b.t || b.timestamp || 0) - (a.t || a.timestamp || 0));
 
+        // DEBUG: Log todos os IDs de chat recebidos
+        console.log('[Chat] Lista de chats recebidos:', chats.length);
+        chats.forEach((chat, index) => {
+            const rawId = chat.id;
+            const extractedId = getChatId(chat);
+            if (extractedId.includes('@lid') || !extractedId) {
+                // Log detalhado para debug de chats @lid
+                const displayName = chat.contact?.verifiedName || chat.name || chat.contact?.formattedName || chat.contact?.pushname || 'sem-nome';
+                console.log(`[Chat] #${index} @lid - ID: ${extractedId} | Nome: ${displayName} | t: ${chat.t || 'sem-timestamp'}`);
+                // Log estrutura completa para diagnóstico (apenas primeiros 3)
+                if (index < 20) {
+                    console.log(`[Chat] #${index} @lid - Estrutura:`, {
+                        name: chat.name,
+                        contact: chat.contact ? {
+                            verifiedName: chat.contact.verifiedName,
+                            formattedName: chat.contact.formattedName,
+                            pushname: chat.contact.pushname,
+                            name: chat.contact.name
+                        } : 'sem contact'
+                    });
+                }
+            }
+        });
+
         // Coletar IDs para carregar fotos
         const phonesToLoadPics = [];
 
         chatList.innerHTML = chats.map(chat => {
             const chatId = getChatId(chat);
-            const name = chat.name || chat.contact?.name || chat.contact?.pushname || formatPhone(chatId);
+            // Nome pode estar em diferentes locais dependendo do tipo de chat (@c.us, @g.us, @lid)
+            // Prioridade: verifiedName (contas comerciais) > name > formattedName > pushname
+            // verifiedName tem prioridade pois é o nome verificado de contas business do WhatsApp
+            const name = chat.contact?.verifiedName || chat.name || chat.contact?.name || chat.contact?.formattedName || chat.contact?.pushname || formatPhone(chatId);
             const lastMsgData = formatLastMessagePreview(getLastMessage(chat));
             const unread = chat.unreadCount || 0;
 
             // Verificar se já temos a foto no cache ou na resposta da API
+            // Foto pode estar em profilePicUrl ou contact.profilePicThumbObj
             let avatarSrc = DEFAULT_AVATAR;
-            if (chat.profilePicUrl) {
-                avatarSrc = chat.profilePicUrl;
-                profilePicCache.set(chatId, chat.profilePicUrl);
+            const profilePic = chat.profilePicUrl ||
+                               chat.contact?.profilePicThumbObj?.img ||
+                               chat.contact?.profilePicThumbObj?.eurl;
+            if (profilePic) {
+                avatarSrc = profilePic;
+                profilePicCache.set(chatId, profilePic);
             } else if (profilePicCache.has(chatId)) {
                 avatarSrc = profilePicCache.get(chatId);
             } else {
@@ -305,25 +503,23 @@
 
             return `
                 <div class="chat-item p-3 border-bottom ${currentPhone === chatId ? 'active' : ''}"
-                     data-phone="${chatId}" data-name="${escapeHtml(name)}">
-                    <div class="d-flex align-items-center">
+                     data-phone="${chatId}" data-name="${escapeHtml(name)}" data-unread-count="${unread}">
+                    <div class="d-flex align-items-start">
                         <img src="${avatarSrc}"
                              class="rounded-circle chat-avatar me-3"
                              data-avatar-phone="${chatId}"
                              onerror="this.src='${DEFAULT_AVATAR}'"
                              alt="${escapeHtml(name)}">
                         <div class="flex-grow-1 min-width-0">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0 text-truncate">
-                                    ${escapeHtml(name)}
-                                </h6>
-                                <small class="text-muted ms-2">${formatTime(chat.t || chat.timestamp)}</small>
-                            </div>
+                            <h6 class="mb-0 text-truncate">${escapeHtml(name)}</h6>
                             <p class="mb-0 text-muted small chat-preview">
                                 ${lastMsgData.statusHtml}<span class="chat-preview-text">${escapeHtml(lastMsgData.content)}</span>
                             </p>
                         </div>
-                        ${unread > 0 ? `<span class="badge bg-success rounded-pill ms-2">${unread}</span>` : ''}
+                        <div class="d-flex flex-column align-items-end ms-2 flex-shrink-0">
+                            <small class="${unread > 0 ? 'text-success fw-bold' : 'text-muted'}">${formatTime(chat.t || chat.timestamp)}</small>
+                            ${unread > 0 ? `<span class="badge bg-success rounded-pill mt-1">${unread}</span>` : ''}
+                        </div>
                     </div>
                 </div>
             `;
@@ -350,10 +546,17 @@
         if (phonesToLoadPics.length > 0) {
             loadProfilePicturesInBackground(phonesToLoadPics.slice(0, 20));
         }
+
+        // Atualizar badge de não lidas e aplicar filtro atual
+        updateUnreadFilterBadge();
+        filterChats();
     }
 
     // Seleciona uma conversa
     async function selectChat(phone, name) {
+        // Cancelar qualquer marcação pendente do chat anterior
+        cancelScheduledMarkAsRead();
+
         currentPhone = phone;
         currentChat = { phone, name };
 
@@ -381,11 +584,29 @@
         // Carregar mensagens
         await loadMessages(phone);
 
-        // AGORA remover badge (após mensagens carregarem com sucesso)
+        // Verificar se há mensagens não lidas (badge) antes de marcar como lida
         const activeItem = chatList.querySelector(`.chat-item[data-phone="${phone}"]`);
-        if (activeItem) {
-            const badge = activeItem.querySelector('.badge');
-            if (badge) badge.remove();
+        const badge = activeItem?.querySelector('.badge');
+
+        // Só marcar como lida se tiver badge (evita requisições desnecessárias)
+        if (badge) {
+            markChatAsRead(phone);
+            badge.remove();
+
+            // Atualizar data-unread-count para 0 e atualizar badge do filtro
+            if (activeItem) {
+                activeItem.dataset.unreadCount = '0';
+            }
+            updateUnreadFilterBadge();
+            filterChats();  // Reaplicar filtro para remover da lista "Não lidas" se ativo
+
+            // Restaurar estilo normal do timestamp (remover destaque)
+            const rightColumn = activeItem?.querySelector('.d-flex.flex-column.align-items-end');
+            const timeEl = rightColumn?.querySelector('small');
+            if (timeEl) {
+                timeEl.classList.remove('text-success', 'fw-bold');
+                timeEl.classList.add('text-muted');
+            }
         }
 
         // Limpar reply pendente
@@ -397,6 +618,9 @@
 
     // Fecha a conversa atual (volta para tela inicial)
     function closeChat() {
+        // Cancelar qualquer marcação pendente (mensagem não será marcada como lida)
+        cancelScheduledMarkAsRead();
+
         currentPhone = null;
         currentChat = null;
 
@@ -441,6 +665,59 @@
             }
         } catch (error) {
             console.log('Foto de perfil nao disponivel');
+        }
+    }
+
+    // Marca conversa como lida no servidor (sincroniza com WhatsApp celular)
+    async function markChatAsRead(phone) {
+        if (!phone) return;
+
+        try {
+            console.log('[Chat] Marcando conversa como lida:', phone);
+            const response = await fetch('/api/chat/mark-as-read/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ phone })
+            });
+
+            if (response.ok) {
+                console.log('[Chat] ✓ Conversa marcada como lida:', phone);
+            } else {
+                const data = await response.json();
+                console.warn('[Chat] Falha ao marcar como lida:', data.error || response.status);
+            }
+        } catch (error) {
+            console.warn('[Chat] Erro ao marcar como lida:', error.message);
+        }
+    }
+
+    // Agenda marcação como lida com debounce (2s após última mensagem)
+    function scheduleMarkAsRead(phone) {
+        // Cancelar timeout anterior (debounce - cada nova mensagem reseta o timer)
+        if (markAsReadTimeout) {
+            clearTimeout(markAsReadTimeout);
+        }
+
+        // Agendar marcação após 2 segundos de "silêncio"
+        // Se novas mensagens chegarem, o timer é resetado
+        markAsReadTimeout = setTimeout(() => {
+            // Verificar se ainda está no mesmo chat
+            if (currentPhone === phone) {
+                console.log('[Chat] Debounce: 2s sem novas mensagens, marcando como lida');
+                markChatAsRead(phone);
+            }
+            markAsReadTimeout = null;
+        }, MARK_AS_READ_DELAY);
+    }
+
+    // Cancela qualquer marcação pendente
+    function cancelScheduledMarkAsRead() {
+        if (markAsReadTimeout) {
+            clearTimeout(markAsReadTimeout);
+            markAsReadTimeout = null;
         }
     }
 
@@ -965,6 +1242,32 @@
         }, 30000);  // 30 segundos
     }
 
+    // Polling específico para desenvolvimento (localhost)
+    // Complementa o SSE que não funciona bem com Django runserver
+    function startDevPolling() {
+        if (devPollingInterval) {
+            clearInterval(devPollingInterval);
+        }
+
+        devPollingInterval = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                console.log('[Dev Polling] Verificando atualizações...');
+                loadChatListSilent();
+                if (currentPhone) {
+                    loadMessages(currentPhone, true);  // silent=true
+                }
+            }
+        }, DEV_POLLING_INTERVAL);
+    }
+
+    function stopDevPolling() {
+        if (devPollingInterval) {
+            clearInterval(devPollingInterval);
+            devPollingInterval = null;
+            console.log('[Dev Polling] Parado');
+        }
+    }
+
     function disconnectSSE() {
         if (eventSource) {
             eventSource.close();
@@ -1041,6 +1344,9 @@
         // Se é o chat atual, adicionar mensagem instantaneamente
         if (isCurrentChat) {
             appendNewMessage(message);
+            // Agendar marcação como lida com debounce de 2s
+            // Cada nova mensagem reseta o timer (aguarda todas chegarem)
+            scheduleMarkAsRead(currentPhone);
         }
 
         // Atualizar preview do chat na lista (ou criar se não existir)
@@ -1075,8 +1381,9 @@
                 }
             }
 
-            // Atualizar timestamp
-            const timeEl = chatItem.querySelector('small.text-muted');
+            // Atualizar timestamp (dentro do container de coluna à direita)
+            const rightColumn = chatItem.querySelector('.d-flex.flex-column.align-items-end');
+            const timeEl = rightColumn?.querySelector('small');
             if (timeEl) {
                 timeEl.textContent = formatTime(message.t || message.timestamp || Date.now() / 1000);
             }
@@ -1089,15 +1396,28 @@
             // Incrementar badge se não for o chat atual
             if (!currentPhone || !chatId.includes(formatPhone(currentPhone))) {
                 const badge = chatItem.querySelector('.badge');
+                const currentUnread = parseInt(chatItem.dataset.unreadCount || '0', 10);
+                const newUnread = currentUnread + 1;
+
+                // Atualizar data-unread-count
+                chatItem.dataset.unreadCount = newUnread;
+
                 if (badge) {
-                    badge.textContent = parseInt(badge.textContent || '0') + 1;
-                } else {
-                    const flexDiv = chatItem.querySelector('.d-flex.align-items-center');
-                    if (flexDiv) {
-                        flexDiv.insertAdjacentHTML('beforeend',
-                            `<span class="badge bg-success rounded-pill ms-2">1</span>`);
-                    }
+                    badge.textContent = newUnread;
+                } else if (rightColumn) {
+                    // Adicionar badge na coluna da direita (abaixo do timestamp)
+                    rightColumn.insertAdjacentHTML('beforeend',
+                        `<span class="badge bg-success rounded-pill mt-1">1</span>`);
                 }
+                // Atualizar estilo do timestamp para destacar (mesma cor do badge)
+                if (timeEl) {
+                    timeEl.classList.remove('text-muted');
+                    timeEl.classList.add('text-success', 'fw-bold');
+                }
+
+                // Atualizar badge do filtro e reaplicar filtro
+                updateUnreadFilterBadge();
+                filterChats();  // Mostrar na lista "Não lidas" se filtro ativo
             }
 
             // Aplicar Twemoji no preview atualizado
@@ -1113,23 +1433,23 @@
             const timestamp = message.t || message.timestamp || Date.now() / 1000;
 
             const newChatHtml = `
-                <div class="chat-item p-3 border-bottom" data-phone="${chatId}" data-name="${escapeHtml(name)}">
-                    <div class="d-flex align-items-center">
+                <div class="chat-item p-3 border-bottom" data-phone="${chatId}" data-name="${escapeHtml(name)}" data-unread-count="1">
+                    <div class="d-flex align-items-start">
                         <img src="${DEFAULT_AVATAR}"
                              class="rounded-circle chat-avatar me-3"
                              data-avatar-phone="${chatId}"
                              onerror="this.src='${DEFAULT_AVATAR}'"
                              alt="${escapeHtml(name)}">
                         <div class="flex-grow-1 min-width-0">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0 text-truncate">${escapeHtml(name)}</h6>
-                                <small class="text-muted ms-2">${formatTime(timestamp)}</small>
-                            </div>
+                            <h6 class="mb-0 text-truncate">${escapeHtml(name)}</h6>
                             <p class="mb-0 text-muted small chat-preview">
                                 ${lastMsgData.statusHtml}<span class="chat-preview-text">${escapeHtml(lastMsgData.content)}</span>
                             </p>
                         </div>
-                        <span class="badge bg-success rounded-pill ms-2">1</span>
+                        <div class="d-flex flex-column align-items-end ms-2 flex-shrink-0">
+                            <small class="text-success fw-bold">${formatTime(timestamp)}</small>
+                            <span class="badge bg-success rounded-pill mt-1">1</span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -1150,6 +1470,10 @@
 
             // Carregar foto de perfil em background
             loadProfilePicturesInBackground([chatId]);
+
+            // Atualizar badge do filtro e reaplicar filtro
+            updateUnreadFilterBadge();
+            filterChats();  // Mostrar na lista "Não lidas" se filtro ativo
 
             console.log('[SSE] Novo chat adicionado à lista:', chatId);
         }
@@ -1431,8 +1755,66 @@
         chatList.querySelectorAll('.chat-item').forEach(item => {
             const name = (item.dataset.name || '').toLowerCase();
             const phone = (item.dataset.phone || '').toLowerCase();
-            item.style.display = (name.includes(query) || phone.includes(query)) ? '' : 'none';
+            const unreadCount = parseInt(item.dataset.unreadCount || '0', 10);
+
+            // Primeiro verifica se passa no filtro de busca
+            const matchesSearch = name.includes(query) || phone.includes(query);
+
+            // Depois verifica se passa no filtro de não lidas
+            const matchesFilter = currentFilter === 'all' || (currentFilter === 'unread' && unreadCount > 0);
+
+            item.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
         });
+    }
+
+    /**
+     * Conta total de chats não lidos
+     */
+    function countUnreadChats() {
+        let count = 0;
+        chatList.querySelectorAll('.chat-item').forEach(item => {
+            const unreadCount = parseInt(item.dataset.unreadCount || '0', 10);
+            if (unreadCount > 0) count++;
+        });
+        return count;
+    }
+
+    /**
+     * Atualiza o badge do filtro "Não lidas"
+     */
+    function updateUnreadFilterBadge() {
+        const badge = document.getElementById('unread-count-badge');
+        if (!badge) return;
+
+        const count = countUnreadChats();
+        badge.textContent = count;
+
+        if (count > 0) {
+            badge.classList.remove('d-none');
+        } else {
+            badge.classList.add('d-none');
+        }
+    }
+
+    /**
+     * Aplica o filtro selecionado
+     */
+    function applyFilter(filter) {
+        currentFilter = filter;
+
+        // Atualizar estado visual dos botões
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            if (btn.dataset.filter === filter) {
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-success', 'active');
+            } else {
+                btn.classList.remove('btn-success', 'active');
+                btn.classList.add('btn-outline-secondary');
+            }
+        });
+
+        // Aplicar filtro na lista
+        filterChats();
     }
 
     // Utilidades
@@ -1456,22 +1838,41 @@
             phone = phone._serialized || phone.user || '';
         }
         if (typeof phone !== 'string') return '';
-        // Remover @c.us ou @g.us
-        return phone.replace(/@[cg]\.us$/, '');
+        // Remover sufixos do WhatsApp (@c.us, @g.us, @lid)
+        return phone.replace(/@(c\.us|g\.us|lid)$/, '');
     }
 
     function formatTime(timestamp) {
         if (!timestamp) return '';
         const date = new Date(timestamp * 1000);
         const now = new Date();
-        const diff = now - date;
 
-        if (diff < 86400000 && date.getDate() === now.getDate()) {
+        // Criar datas "zeradas" (meia-noite) para comparação de dias
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const messageDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+        // Calcular o último domingo (início da semana)
+        const lastSunday = new Date(today);
+        lastSunday.setDate(today.getDate() - today.getDay());
+
+        // Hoje: mostrar horário
+        if (messageDay.getTime() === today.getTime()) {
             return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         }
-        if (diff < 604800000) {
+
+        // Ontem: mostrar "Ontem"
+        if (messageDay.getTime() === yesterday.getTime()) {
+            return 'Ontem';
+        }
+
+        // Esta semana (do último domingo até dois dias atrás): mostrar dia da semana
+        if (messageDay >= lastSunday && messageDay < yesterday) {
             return date.toLocaleDateString('pt-BR', { weekday: 'short' });
         }
+
+        // Antes do último domingo: mostrar data
         return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     }
 

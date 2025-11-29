@@ -23,6 +23,7 @@ from wpp.api_connection import (
     send_audio_message,
     send_reply_message,
     download_media,
+    send_seen,
 )
 
 logger = get_logger(__name__, log_file="logs/WhatsApp/chat.log")
@@ -118,7 +119,7 @@ def _fetch_last_message(session_name: str, token: str, chat_id: str) -> tuple:
 
 @login_required
 def api_chat_list(request):
-    """API: Lista todas as conversas (apenas contatos pessoais)."""
+    """API: Lista todas as conversas (contatos, grupos e broadcasts)."""
     if not request.user.is_superuser:
         return JsonResponse({"error": "Acesso negado"}, status=403)
 
@@ -129,7 +130,7 @@ def api_chat_list(request):
 
     logger.info("Buscando lista de chats para sessao: %s", session_name)
     data, status_code = get_all_chats(session_name, token)
-    logger.debug("Resposta da API all-chats: status=%d, data=%s", status_code, str(data)[:500])
+    logger.debug("Resposta da API list-chats: status=%d, data=%s", status_code, str(data)[:500])
 
     # A API WPPConnect retorna {status, response: [...]} ou diretamente o array
     if isinstance(data, dict):
@@ -142,10 +143,28 @@ def api_chat_list(request):
     else:
         chats = []
 
-    # Filtrar apenas contatos pessoais (remover grupos, broadcasts, status)
+    # Remover apenas status@broadcast (não é conversa útil)
     total_before = len(chats)
-    chats = [chat for chat in chats if _is_personal_contact(chat)]
-    logger.info("Filtrados %d contatos pessoais (de %d total)", len(chats), total_before)
+    chats = [chat for chat in chats if "status@broadcast" not in _get_chat_id(chat)]
+    logger.info("Exibindo %d conversas (de %d total, removido apenas status@broadcast)", len(chats), total_before)
+
+    # DEBUG: Log chats com @lid no ID para diagnóstico
+    lid_chats = [chat for chat in chats if "@lid" in _get_chat_id(chat)]
+    if lid_chats:
+        logger.info("DEBUG: Encontrados %d chats com @lid:", len(lid_chats))
+        for chat in lid_chats[:5]:  # Log apenas os primeiros 5
+            chat_id = _get_chat_id(chat)
+            # Prioridade: verifiedName (contas business) > name > formattedName
+            contact = chat.get('contact', {})
+            chat_name = (
+                contact.get('verifiedName') or
+                chat.get('name') or
+                contact.get('formattedName') or
+                contact.get('name') or
+                'sem-nome'
+            )
+            chat_t = chat.get('t', 'sem-timestamp')
+            logger.info("  - ID: %s | Nome: %s | t: %s", chat_id, chat_name, chat_t)
 
     # Buscar última mensagem de cada chat em paralelo (limitar aos primeiros 30)
     chats_to_fetch = chats[:30]
@@ -175,7 +194,7 @@ def api_chat_list(request):
 
         logger.info("Obtidas %d ultimas mensagens", len(last_messages))
 
-    logger.info("Retornando %d contatos pessoais", len(chats))
+    logger.info("Retornando %d conversas (contatos, grupos e broadcasts)", len(chats))
     return JsonResponse(chats, safe=False, status=200)
 
 
@@ -357,3 +376,39 @@ def api_download_media(request, message_id):
 
     error_msg = data.get("error", "Falha ao baixar mídia") if isinstance(data, dict) else "Falha ao baixar mídia"
     return JsonResponse({"error": error_msg}, status=status_code)
+
+
+@login_required
+@require_POST
+def api_mark_as_read(request):
+    """
+    API: Marca conversa como lida (envia confirmação de visualização).
+
+    Sincroniza o status de leitura com o WhatsApp no celular,
+    fazendo com que as mensagens não fiquem marcadas como não lidas.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({"error": "Acesso negado"}, status=403)
+
+    session_name, token, error = _get_session_and_token(request.user)
+    if error:
+        return JsonResponse({"error": error}, status=400)
+
+    try:
+        body = json.loads(request.body)
+        phone = body.get("phone")
+
+        if not phone:
+            return JsonResponse({"error": "phone é obrigatório"}, status=400)
+
+        logger.info("Marcando conversa como lida: %s", phone)
+        data, status_code = send_seen(session_name, token, phone)
+
+        if status_code == 200:
+            logger.info("Conversa marcada como lida: %s", phone)
+        else:
+            logger.warning("Falha ao marcar como lida: %s - %s", phone, data)
+
+        return JsonResponse(data, status=status_code)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
