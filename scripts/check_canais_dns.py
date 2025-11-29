@@ -39,7 +39,7 @@ ADM_ENVIA_ALERTAS = os.getenv("NUM_MONITOR")
 # Arquivos de log consolidados (com rotação automática via logger centralizado)
 STATUS_SNAPSHOT_FILE = "logs/DNS/snapshots_dns.pkl"
 
-USER_ADMIN = User.objects.get(is_superuser=True)
+USER_ADMIN = User.objects.filter(is_superuser=True).order_by('id').first()
 sessao_wpp = SessaoWpp.objects.get(usuario=USER_ADMIN)
 WPP_USER = sessao_wpp.usuario
 WPP_TOKEN = sessao_wpp.token
