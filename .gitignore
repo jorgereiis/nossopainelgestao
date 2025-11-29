@@ -27,6 +27,8 @@ logs/Reseller/debug_screenshots
 *dreamtv*
 .claude
 dashui*
+web.whatsapp.com
+
 # Docker - IGNORAR apenas dados sensíveis, NÃO arquivos de configuração
 docker/**/.env
 docker/**/data/

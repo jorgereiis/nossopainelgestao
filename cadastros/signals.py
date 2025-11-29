@@ -201,6 +201,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
 # Cacheia valores antes do `save` para identificar mudanças relevantes.
 _clientes_servidor_anterior = {}
 _clientes_cancelado_anterior = {}
+_clientes_indicado_por_anterior = {}
 
 # Mapeamento fixo de labels para paleta definida no WhatsApp.
 LABELS_CORES_FIXAS = {
@@ -225,6 +226,7 @@ def registrar_valores_anteriores(sender, instance, **kwargs):
 
         _clientes_servidor_anterior[instance.pk] = cliente_existente.servidor_id
         _clientes_cancelado_anterior[instance.pk] = cliente_existente.cancelado
+        _clientes_indicado_por_anterior[instance.pk] = cliente_existente.indicado_por_id
 
 
 @receiver(post_save, sender=Cliente)
@@ -407,9 +409,83 @@ def gerenciar_desconto_progressivo_indicacao(sender, instance, created, **kwargs
                 # Atualizar mensalidade em aberto do indicador
                 atualizar_mensalidade_indicador_com_desconto(desconto.cliente_indicador, plano_progressivo)
 
+    # CASO 4: Mudança de indicador - transferir desconto progressivo
+    if not created and instance.pk in _clientes_indicado_por_anterior:
+        indicador_anterior_id = _clientes_indicado_por_anterior.get(instance.pk)
+        indicador_atual_id = instance.indicado_por_id if instance.indicado_por else None
+        indicador_mudou = indicador_anterior_id != indicador_atual_id
+
+        if indicador_mudou and not instance.cancelado:
+            # 4.1: Desativar desconto do indicador antigo (se existia)
+            if indicador_anterior_id:
+                desconto_antigo = DescontoProgressivoIndicacao.objects.filter(
+                    cliente_indicado=instance,
+                    cliente_indicador_id=indicador_anterior_id,
+                    ativo=True
+                ).first()
+
+                if desconto_antigo:
+                    desconto_antigo.ativo = False
+                    desconto_antigo.data_fim = timezone.localdate()
+                    desconto_antigo.save()
+
+                    _log_event(
+                        logging.INFO,
+                        instance,
+                        func_name,
+                        f"Desconto progressivo removido por mudança de indicador: {desconto_antigo.cliente_indicador.nome} ← {instance.nome}"
+                    )
+
+                    # Atualizar mensalidade do indicador antigo
+                    atualizar_mensalidade_indicador_com_desconto(
+                        desconto_antigo.cliente_indicador,
+                        plano_progressivo
+                    )
+
+            # 4.2: Criar desconto para novo indicador (se informado)
+            if indicador_atual_id and instance.indicado_por:
+                # Verificar se já não existe um desconto ativo para evitar duplicação
+                desconto_existente = DescontoProgressivoIndicacao.objects.filter(
+                    cliente_indicado=instance,
+                    cliente_indicador=instance.indicado_por,
+                    ativo=True
+                ).exists()
+
+                if not desconto_existente:
+                    DescontoProgressivoIndicacao.objects.create(
+                        cliente_indicador=instance.indicado_por,
+                        cliente_indicado=instance,
+                        plano_indicacao=plano_progressivo,
+                        valor_desconto=plano_progressivo.valor,
+                        usuario=instance.usuario,
+                        ativo=True
+                    )
+
+                    _log_event(
+                        logging.INFO,
+                        instance,
+                        func_name,
+                        f"Desconto progressivo criado por mudança de indicador: {instance.indicado_por.nome} ← {instance.nome}"
+                    )
+
+                    # Atualizar mensalidade do novo indicador
+                    atualizar_mensalidade_indicador_com_desconto(
+                        instance.indicado_por,
+                        plano_progressivo
+                    )
+
+                    # Enviar WhatsApp para novo indicador
+                    from cadastros.utils import envio_desconto_progressivo_indicacao
+                    try:
+                        envio_desconto_progressivo_indicacao(instance.usuario, instance, instance.indicado_por)
+                    except Exception as e:
+                        _log_event(logging.WARNING, instance, func_name, f"Falha ao enviar WhatsApp: {e}")
+
     # Limpar cache do estado anterior após processar
     if instance.pk in _clientes_cancelado_anterior:
         _clientes_cancelado_anterior.pop(instance.pk, None)
+    if instance.pk in _clientes_indicado_por_anterior:
+        _clientes_indicado_por_anterior.pop(instance.pk, None)
 
 
 def atualizar_mensalidade_indicador_com_desconto(cliente_indicador, plano_progressivo):

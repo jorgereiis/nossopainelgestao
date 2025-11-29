@@ -10,6 +10,7 @@ from .views_chat import (
     api_send_message,
     api_send_file,
     api_download_media,
+    api_mark_as_read,
 )
 from .views_sse import sse_chat_stream
 from .views import (
@@ -224,6 +225,7 @@ urlpatterns = [
     path("api/chat/send-message/", api_send_message, name="api-chat-send-message"),
     path("api/chat/send-file/", api_send_file, name="api-chat-send-file"),
     path("api/chat/download/<str:message_id>/", api_download_media, name="api-chat-download"),
+    path("api/chat/mark-as-read/", api_mark_as_read, name="api-chat-mark-as-read"),
     path("api/chat/sse/", sse_chat_stream, name="api-chat-sse"),
 
     ############ Migração de Clientes (Admin) ###########

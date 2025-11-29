@@ -573,10 +573,17 @@ def upload_imagem_status(imagem, legenda, usuario, token, log_path=None):
 
 
 def get_all_chats(session: str, token: str):
-    """Lista todas as conversas do WhatsApp."""
-    url = f"{URL_API_WPP}/{session}/all-chats"
-    headers = {"Authorization": f"Bearer {token}"}
-    return _make_request("GET", url, headers=headers)
+    """
+    Lista todas as conversas do WhatsApp.
+
+    Usa o endpoint /list-chats (POST) que é o método atual da API WPPConnect.
+    O endpoint /all-chats (GET) está deprecated e pode não retornar todos os chats,
+    especialmente aqueles com ID no formato @lid (Linked ID).
+    """
+    url = f"{URL_API_WPP}/{session}/list-chats"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    data = {"onlyWithUnreadMessage": False}
+    return _make_request("POST", url, headers=headers, json_data=data)
 
 
 def get_messages_in_chat(session: str, token: str, phone: str):
@@ -711,3 +718,24 @@ def download_media(session: str, token: str, message_id: str):
         return {"error": "timeout"}, 504
     except requests.RequestException as e:
         return {"error": str(e)}, 503
+
+
+def send_seen(session: str, token: str, phone: str):
+    """
+    Marca conversa como lida (envia confirmação de visualização).
+
+    Isso sincroniza o status de leitura com o WhatsApp no celular,
+    marcando todas as mensagens do chat como lidas.
+
+    Args:
+        session: Nome da sessão
+        token: Token de autenticação
+        phone: ID do chat (número@c.us ou grupo@g.us)
+
+    Returns:
+        tuple: (response_data, status_code)
+    """
+    url = f"{URL_API_WPP}/{session}/send-seen"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    data = {"phone": phone}
+    return _make_request("POST", url, headers=headers, json_data=data)
