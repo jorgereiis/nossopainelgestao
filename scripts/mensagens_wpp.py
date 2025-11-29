@@ -500,7 +500,7 @@ def obter_mensalidades_canceladas():
     Cada cliente recebe no máximo 3 ofertas promocionais em toda a vida.
     A contagem de dias é sempre a partir da data_cancelamento atual.
     """
-    admin = User.objects.get(is_superuser=True)
+    admin = User.objects.filter(is_superuser=True).order_by('id').first()
 
     # Mensagem de feedback (20 dias) - NÃO É OFERTA PROMOCIONAL
     feedback_config = {
