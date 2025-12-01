@@ -514,7 +514,7 @@ def obter_mensalidades_canceladas():
         {
             "dias": 60,
             "numero_oferta": 1,
-            "mensagem": "*Opa.. {}!! Tudo bacana?*\n\nComo você já foi nosso cliente, trago uma notícia que talvez você goste muuuiito!!\n\nVocê pode renovar a sua mensalidade conosco pagando *APENAS R$ 24.90* nos próximos 3 meses. Olha só que bacana?!?!\n\nEsse tipo de desconto não oferecemos a qualquer um, viu? rsrs\n\nCaso tenha interesse, avise aqui, pois iremos garantir essa oferta apenas essa semana. 👏🏼👏🏼"
+            "mensagem": "*Opa.. {}, {}!! Tudo bacana?*\n\nComo você já foi nosso cliente, trago uma notícia que talvez você goste muuuiito!!\n\nVocê pode renovar a sua mensalidade conosco pagando *APENAS R$ 24.90* nos próximos 3 meses. Olha só que bacana?!?!\n\nEsse tipo de desconto não oferecemos a qualquer um, viu? rsrs\n\nCaso tenha interesse, avise aqui, pois iremos garantir essa oferta apenas essa semana. 👏🏼👏🏼"
         },
         {
             "dias": 240,
@@ -702,22 +702,10 @@ def _enviar_mensagem_cliente(cliente, admin, mensagem_template, qtd_dias, tipo_e
     saudacao = get_saudacao_por_hora()
     mensagem = mensagem_template.format(saudacao, primeiro_nome)
 
-    try:
-        sessao = SessaoWpp.objects.filter(usuario=admin, is_active=True).first()
-    except SessaoWpp.DoesNotExist:
-        logger.warning("Sessão WPP não encontrada | usuario=%s", admin)
-        registrar_log_auditoria({
-            "funcao": "_enviar_mensagem_cliente",
-            "status": "sessao_indisponivel",
-            "usuario": str(admin),
-            "cliente": cliente.nome,
-            "cliente_id": cliente.id,
-            "dias_cancelado": qtd_dias,
-            "tipo_envio": tipo_envio,
-        })
-        return False
+    sessao = SessaoWpp.objects.filter(usuario=admin, is_active=True).first()
 
     if not sessao or not sessao.token:
+        logger.warning("Sessão WPP não encontrada | usuario=%s", admin)
         registrar_log_auditoria({
             "funcao": "_enviar_mensagem_cliente",
             "status": "sessao_indisponivel",
@@ -818,7 +806,7 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             usuario=usuario,
             cancelado=True,
             nao_enviar_msgs=False,
-            data_cancelamento__lte=localtime().now() - timedelta(days=40)
+            data_cancelamento__lte=localtime() - timedelta(days=40)
         )
         destinatarios = [
             {

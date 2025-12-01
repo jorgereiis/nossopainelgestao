@@ -20,8 +20,6 @@ from mensagens_wpp import (
     backup_db_sh,
 )
 from upload_status_wpp import executar_upload_image_from_telegram_com_lock
-from comparar_m3u8 import executar_comparar_lista_m3u8_com_lock
-from check_canais_dns import executar_check_canais_dns_com_lock
 from integracoes.telegram_connection import telegram_connection
 
 ################################################
