@@ -1191,16 +1191,54 @@ if (editClienteModal) {
     }
 
 // ----------------------
-// VERIFICAÇÃO DE STATUS WHATSAPP
+// VERIFICAÇÃO DE STATUS WHATSAPP (COM THROTTLE DE 5 MINUTOS)
 // ----------------------
 // Verifica inconsistências entre status-session e check-connection ao carregar o dashboard
+// Usa localStorage para evitar flood na API em caso de reloads consecutivos
+
+// Configuração do throttle
+const WPP_SESSION_CHECK_KEY = 'wpp_session_last_check';
+const WPP_SESSION_CHECK_INTERVAL = 5 * 60 * 1000;  // 5 minutos em ms
+
+/**
+ * Verifica se deve executar a verificação de status WhatsApp.
+ * Usa localStorage para throttle de 5 minutos entre verificações.
+ *
+ * @returns {boolean} true se deve verificar, false se ainda está no período de throttle
+ */
+function shouldCheckWhatsAppStatus() {
+    const lastCheck = localStorage.getItem(WPP_SESSION_CHECK_KEY);
+
+    if (!lastCheck) {
+        // Primeira verificação (novo login ou localStorage limpo)
+        return true;
+    }
+
+    const timeSinceLastCheck = Date.now() - parseInt(lastCheck, 10);
+    return timeSinceLastCheck >= WPP_SESSION_CHECK_INTERVAL;
+}
+
+/**
+ * Registra o timestamp da última verificação no localStorage.
+ */
+function recordWhatsAppStatusCheck() {
+    localStorage.setItem(WPP_SESSION_CHECK_KEY, Date.now().toString());
+}
+
 async function verificarStatusWhatsApp() {
+    // Throttle: verificar apenas se passaram 5+ minutos desde última verificação
+    if (!shouldCheckWhatsAppStatus()) {
+        console.log('[Dashboard] Verificação WhatsApp em throttle (< 5min desde última)');
+        return;
+    }
+
     try {
         // Primeiro verifica se há sessão ativa no banco
         const statusResp = await fetch('/status-wpp/');
         if (statusResp.status === 404) {
             // Sem sessão ativa - não mostrar nada
             console.log('[Dashboard] Sem sessão WhatsApp ativa para verificar');
+            recordWhatsAppStatusCheck();  // Registrar mesmo se não há sessão
             return;
         }
 
@@ -1232,8 +1270,13 @@ async function verificarStatusWhatsApp() {
                 );
             }
         }
+
+        // Registrar timestamp após verificação bem-sucedida
+        recordWhatsAppStatusCheck();
+
     } catch (error) {
         console.error('[Dashboard] Erro ao verificar status WhatsApp:', error);
+        // Não registrar timestamp em caso de erro (permite retry no próximo reload)
     }
 }
 

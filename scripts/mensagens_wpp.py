@@ -492,17 +492,17 @@ def obter_mensalidades_canceladas():
     Envia mensagens personalizadas para clientes cancelados há X dias.
 
     Sistema de ofertas progressivas:
-    - 20 dias: Feedback (não conta como oferta promocional)
-    - 60 dias: Oferta 1 (R$ 24,90 por 3 meses)
-    - 240 dias: Oferta 2 (8 meses - sentimos sua falta)
-    - 420 dias: Oferta 3 (14 meses - última oportunidade)
+    - 20 dias: Feedback
+    - 60 dias: Oferta 1 (2 meses)
+    - 240 dias: Oferta 2 (8 meses)
+    - 420 dias: Oferta 3 (14 meses)
 
     Cada cliente recebe no máximo 3 ofertas promocionais em toda a vida.
     A contagem de dias é sempre a partir da data_cancelamento atual.
     """
     admin = User.objects.filter(is_superuser=True).order_by('id').first()
 
-    # Mensagem de feedback (20 dias) - NÃO É OFERTA PROMOCIONAL
+    # Mensagem de feedback (20 dias)
     feedback_config = {
         "dias": 20,
         "tipo": "feedback",
@@ -806,7 +806,7 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             usuario=usuario,
             cancelado=True,
             nao_enviar_msgs=False,
-            data_cancelamento__lte=localtime() - timedelta(days=40)
+            data_cancelamento__lte=localtime() - timedelta(days=10)
         )
         destinatarios = [
             {
