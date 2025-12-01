@@ -410,7 +410,7 @@ def mensagem_gp_wpp(
     """
     ts = localtime().strftime('%d-%m-%Y %H:%M:%S')
 
-    django_user = User.objects.get(id=1)  # ajuste se necessário
+    django_user = User.objects.get(id=1)
     sessao = get_object_or_404(SessaoWpp, usuario=django_user)
     token = sessao.token
 
