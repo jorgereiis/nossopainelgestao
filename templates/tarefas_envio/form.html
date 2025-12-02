@@ -1,0 +1,612 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }} | Nosso Painel{% endblock %}
+
+{% block extra_css %}
+<!-- Quill Editor CSS -->
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<style>
+    /* Editor Quill customizado */
+    #editor-container {
+        height: 200px;
+        background: #fff;
+        border-radius: 0 0 0.5rem 0.5rem;
+    }
+    .ql-toolbar.ql-snow {
+        border-radius: 0.5rem 0.5rem 0 0;
+        border-color: #e0e6ed;
+    }
+    .ql-container.ql-snow {
+        border-color: #e0e6ed;
+        border-radius: 0 0 0.5rem 0.5rem;
+    }
+
+    /* Preview WhatsApp */
+    .whatsapp-preview {
+        background: #e5ddd5;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        min-height: 150px;
+    }
+    .whatsapp-bubble {
+        background: #dcf8c6;
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        max-width: 80%;
+        margin-left: auto;
+        box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+    .whatsapp-bubble img {
+        max-width: 100%;
+        border-radius: 0.25rem;
+        margin-bottom: 0.25rem;
+    }
+    #preview-texto {
+        margin-top: 0;
+    }
+
+    /* Dias da semana como pills */
+    .dias-semana-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .dia-semana-btn {
+        padding: 0.5rem 1rem;
+        border: 2px solid #e0e6ed;
+        border-radius: 2rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        user-select: none;
+    }
+    .dia-semana-btn:hover {
+        border-color: #754ffe;
+        background: #f8f5ff;
+    }
+    .dia-semana-btn.active {
+        background: #754ffe;
+        border-color: #754ffe;
+        color: #fff;
+    }
+    .dia-semana-btn input {
+        display: none;
+    }
+
+    /* Imagem preview */
+    .imagem-preview-container {
+        position: relative;
+        display: inline-block;
+    }
+    .imagem-preview-container img {
+        max-width: 200px;
+        max-height: 200px;
+        border-radius: 0.5rem;
+        object-fit: cover;
+    }
+    .btn-remover-imagem {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-6">
+    <!-- Page header -->
+    <div class="row">
+        <div class="col-lg-12 col-md-12 col-12">
+            <div class="border-bottom pb-4 mb-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-2">
+                            <li class="breadcrumb-item"><a href="{% url 'tarefas-envio-lista' %}">Tarefas de Envio</a></li>
+                            <li class="breadcrumb-item active">{{ titulo }}</li>
+                        </ol>
+                    </nav>
+                    <h3 class="mb-0 fw-bold">{{ titulo }}</h3>
+                </div>
+                <a href="{% url 'tarefas-envio-lista' %}" class="btn btn-outline-secondary">
+                    <i data-feather="arrow-left" class="icon-xs me-1"></i> Voltar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" id="form-tarefa">
+        {% csrf_token %}
+
+        <!-- Exibe mensagens do Django messages framework -->
+        {% if messages %}
+        <div class="row mb-3">
+            <div class="col-12">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Exibe erros gerais do formulário -->
+        {% if form.non_field_errors %}
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="alert alert-danger" role="alert">
+                    <strong>Erro:</strong>
+                    {% for error in form.non_field_errors %}
+                    <p class="mb-0">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Exibe erro do campo imagem separadamente -->
+        {% if form.imagem.errors %}
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="alert alert-danger" role="alert">
+                    <strong>Erro na imagem:</strong> {{ form.imagem.errors.0 }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="row">
+            <!-- Coluna do formulario -->
+            <div class="col-xl-7 col-lg-7 col-md-12 col-12 mb-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <!-- Nome -->
+                        <div class="mb-4">
+                            <label for="id_nome" class="form-label fw-semibold">
+                                <i class="bi bi-tag-fill text-primary me-2"></i>Nome da Tarefa <span class="text-danger">*</span>
+                            </label>
+                            {{ form.nome }}
+                            <small class="text-muted">Nome identificador para esta tarefa</small>
+                            {% if form.nome.errors %}
+                            <div class="text-danger small mt-1">{{ form.nome.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Tipo de envio -->
+                        <div class="mb-4">
+                            <label for="id_tipo_envio" class="form-label fw-semibold">
+                                <i class="bi bi-people-fill text-info me-2"></i>Tipo de Envio <span class="text-danger">*</span>
+                            </label>
+                            {{ form.tipo_envio }}
+                            <small class="text-muted">Publico-alvo que recebera as mensagens</small>
+                            {% if form.tipo_envio.errors %}
+                            <div class="text-danger small mt-1">{{ form.tipo_envio.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Dias da semana -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-calendar-week-fill text-success me-2"></i>Dias da Semana <span class="text-danger">*</span>
+                            </label>
+                            <div class="dias-semana-container">
+                                {% for value, label in form.dias_semana.field.choices %}
+                                <label class="dia-semana-btn {% if value|stringformat:'s' in form.dias_semana.value %}active{% endif %}">
+                                    <input type="checkbox" name="dias_semana" value="{{ value }}"
+                                           {% if value|stringformat:'s' in form.dias_semana.value %}checked{% endif %}>
+                                    {{ label }}
+                                </label>
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted d-block mt-2">Selecione os dias em que a tarefa sera executada</small>
+                            {% if form.dias_semana.errors %}
+                            <div class="text-danger small mt-1">{{ form.dias_semana.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Periodo e Horario -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="id_periodo_mes" class="form-label fw-semibold">
+                                    <i class="bi bi-calendar-range-fill text-warning me-2"></i>Periodo do Mes <span class="text-danger">*</span>
+                                </label>
+                                {{ form.periodo_mes }}
+                                <small class="text-muted">Intervalo de dias do mes</small>
+                                {% if form.periodo_mes.errors %}
+                                <div class="text-danger small mt-1">{{ form.periodo_mes.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_horario" class="form-label fw-semibold">
+                                    <i class="bi bi-clock-fill text-danger me-2"></i>Horario <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    {{ form.horario }}
+                                    <button type="button" class="btn btn-outline-secondary" id="btn-sugestao-horarios"
+                                            data-bs-toggle="tooltip" title="Ver sugestoes de horarios baseadas no historico">
+                                        <i class="bi bi-lightbulb"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">Horario de inicio dos envios</small>
+                                {% if form.horario.errors %}
+                                <div class="text-danger small mt-1">{{ form.horario.errors.0 }}</div>
+                                {% endif %}
+                                <!-- Container para sugestoes -->
+                                <div id="sugestoes-horarios" class="mt-2 d-none">
+                                    <div class="card bg-light border-0">
+                                        <div class="card-body py-2 px-3">
+                                            <h6 class="small fw-bold mb-2"><i class="bi bi-lightbulb text-warning me-1"></i>Horarios Sugeridos</h6>
+                                            <div id="lista-sugestoes"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Imagem -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-image-fill text-purple me-2"></i>Imagem <span class="badge bg-light text-muted">Opcional</span>
+                            </label>
+
+                            {% if editando and object.imagem %}
+                            <div class="mb-3" id="imagem-atual-container">
+                                <p class="small text-muted mb-2">Imagem atual:</p>
+                                <div class="imagem-preview-container">
+                                    <img src="{{ object.imagem.url }}" alt="Imagem atual" id="imagem-atual">
+                                    <button type="button" class="btn btn-danger btn-sm btn-remover-imagem" id="btn-remover-imagem">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <input type="file" class="form-control" id="id_imagem" name="imagem"
+                                   accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+                            <small class="text-muted">JPG, PNG, GIF, WEBP - Max 5MB. Se houver imagem, o texto sera enviado como legenda.</small>
+
+                            <div class="mt-2 d-none" id="nova-imagem-preview">
+                                <p class="small text-muted mb-2">Nova imagem:</p>
+                                <div class="imagem-preview-container">
+                                    <img src="" alt="Preview" class="rounded" style="max-width: 200px; max-height: 200px; object-fit: cover;">
+                                    <button type="button" class="btn btn-danger btn-sm btn-remover-imagem" id="btn-remover-nova-imagem">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mensagem (Quill) -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-chat-text-fill text-primary me-2"></i>Mensagem <span class="text-danger">*</span>
+                            </label>
+                            <div id="editor-container"></div>
+                            {{ form.mensagem }}
+                            <small class="text-muted">Use os botoes para formatar: <strong>negrito</strong> e <em>italico</em></small>
+                            {% if form.mensagem.errors %}
+                            <div class="text-danger small mt-1">{{ form.mensagem.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Secao de Configuracoes Avancadas (Collapsible) -->
+                        <div class="mb-4">
+                            <button class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-between"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#configAvancadas">
+                                <span><i class="bi bi-gear me-2"></i>Configuracoes Avancadas</span>
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+                            <div class="collapse {% if form.filtro_estados.value or form.pausado_ate.value %}show{% endif %}" id="configAvancadas">
+                                <div class="border rounded p-3 mt-3">
+                                    <!-- Segmentacao por Estados -->
+                                    <div class="mb-4">
+                                        <label class="form-label fw-semibold">
+                                            <i class="bi bi-geo-alt-fill text-info me-2"></i>Segmentacao por Estados <span class="badge bg-light text-muted">Opcional</span>
+                                        </label>
+                                        <p class="small text-muted mb-2">Selecione os estados para filtrar destinatarios. Deixe vazio para enviar para todos.</p>
+                                        <div class="row">
+                                            {% for value, label in form.filtro_estados.field.choices %}
+                                            <div class="col-6 col-md-4 col-lg-3 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox"
+                                                           name="filtro_estados" value="{{ value }}" id="uf_{{ value }}"
+                                                           {% if value in form.filtro_estados.value %}checked{% endif %}>
+                                                    <label class="form-check-label" for="uf_{{ value }}">{{ value }} - {{ label }}</label>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% if form.filtro_estados.errors %}
+                                        <div class="text-danger small mt-1">{{ form.filtro_estados.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Pausar Ate -->
+                                    <div class="mb-0">
+                                        <label for="id_pausado_ate" class="form-label fw-semibold">
+                                            <i class="bi bi-calendar-x-fill text-warning me-2"></i>Pausar Ate <span class="badge bg-light text-muted">Opcional</span>
+                                        </label>
+                                        {{ form.pausado_ate }}
+                                        <small class="text-muted d-block mt-1">Se definido, a tarefa ficara pausada ate esta data/hora, reativando automaticamente.</small>
+                                        {% if form.pausado_ate.errors %}
+                                        <div class="text-danger small mt-1">{{ form.pausado_ate.errors.0 }}</div>
+                                        {% endif %}
+                                        {% if object.pausado_ate %}
+                                        <div class="alert alert-warning mt-2 mb-0 py-2 px-3">
+                                            <i class="bi bi-pause-circle me-2"></i>
+                                            <strong>Tarefa pausada ate:</strong> {{ object.pausado_ate|date:"d/m/Y H:i" }}
+                                            <button type="button" class="btn btn-sm btn-outline-warning ms-2" onclick="$('#id_pausado_ate').val('');">
+                                                <i class="bi bi-play-circle me-1"></i>Remover Pausa
+                                            </button>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ativo -->
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                {{ form.ativo }}
+                                <label class="form-check-label fw-semibold" for="id_ativo">
+                                    Tarefa Ativa
+                                </label>
+                            </div>
+                            <small class="text-muted">Se desativada, a tarefa nao sera executada automaticamente</small>
+                        </div>
+
+                        <!-- Botoes -->
+                        <div class="d-flex gap-2 pt-3 border-top">
+                            <a href="{% url 'tarefas-envio-lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> {{ botao_submit }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna do preview -->
+            <div class="col-xl-5 col-lg-5 col-md-12 col-12">
+                <div class="card shadow-sm border-0 sticky-top" style="top: 100px;">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="mb-0 fw-bold">
+                            <i class="bi bi-whatsapp text-success me-2"></i>Preview da Mensagem
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="whatsapp-preview">
+                            <div class="whatsapp-bubble" id="preview-bubble">
+                                <div id="preview-imagem" class="d-none">
+                                    <img src="" alt="Preview imagem">
+                                </div>
+                                <div id="preview-texto">
+                                    <span class="text-muted">Digite sua mensagem para ver o preview...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Este preview simula como a mensagem aparecera no WhatsApp
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Quill Editor JS -->
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Inicializa Quill Editor
+    const quill = new Quill('#editor-container', {
+        theme: 'snow',
+        placeholder: 'Digite sua mensagem aqui...',
+        modules: {
+            toolbar: [
+                ['bold', 'italic']
+            ]
+        }
+    });
+
+    // Carrega conteudo existente (se editando)
+    const conteudoExistente = $('#id_mensagem').val();
+    if (conteudoExistente) {
+        quill.root.innerHTML = conteudoExistente;
+    }
+
+    // Sincroniza Quill com o campo hidden
+    quill.on('text-change', function() {
+        const html = quill.root.innerHTML;
+        $('#id_mensagem').val(html);
+        atualizarPreview();
+    });
+
+    // Toggle dias da semana - apenas atualiza classe visual quando checkbox muda
+    // O navegador ja faz o toggle do checkbox automaticamente quando clica no label
+    $('.dia-semana-btn input[type="checkbox"]').on('change', function() {
+        const $label = $(this).closest('.dia-semana-btn');
+        $label.toggleClass('active', $(this).is(':checked'));
+    });
+
+    // Preview da nova imagem
+    $('#id_imagem').on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#nova-imagem-preview').removeClass('d-none');
+                $('#nova-imagem-preview img').attr('src', e.target.result);
+                atualizarPreview();
+            };
+            reader.readAsDataURL(file);
+        } else {
+            $('#nova-imagem-preview').addClass('d-none');
+            atualizarPreview();
+        }
+    });
+
+    // Remover imagem atual
+    $('#btn-remover-imagem').on('click', function() {
+        $('#imagem-atual-container').hide();
+        // Adiciona um campo hidden para indicar remocao
+        $('<input>').attr({
+            type: 'hidden',
+            name: 'imagem-clear',
+            value: 'true'
+        }).appendTo('#form-tarefa');
+        atualizarPreview();
+    });
+
+    // Remover nova imagem (limpar input file)
+    $('#btn-remover-nova-imagem').on('click', function() {
+        $('#id_imagem').val('');
+        $('#nova-imagem-preview').addClass('d-none');
+        atualizarPreview();
+    });
+
+    // Funcao para atualizar preview
+    function atualizarPreview() {
+        const html = quill.root.innerHTML;
+
+        // Converte HTML para formato WhatsApp
+        let texto = html;
+        texto = texto.replace(/<p>/g, '');
+        texto = texto.replace(/<\/p>/g, '\n');
+        texto = texto.replace(/<strong>(.*?)<\/strong>/g, '*$1*');
+        texto = texto.replace(/<b>(.*?)<\/b>/g, '*$1*');
+        texto = texto.replace(/<em>(.*?)<\/em>/g, '_$1_');
+        texto = texto.replace(/<i>(.*?)<\/i>/g, '_$1_');
+        texto = texto.replace(/<[^>]+>/g, '');
+        texto = texto.replace(/&nbsp;/g, ' ');
+        texto = texto.replace(/\n{3,}/g, '\n\n');
+        texto = texto.trim();
+
+        // Atualiza preview de texto
+        if (texto) {
+            $('#preview-texto').html(texto.replace(/\n/g, '<br>'));
+        } else {
+            $('#preview-texto').html('<span class="text-muted">Digite sua mensagem para ver o preview...</span>');
+        }
+
+        // Atualiza preview de imagem
+        const novaImagem = $('#nova-imagem-preview img').attr('src');
+        const imagemAtual = $('#imagem-atual').attr('src');
+        const imagemAtualVisivel = $('#imagem-atual-container').is(':visible');
+
+        if (novaImagem && !$('#nova-imagem-preview').hasClass('d-none')) {
+            $('#preview-imagem').removeClass('d-none');
+            $('#preview-imagem img').attr('src', novaImagem);
+        } else if (imagemAtual && imagemAtualVisivel) {
+            $('#preview-imagem').removeClass('d-none');
+            $('#preview-imagem img').attr('src', imagemAtual);
+        } else {
+            $('#preview-imagem').addClass('d-none');
+        }
+    }
+
+    // Atualiza preview inicial
+    atualizarPreview();
+
+    // Garante que o conteudo do Quill seja sincronizado antes do submit
+    $('#form-tarefa').on('submit', function(e) {
+        // Sincroniza o conteudo do Quill com o campo hidden
+        const html = quill.root.innerHTML;
+        $('#id_mensagem').val(html);
+
+        // Verifica se pelo menos um dia da semana foi selecionado
+        const diasSelecionados = $('input[name="dias_semana"]:checked').length;
+        if (diasSelecionados === 0) {
+            e.preventDefault();
+            alert('Por favor, selecione pelo menos um dia da semana.');
+            return false;
+        }
+
+        return true;
+    });
+
+    // Sugestao de horarios
+    $('#btn-sugestao-horarios').on('click', function() {
+        const $btn = $(this);
+        const $container = $('#sugestoes-horarios');
+        const $lista = $('#lista-sugestoes');
+
+        // Toggle visibilidade
+        if (!$container.hasClass('d-none')) {
+            $container.addClass('d-none');
+            return;
+        }
+
+        // Mostra loading
+        $btn.prop('disabled', true);
+        $lista.html('<span class="text-muted"><i class="bi bi-hourglass-split me-1"></i>Carregando...</span>');
+        $container.removeClass('d-none');
+
+        $.ajax({
+            url: '{% url "tarefas-envio-sugestao-horarios" %}',
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success && response.sugestoes) {
+                    let html = '';
+                    response.sugestoes.forEach(function(s) {
+                        html += `
+                            <div class="d-flex align-items-center justify-content-between py-1 border-bottom">
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-aplicar-horario"
+                                        data-horario="${s.horario}">
+                                    ${s.horario}
+                                </button>
+                                <small class="text-muted ms-2">${s.motivo}</small>
+                            </div>
+                        `;
+                    });
+                    if (!response.baseado_em_dados) {
+                        html += '<small class="text-muted d-block mt-2"><i class="bi bi-info-circle me-1"></i>Sugestoes padrao (sem historico disponivel)</small>';
+                    }
+                    $lista.html(html);
+                } else {
+                    $lista.html('<span class="text-danger">Erro ao carregar sugestoes</span>');
+                }
+            },
+            error: function() {
+                $lista.html('<span class="text-danger">Erro ao carregar sugestoes</span>');
+            },
+            complete: function() {
+                $btn.prop('disabled', false);
+            }
+        });
+    });
+
+    // Aplica horario sugerido
+    $(document).on('click', '.btn-aplicar-horario', function() {
+        const horario = $(this).data('horario');
+        $('#id_horario').val(horario);
+        $('#sugestoes-horarios').addClass('d-none');
+    });
+
+    // Re-inicializa feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+});
+</script>
+{% endblock %}

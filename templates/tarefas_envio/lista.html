@@ -1,0 +1,646 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Tarefas de Envio | Nosso Painel{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Fix para dropdown aparecer sobre a tabela */
+    .table-responsive {
+        overflow: visible !important;
+    }
+    .dropdown-menu {
+        z-index: 1050;
+    }
+    /* Centralizar títulos das colunas */
+    thead th {
+        text-align: center;
+    }
+    /* Exceção para Nome que fica à esquerda */
+    thead th:nth-child(2) {
+        text-align: left;
+    }
+    /* Cursor pointer no toggle */
+    .toggle-tarefa {
+        cursor: pointer;
+    }
+    /* Placeholder de imagem */
+    .img-placeholder {
+        width: 40px;
+        height: 40px;
+        background-color: #f1f5f9;
+        border-radius: 0.375rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    /* Calendario */
+    .calendario-dia {
+        border: 1px solid #e0e6ed;
+        border-radius: 0.5rem;
+        min-height: 150px;
+        padding: 0.75rem;
+        background: #fff;
+    }
+    .calendario-dia.hoje {
+        border-color: #754ffe;
+        background: #f8f5ff;
+    }
+    .calendario-dia-header {
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e0e6ed;
+    }
+    .calendario-dia.hoje .calendario-dia-header {
+        color: #754ffe;
+    }
+    .calendario-tarefa {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        margin-bottom: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .calendario-tarefa.ativos {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    .calendario-tarefa.cancelados {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    .calendario-tarefa.avulso {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    .calendario-tarefa .horario {
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-6">
+    <!-- Page header -->
+    <div class="row">
+        <div class="col-lg-12 col-md-12 col-12">
+            <div class="border-bottom pb-4 mb-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-0 fw-bold">Tarefas de Envio WhatsApp</h3>
+                    <p class="mb-0 text-muted">Gerencie as tarefas de envio automatizado de mensagens</p>
+                </div>
+                <a href="{% url 'tarefas-envio-criar' %}" class="btn btn-primary">
+                    <i data-feather="plus" class="icon-xs me-1"></i> Nova Tarefa
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de resumo - Linha 1 -->
+    <div class="row mb-3">
+        <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-3 mb-xl-0">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-1 small">Tarefas Ativas</h6>
+                            <h3 class="mb-0 fw-bold text-success">{{ total_ativas }}</h3>
+                        </div>
+                        <div class="icon-shape icon-md bg-light-success rounded-circle text-success">
+                            <i data-feather="check-circle" class="icon-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-3 mb-xl-0">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-1 small">Inativas</h6>
+                            <h3 class="mb-0 fw-bold text-secondary">{{ total_inativas }}</h3>
+                        </div>
+                        <div class="icon-shape icon-md bg-light-secondary rounded-circle text-secondary">
+                            <i data-feather="x-circle" class="icon-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-3 mb-xl-0">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-1 small">Pausadas</h6>
+                            <h3 class="mb-0 fw-bold text-warning">{{ total_pausadas }}</h3>
+                        </div>
+                        <div class="icon-shape icon-md bg-light-warning rounded-circle text-warning">
+                            <i data-feather="pause-circle" class="icon-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-3 col-md-6 col-12">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-1 small">Total Envios</h6>
+                            <h3 class="mb-0 fw-bold text-primary">{{ total_envios|default:0 }}</h3>
+                        </div>
+                        <div class="icon-shape icon-md bg-light-primary rounded-circle text-primary">
+                            <i data-feather="send" class="icon-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de resumo - Linha 2 (Metricas) -->
+    <div class="row mb-4">
+        <div class="col-xl-4 col-lg-4 col-md-6 col-12 mb-3 mb-xl-0">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-1 small">Taxa Sucesso (30d)</h6>
+                            {% if taxa_sucesso is not None %}
+                            <h3 class="mb-0 fw-bold {% if taxa_sucesso >= 90 %}text-success{% elif taxa_sucesso >= 70 %}text-warning{% else %}text-danger{% endif %}">
+                                {{ taxa_sucesso }}%
+                            </h3>
+                            {% else %}
+                            <h3 class="mb-0 fw-bold text-muted">--</h3>
+                            {% endif %}
+                        </div>
+                        <div class="icon-shape icon-md bg-light-info rounded-circle text-info">
+                            <i data-feather="bar-chart-2" class="icon-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-lg-4 col-md-6 col-12 mb-3 mb-xl-0">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-1 small">Media por Execucao</h6>
+                            <h3 class="mb-0 fw-bold text-info">{{ media_envios_execucao|default:0 }}</h3>
+                        </div>
+                        <div class="icon-shape icon-md bg-light-info rounded-circle text-info">
+                            <i data-feather="trending-up" class="icon-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-lg-4 col-md-6 col-12">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-shape icon-md bg-light-success rounded-circle text-success me-3">
+                            <i data-feather="clock" class="icon-xs"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-1 small">Proxima Execucao</h6>
+                            {% if proxima_tarefa %}
+                            <span class="fw-bold text-success">{{ proxima_tarefa.horario|time:"H:i" }}</span>
+                            <small class="text-muted d-block">{{ proxima_tarefa.nome|truncatechars:25 }}</small>
+                            {% else %}
+                            <span class="text-muted">Nenhuma hoje</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle de Visualizacao -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-primary active" id="btn-view-lista" data-view="lista">
+                    <i data-feather="list" class="icon-xs me-1"></i> Lista
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="btn-view-calendario" data-view="calendario">
+                    <i data-feather="calendar" class="icon-xs me-1"></i> Calendario
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visualizacao Calendario -->
+    <div class="row mb-4 d-none" id="view-calendario">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">Calendario de Tarefas - Semana Atual</h5>
+                    <small class="text-muted">Tarefas ativas programadas para esta semana</small>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="calendario-semana">
+                        <!-- Preenchido via JavaScript -->
+                    </div>
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="d-flex gap-3 flex-wrap">
+                            <span class="d-flex align-items-center">
+                                <span class="badge bg-success-soft text-success me-1">Ativos</span> Clientes Ativos
+                            </span>
+                            <span class="d-flex align-items-center">
+                                <span class="badge bg-danger-soft text-danger me-1">Cancel</span> Cancelados
+                            </span>
+                            <span class="d-flex align-items-center">
+                                <span class="badge bg-info-soft text-info me-1">Leads</span> Avulso/Leads
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de tarefas -->
+    <div class="row" id="view-lista">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Lista de Tarefas</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="fw-bold" style="width: 60px;">Status</th>
+                                <th class="fw-bold">Nome</th>
+                                <th class="fw-bold">Tipo</th>
+                                <th class="fw-bold">Dias</th>
+                                <th class="fw-bold">Horario</th>
+                                <th class="fw-bold">Ultimo Envio</th>
+                                <th class="fw-bold">Envios</th>
+                                <th class="fw-bold text-center" style="width: 120px;">Acoes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tarefa in tarefas %}
+                            <tr>
+                                <td>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input toggle-tarefa" type="checkbox"
+                                               data-id="{{ tarefa.id }}"
+                                               {% if tarefa.ativo %}checked{% endif %}>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if tarefa.imagem %}
+                                        <img src="{{ tarefa.imagem.url }}" class="rounded me-2" width="40" height="40" style="object-fit: cover;">
+                                        {% else %}
+                                        <div class="img-placeholder me-2">
+                                            <i data-feather="image" class="text-muted" style="width: 20px; height: 20px;"></i>
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <h6 class="mb-0">
+                                                {{ tarefa.nome }}
+                                                {% if tarefa.esta_pausada %}
+                                                <span class="badge bg-warning-soft text-warning ms-1" title="Pausada ate {{ tarefa.get_pausado_ate_display }}">
+                                                    <i data-feather="pause-circle" class="icon-xxs"></i> Pausada
+                                                </span>
+                                                {% endif %}
+                                            </h6>
+                                            <small class="text-muted">{{ tarefa.get_periodo_mes_display }}</small>
+                                            {% if tarefa.filtro_estados %}
+                                            <br><small class="text-info"><i data-feather="map-pin" class="icon-xxs"></i> {{ tarefa.get_filtro_estados_display }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if tarefa.tipo_envio == 'ativos' %}
+                                    <span class="badge bg-success-soft text-success">Clientes Ativos</span>
+                                    {% elif tarefa.tipo_envio == 'cancelados' %}
+                                    <span class="badge bg-danger-soft text-danger">Cancelados</span>
+                                    {% else %}
+                                    <span class="badge bg-info-soft text-info">Leads</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% for dia in tarefa.get_dias_semana_abrev %}
+                                    <span class="badge bg-light text-dark rounded-pill me-1">{{ dia }}</span>
+                                    {% empty %}
+                                    <span class="text-muted">-</span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    <span class="fw-semibold">{{ tarefa.horario|time:"H:i" }}</span>
+                                </td>
+                                <td>
+                                    {% if tarefa.ultimo_envio %}
+                                    <span title="{{ tarefa.ultimo_envio }}">{{ tarefa.ultimo_envio|date:"d/m/Y H:i" }}</span>
+                                    {% else %}
+                                    <span class="text-muted">Nunca</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary rounded-pill">{{ tarefa.total_envios }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">
+                                            <i data-feather="more-vertical" class="icon-xs"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'tarefas-envio-historico' tarefa.id %}">
+                                                    <i data-feather="clock" class="icon-xs me-2"></i> Historico
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'tarefas-envio-editar' tarefa.id %}">
+                                                    <i data-feather="edit-2" class="icon-xs me-2"></i> Editar
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item btn-duplicar-tarefa"
+                                                        data-id="{{ tarefa.id }}" data-nome="{{ tarefa.nome }}">
+                                                    <i data-feather="copy" class="icon-xs me-2"></i> Duplicar
+                                                </button>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <button class="dropdown-item text-danger btn-excluir-tarefa"
+                                                        data-id="{{ tarefa.id }}" data-nome="{{ tarefa.nome }}">
+                                                    <i data-feather="trash-2" class="icon-xs me-2"></i> Excluir
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center py-5">
+                                    <div class="py-4">
+                                        <i data-feather="inbox" style="width: 48px; height: 48px;" class="text-muted mb-3"></i>
+                                        <h5 class="text-muted">Nenhuma tarefa cadastrada</h5>
+                                        <p class="text-muted mb-3">Crie sua primeira tarefa de envio automatizado</p>
+                                        <a href="{% url 'tarefas-envio-criar' %}" class="btn btn-primary">
+                                            <i data-feather="plus" class="icon-xs me-1"></i> Nova Tarefa
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if is_paginated %}
+                <div class="card-footer bg-white">
+                    <nav aria-label="Navegacao de paginas">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                            </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                            {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Proximo</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Toggle ativo/inativo
+    $('.toggle-tarefa').on('change', function() {
+        const $toggle = $(this);
+        const tarefaId = $toggle.data('id');
+
+        $.ajax({
+            url: `/tarefas-envio/${tarefaId}/toggle/`,
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    toastManager.success(response.message);
+                } else {
+                    $toggle.prop('checked', !$toggle.prop('checked'));
+                    toastManager.error(response.error || 'Erro ao alterar status');
+                }
+            },
+            error: function() {
+                $toggle.prop('checked', !$toggle.prop('checked'));
+                toastManager.error('Erro ao alterar status da tarefa');
+            }
+        });
+    });
+
+    // Duplicar tarefa
+    $('.btn-duplicar-tarefa').on('click', function() {
+        const tarefaId = $(this).data('id');
+        const tarefaNome = $(this).data('nome');
+
+        Swal.fire({
+            title: 'Duplicar tarefa?',
+            html: `Deseja criar uma copia da tarefa <strong>"${tarefaNome}"</strong>?<br><br>A copia sera criada como <strong>inativa</strong>.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#754ffe',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sim, duplicar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `/tarefas-envio/${tarefaId}/duplicar/`,
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            toastManager.success(response.message);
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            toastManager.error(response.error || 'Erro ao duplicar tarefa');
+                        }
+                    },
+                    error: function() {
+                        toastManager.error('Erro ao duplicar tarefa');
+                    }
+                });
+            }
+        });
+    });
+
+    // Excluir tarefa
+    $('.btn-excluir-tarefa').on('click', function() {
+        const tarefaId = $(this).data('id');
+        const tarefaNome = $(this).data('nome');
+
+        Swal.fire({
+            title: 'Excluir tarefa?',
+            html: `Tem certeza que deseja excluir a tarefa <strong>"${tarefaNome}"</strong>?<br><br>Esta acao nao pode ser desfeita.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sim, excluir',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `/tarefas-envio/${tarefaId}/deletar/`,
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            toastManager.success(response.message);
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            toastManager.error(response.error || 'Erro ao excluir tarefa');
+                        }
+                    },
+                    error: function() {
+                        toastManager.error('Erro ao excluir tarefa');
+                    }
+                });
+            }
+        });
+    });
+
+    // Toggle de visualizacao (Lista/Calendario)
+    $('#btn-view-lista, #btn-view-calendario').on('click', function() {
+        const view = $(this).data('view');
+
+        // Atualiza botoes
+        $('#btn-view-lista, #btn-view-calendario').removeClass('btn-primary active').addClass('btn-outline-primary');
+        $(this).removeClass('btn-outline-primary').addClass('btn-primary active');
+
+        // Mostra/esconde views
+        if (view === 'calendario') {
+            $('#view-lista').addClass('d-none');
+            $('#view-calendario').removeClass('d-none');
+            gerarCalendarioSemana();
+        } else {
+            $('#view-calendario').addClass('d-none');
+            $('#view-lista').removeClass('d-none');
+        }
+
+        // Re-inicializa feather icons
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    });
+
+    // Gera o calendario da semana
+    function gerarCalendarioSemana() {
+        const diasSemana = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado'];
+        const diasAbrev = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
+        const hoje = new Date();
+        const diaAtual = hoje.getDay();
+
+        // Dados das tarefas (passados do Django)
+        const tarefas = [
+            {% for tarefa in tarefas %}
+            {
+                id: {{ tarefa.id }},
+                nome: "{{ tarefa.nome|escapejs }}",
+                tipo: "{{ tarefa.tipo_envio }}",
+                dias: {{ tarefa.dias_semana|safe }},
+                horario: "{{ tarefa.horario|time:'H:i' }}",
+                ativo: {{ tarefa.ativo|yesno:"true,false" }},
+                pausada: {{ tarefa.esta_pausada|yesno:"true,false" }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        let html = '';
+
+        // Mapeia dias Python (0=seg) para JS (0=dom)
+        const pyToJs = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 0};
+        const jsToPy = {1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6};
+
+        for (let i = 0; i < 7; i++) {
+            const isHoje = i === diaAtual;
+            const diaPy = jsToPy[i]; // Converte para indice Python
+
+            // Filtra tarefas para este dia
+            const tarefasDoDia = tarefas.filter(t =>
+                t.ativo && !t.pausada && t.dias.includes(diaPy)
+            ).sort((a, b) => a.horario.localeCompare(b.horario));
+
+            html += `
+                <div class="col-md mb-3">
+                    <div class="calendario-dia ${isHoje ? 'hoje' : ''}">
+                        <div class="calendario-dia-header">
+                            ${diasAbrev[i]}${isHoje ? ' <span class="badge bg-primary">Hoje</span>' : ''}
+                        </div>
+                        <div class="calendario-tarefas">
+            `;
+
+            if (tarefasDoDia.length === 0) {
+                html += '<small class="text-muted">Sem tarefas</small>';
+            } else {
+                tarefasDoDia.forEach(t => {
+                    html += `
+                        <div class="calendario-tarefa ${t.tipo}" title="${t.nome}">
+                            <span class="horario">${t.horario}</span>
+                            <span class="nome text-truncate">${t.nome.substring(0, 15)}${t.nome.length > 15 ? '...' : ''}</span>
+                        </div>
+                    `;
+                });
+            }
+
+            html += `
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        $('#calendario-semana').html(html);
+    }
+
+    // Re-inicializa feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+});
+</script>
+{% endblock %}

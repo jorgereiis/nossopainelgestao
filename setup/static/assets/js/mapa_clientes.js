@@ -41,6 +41,7 @@
       state.summary = data.summary || {};
       updateSummary(state.summary);
       renderMap(container);
+      renderTop5List();
     } catch (error) {
       console.error("[MapaClientes] Falha ao carregar dados:", error);
       showError(container, "Não foi possível carregar o mapa. Atualize a página.");
@@ -210,5 +211,89 @@
       <span>Clientes ativos: <strong>${clientes}</strong></span>
       <span>Participação: ${porcentagem}</span>
     `;
+  }
+
+  // ========== TOP 5 Estados ==========
+  function renderTop5List() {
+    const container = document.getElementById("mapa-top5");
+    if (!container) return;
+
+    const features = state.features;
+    if (!features || !features.length) {
+      container.innerHTML = '<div class="text-muted small">Sem dados disponíveis</div>';
+      return;
+    }
+
+    // Encontrar máximo para calcular largura das barras
+    const maxClientes = Math.max(...features.map(f => f.properties.clientes || 0));
+
+    // Top 5 ordenado por quantidade de clientes
+    const top5 = features
+      .filter(f => f.properties.clientes > 0)
+      .sort((a, b) => b.properties.clientes - a.properties.clientes)
+      .slice(0, 5);
+
+    if (!top5.length) {
+      container.innerHTML = '<div class="text-muted small">Nenhum cliente cadastrado</div>';
+      return;
+    }
+
+    const html = top5.map(f => {
+      const pct = f.properties.porcentagem || 0;
+      const barWidth = maxClientes > 0 ? (f.properties.clientes / maxClientes) * 100 : 0;
+      return `
+        <li class="mapa-top5-item" data-sigla="${f.properties.sigla}">
+          <div class="mapa-top5-header">
+            <span class="mapa-top5-name">${f.properties.name}</span>
+            <span class="mapa-top5-stats">
+              <strong>${formatNumber(f.properties.clientes)}</strong>
+              <span class="text-muted">/ ${pct.toFixed(1)}%</span>
+            </span>
+          </div>
+          <div class="mapa-top5-bar-bg">
+            <div class="mapa-top5-bar" style="width: ${barWidth}%"></div>
+          </div>
+        </li>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <h6 class="mapa-top5-title">
+        <i class="bi bi-trophy me-2"></i>TOP 5 Estados
+      </h6>
+      <ul class="mapa-top5-list">${html}</ul>
+    `;
+
+    bindTop5HoverEvents();
+  }
+
+  function bindTop5HoverEvents() {
+    const items = document.querySelectorAll(".mapa-top5-item");
+    items.forEach(item => {
+      item.addEventListener("mouseenter", () => {
+        const sigla = item.dataset.sigla;
+        highlightMapStateBySigla(sigla);
+        item.classList.add("is-active");
+      });
+      item.addEventListener("mouseleave", () => {
+        resetMapHighlight();
+        item.classList.remove("is-active");
+      });
+    });
+  }
+
+  function highlightMapStateBySigla(sigla) {
+    const paths = document.querySelectorAll(".mapa-clientes-svg path");
+    paths.forEach(path => {
+      const feature = d3.select(path).datum();
+      if (feature && feature.properties.sigla === sigla) {
+        d3.select(path).raise().classed("is-hover", true);
+      }
+    });
+  }
+
+  function resetMapHighlight() {
+    document.querySelectorAll(".mapa-clientes-svg path.is-hover")
+      .forEach(el => el.classList.remove("is-hover"));
   }
 })();

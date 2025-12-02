@@ -28,6 +28,8 @@ from .models import (
     ContaReseller,
     TarefaMigracaoDNS,
     DispositivoMigracaoDNS,
+    TarefaEnvio,
+    HistoricoExecucaoTarefa,
 )
 
 # --- ADMINISTRADORES ---
@@ -384,6 +386,62 @@ admin.site.register(OfertaPromocionalEnviada, OfertaPromocionalEnviadaAdmin)
 admin.site.register(ContaReseller, ContaResellerAdmin)
 admin.site.register(TarefaMigracaoDNS, TarefaMigracaoDNSAdmin)
 admin.site.register(DispositivoMigracaoDNS, DispositivoMigracaoDNSAdmin)
+
+
+# --- TAREFAS DE ENVIO ---
+
+class HistoricoExecucaoTarefaInline(admin.TabularInline):
+    model = HistoricoExecucaoTarefa
+    extra = 0
+    readonly_fields = ('data_execucao', 'status', 'quantidade_enviada', 'quantidade_erros', 'duracao_segundos')
+    can_delete = False
+    ordering = ('-data_execucao',)
+    max_num = 10
+
+
+class TarefaEnvioAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'tipo_envio', 'get_dias_semana_str', 'horario', 'ativo', 'ultimo_envio', 'total_envios', 'usuario')
+    list_filter = ('tipo_envio', 'ativo', 'usuario', 'periodo_mes')
+    search_fields = ('nome', 'mensagem')
+    readonly_fields = ('ultimo_envio', 'total_envios', 'mensagem_plaintext', 'criado_em', 'atualizado_em')
+    ordering = ('-criado_em',)
+    inlines = [HistoricoExecucaoTarefaInline]
+
+    fieldsets = (
+        ('Identificação', {
+            'fields': ('nome', 'tipo_envio', 'usuario')
+        }),
+        ('Agendamento', {
+            'fields': ('dias_semana', 'periodo_mes', 'horario')
+        }),
+        ('Conteúdo', {
+            'fields': ('imagem', 'mensagem', 'mensagem_plaintext')
+        }),
+        ('Status', {
+            'fields': ('ativo', 'ultimo_envio', 'total_envios')
+        }),
+        ('Metadados', {
+            'fields': ('criado_em', 'atualizado_em'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def get_dias_semana_str(self, obj):
+        return ', '.join(obj.get_dias_semana_abrev()) if obj.dias_semana else '-'
+    get_dias_semana_str.short_description = 'Dias'
+
+
+class HistoricoExecucaoTarefaAdmin(admin.ModelAdmin):
+    list_display = ('tarefa', 'data_execucao', 'status', 'quantidade_enviada', 'quantidade_erros', 'get_duracao_formatada')
+    list_filter = ('status', 'tarefa__tipo_envio', 'data_execucao')
+    search_fields = ('tarefa__nome',)
+    readonly_fields = ('tarefa', 'data_execucao', 'status', 'quantidade_enviada', 'quantidade_erros', 'detalhes', 'duracao_segundos')
+    ordering = ('-data_execucao',)
+
+
+admin.site.register(TarefaEnvio, TarefaEnvioAdmin)
+admin.site.register(HistoricoExecucaoTarefa, HistoricoExecucaoTarefaAdmin)
+
 
 # Configurações adicionais do admin
 admin.site.site_header = "Administração do Sistema"

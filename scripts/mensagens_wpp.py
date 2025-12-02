@@ -60,7 +60,8 @@ from integracoes.openai_chat import consultar_chatgpt
 from cadastros.models import (
     Mensalidade, SessaoWpp, MensagemEnviadaWpp,
     Cliente, DadosBancarios, HorarioEnvios,
-    MensagensLeads, TelefoneLeads, OfertaPromocionalEnviada
+    MensagensLeads, TelefoneLeads, OfertaPromocionalEnviada,
+    TarefaEnvio, HistoricoExecucaoTarefa,
 )
 
 URL_API_WPP = os.getenv("URL_API_WPP")
@@ -752,7 +753,14 @@ def _enviar_mensagem_cliente(cliente, admin, mensagem_template, qtd_dias, tipo_e
 ##### BLOCO PARA ENVIO DE MENSAGENS AOS CLIENTES ATIVOS, CANCELADOS E FUTUROS CLIENTES (AVULSO) #####
 #####################################################################################################
 
-def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str) -> None:
+def envia_mensagem_personalizada(
+    tipo_envio: str,
+    image_name: str = None,
+    nome_msg: str = None,
+    mensagem_direta: str = None,
+    image_path: str = None,
+    usuario_id: int = None
+) -> dict:
     """
     Envia mensagens via WhatsApp para grupos de clientes com base no tipo de envio:
     - 'ativos': clientes em dia.
@@ -761,14 +769,27 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
 
     Parâmetros:
         tipo_envio (str): Tipo de grupo alvo ('ativos', 'cancelados', 'avulso').
-        image_name (str): Nome da imagem opcional a ser enviada.
-        message (str): Conteúdo da mensagem (texto ou legenda).
+        image_name (str): Nome da imagem opcional a ser enviada (modo legado).
+        nome_msg (str): Nome do template da mensagem (modo legado).
+        mensagem_direta (str): Mensagem direta a ser enviada (modo TarefaEnvio).
+        image_path (str): Caminho completo da imagem (modo TarefaEnvio).
+        usuario_id (int): ID do usuário para envio (modo TarefaEnvio).
+
+    Retorna:
+        dict: {'enviados': int, 'erros': int, 'detalhes': list}
 
     A mensagem só é enviada se:
     - O número for validado via API do WhatsApp.
     - Ainda não tiver sido enviada naquele dia.
     """
-    usuario = User.objects.get(id=1)
+    # Resultado para retorno
+    resultado = {'enviados': 0, 'erros': 0, 'detalhes': []}
+
+    # Determina o usuário
+    if usuario_id:
+        usuario = User.objects.get(id=usuario_id)
+    else:
+        usuario = User.objects.get(id=1)
     sessao = SessaoWpp.objects.filter(usuario=usuario).first()
     if not sessao or not sessao.token:
         logger.error("Sessão/token WPP ausente", extra={"user": usuario.username})
@@ -778,11 +799,25 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
             "usuario": usuario.username,
             "tipo_envio": tipo_envio,
         })
-        return
+        return resultado
     token = sessao.token
 
-    url_envio = f"{URL_API_WPP}/{usuario}/send-{'image' if image_name else 'message'}"
-    image_base64 = obter_img_base64(image_name, tipo_envio) if image_name else None
+    # Determina se vai enviar imagem (modo legado ou modo TarefaEnvio)
+    tem_imagem = image_name or image_path
+    url_envio = f"{URL_API_WPP}/{usuario}/send-{'image' if tem_imagem else 'message'}"
+
+    # Obtém a imagem em base64
+    image_base64 = None
+    if image_path and os.path.exists(image_path):
+        # Modo TarefaEnvio: carrega imagem do caminho completo
+        try:
+            with open(image_path, 'rb') as img_file:
+                image_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+        except Exception as e:
+            logger.error(f"Erro ao carregar imagem de TarefaEnvio: {e}")
+    elif image_name:
+        # Modo legado: carrega imagem por nome
+        image_base64 = obter_img_base64(image_name, tipo_envio)
 
     # Limite de 100 envios por execução
     total_enviados = 0
@@ -956,8 +991,11 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
                 registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - 🗑️ Deletado do banco (avulso)", usuario, DIR_LOGS_AGENDADOS)
             continue
 
-        # Obter mensagem personalizada
-        message = obter_mensagem_personalizada(nome=nome_msg, tipo=tipo_envio, usuario=usuario)
+        # Obter mensagem: usa mensagem_direta (TarefaEnvio) ou template (legado)
+        if mensagem_direta:
+            message = mensagem_direta
+        else:
+            message = obter_mensagem_personalizada(nome=nome_msg, tipo=tipo_envio, usuario=usuario)
         if not message:
             logger.error(
                 "Falha ao gerar mensagem personalizada | nome_msg=%s tipo=%s telefone=%s usuario=%s",
@@ -986,13 +1024,18 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
         }
 
         if image_base64:
-            payload['filename'] = image_name
+            # Determina o nome do arquivo (TarefaEnvio ou legado)
+            if image_path:
+                filename = os.path.basename(image_path)
+            else:
+                filename = image_name or 'imagem.png'
+            payload['filename'] = filename
             payload['caption'] = message
             payload['base64'] = f'data:image/png;base64,{image_base64}'
 
         audit_payload = {k: v for k, v in payload.items() if k != 'base64'}
         audit_payload["tem_base64"] = bool(payload.get('base64'))
-        audit_payload["arquivo_imagem"] = image_name
+        audit_payload["arquivo_imagem"] = image_path or image_name
 
         for tentativa in range(1, 4):
             response = None
@@ -1037,6 +1080,7 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
                         "registro_envio_id": registro_envio.id,
                     })
                     total_enviados += 1
+                    resultado['enviados'] += 1
                     break
 
                 error_message = (
@@ -1080,8 +1124,14 @@ def envia_mensagem_personalizada(tipo_envio: str, image_name: str, nome_msg: str
                 "response": response_payload,
             })
             time.sleep(random.uniform(10, 20))
+        else:
+            # Se saiu do loop sem sucesso (todas tentativas falharam)
+            resultado['erros'] += 1
 
         time.sleep(random.uniform(30, 180))
+
+    # Retorna resultado para uso em TarefaEnvio
+    return resultado
 
 
 def obter_img_base64(image_name: str, sub_directory: str) -> str:
@@ -1279,6 +1329,153 @@ def run_scheduled_tasks():
 
 
 ###########################################################
+##### FUNÇÃO PARA EXECUTAR TAREFAS DE ENVIO DO BANCO  #####
+###########################################################
+
+def run_scheduled_tasks_from_db():
+    """
+    Executa tarefas de envio configuradas no banco de dados (TarefaEnvio).
+    Esta função roda em paralelo com run_scheduled_tasks() que usa lógica hardcoded.
+
+    Verifica a cada execução:
+    - Tarefas ativas
+    - Horário atual dentro da janela de execução (5 minutos de margem)
+    - Se já executou hoje (evita duplicação)
+    - Se deve executar hoje (dia da semana + período do mês)
+    """
+    try:
+        agora = localtime()
+        hoje = agora.date()
+        hora_atual = agora.hour
+        minuto_atual = agora.minute
+
+        logger.info(
+            "Verificando TarefasEnvio do banco | hora=%02d:%02d",
+            hora_atual,
+            minuto_atual
+        )
+
+        # Busca tarefas ativas que devem executar no horário atual (com margem de 5 min)
+        tarefas = TarefaEnvio.objects.filter(
+            ativo=True,
+            horario__hour=hora_atual,
+        ).select_related('usuario')
+
+        # Filtra por minuto (dentro de janela de 5 minutos)
+        tarefas_para_executar = []
+        for tarefa in tarefas:
+            minuto_tarefa = tarefa.horario.minute
+            # Verifica se está dentro da janela de 5 minutos
+            if minuto_tarefa <= minuto_atual <= minuto_tarefa + 5:
+                tarefas_para_executar.append(tarefa)
+
+        if not tarefas_para_executar:
+            logger.debug("Nenhuma TarefaEnvio para executar neste horário")
+            return
+
+        logger.info(
+            "Encontradas %d TarefasEnvio candidatas para execução",
+            len(tarefas_para_executar)
+        )
+
+        for tarefa in tarefas_para_executar:
+            try:
+                # Pula se já executou hoje
+                if tarefa.ultimo_envio and tarefa.ultimo_envio.date() == hoje:
+                    logger.debug(
+                        "TarefaEnvio já executada hoje | tarefa_id=%d nome=%s",
+                        tarefa.id,
+                        tarefa.nome
+                    )
+                    continue
+
+                # Verifica dia da semana + período do mês
+                if not tarefa.deve_executar_hoje():
+                    logger.debug(
+                        "TarefaEnvio não deve executar hoje | tarefa_id=%d nome=%s",
+                        tarefa.id,
+                        tarefa.nome
+                    )
+                    continue
+
+                logger.info(
+                    "Iniciando execução de TarefaEnvio | tarefa_id=%d nome=%s tipo=%s usuario=%s",
+                    tarefa.id,
+                    tarefa.nome,
+                    tarefa.tipo_envio,
+                    tarefa.usuario.username
+                )
+
+                inicio = time.time()
+
+                # Determina caminho da imagem
+                image_path = None
+                if tarefa.imagem:
+                    image_path = tarefa.imagem.path
+
+                # Executa envio usando a função existente
+                resultado = envia_mensagem_personalizada(
+                    tipo_envio=tarefa.tipo_envio,
+                    mensagem_direta=tarefa.mensagem_plaintext or tarefa.mensagem,
+                    image_path=image_path,
+                    usuario_id=tarefa.usuario_id
+                )
+
+                duracao = int(time.time() - inicio)
+
+                # Determina status
+                if resultado['erros'] == 0 and resultado['enviados'] > 0:
+                    status = 'sucesso'
+                elif resultado['enviados'] > 0:
+                    status = 'parcial'
+                else:
+                    status = 'erro'
+
+                # Registra histórico
+                HistoricoExecucaoTarefa.objects.create(
+                    tarefa=tarefa,
+                    status=status,
+                    quantidade_enviada=resultado['enviados'],
+                    quantidade_erros=resultado['erros'],
+                    detalhes=json.dumps(resultado.get('detalhes', {})),
+                    duracao_segundos=duracao
+                )
+
+                # Atualiza tarefa
+                tarefa.ultimo_envio = agora
+                tarefa.total_envios += resultado['enviados']
+                tarefa.save(update_fields=['ultimo_envio', 'total_envios'])
+
+                logger.info(
+                    "TarefaEnvio concluída | tarefa_id=%d nome=%s status=%s enviados=%d erros=%d duracao=%ds",
+                    tarefa.id,
+                    tarefa.nome,
+                    status,
+                    resultado['enviados'],
+                    resultado['erros'],
+                    duracao
+                )
+
+            except Exception as e:
+                logger.exception(
+                    "Erro ao executar TarefaEnvio | tarefa_id=%d nome=%s erro=%s",
+                    tarefa.id,
+                    tarefa.nome,
+                    str(e)
+                )
+                # Registra erro no histórico
+                HistoricoExecucaoTarefa.objects.create(
+                    tarefa=tarefa,
+                    status='erro',
+                    detalhes=json.dumps({'erro': str(e)}),
+                    duracao_segundos=int(time.time() - inicio) if 'inicio' in locals() else 0
+                )
+
+    except Exception as e:
+        logger.exception("Erro em run_scheduled_tasks_from_db | erro=%s", str(e))
+
+
+###########################################################
 ##### FUNÇÃO PARA VALIDAR E EXECUTAR ENVIOS AGENDADOS #####
 ###########################################################
 
@@ -1354,7 +1551,30 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
                     })
                     return
 
-                # Lock DB adquirido! Atualiza IMEDIATAMENTE para bloquear outros processos
+                # Health check ANTES de atualizar ultimo_envio
+                sessao = SessaoWpp.objects.filter(usuario=h.usuario, is_active=True).first()
+                if sessao and sessao.token:
+                    if not verificar_saude_sessao(str(h.usuario), sessao.token):
+                        logger.warning(
+                            "[Health Check] Sessão com problema - envios cancelados | thread=%s usuario=%s tipo=%s",
+                            threading.current_thread().name,
+                            h.usuario,
+                            h.tipo_envio
+                        )
+                        registrar_log_auditoria({
+                            "funcao": "executar_envio_para_usuario",
+                            "status": "cancelado_sessao_problema",
+                            "usuario": str(h.usuario),
+                            "tipo_envio": h.tipo_envio,
+                            "thread": threading.current_thread().name,
+                            "motivo": "health_check_falhou",
+                        })
+                        return  # ultimo_envio NÃO atualizado - permite nova tentativa
+
+                # Guarda valor anterior para possível reversão em caso de erro
+                ultimo_envio_anterior = h.ultimo_envio
+
+                # Lock DB adquirido! Atualiza para bloquear outros processos
                 h.ultimo_envio = hoje
                 h.save(update_fields=['ultimo_envio'])
 
@@ -1377,26 +1597,6 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
 
             # Transação commitada, lock DB liberado. Agora executa o envio (pode demorar)
             try:
-                # Health check: Verifica se sessão WhatsApp está saudável antes de enviar
-                sessao = SessaoWpp.objects.filter(usuario=h.usuario, is_active=True).first()
-                if sessao and sessao.token:
-                    if not verificar_saude_sessao(str(h.usuario), sessao.token):
-                        logger.warning(
-                            "[Health Check] Sessão com problema - envios cancelados | thread=%s usuario=%s tipo=%s",
-                            threading.current_thread().name,
-                            h.usuario,
-                            h.tipo_envio
-                        )
-                        registrar_log_auditoria({
-                            "funcao": "executar_envio_para_usuario",
-                            "status": "cancelado_sessao_problema",
-                            "usuario": str(h.usuario),
-                            "tipo_envio": h.tipo_envio,
-                            "thread": threading.current_thread().name,
-                            "motivo": "health_check_falhou",
-                        })
-                        return  # Não processa, tentará no próximo horário agendado
-
                 if h.tipo_envio == 'mensalidades_a_vencer':
                     obter_mensalidades_a_vencer(h.usuario)
                 elif h.tipo_envio == 'obter_mensalidades_vencidas':
@@ -1417,13 +1617,40 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
                     "thread": threading.current_thread().name,
                 })
             except Exception as exc_envio:
-                logger.error(f"Erro ao executar envio para usuário {h.usuario}: {exc_envio}", exc_info=exc_envio)
+                # Extrai apenas status_code e mensagem (sem HTML)
+                status_code = None
+                error_msg = str(exc_envio)
+
+                if hasattr(exc_envio, 'response') and exc_envio.response is not None:
+                    status_code = exc_envio.response.status_code
+                    try:
+                        error_data = exc_envio.response.json()
+                        error_msg = error_data.get('message', error_data.get('error', str(error_data)))
+                    except Exception:
+                        # Se não for JSON, limita tamanho para evitar HTML
+                        raw_text = exc_envio.response.text
+                        error_msg = raw_text[:200] if len(raw_text) <= 200 else "Resposta não-JSON truncada"
+
+                logger.error(
+                    "Erro no envio - revertendo ultimo_envio | usuario=%s tipo=%s status_code=%s erro=%s",
+                    h.usuario,
+                    h.tipo_envio,
+                    status_code,
+                    error_msg
+                )
+
+                # Reverte ultimo_envio para permitir nova tentativa
+                h.ultimo_envio = ultimo_envio_anterior
+                h.save(update_fields=['ultimo_envio'])
+
                 registrar_log_auditoria({
                     "funcao": "executar_envio_para_usuario",
-                    "status": "erro_durante_envio",
+                    "status": "erro_envio_revertido",
                     "usuario": str(h.usuario),
                     "tipo_envio": h.tipo_envio,
-                    "erro": str(exc_envio),
+                    "status_code": status_code,
+                    "erro": error_msg,
+                    "acao": "ultimo_envio_revertido",
                     "thread": threading.current_thread().name,
                 })
 

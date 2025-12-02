@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Historico - {{ tarefa.nome }} | Nosso Painel{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-6">
+    <!-- Page header -->
+    <div class="row">
+        <div class="col-lg-12 col-md-12 col-12">
+            <div class="border-bottom pb-4 mb-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-2">
+                            <li class="breadcrumb-item"><a href="{% url 'tarefas-envio-lista' %}">Tarefas de Envio</a></li>
+                            <li class="breadcrumb-item active">Historico</li>
+                        </ol>
+                    </nav>
+                    <h3 class="mb-0 fw-bold">Historico de Execucoes</h3>
+                    <p class="mb-0 text-muted">Tarefa: <strong>{{ tarefa.nome }}</strong></p>
+                </div>
+                <a href="{% url 'tarefas-envio-lista' %}" class="btn btn-outline-secondary">
+                    <i data-feather="arrow-left" class="icon-xs me-1"></i> Voltar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de estatisticas -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-4 mb-xl-0">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-2">Total Execucoes</h6>
+                            <h2 class="mb-0 fw-bold">{{ total_execucoes }}</h2>
+                        </div>
+                        <div class="icon-shape icon-lg bg-light-primary rounded-circle text-primary">
+                            <i data-feather="activity" class="icon-sm"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-4 mb-xl-0">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-2">Sucesso</h6>
+                            <h2 class="mb-0 fw-bold text-success">{{ total_sucesso }}</h2>
+                        </div>
+                        <div class="icon-shape icon-lg bg-light-success rounded-circle text-success">
+                            <i data-feather="check-circle" class="icon-sm"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-4 mb-xl-0">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-2">Parcial/Erro</h6>
+                            <h2 class="mb-0 fw-bold text-warning">{{ total_parcial|add:total_erro }}</h2>
+                        </div>
+                        <div class="icon-shape icon-lg bg-light-warning rounded-circle text-warning">
+                            <i data-feather="alert-triangle" class="icon-sm"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-3 col-md-6 col-12">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-2">Taxa Sucesso</h6>
+                            <h2 class="mb-0 fw-bold text-info">{{ taxa_sucesso }}%</h2>
+                        </div>
+                        <div class="icon-shape icon-lg bg-light-info rounded-circle text-info">
+                            <i data-feather="percent" class="icon-sm"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info da tarefa -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body py-3">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            {% if tarefa.imagem %}
+                            <img src="{{ tarefa.imagem.url }}" class="rounded" width="50" height="50" style="object-fit: cover;">
+                            {% else %}
+                            <div class="icon-shape icon-lg bg-light rounded">
+                                <i data-feather="send" class="icon-sm text-muted"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col">
+                            <h5 class="mb-1">{{ tarefa.nome }}</h5>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% if tarefa.tipo_envio == 'ativos' %}
+                                <span class="badge bg-success-soft text-success">Clientes Ativos</span>
+                                {% elif tarefa.tipo_envio == 'cancelados' %}
+                                <span class="badge bg-danger-soft text-danger">Cancelados</span>
+                                {% else %}
+                                <span class="badge bg-info-soft text-info">Leads</span>
+                                {% endif %}
+
+                                <span class="badge bg-light text-dark">
+                                    <i data-feather="clock" class="icon-xxs me-1"></i>{{ tarefa.horario|time:"H:i" }}
+                                </span>
+
+                                {% for dia in tarefa.get_dias_semana_abrev %}
+                                <span class="badge bg-light text-dark">{{ dia }}</span>
+                                {% endfor %}
+
+                                <span class="badge {% if tarefa.ativo %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {% if tarefa.ativo %}Ativa{% else %}Inativa{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <a href="{% url 'tarefas-envio-editar' tarefa.id %}" class="btn btn-sm btn-outline-primary">
+                                <i data-feather="edit-2" class="icon-xs me-1"></i> Editar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de historico -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Historico de Execucoes</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="fw-bold">Data/Hora</th>
+                                <th class="fw-bold">Status</th>
+                                <th class="fw-bold text-center">Enviados</th>
+                                <th class="fw-bold text-center">Erros</th>
+                                <th class="fw-bold">Duracao</th>
+                                <th class="fw-bold">Detalhes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for historico in historicos %}
+                            <tr>
+                                <td>
+                                    <span class="fw-semibold">{{ historico.data_execucao|date:"d/m/Y" }}</span>
+                                    <br>
+                                    <small class="text-muted">{{ historico.data_execucao|time:"H:i:s" }}</small>
+                                </td>
+                                <td>
+                                    {% if historico.status == 'sucesso' %}
+                                    <span class="badge bg-success">
+                                        <i data-feather="check" class="icon-xxs me-1"></i> Sucesso
+                                    </span>
+                                    {% elif historico.status == 'parcial' %}
+                                    <span class="badge bg-warning">
+                                        <i data-feather="alert-triangle" class="icon-xxs me-1"></i> Parcial
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-danger">
+                                        <i data-feather="x-circle" class="icon-xxs me-1"></i> Erro
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary rounded-pill">{{ historico.quantidade_enviada }}</span>
+                                </td>
+                                <td class="text-center">
+                                    {% if historico.quantidade_erros > 0 %}
+                                    <span class="badge bg-danger rounded-pill">{{ historico.quantidade_erros }}</span>
+                                    {% else %}
+                                    <span class="text-muted">0</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ historico.get_duracao_formatada }}</span>
+                                </td>
+                                <td>
+                                    {% if historico.detalhes %}
+                                    <button class="btn btn-sm btn-light btn-ver-detalhes" data-detalhes="{{ historico.detalhes }}">
+                                        <i data-feather="eye" class="icon-xs"></i>
+                                    </button>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5">
+                                    <div class="py-4">
+                                        <i data-feather="inbox" style="width: 48px; height: 48px;" class="text-muted mb-3"></i>
+                                        <h5 class="text-muted">Nenhuma execucao registrada</h5>
+                                        <p class="text-muted">O historico aparecera aqui apos a primeira execucao da tarefa</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if is_paginated %}
+                <div class="card-footer bg-white">
+                    <nav aria-label="Navegacao de paginas">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                            </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                            {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Proximo</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de detalhes -->
+<div class="modal fade" id="modal-detalhes" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes da Execucao</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="detalhes-content" class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Ver detalhes
+    $('.btn-ver-detalhes').on('click', function() {
+        const detalhes = $(this).data('detalhes');
+        try {
+            const json = JSON.parse(detalhes);
+            $('#detalhes-content').text(JSON.stringify(json, null, 2));
+        } catch (e) {
+            $('#detalhes-content').text(detalhes);
+        }
+        $('#modal-detalhes').modal('show');
+    });
+
+    // Re-inicializa feather icons
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
+});
+</script>
+{% endblock %}

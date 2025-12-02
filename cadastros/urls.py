@@ -108,6 +108,16 @@ from .views import (
     # API Debug Headless (Admin)
     toggle_debug_headless,
     get_debug_status,
+    # Tarefas de Envio WhatsApp
+    TarefaEnvioListView,
+    TarefaEnvioCreateView,
+    TarefaEnvioUpdateView,
+    TarefaEnvioDeleteView,
+    TarefaEnvioHistoricoView,
+    tarefa_envio_toggle,
+    tarefa_envio_duplicar,
+    tarefa_envio_preview,
+    tarefa_envio_sugestao_horarios,
 )
 
 urlpatterns = [
@@ -246,6 +256,17 @@ urlpatterns = [
     # Configuração Debug Headless (Admin)
     path("api/toggle-debug-headless/", toggle_debug_headless, name="api-toggle-debug-headless"),
     path("api/debug-status/", get_debug_status, name="api-debug-status"),
+
+    ############ Tarefas de Envio WhatsApp (Admin) ###########
+    path("tarefas-envio/", TarefaEnvioListView.as_view(), name="tarefas-envio-lista"),
+    path("tarefas-envio/criar/", TarefaEnvioCreateView.as_view(), name="tarefas-envio-criar"),
+    path("tarefas-envio/<int:pk>/editar/", TarefaEnvioUpdateView.as_view(), name="tarefas-envio-editar"),
+    path("tarefas-envio/<int:pk>/deletar/", TarefaEnvioDeleteView.as_view(), name="tarefas-envio-deletar"),
+    path("tarefas-envio/<int:pk>/historico/", TarefaEnvioHistoricoView.as_view(), name="tarefas-envio-historico"),
+    path("tarefas-envio/<int:pk>/toggle/", tarefa_envio_toggle, name="tarefas-envio-toggle"),
+    path("tarefas-envio/<int:pk>/duplicar/", tarefa_envio_duplicar, name="tarefas-envio-duplicar"),
+    path("tarefas-envio/preview/", tarefa_envio_preview, name="tarefas-envio-preview"),
+    path("tarefas-envio/sugestao-horarios/", tarefa_envio_sugestao_horarios, name="tarefas-envio-sugestao-horarios"),
 
     ########### Tests ###########
     path("teste/", test, name="teste"),
