@@ -158,3 +158,184 @@ class EnvioWhatsAppForm(forms.Form):
         # Aqui poderíamos adicionar outras validações globais se necessário
 
         return cleaned_data
+
+
+class TarefaEnvioForm(forms.ModelForm):
+    """
+    Formulário para criar/editar tarefas de envio de mensagens WhatsApp.
+
+    Campos personalizados:
+    - dias_semana: MultipleChoiceField com checkboxes
+    - horario: TimeInput com widget HTML5
+    - mensagem: Textarea (preenchido via Quill.js no frontend)
+    """
+
+    DIAS_SEMANA_CHOICES = [
+        (0, 'Segunda'),
+        (1, 'Terça'),
+        (2, 'Quarta'),
+        (3, 'Quinta'),
+        (4, 'Sexta'),
+        (5, 'Sábado'),
+        (6, 'Domingo'),
+    ]
+
+    # Lista de UFs brasileiras
+    UF_CHOICES = [
+        ('AC', 'Acre'), ('AL', 'Alagoas'), ('AP', 'Amapá'), ('AM', 'Amazonas'),
+        ('BA', 'Bahia'), ('CE', 'Ceará'), ('DF', 'Distrito Federal'),
+        ('ES', 'Espírito Santo'), ('GO', 'Goiás'), ('MA', 'Maranhão'),
+        ('MT', 'Mato Grosso'), ('MS', 'Mato Grosso do Sul'), ('MG', 'Minas Gerais'),
+        ('PA', 'Pará'), ('PB', 'Paraíba'), ('PR', 'Paraná'), ('PE', 'Pernambuco'),
+        ('PI', 'Piauí'), ('RJ', 'Rio de Janeiro'), ('RN', 'Rio Grande do Norte'),
+        ('RS', 'Rio Grande do Sul'), ('RO', 'Rondônia'), ('RR', 'Roraima'),
+        ('SC', 'Santa Catarina'), ('SP', 'São Paulo'), ('SE', 'Sergipe'), ('TO', 'Tocantins'),
+    ]
+
+    dias_semana = forms.MultipleChoiceField(
+        choices=DIAS_SEMANA_CHOICES,
+        widget=forms.CheckboxSelectMultiple(attrs={
+            'class': 'form-check-input'
+        }),
+        required=True,
+        error_messages={
+            'required': 'Selecione pelo menos um dia da semana'
+        },
+        label='Dias da Semana'
+    )
+
+    filtro_estados = forms.MultipleChoiceField(
+        choices=UF_CHOICES,
+        widget=forms.CheckboxSelectMultiple(attrs={
+            'class': 'form-check-input'
+        }),
+        required=False,
+        label='Filtrar por Estados',
+        help_text='Deixe vazio para enviar para todos os estados'
+    )
+
+    pausado_ate = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(attrs={
+            'class': 'form-control',
+            'type': 'datetime-local'
+        }),
+        label='Pausar Até',
+        help_text='Opcional: data/hora para reativar a tarefa automaticamente'
+    )
+
+    class Meta:
+        from .models import TarefaEnvio
+        model = TarefaEnvio
+        fields = [
+            'nome',
+            'tipo_envio',
+            'dias_semana',
+            'periodo_mes',
+            'horario',
+            'imagem',
+            'mensagem',
+            'filtro_estados',
+            'pausado_ate',
+            'ativo',
+        ]
+        widgets = {
+            'nome': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'placeholder': 'Ex: Promoção de Natal'
+            }),
+            'tipo_envio': forms.Select(attrs={
+                'class': 'form-select form-select-lg'
+            }),
+            'periodo_mes': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'horario': forms.TimeInput(attrs={
+                'class': 'form-control',
+                'type': 'time'
+            }),
+            'mensagem': forms.Textarea(attrs={
+                'class': 'form-control d-none',
+                'rows': 5
+            }),
+            'ativo': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'role': 'switch'
+            }),
+        }
+        labels = {
+            'nome': 'Nome da Tarefa',
+            'tipo_envio': 'Tipo de Envio',
+            'periodo_mes': 'Período do Mês',
+            'horario': 'Horário',
+            'imagem': 'Imagem',
+            'mensagem': 'Mensagem',
+            'ativo': 'Tarefa Ativa',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Se editando, converte dias_semana de list para strings (para o widget)
+        if self.instance and self.instance.pk:
+            if self.instance.dias_semana:
+                self.initial['dias_semana'] = [str(d) for d in self.instance.dias_semana]
+            # Converte filtro_estados para strings (para o widget)
+            if self.instance.filtro_estados:
+                self.initial['filtro_estados'] = self.instance.filtro_estados
+
+    def clean_dias_semana(self):
+        """Converte strings para inteiros."""
+        dias = self.cleaned_data.get('dias_semana', [])
+        return [int(d) for d in dias]
+
+    def clean_imagem(self):
+        """Valida tamanho da imagem (máximo 5MB)."""
+        import logging
+        logger = logging.getLogger(__name__)
+
+        imagem = self.cleaned_data.get('imagem')
+        logger.info(f"TarefaEnvioForm clean_imagem - imagem: {imagem}, type: {type(imagem)}")
+
+        if imagem and hasattr(imagem, 'size'):
+            logger.info(f"TarefaEnvioForm clean_imagem - size: {imagem.size}, name: {imagem.name}")
+            if imagem.size > 5 * 1024 * 1024:  # 5MB
+                raise ValidationError('Imagem muito grande (máximo 5MB)')
+
+        return imagem
+
+    def clean_periodo_mes(self):
+        """Valida que o período do mês foi selecionado."""
+        periodo = self.cleaned_data.get('periodo_mes', '').strip()
+
+        if not periodo:
+            raise ValidationError('Selecione um período do mês')
+
+        return periodo
+
+    def clean_mensagem(self):
+        """Valida que a mensagem não está vazia."""
+        mensagem = self.cleaned_data.get('mensagem', '').strip()
+
+        if not mensagem:
+            raise ValidationError('A mensagem é obrigatória')
+
+        # Remove tags HTML para verificar se há conteúdo real
+        import re
+        texto_limpo = re.sub(r'<[^>]+>', '', mensagem).strip()
+        if not texto_limpo:
+            raise ValidationError('A mensagem não pode estar vazia')
+
+        return mensagem
+
+    def clean(self):
+        """Validação global com logging para debug."""
+        import logging
+        logger = logging.getLogger(__name__)
+
+        cleaned_data = super().clean()
+        logger.info(f"TarefaEnvioForm clean - cleaned_data keys: {list(cleaned_data.keys())}")
+        logger.info(f"TarefaEnvioForm clean - imagem: {cleaned_data.get('imagem')}")
+        logger.info(f"TarefaEnvioForm clean - form errors: {self.errors}")
+
+        return cleaned_data

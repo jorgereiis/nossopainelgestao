@@ -2274,3 +2274,502 @@ class ConfiguracaoAutomacao(models.Model):
         return f"{self.user.username} - {status}"
 
 
+def tarefa_envio_imagem_upload_path(instance, filename):
+    """
+    Gera caminho de upload com UUID para imagens de tarefas de envio.
+    Formato: tarefas_envio/<tipo_envio>/<uuid>.<ext>
+    """
+    ext = filename.split('.')[-1].lower()
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('tarefas_envio', instance.tipo_envio, filename)
+
+
+class TarefaEnvio(models.Model):
+    """
+    Armazena as configurações de tarefas de envio de mensagens WhatsApp.
+    Permite gerenciar envios programados por dia da semana, período do mês e horário.
+    """
+
+    # Choices para tipo de envio
+    TIPO_ENVIO_CHOICES = [
+        ('ativos', 'Clientes Ativos'),
+        ('cancelados', 'Clientes Cancelados'),
+        ('avulso', 'Leads (Avulso)'),
+    ]
+
+    # Choices para período do mês
+    PERIODO_CHOICES = [
+        ('', 'Selecione o período'),
+        ('1-10', 'Dias 1 a 10'),
+        ('11-20', 'Dias 11 a 20'),
+        ('21-31', 'Dias 21 a 31'),
+        ('1-15', 'Primeira quinzena (1-15)'),
+        ('16-31', 'Segunda quinzena (16-31)'),
+        ('todos', 'Todos os dias do mês'),
+    ]
+
+    # Mapeamento de dias da semana (compatível com weekday() do Python)
+    DIAS_SEMANA_MAP = {
+        0: 'Segunda-feira',
+        1: 'Terça-feira',
+        2: 'Quarta-feira',
+        3: 'Quinta-feira',
+        4: 'Sexta-feira',
+        5: 'Sábado',
+        6: 'Domingo',
+    }
+
+    # Campos principais
+    nome = models.CharField(
+        max_length=100,
+        verbose_name='Nome da Tarefa',
+        help_text='Nome identificador da tarefa (ex: "Promoção Natal Ativos")'
+    )
+
+    tipo_envio = models.CharField(
+        max_length=20,
+        choices=TIPO_ENVIO_CHOICES,
+        verbose_name='Tipo de Envio',
+        help_text='Público-alvo do envio'
+    )
+
+    # Dias da semana - armazenado como JSON array [0,1,2,3,4,5,6]
+    dias_semana = models.JSONField(
+        default=list,
+        verbose_name='Dias da Semana',
+        help_text='Lista de dias da semana para execução (0=Segunda, 6=Domingo)'
+    )
+
+    # Período do mês
+    periodo_mes = models.CharField(
+        max_length=10,
+        choices=PERIODO_CHOICES,
+        blank=False,
+        verbose_name='Período do Mês',
+        help_text='Intervalo de dias do mês para execução'
+    )
+
+    # Horário de envio
+    horario = models.TimeField(
+        verbose_name='Horário',
+        help_text='Horário do dia para início dos envios'
+    )
+
+    # Imagem (opcional)
+    imagem = models.ImageField(
+        upload_to=tarefa_envio_imagem_upload_path,
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+        verbose_name='Imagem',
+        help_text='Imagem a ser enviada (opcional). Max 5MB. Formatos: JPG, PNG, GIF, WEBP'
+    )
+
+    # Mensagem com formatação HTML (Quill)
+    mensagem = models.TextField(
+        verbose_name='Mensagem',
+        help_text='Texto da mensagem (suporta negrito e itálico)'
+    )
+
+    # Mensagem em formato plaintext para envio WhatsApp
+    mensagem_plaintext = models.TextField(
+        blank=True,
+        verbose_name='Mensagem (Plaintext)',
+        help_text='Versão plaintext da mensagem com formatação WhatsApp (gerada automaticamente)'
+    )
+
+    # Status e controle
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name='Ativo',
+        help_text='Se desativado, a tarefa não será executada'
+    )
+
+    ultimo_envio = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Último Envio',
+        help_text='Data/hora da última execução'
+    )
+
+    total_envios = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Total de Envios',
+        help_text='Contador total de mensagens enviadas'
+    )
+
+    # Segmentação geográfica
+    filtro_estados = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Filtro por Estados',
+        help_text='Lista de UFs para filtrar clientes (vazio = todos)'
+    )
+
+    filtro_cidades = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Filtro por Cidades',
+        help_text='Lista de cidades para filtrar clientes (vazio = todas)'
+    )
+
+    # Pausa temporária
+    pausado_ate = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Pausado Até',
+        help_text='Data/hora até quando a tarefa está pausada'
+    )
+
+    # Metadados
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='tarefas_envio',
+        verbose_name='Usuário'
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Criado Em'
+    )
+
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Atualizado Em'
+    )
+
+    class Meta:
+        verbose_name = 'Tarefa de Envio'
+        verbose_name_plural = 'Tarefas de Envio'
+        ordering = ['-criado_em']
+        indexes = [
+            models.Index(fields=['usuario', 'tipo_envio', 'ativo'], name='tarefa_usr_tipo_ativo_idx'),
+            models.Index(fields=['ativo', 'horario'], name='tarefa_ativo_horario_idx'),
+        ]
+
+    def __str__(self):
+        status = "✓" if self.ativo else "✗"
+        return f"[{status}] {self.nome} ({self.get_tipo_envio_display()})"
+
+    def get_dias_semana_display(self):
+        """Retorna lista legível dos dias selecionados."""
+        if not self.dias_semana:
+            return []
+        return [self.DIAS_SEMANA_MAP.get(d, '') for d in self.dias_semana if d in self.DIAS_SEMANA_MAP]
+
+    def get_dias_semana_abrev(self):
+        """Retorna lista abreviada dos dias (Seg, Ter, Qua...)."""
+        abrev = {0: 'Seg', 1: 'Ter', 2: 'Qua', 3: 'Qui', 4: 'Sex', 5: 'Sáb', 6: 'Dom'}
+        if not self.dias_semana:
+            return []
+        return [abrev.get(d, '') for d in self.dias_semana if d in abrev]
+
+    def esta_pausada(self):
+        """Verifica se a tarefa está temporariamente pausada."""
+        if self.pausado_ate:
+            return timezone.localtime() < self.pausado_ate
+        return False
+
+    def get_pausado_ate_display(self):
+        """Retorna a data de retorno formatada."""
+        if self.pausado_ate:
+            return self.pausado_ate.strftime('%d/%m/%Y %H:%M')
+        return None
+
+    def deve_executar_hoje(self):
+        """Verifica se a tarefa deve executar no dia atual."""
+        # Verifica se está pausada
+        if self.esta_pausada():
+            return False
+
+        agora = timezone.localtime()
+        dia_semana = agora.weekday()  # 0=segunda, 6=domingo
+        dia_mes = agora.day
+
+        # Verifica dia da semana
+        if dia_semana not in self.dias_semana:
+            return False
+
+        # Verifica período do mês
+        if self.periodo_mes == 'todos':
+            return True
+        elif self.periodo_mes == '1-10':
+            return 1 <= dia_mes <= 10
+        elif self.periodo_mes == '11-20':
+            return 11 <= dia_mes <= 20
+        elif self.periodo_mes == '21-31':
+            return dia_mes >= 21
+        elif self.periodo_mes == '1-15':
+            return 1 <= dia_mes <= 15
+        elif self.periodo_mes == '16-31':
+            return dia_mes >= 16
+
+        return False
+
+    def get_filtro_estados_display(self):
+        """Retorna lista legível dos estados selecionados."""
+        if not self.filtro_estados:
+            return 'Todos'
+        return ', '.join(self.filtro_estados)
+
+    def get_filtro_cidades_display(self):
+        """Retorna lista legível das cidades selecionadas."""
+        if not self.filtro_cidades:
+            return 'Todas'
+        if len(self.filtro_cidades) > 3:
+            return f"{', '.join(self.filtro_cidades[:3])} +{len(self.filtro_cidades) - 3}"
+        return ', '.join(self.filtro_cidades)
+
+    def converter_html_para_whatsapp(self):
+        """
+        Converte formatação HTML (Quill) para formato WhatsApp.
+        <strong>texto</strong> -> *texto*
+        <em>texto</em> -> _texto_
+        """
+        from html import unescape
+
+        texto = self.mensagem
+
+        # Remove tags de parágrafo
+        texto = re.sub(r'<p>', '', texto)
+        texto = re.sub(r'</p>', '\n', texto)
+
+        # Converte negrito
+        texto = re.sub(r'<strong>(.*?)</strong>', r'*\1*', texto)
+        texto = re.sub(r'<b>(.*?)</b>', r'*\1*', texto)
+
+        # Converte itálico
+        texto = re.sub(r'<em>(.*?)</em>', r'_\1_', texto)
+        texto = re.sub(r'<i>(.*?)</i>', r'_\1_', texto)
+
+        # Remove outras tags HTML
+        texto = re.sub(r'<[^>]+>', '', texto)
+
+        # Decodifica entidades HTML
+        texto = unescape(texto)
+
+        # Remove linhas em branco extras
+        texto = re.sub(r'\n{3,}', '\n\n', texto)
+
+        return texto.strip()
+
+    def save(self, *args, **kwargs):
+        # Gera versão plaintext automaticamente
+        if self.mensagem:
+            self.mensagem_plaintext = self.converter_html_para_whatsapp()
+        super().save(*args, **kwargs)
+
+
+class HistoricoExecucaoTarefa(models.Model):
+    """
+    Armazena o histórico de execuções das tarefas de envio.
+    Permite rastrear sucesso, falhas e métricas de cada execução.
+    """
+
+    STATUS_CHOICES = [
+        ('sucesso', 'Sucesso'),
+        ('parcial', 'Parcial'),
+        ('erro', 'Erro'),
+    ]
+
+    tarefa = models.ForeignKey(
+        TarefaEnvio,
+        on_delete=models.CASCADE,
+        related_name='historico',
+        verbose_name='Tarefa'
+    )
+
+    data_execucao = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Data da Execução'
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        verbose_name='Status'
+    )
+
+    quantidade_enviada = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Quantidade Enviada'
+    )
+
+    quantidade_erros = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Quantidade de Erros'
+    )
+
+    detalhes = models.TextField(
+        blank=True,
+        verbose_name='Detalhes',
+        help_text='JSON com detalhes da execução e eventuais erros'
+    )
+
+    duracao_segundos = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Duração (segundos)'
+    )
+
+    class Meta:
+        verbose_name = 'Histórico de Execução'
+        verbose_name_plural = 'Históricos de Execução'
+        ordering = ['-data_execucao']
+        indexes = [
+            models.Index(fields=['tarefa', 'data_execucao'], name='hist_tarefa_data_idx'),
+            models.Index(fields=['status'], name='hist_status_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.tarefa.nome} - {self.data_execucao.strftime('%d/%m/%Y %H:%M')} - {self.get_status_display()}"
+
+    def get_duracao_formatada(self):
+        """Retorna duração formatada (ex: '2m 30s')."""
+        minutos = self.duracao_segundos // 60
+        segundos = self.duracao_segundos % 60
+        if minutos > 0:
+            return f"{minutos}m {segundos}s"
+        return f"{segundos}s"
+
+    def get_taxa_sucesso(self):
+        """Retorna a taxa de sucesso em percentual."""
+        total = self.quantidade_enviada + self.quantidade_erros
+        if total == 0:
+            return 0
+        return round((self.quantidade_enviada / total) * 100, 1)
+
+
+class ConfiguracaoEnvio(models.Model):
+    """
+    Configurações globais de envio de mensagens.
+    Singleton - apenas 1 registro deve existir.
+    """
+    limite_envios_por_execucao = models.PositiveIntegerField(
+        default=100,
+        verbose_name='Limite de Envios por Execução',
+        help_text='Máximo de mensagens enviadas por execução de tarefa'
+    )
+
+    intervalo_entre_mensagens = models.PositiveIntegerField(
+        default=5,
+        verbose_name='Intervalo Entre Mensagens (seg)',
+        help_text='Segundos de espera entre cada mensagem enviada'
+    )
+
+    horario_inicio_permitido = models.TimeField(
+        default='08:00',
+        verbose_name='Horário Início Permitido',
+        help_text='Horário mínimo para iniciar envios'
+    )
+
+    horario_fim_permitido = models.TimeField(
+        default='20:00',
+        verbose_name='Horário Fim Permitido',
+        help_text='Horário máximo para envios'
+    )
+
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Atualizado Em'
+    )
+
+    class Meta:
+        verbose_name = 'Configuração de Envio'
+        verbose_name_plural = 'Configurações de Envio'
+
+    def save(self, *args, **kwargs):
+        # Garante apenas 1 registro (Singleton)
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Impede exclusão do registro singleton
+        pass
+
+    @classmethod
+    def get_config(cls):
+        """Retorna a configuração, criando se não existir."""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"Configurações de Envio (Limite: {self.limite_envios_por_execucao})"
+
+
+class VarianteMensagem(models.Model):
+    """
+    Variantes de mensagem para A/B Testing.
+    Permite testar diferentes mensagens na mesma tarefa.
+    """
+    tarefa = models.ForeignKey(
+        TarefaEnvio,
+        on_delete=models.CASCADE,
+        related_name='variantes',
+        verbose_name='Tarefa'
+    )
+
+    nome = models.CharField(
+        max_length=50,
+        verbose_name='Nome da Variante',
+        help_text='Ex: Variante A, Variante B'
+    )
+
+    imagem = models.ImageField(
+        upload_to='tarefas_envio/variantes/',
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+        verbose_name='Imagem',
+        help_text='Imagem alternativa (opcional)'
+    )
+
+    mensagem = models.TextField(
+        verbose_name='Mensagem',
+        help_text='Texto alternativo da mensagem'
+    )
+
+    mensagem_plaintext = models.TextField(
+        blank=True,
+        verbose_name='Mensagem (Plaintext)',
+        help_text='Versão plaintext gerada automaticamente'
+    )
+
+    peso = models.PositiveIntegerField(
+        default=50,
+        verbose_name='Peso (%)',
+        help_text='Percentual de envios para esta variante (0-100)'
+    )
+
+    # Métricas
+    total_envios = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Total de Envios'
+    )
+
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name='Ativo'
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Criado Em'
+    )
+
+    class Meta:
+        verbose_name = 'Variante de Mensagem'
+        verbose_name_plural = 'Variantes de Mensagem'
+        ordering = ['tarefa', 'nome']
+
+    def __str__(self):
+        return f"{self.tarefa.nome} - {self.nome}"
+
+    def get_taxa_envio(self):
+        """Retorna a taxa de envio desta variante em relação ao total da tarefa."""
+        total_tarefa = self.tarefa.total_envios
+        if total_tarefa == 0:
+            return 0
+        return round((self.total_envios / total_tarefa) * 100, 1)
+
+

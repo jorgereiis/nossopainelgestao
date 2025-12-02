@@ -401,6 +401,116 @@
         }
     }
 
+    /* ========== TOP 5 Estados ========== */
+    .mapa-top5-container {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .mapa-top5-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #1f1b3d;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid rgba(98, 75, 255, 0.15);
+    }
+
+    .mapa-top5-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .mapa-top5-item {
+        padding: 0.6rem 0.75rem;
+        border-radius: 0.5rem;
+        background: rgba(98, 75, 255, 0.04);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .mapa-top5-item:hover,
+    .mapa-top5-item.is-active {
+        background: rgba(98, 75, 255, 0.12);
+        transform: translateX(4px);
+    }
+
+    .mapa-top5-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.4rem;
+    }
+
+    .mapa-top5-name {
+        font-weight: 600;
+        color: #29274b;
+        font-size: 0.85rem;
+    }
+
+    .mapa-top5-stats {
+        font-size: 0.8rem;
+        color: #5d688f;
+    }
+
+    .mapa-top5-stats strong {
+        color: #624bff;
+    }
+
+    /* Barra de progresso */
+    .mapa-top5-bar-bg {
+        height: 6px;
+        background: rgba(98, 75, 255, 0.12);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .mapa-top5-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #624bff, #8b6aff);
+        border-radius: 3px;
+        transition: width 0.4s ease;
+    }
+
+    .mapa-top5-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 200px;
+    }
+
+    /* Responsividade TOP 5 - mobile: lista abaixo do mapa */
+    @media (max-width: 991px) {
+        .mapa-top5-container {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(98, 75, 255, 0.1);
+        }
+
+        .mapa-top5-list {
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .mapa-top5-item {
+            flex: 1 1 calc(50% - 0.5rem);
+            min-width: 140px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .mapa-top5-item {
+            flex: 1 1 100%;
+        }
+    }
+
     @media (max-width: 576px) {
     .dashboard-tabs-surface {
         padding: 0.75rem;

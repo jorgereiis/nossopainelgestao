@@ -17,6 +17,7 @@ from mensagens_wpp import (
     obter_mensalidades_canceladas,
     executar_envios_agendados_com_lock,
     run_scheduled_tasks,
+    run_scheduled_tasks_from_db,
     backup_db_sh,
 )
 from upload_status_wpp import executar_upload_image_from_telegram_com_lock
@@ -184,6 +185,7 @@ schedule.every().day.at("23:50").do(run_threaded_sync, executar_upload_image_fro
 # Jobs em frequência curta:
 schedule.every(60).minutes.do(run_threaded_sync, backup_db_sh).tag("backup_db")
 schedule.every(1).minutes.do(run_threaded_sync_nolog, executar_envios_agendados_com_lock).tag("envios_agendados")
+schedule.every(1).minutes.do(run_threaded_sync_nolog, run_scheduled_tasks_from_db).tag("tarefas_envio_db")
 
 # --------------- Verificação de Lock de Instância Única ---------------
 if not acquire_scheduler_lock():

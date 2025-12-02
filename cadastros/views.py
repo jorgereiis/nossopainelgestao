@@ -7562,3 +7562,416 @@ def get_debug_status(request):
             'success': False,
             'erro': f'Erro ao consultar status: {str(e)}'
         }, status=500)
+
+
+# ============================================================
+# VIEWS - TAREFAS DE ENVIO WHATSAPP
+# ============================================================
+
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.urls import reverse_lazy
+from .models import TarefaEnvio, HistoricoExecucaoTarefa
+from .forms import TarefaEnvioForm
+
+
+class TarefaEnvioListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    """Lista todas as tarefas de envio do usuário."""
+    model = TarefaEnvio
+    template_name = 'tarefas_envio/lista.html'
+    context_object_name = 'tarefas'
+    paginate_by = 10
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def get_queryset(self):
+        return TarefaEnvio.objects.filter(
+            usuario=self.request.user
+        ).order_by('-criado_em')
+
+    def get_context_data(self, **kwargs):
+        from .models import HistoricoExecucaoTarefa
+        from django.utils import timezone
+        from django.db.models import Avg
+
+        context = super().get_context_data(**kwargs)
+        qs = TarefaEnvio.objects.filter(usuario=self.request.user)
+        context['total_ativas'] = qs.filter(ativo=True).count()
+        context['total_inativas'] = qs.filter(ativo=False).count()
+        context['total_envios'] = qs.aggregate(total=Sum('total_envios'))['total'] or 0
+
+        # Novas métricas
+        agora = timezone.localtime()
+        context['total_pausadas'] = qs.filter(pausado_ate__gt=agora).count()
+
+        # Taxa de sucesso dos últimos 30 dias
+        data_30_dias = agora - timezone.timedelta(days=30)
+        historico_recente = HistoricoExecucaoTarefa.objects.filter(
+            tarefa__usuario=self.request.user,
+            data_execucao__gte=data_30_dias
+        )
+        total_execucoes = historico_recente.count()
+        if total_execucoes > 0:
+            sucesso_count = historico_recente.filter(status='sucesso').count()
+            context['taxa_sucesso'] = round((sucesso_count / total_execucoes) * 100, 1)
+        else:
+            context['taxa_sucesso'] = None
+
+        # Média de envios por execução
+        media_envios = historico_recente.aggregate(media=Avg('quantidade_enviada'))['media']
+        context['media_envios_execucao'] = round(media_envios, 1) if media_envios else 0
+
+        # Próxima tarefa a executar (hoje, baseado no horário)
+        tarefas_ativas = qs.filter(ativo=True, pausado_ate__isnull=True) | qs.filter(ativo=True, pausado_ate__lte=agora)
+        proxima_tarefa = None
+        for tarefa in tarefas_ativas.order_by('horario'):
+            if tarefa.deve_executar_hoje() and tarefa.horario > agora.time():
+                proxima_tarefa = tarefa
+                break
+        context['proxima_tarefa'] = proxima_tarefa
+
+        context['page'] = 'tarefas-envio'
+        context['page_group'] = 'admin'
+        return context
+
+
+class TarefaEnvioCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    """Cria uma nova tarefa de envio."""
+    model = TarefaEnvio
+    form_class = TarefaEnvioForm
+    template_name = 'tarefas_envio/form.html'
+    success_url = reverse_lazy('tarefas-envio-lista')
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def post(self, request, *args, **kwargs):
+        """Log do POST antes de processar o form."""
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # IMPORTANTE: CreateView precisa definir self.object = None antes de processar o form
+        self.object = None
+
+        logger.info(f"TarefaEnvioCreateView POST - FILES: {request.FILES}")
+        logger.info(f"TarefaEnvioCreateView POST - FILES keys: {list(request.FILES.keys())}")
+        logger.info(f"TarefaEnvioCreateView POST - POST keys: {list(request.POST.keys())}")
+        logger.info(f"TarefaEnvioCreateView POST - content_type: {request.content_type}")
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"TarefaEnvioCreateView form_valid - FILES: {self.request.FILES}")
+        logger.info(f"TarefaEnvioCreateView form_valid - imagem in cleaned_data: {form.cleaned_data.get('imagem')}")
+        form.instance.usuario = self.request.user
+
+        try:
+            response = super().form_valid(form)
+            logger.info(f"TarefaEnvioCreateView - tarefa salva com sucesso, ID: {self.object.id}")
+            messages.success(self.request, 'Tarefa de envio criada com sucesso!')
+            return response
+        except Exception as e:
+            logger.error(f"TarefaEnvioCreateView - erro ao salvar: {e}", exc_info=True)
+            messages.error(self.request, f'Erro ao salvar tarefa: {e}')
+            return self.form_invalid(form)
+
+    def form_invalid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"TarefaEnvioCreateView form_invalid - errors: {form.errors}")
+        logger.warning(f"TarefaEnvioCreateView form_invalid - FILES: {self.request.FILES}")
+        logger.warning(f"TarefaEnvioCreateView form_invalid - POST: {self.request.POST}")
+        messages.error(self.request, f'Erro ao criar tarefa: {form.errors}')
+        return super().form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Nova Tarefa de Envio'
+        context['botao_submit'] = 'Criar Tarefa'
+        context['page'] = 'tarefas-envio'
+        context['page_group'] = 'admin'
+        return context
+
+
+class TarefaEnvioUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    """Edita uma tarefa de envio existente."""
+    model = TarefaEnvio
+    form_class = TarefaEnvioForm
+    template_name = 'tarefas_envio/form.html'
+    success_url = reverse_lazy('tarefas-envio-lista')
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def get_queryset(self):
+        return TarefaEnvio.objects.filter(usuario=self.request.user)
+
+    def post(self, request, *args, **kwargs):
+        """Log do POST antes de processar o form."""
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # IMPORTANTE: UpdateView precisa definir self.object antes de processar o form
+        self.object = self.get_object()
+
+        logger.info(f"TarefaEnvioUpdateView POST - FILES: {request.FILES}")
+        logger.info(f"TarefaEnvioUpdateView POST - FILES keys: {list(request.FILES.keys())}")
+        logger.info(f"TarefaEnvioUpdateView POST - content_type: {request.content_type}")
+        logger.info(f"TarefaEnvioUpdateView POST - object.imagem: {self.object.imagem}")
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"TarefaEnvioUpdateView form_valid - FILES: {self.request.FILES}")
+        logger.info(f"TarefaEnvioUpdateView form_valid - imagem in cleaned_data: {form.cleaned_data.get('imagem')}")
+        logger.info(f"TarefaEnvioUpdateView form_valid - form.instance.imagem: {form.instance.imagem}")
+
+        # Trata remoção de imagem (checkbox imagem-clear)
+        if self.request.POST.get('imagem-clear') == 'true':
+            logger.info("TarefaEnvioUpdateView - removendo imagem atual")
+            form.instance.imagem = None
+
+        try:
+            response = super().form_valid(form)
+            logger.info(f"TarefaEnvioUpdateView - tarefa atualizada com sucesso, ID: {self.object.id}")
+            messages.success(self.request, 'Tarefa de envio atualizada com sucesso!')
+            return response
+        except Exception as e:
+            logger.error(f"TarefaEnvioUpdateView - erro ao salvar: {e}", exc_info=True)
+            messages.error(self.request, f'Erro ao salvar tarefa: {e}')
+            return self.form_invalid(form)
+
+    def form_invalid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"TarefaEnvioUpdateView form_invalid - errors: {form.errors}")
+        logger.warning(f"TarefaEnvioUpdateView form_invalid - FILES: {self.request.FILES}")
+        logger.warning(f"TarefaEnvioUpdateView form_invalid - POST keys: {list(self.request.POST.keys())}")
+        messages.error(self.request, f'Erro ao atualizar tarefa: {form.errors}')
+        return super().form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Editar Tarefa de Envio'
+        context['botao_submit'] = 'Salvar Alterações'
+        context['editando'] = True
+        context['page'] = 'tarefas-envio'
+        context['page_group'] = 'admin'
+        return context
+
+
+class TarefaEnvioDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    """Deleta uma tarefa de envio."""
+    model = TarefaEnvio
+    success_url = reverse_lazy('tarefas-envio-lista')
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def get_queryset(self):
+        return TarefaEnvio.objects.filter(usuario=self.request.user)
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        nome = self.object.nome
+        self.object.delete()
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': f'Tarefa "{nome}" excluída com sucesso'
+            })
+
+        messages.success(request, f'Tarefa "{nome}" excluída com sucesso!')
+        return redirect(self.success_url)
+
+
+@login_required
+@require_POST
+def tarefa_envio_toggle(request, pk):
+    """Alterna o status ativo/inativo de uma tarefa via AJAX."""
+    if not request.user.is_superuser:
+        return JsonResponse({
+            'success': False,
+            'error': 'Permissão negada'
+        }, status=403)
+
+    tarefa = get_object_or_404(TarefaEnvio, pk=pk, usuario=request.user)
+    tarefa.ativo = not tarefa.ativo
+    tarefa.save(update_fields=['ativo'])
+
+    return JsonResponse({
+        'success': True,
+        'ativo': tarefa.ativo,
+        'message': f'Tarefa {"ativada" if tarefa.ativo else "desativada"} com sucesso'
+    })
+
+
+@login_required
+@require_POST
+def tarefa_envio_duplicar(request, pk):
+    """Duplica uma tarefa de envio existente."""
+    if not request.user.is_superuser:
+        return JsonResponse({
+            'success': False,
+            'error': 'Permissão negada'
+        }, status=403)
+
+    tarefa = get_object_or_404(TarefaEnvio, pk=pk, usuario=request.user)
+
+    # Cria cópia da tarefa
+    nova_tarefa = TarefaEnvio.objects.create(
+        nome=f"[Cópia] {tarefa.nome}",
+        tipo_envio=tarefa.tipo_envio,
+        dias_semana=tarefa.dias_semana,
+        periodo_mes=tarefa.periodo_mes,
+        horario=tarefa.horario,
+        imagem=tarefa.imagem,
+        mensagem=tarefa.mensagem,
+        mensagem_plaintext=tarefa.mensagem_plaintext,
+        filtro_estados=tarefa.filtro_estados,
+        filtro_cidades=tarefa.filtro_cidades,
+        ativo=False,  # Começa inativa
+        usuario=request.user,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Tarefa duplicada: "{nova_tarefa.nome}"',
+        'id': nova_tarefa.id
+    })
+
+
+@login_required
+@require_POST
+def tarefa_envio_preview(request):
+    """Retorna preview da mensagem convertida para WhatsApp."""
+    if not request.user.is_superuser:
+        return JsonResponse({
+            'success': False,
+            'error': 'Permissão negada'
+        }, status=403)
+
+    html_content = request.POST.get('mensagem', '')
+
+    # Cria instância temporária para usar o método de conversão
+    tarefa_temp = TarefaEnvio(mensagem=html_content)
+    preview = tarefa_temp.converter_html_para_whatsapp()
+
+    return JsonResponse({
+        'success': True,
+        'preview': preview
+    })
+
+
+@login_required
+def tarefa_envio_sugestao_horarios(request):
+    """
+    Analisa o histórico de execuções e sugere os melhores horários.
+    Baseado na taxa de sucesso por faixa horária.
+    """
+    from django.db.models import Count, Case, When, FloatField
+    from django.db.models.functions import ExtractHour
+
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
+
+    # Busca histórico dos últimos 90 dias
+    data_limite = timezone.localtime() - timezone.timedelta(days=90)
+    historico = HistoricoExecucaoTarefa.objects.filter(
+        tarefa__usuario=request.user,
+        data_execucao__gte=data_limite
+    ).annotate(
+        hora=ExtractHour('data_execucao')
+    )
+
+    # Agrupa por hora e calcula taxa de sucesso
+    stats_por_hora = {}
+    for h in range(6, 22):  # 6h às 21h
+        registros = historico.filter(hora=h)
+        total = registros.count()
+        if total > 0:
+            sucesso = registros.filter(status='sucesso').count()
+            media_envios = registros.aggregate(
+                media=Avg('quantidade_enviada')
+            )['media'] or 0
+            stats_por_hora[h] = {
+                'hora': f"{h:02d}:00",
+                'total_execucoes': total,
+                'taxa_sucesso': round((sucesso / total) * 100, 1),
+                'media_envios': round(media_envios, 1)
+            }
+
+    # Ordena por taxa de sucesso e média de envios
+    if stats_por_hora:
+        melhores_horarios = sorted(
+            stats_por_hora.items(),
+            key=lambda x: (x[1]['taxa_sucesso'], x[1]['media_envios']),
+            reverse=True
+        )[:5]
+        sugestoes = [
+            {
+                'horario': item[1]['hora'],
+                'motivo': f"Taxa de sucesso: {item[1]['taxa_sucesso']}% | Média: {item[1]['media_envios']} envios"
+            }
+            for item in melhores_horarios
+        ]
+    else:
+        # Horários sugeridos padrão (sem histórico)
+        sugestoes = [
+            {'horario': '09:00', 'motivo': 'Horário comercial - início do expediente'},
+            {'horario': '14:00', 'motivo': 'Horário comercial - após almoço'},
+            {'horario': '17:00', 'motivo': 'Horário comercial - final do dia'},
+        ]
+
+    return JsonResponse({
+        'success': True,
+        'sugestoes': sugestoes,
+        'baseado_em_dados': len(stats_por_hora) > 0
+    })
+
+
+class TarefaEnvioHistoricoView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    """Exibe o histórico de execuções de uma tarefa."""
+    model = HistoricoExecucaoTarefa
+    template_name = 'tarefas_envio/historico.html'
+    context_object_name = 'historicos'
+    paginate_by = 20
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def get_queryset(self):
+        self.tarefa = get_object_or_404(
+            TarefaEnvio,
+            pk=self.kwargs['pk'],
+            usuario=self.request.user
+        )
+        return HistoricoExecucaoTarefa.objects.filter(
+            tarefa=self.tarefa
+        ).order_by('-data_execucao')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['tarefa'] = self.tarefa
+
+        # Estatísticas
+        historicos = HistoricoExecucaoTarefa.objects.filter(tarefa=self.tarefa)
+        context['total_execucoes'] = historicos.count()
+        context['total_sucesso'] = historicos.filter(status='sucesso').count()
+        context['total_parcial'] = historicos.filter(status='parcial').count()
+        context['total_erro'] = historicos.filter(status='erro').count()
+
+        # Taxa de sucesso
+        if context['total_execucoes'] > 0:
+            context['taxa_sucesso'] = round(
+                (context['total_sucesso'] / context['total_execucoes']) * 100, 1
+            )
+        else:
+            context['taxa_sucesso'] = 0
+
+        context['page'] = 'tarefas-envio'
+        context['page_group'] = 'admin'
+        return context

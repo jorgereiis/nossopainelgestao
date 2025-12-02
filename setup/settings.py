@@ -257,6 +257,10 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
         'file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': str(BASE_LOG_DIR / 'error.log'),
@@ -289,6 +293,21 @@ LOGGING = {
         'django.request': {
             'handlers': ['file'],
             'level': 'INFO',
+            'propagate': False,
+        },
+        'cadastros': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'cadastros.views': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'cadastros.forms': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
             'propagate': False,
         },
         'axes': {
