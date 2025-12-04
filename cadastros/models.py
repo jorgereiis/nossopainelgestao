@@ -201,7 +201,10 @@ class ServidorImagem(models.Model):
 
 
 class Tipos_pgto(models.Model):
-    """Define os tipos de pagamento disponíveis para o cliente."""
+    """
+    Define os tipos de pagamento disponíveis para o cliente.
+    Para PIX, pode estar associado a uma conta bancária específica.
+    """
     PIX = "PIX"
     CARTAO = "Cartão de Crédito"
     BOLETO = "Boleto"
@@ -211,12 +214,44 @@ class Tipos_pgto(models.Model):
     nome = models.CharField(max_length=255, choices=CHOICES, default=PIX)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
+    # Conta bancária associada (obrigatório para PIX)
+    conta_bancaria = models.ForeignKey(
+        'ContaBancaria',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='formas_pagamento',
+        verbose_name="Conta Bancária",
+        help_text="Conta bancária para recebimento (obrigatório para PIX)"
+    )
+
     class Meta:
         verbose_name = "Tipo de Pagamento"
         verbose_name_plural = "Tipos de Pagamentos"
+        # Permite múltiplos PIX com diferentes contas
+        unique_together = [['usuario', 'nome', 'conta_bancaria']]
 
     def __str__(self):
+        if self.nome == self.PIX and self.conta_bancaria:
+            return f"{self.nome} - {self.conta_bancaria.nome_identificacao}"
         return self.nome
+
+    def clean(self):
+        """Validações customizadas."""
+        from django.core.exceptions import ValidationError
+
+        # PIX deve ter conta bancária associada
+        if self.nome == self.PIX and not self.conta_bancaria:
+            raise ValidationError({
+                'conta_bancaria': 'Formas de pagamento PIX devem ter uma conta bancária associada.'
+            })
+
+    @property
+    def tem_integracao_api(self):
+        """Verifica se tem integração com API de pagamento."""
+        if self.conta_bancaria:
+            return self.conta_bancaria.tem_integracao_api
+        return False
 
 
 class Dispositivo(models.Model):
@@ -454,6 +489,48 @@ class Plano(models.Model):
     )
     campanha_valor_mes_6 = models.DecimalField(
         "Campanha - Valor Mês 6",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_7 = models.DecimalField(
+        "Campanha - Valor Mês 7",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_8 = models.DecimalField(
+        "Campanha - Valor Mês 8",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_9 = models.DecimalField(
+        "Campanha - Valor Mês 9",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_10 = models.DecimalField(
+        "Campanha - Valor Mês 10",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_11 = models.DecimalField(
+        "Campanha - Valor Mês 11",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_12 = models.DecimalField(
+        "Campanha - Valor Mês 12",
         max_digits=7,
         decimal_places=2,
         null=True,
@@ -1339,6 +1416,252 @@ class DadosBancarios(models.Model):
 
     def __str__(self) -> str:
         return f'{self.usuario.first_name} {self.usuario.last_name}'
+
+
+# ============================================================================
+# MODELOS DE INTEGRAÇÃO BANCÁRIA (PIX, Boleto, Cartão)
+# ============================================================================
+
+def certificado_upload_path(instance, filename):
+    """
+    Gera caminho de upload seguro para certificados bancários.
+    Formato: certificados/<user_id>/<uuid>.<ext>
+    """
+    ext = filename.split('.')[-1].lower()
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('certificados', str(instance.usuario.id), filename)
+
+
+class InstituicaoBancaria(models.Model):
+    """
+    Cadastro de instituições bancárias pelo Admin.
+    Apenas Efi Bank e Mercado Pago terão integração com API.
+    Outras instituições funcionam no modo manual (sem geração automática de link).
+    """
+    TIPO_INTEGRACAO = [
+        ('efi_bank', 'Efi Bank (API)'),
+        ('mercado_pago', 'Mercado Pago (API)'),
+        ('manual', 'Manual (sem API)'),
+    ]
+
+    nome = models.CharField(max_length=255, unique=True, verbose_name="Nome da Instituição")
+    tipo_integracao = models.CharField(
+        max_length=20,
+        choices=TIPO_INTEGRACAO,
+        default='manual',
+        verbose_name="Tipo de Integração"
+    )
+    ativo = models.BooleanField(default=True, verbose_name="Ativo")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Instituição Bancária"
+        verbose_name_plural = "Instituições Bancárias"
+        ordering = ['nome']
+
+    def __str__(self):
+        return f"{self.nome} ({self.get_tipo_integracao_display()})"
+
+    @property
+    def tem_api(self):
+        """Verifica se a instituição tem integração com API."""
+        return self.tipo_integracao in ['efi_bank', 'mercado_pago']
+
+
+class ContaBancaria(models.Model):
+    """
+    Conta bancária do usuário em uma instituição.
+    Pode ser PF (Pessoa Física) ou MEI com limite de recebimento mensal.
+    """
+    TIPO_CONTA = [
+        ('pf', 'Pessoa Física'),
+        ('mei', 'MEI'),
+    ]
+
+    TIPO_CHAVE_PIX = [
+        ('cpf', 'CPF'),
+        ('cnpj', 'CNPJ'),
+        ('email', 'E-mail'),
+        ('celular', 'Celular'),
+        ('aleatoria', 'Chave Aleatória'),
+    ]
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='contas_bancarias'
+    )
+    instituicao = models.ForeignKey(
+        InstituicaoBancaria,
+        on_delete=models.PROTECT,
+        verbose_name="Instituição"
+    )
+
+    # Identificação da conta
+    nome_identificacao = models.CharField(
+        max_length=100,
+        verbose_name="Nome de Identificação",
+        help_text="Ex: Minha conta Efi Principal"
+    )
+    tipo_conta = models.CharField(
+        max_length=10,
+        choices=TIPO_CONTA,
+        default='pf',
+        verbose_name="Tipo de Conta"
+    )
+
+    # Dados bancários
+    beneficiario = models.CharField(max_length=255, verbose_name="Beneficiário")
+    tipo_chave_pix = models.CharField(
+        max_length=50,
+        choices=TIPO_CHAVE_PIX,
+        verbose_name="Tipo de Chave PIX"
+    )
+    chave_pix = models.CharField(max_length=255, verbose_name="Chave PIX")
+
+    # Credenciais API (apenas para Efi Bank e Mercado Pago)
+    api_client_id = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Client ID",
+        help_text="Credencial da API (Efi Bank ou Mercado Pago)"
+    )
+    api_client_secret = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Client Secret",
+        help_text="Será armazenado de forma segura"
+    )
+    api_certificado = models.FileField(
+        upload_to=certificado_upload_path,
+        blank=True,
+        null=True,
+        verbose_name="Certificado (.p12)",
+        help_text="Obrigatório para Efi Bank"
+    )
+    api_access_token = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name="Access Token",
+        help_text="Obrigatório para Mercado Pago"
+    )
+    ambiente_sandbox = models.BooleanField(
+        default=True,
+        verbose_name="Ambiente Sandbox",
+        help_text="Marque para usar ambiente de testes"
+    )
+
+    # Controle MEI - limite de recebimento
+    limite_mensal = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Limite Mensal (R$)",
+        help_text="Limite de recebimento mensal para contas MEI"
+    )
+
+    ativo = models.BooleanField(default=True, verbose_name="Ativo")
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Conta Bancária"
+        verbose_name_plural = "Contas Bancárias"
+        # Impede mesma chave PIX duplicada para o mesmo usuário
+        unique_together = [['usuario', 'chave_pix']]
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        tipo = "MEI" if self.tipo_conta == 'mei' else "PF"
+        return f"{self.nome_identificacao} ({self.instituicao.nome} - {tipo})"
+
+    @property
+    def limite_efetivo(self):
+        """
+        Retorna o limite efetivo com 10% de margem de segurança.
+        Ex: Se limite_mensal = R$ 10.000, limite_efetivo = R$ 9.000
+        """
+        if self.limite_mensal:
+            return self.limite_mensal * Decimal('0.90')
+        return None
+
+    @property
+    def tem_integracao_api(self):
+        """Verifica se a conta tem integração com API."""
+        return self.instituicao.tipo_integracao in ['efi_bank', 'mercado_pago']
+
+    @property
+    def is_mei(self):
+        """Verifica se é conta MEI."""
+        return self.tipo_conta == 'mei'
+
+    def get_clientes_associados_count(self):
+        """Retorna a quantidade de clientes associados a esta conta."""
+        return self.clientecontabancaria_set.count()
+
+    def clean(self):
+        """Validações customizadas."""
+        # MEI deve ter limite definido
+        if self.tipo_conta == 'mei' and not self.limite_mensal:
+            raise ValidationError({
+                'limite_mensal': 'Contas MEI devem ter um limite mensal definido.'
+            })
+
+        # Efi Bank deve ter certificado
+        if (self.instituicao and
+            self.instituicao.tipo_integracao == 'efi_bank' and
+            not self.api_certificado and
+            self.api_client_id):
+            raise ValidationError({
+                'api_certificado': 'Certificado é obrigatório para Efi Bank.'
+            })
+
+        # Mercado Pago deve ter access token
+        if (self.instituicao and
+            self.instituicao.tipo_integracao == 'mercado_pago' and
+            not self.api_access_token and
+            self.api_client_id):
+            raise ValidationError({
+                'api_access_token': 'Access Token é obrigatório para Mercado Pago.'
+            })
+
+
+class ClienteContaBancaria(models.Model):
+    """
+    Associação de clientes a contas bancárias.
+    Necessário para contas MEI que têm limite de recebimento.
+    Clientes associados a uma conta MEI terão suas cobranças direcionadas para ela.
+    """
+    cliente = models.ForeignKey(
+        'Cliente',
+        on_delete=models.CASCADE,
+        related_name='contas_bancarias_associadas'
+    )
+    conta_bancaria = models.ForeignKey(
+        ContaBancaria,
+        on_delete=models.CASCADE,
+        related_name='clientes_associados'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Cliente - Conta Bancária"
+        verbose_name_plural = "Clientes - Contas Bancárias"
+        unique_together = [['cliente', 'conta_bancaria']]
+
+    def __str__(self):
+        return f"{self.cliente.nome} → {self.conta_bancaria.nome_identificacao}"
+
+    def clean(self):
+        """Validações customizadas."""
+        # Verificar se o limite da conta MEI foi atingido
+        if self.conta_bancaria.is_mei:
+            limite = self.conta_bancaria.limite_efetivo
+            if limite:
+                # Aqui poderia verificar total de mensalidades do mês
+                # Por enquanto, apenas valida se tem limite definido
+                pass
 
 
 def avatar_upload_path(instance, filename):

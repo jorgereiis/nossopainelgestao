@@ -28,6 +28,7 @@ logs/Reseller/debug_screenshots
 .claude
 dashui*
 web.whatsapp.com
+Docker/*
 
 # Docker - IGNORAR apenas dados sensíveis, NÃO arquivos de configuração
 docker/**/.env
@@ -41,6 +42,7 @@ docker/**/staticfiles/
 docker/**/database/*.sqlite3
 docker/**/*.sql
 docker/**/*.sql.gz
+docker/**/monitor*
 
 # MySQL backups (dumps contêm dados sensíveis)
 backups_mysql/

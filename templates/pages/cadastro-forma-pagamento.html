@@ -5,7 +5,7 @@
 
 <head>
   {% include 'partials/head.html' %}
-  <title>Formas de Pagamento | Nosso Painel - Gestão IPTV</title>
+  <title>Formas de Pagamento | Nosso Painel - Gestao IPTV</title>
 </head>
 
 <body class="bg-light">
@@ -30,7 +30,7 @@
             <div class="col-xl-4 col-lg-4 col-md-12 col-12">
               <div class="mb-4 mb-lg-0">
                 <h4 class="mb-1">Crie aqui as Formas de Pagamento</h4>
-                <p class="mb-0 fs-5 text-muted">Atualmente o sistema só dispõe de 3 opções como formas de pagamento.</p>
+                <p class="mb-0 fs-5 text-muted">Atualmente o sistema so dispoe de 3 opcoes como formas de pagamento.</p>
               </div>
 
             </div>
@@ -43,7 +43,7 @@
                   <div class="mb-4 pb-3 border-bottom">
                     <h4 class="mb-1 fw-bold d-flex align-items-center">
                       <i class="bi bi-plus-circle-fill text-primary me-2"></i>
-                      Formulário de cadastro
+                      Formulario de cadastro
                     </h4>
                     <small class="text-muted">Preencha os campos abaixo</small>
                   </div>
@@ -56,21 +56,37 @@
                         <i class="bi bi-wallet2 text-success me-2"></i>Forma de Pagamento
                       </label>
                       <select class="form-select form-select-lg" id="nome" name="nome">
-                        <option value="" selected disabled>Selecione uma opção</option>
+                        <option value="" selected disabled>Selecione uma opcao</option>
                         <option value="PIX">PIX</option>
-                        <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        <option value="Cartao de Credito">Cartao de Credito</option>
                         <option value="Boleto">Boleto</option>
                       </select>
-                      <small class="text-muted">Método de pagamento aceito</small>
+                      <small class="text-muted">Metodo de pagamento aceito</small>
                     </div>
 
                     <div class="d-grid gap-2 mt-4">
-                      <button type="submit" class="btn btn-primary btn-lg" name="cadastrar">
+                      <button type="submit" class="btn btn-primary btn-lg btn-loading-ready" name="cadastrar" id="btn-cadastrar">
                         <i class="bi bi-check-circle me-2"></i>Cadastrar Forma de Pagamento
                       </button>
                     </div>
                 </div>
                 </form>
+
+                <script>
+                  (function() {
+                    var form = document.querySelector('.cadastro-form-card form');
+                    var btn = document.getElementById('btn-cadastrar');
+                    if (form && btn) {
+                      form.addEventListener('submit', function() {
+                        if (btn.disabled) return;
+                        setButtonLoading(btn, true);
+                      });
+                      window.addEventListener('pageshow', function(e) {
+                        if (e.persisted) setButtonLoading(btn, false, '<i class="bi bi-check-circle me-2"></i>Cadastrar Forma de Pagamento');
+                      });
+                    }
+                  })();
+                </script>
               </div>
             </div>
           </div>
@@ -84,13 +100,13 @@
             </div>
             <br>
 
-            <!-- Modal de confirmação de exclusão -->
+            <!-- Modal de confirmacao de exclusao -->
             <div class="modal fade" id="confirm-delete-modal" tabindex="-1" role="dialog"
               aria-labelledby="confirm-delete-label">
               <div class="modal-dialog" role="document">
                 <div class="modal-content">
                   <div class="modal-header">
-                    <h4 class="modal-title" id="confirm-delete-label">Confirmar exclusão</h4>
+                    <h4 class="modal-title" id="confirm-delete-label">Confirmar exclusao</h4>
                     <button type="button" class="btn-close" data-dismiss="modal" aria-label="Fechar">
                     </button>
                   </div>
@@ -118,12 +134,12 @@
                     <thead class="table-light">
                       <tr>
                         <th class="fw-bold text-start ps-4" style="min-width: 200px;">Forma de Pagamento</th>
-                        <th class="fw-bold text-center" style="width: 80px;">Ações</th>
+                        <th class="fw-bold text-center" style="width: 80px;">Acoes</th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for forma_pgto in formas_pgto %}
-                      <!-- COMEÇO DA LINHA -->
+                      <!-- COMECO DA LINHA -->
                       <tr>
                         <td class="ps-4">
                           <div class="d-flex align-items-center">
@@ -147,7 +163,7 @@
                                 {{forma_pgto.nome}}
                               </h6>
                               <small class="text-muted d-block" style="font-size: 0.75rem;">
-                                <i class="bi bi-wallet2 me-1"></i>Método de pagamento
+                                <i class="bi bi-wallet2 me-1"></i>Metodo de pagamento
                               </small>
                             </div>
                           </div>
@@ -179,7 +195,7 @@
                           </div>
                         </td>
                       </tr>
-                      <!-- TÉRMINO DA LINHA -->
+                      <!-- TERMINO DA LINHA -->
                       {% endfor %}
                     </tbody>
                   </table>
@@ -200,7 +216,7 @@
       <!-- Modais Globais -->
       {% include 'partials/modais_globais.html' %}
 
-      <!-- Offcanvas de Configurações -->
+      <!-- Offcanvas de Configuracoes -->
       {% include 'partials/offcanvas_configuracoes.html' %}
 
       {% include 'partials/footer.html' %}
@@ -274,14 +290,14 @@
     $('#confirm-delete-modal #formapgto-nome').text(formapgto_nome);
     $('#confirm-delete-modal').modal('show');
 
-    // Ouve o envio do formulário
+    // Ouve o envio do formulario
     $('#delete-form').on('submit', function (event) {
-      event.preventDefault(); // Impede o envio padrão do formulário
+      event.preventDefault(); // Impede o envio padrao do formulario
 
-      // Obtém o ID do servidor a ser excluído
+      // Obtem o ID do servidor a ser excluido
       var formapgto_id = $('#formapgto-id').val();
 
-      // Faz a solicitação DELETE para a URL apropriada
+      // Faz a solicitacao DELETE para a URL apropriada
       $.ajax({
         url: '/deletar-formapgto/' + formapgto_id + '/',
         method: 'DELETE',
@@ -289,12 +305,12 @@
           xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
         },
         success: function (response) {
-          // Fecha o modal e recarrega a página
+          // Fecha o modal e recarrega a pagina
           $('#confirm-delete-modal').modal('hide');
           window.location.reload();
         },
         error: function (response) {
-          // Lida com o erro de exclusão
+          // Lida com o erro de exclusao
           var mensagem_erro = response.responseJSON.error_delete;
           $('#mensagem-erro').text(mensagem_erro);
         }

@@ -22,6 +22,28 @@ const fireAlert = (options) => {
     return Promise.resolve();
 };
 
+/**
+ * Ativa/desativa efeito de loading (bolinhas ondulares) em botão
+ * @param {HTMLElement} btn - Elemento do botão
+ * @param {boolean} loading - true para ativar loading, false para desativar
+ * @param {string} originalHTML - HTML original do botão (para restaurar)
+ */
+function setButtonLoading(btn, loading, originalHTML) {
+    if (!btn) return;
+
+    if (loading) {
+        btn.disabled = true;
+        btn.dataset.originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+    } else {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML || btn.dataset.originalHtml || 'Salvar';
+    }
+}
+
+// Expor globalmente para uso em outros scripts
+window.setButtonLoading = setButtonLoading;
+
 const eyeIcon = document.getElementById("eye");
 const values1_h1 = document.querySelectorAll(".values1_h1");
 const values1_span = document.querySelectorAll(".values1_span");
@@ -205,8 +227,9 @@ if (eyeIcon) {
         // Ouve o envio do formulário
         $('#cancelamento-form').off('submit').on('submit', function (event) {
             event.preventDefault(); // Impede o envio padrão do formulário
-            var $btn = $('.btn-confirmar-acao');
-            $btn.prop('disabled', true);
+            var btn = document.querySelector('#confirm-cancelamento-modal .btn-confirmar-acao');
+            var originalHTML = '<i class="bi bi-x-circle me-1"></i>Cancelar cliente';
+            setButtonLoading(btn, true);
 
             // Obtém o ID do cliente a ser cancelado
             var cliente_id = $('#cancelamento-cliente-id').val();
@@ -221,7 +244,7 @@ if (eyeIcon) {
                     }
                 },
                 success: function (response) {
-                    $btn.prop('disabled', false);
+                    setButtonLoading(btn, false, originalHTML);
 
                     // Verifica se a resposta contém a chave 'success_message_cancel'
                     if ('success_message_cancel' in response) {
@@ -252,7 +275,7 @@ if (eyeIcon) {
                     }
                 },
                 error: function (response) {
-                    $btn.prop('disabled', false);
+                    setButtonLoading(btn, false, originalHTML);
 
                     // Fecha o modal e exibe mensagem de erro
                     $('#confirm-cancelamento-modal').modal('hide');
@@ -283,8 +306,9 @@ if (eyeIcon) {
         // Ouve o envio do formulário
         $('#pagamento-form').off('submit').on('submit', function (event) {
             event.preventDefault(); // Impede o envio padrão do formulário
-            var $btn = $('.btn-confirmar-acao');
-            $btn.prop('disabled', true);
+            var btn = document.querySelector('#confirm-pagamento-modal .btn-confirmar-acao');
+            var originalHTML = '<i class="bi bi-check-circle me-1"></i>Pagar';
+            setButtonLoading(btn, true);
 
             // Obtém o ID do mensalidade a ser cancelado
             var mensalidade_id = $('#pagamento-mensalidade-id').val();
@@ -299,7 +323,7 @@ if (eyeIcon) {
                     }
                 },
                 success: function (response) {
-                    $btn.prop('disabled', false);
+                    setButtonLoading(btn, false, originalHTML);
 
                     // Verifica se a resposta contém a chave 'success_message_invoice'
                     if ('success_message_invoice' in response) {
@@ -330,7 +354,7 @@ if (eyeIcon) {
                     }
                 },
                 error: function (response) {
-                    $btn.prop('disabled', false);
+                    setButtonLoading(btn, false, originalHTML);
 
                     // Fecha o modal e exibe mensagem de erro
                     $('#confirm-pagamento-modal').modal('hide');
@@ -648,6 +672,29 @@ function renderContasCards(contas) {
 
     // Adiciona event listeners após renderizar
     adicionarEventListenersContas();
+
+    // Formatação automática para campos MAC Address (exceto XCLOUD que usa classe 'xcloud-device-id')
+    document.querySelectorAll('input[id^="edit-conta-device-id-"]').forEach(input => {
+        // Pular XCLOUD (identificado pela classe 'xcloud-device-id')
+        if (input.classList.contains('xcloud-device-id')) return;
+
+        input.addEventListener('input', function() {
+            let deviceId = this.value.replace(/[^0-9A-Fa-f]/g, '');
+            let formattedDeviceId = '';
+
+            if (deviceId.length > 0) {
+                formattedDeviceId = deviceId.match(/.{1,2}/g).join(':');
+                if (formattedDeviceId.startsWith(':')) {
+                    formattedDeviceId = formattedDeviceId.substring(1);
+                }
+                if (formattedDeviceId.endsWith(':')) {
+                    formattedDeviceId = formattedDeviceId.slice(0, -1);
+                }
+            }
+
+            this.value = formattedDeviceId;
+        });
+    });
 }
 
 /**
@@ -699,6 +746,28 @@ function gerarCardConta(conta, index) {
                            placeholder="Digite a senha">
                 </div>
             `;
+        } else if (conta.app_nome && conta.app_nome.toLowerCase().includes('xcloud')) {
+            // XCLOUD TV e XCLOUD Mobile: código alfanumérico 6 caracteres
+            credenciaisHTML = `
+                <div class="col-md-6 mb-3">
+                    <label for="edit-conta-device-id-${conta.id}" class="form-label fw-semibold">
+                        <i class="bi bi-upc-scan text-success me-2"></i>Device ID
+                    </label>
+                    <input type="text" class="form-control xcloud-device-id" id="edit-conta-device-id-${conta.id}"
+                           name="conta_${conta.id}_device_id" value="${conta.device_id || ''}"
+                           placeholder="Ex: AAAAAA, AER144" minlength="6" maxlength="6"
+                           style="text-transform: uppercase;">
+                    <small class="text-muted">Código de 6 caracteres alfanuméricos</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="edit-conta-senha-${conta.id}" class="form-label fw-semibold">
+                        <i class="bi bi-key-fill text-warning me-2"></i>Device Key <span class="badge bg-light text-muted">Opcional</span>
+                    </label>
+                    <input type="text" class="form-control" id="edit-conta-senha-${conta.id}"
+                           name="conta_${conta.id}_device_key" value="${conta.device_key || ''}"
+                           placeholder="Digite a senha (opcional)">
+                </div>
+            `;
         } else {
             // MAC Address + senha opcional
             credenciaisHTML = `
@@ -707,7 +776,7 @@ function gerarCardConta(conta, index) {
                         <i class="bi bi-upc-scan text-success me-2"></i>Device ID (MAC)
                     </label>
                     <input type="text" class="form-control" id="edit-conta-device-id-${conta.id}"
-                           name="conta_${conta.id}_device_id" value="${conta.device_id}"
+                           name="conta_${conta.id}_device_id" value="${conta.device_id || ''}"
                            placeholder="AA:BB:CC:DD:EE:FF" maxlength="17">
                     <small class="text-muted">Formato: AA:BB:CC:DD:EE:FF</small>
                 </div>
@@ -716,7 +785,7 @@ function gerarCardConta(conta, index) {
                         <i class="bi bi-key-fill text-warning me-2"></i>Device Key <span class="badge bg-light text-muted">Opcional</span>
                     </label>
                     <input type="text" class="form-control" id="edit-conta-senha-${conta.id}"
-                           name="conta_${conta.id}_device_key" value="${conta.device_key}"
+                           name="conta_${conta.id}_device_key" value="${conta.device_key || ''}"
                            placeholder="Digite a senha (opcional)">
                 </div>
             `;
@@ -922,8 +991,13 @@ function adicionarEventListenersContas() {
         $('#edit-cliente-form').off('submit').on('submit', function(event) {
             event.preventDefault();
 
-            var $btn = $('.btn-confirmar-acao');
-            $btn.prop('disabled', true);
+            var btn = document.getElementById('btn-salvar-edit-cliente');
+            var $loading = $('#edit-cliente-loading');
+            var originalHTML = '<i class="bi bi-check-circle me-1"></i>Salvar Alterações';
+
+            // Bloquear botão e mostrar loading
+            setButtonLoading(btn, true);
+            $loading.fadeIn(200);
 
             var form = this;
             var formData = new FormData(form);
@@ -941,7 +1015,9 @@ function adicionarEventListenersContas() {
                     );
                 },
                 success: function(response) {
-                    $btn.prop('disabled', false);
+                    // Restaurar botão e esconder loading
+                    setButtonLoading(btn, false, originalHTML);
+                    $loading.fadeOut(200);
 
                     if (response.success || response.success_message) {
                         $('#edit-cliente-modal').modal('hide');
@@ -964,7 +1040,9 @@ function adicionarEventListenersContas() {
                     }
                 },
                 error: function(xhr) {
-                    $btn.prop('disabled', false);
+                    // Restaurar botão e esconder loading
+                    setButtonLoading(btn, false, originalHTML);
+                    $loading.fadeOut(200);
 
                     fireAlert({
                         icon: 'error',

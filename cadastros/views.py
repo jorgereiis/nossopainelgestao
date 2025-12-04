@@ -80,7 +80,11 @@ from .models import (
     HorarioEnvios, NotificationRead,
     UserActionLog, ClientePlanoHistorico,
     ContaReseller, TarefaMigracaoDNS,
-    DispositivoMigracaoDNS
+    DispositivoMigracaoDNS,
+    # Integração Bancária
+    InstituicaoBancaria,
+    ContaBancaria,
+    ClienteContaBancaria,
 )
 from .utils import (
     envio_apos_novo_cadastro,
@@ -2597,12 +2601,43 @@ def reactivate_customer(request, cliente_id):
     except Exception:
         pass
 
-    # ⭐ FASE 2: Auto-enroll in campaign if eligible
+    # ⭐ FASE 2: Gerenciamento de campanha na reativação
+    # REGRA:
+    #   - Se cancelado há ≤ 7 dias: PRESERVA campanha anterior (não chama enroll que zera)
+    #   - Se cancelado há > 7 dias: REMOVE campanha (cliente deve trocar plano para nova promoção)
     try:
-        from cadastros.utils import enroll_client_in_campaign_if_eligible
-        enroll_client_in_campaign_if_eligible(cliente)
+        from cadastros.models import AssinaturaCliente
+
+        # Calcula há quantos dias o cliente estava cancelado
+        dias_cancelado = None
+        if cliente.data_cancelamento:
+            dias_cancelado = (data_hoje - cliente.data_cancelamento).days
+
+        if dias_cancelado is not None and dias_cancelado <= 7:
+            # ≤ 7 dias: Preserva campanha anterior (não faz nada, dados já estão na AssinaturaCliente)
+            logger.info(
+                f"[CAMPANHA] Cliente {cliente.id} reativado em {dias_cancelado} dias. "
+                f"Campanha anterior preservada."
+            )
+        else:
+            # > 7 dias: Remove campanha - cliente precisa trocar plano para nova promoção
+            try:
+                assinatura = AssinaturaCliente.objects.filter(cliente=cliente, ativo=True).first()
+                if assinatura and assinatura.em_campanha:
+                    assinatura.em_campanha = False
+                    assinatura.campanha_data_adesao = None
+                    assinatura.campanha_mensalidades_pagas = 0
+                    assinatura.campanha_duracao_total = None
+                    assinatura.save()
+                    logger.info(
+                        f"[CAMPANHA] Cliente {cliente.id} reativado após {dias_cancelado} dias. "
+                        f"Campanha removida - deve trocar plano para nova promoção."
+                    )
+            except Exception as e:
+                logger.error(f"Erro ao remover campanha do cliente {cliente.id}: {e}", exc_info=True)
+
     except Exception as e:
-        logger.error(f"Erro ao inscrever cliente na campanha durante reativação: {e}", exc_info=True)
+        logger.error(f"Erro ao gerenciar campanha durante reativação: {e}", exc_info=True)
 
     try:
         # ⭐ FASE 2: Calcula valor considerando campanhas promocionais + descontos progressivos
@@ -3250,6 +3285,12 @@ def edit_payment_plan(request, plano_id):
                     plano_mensal.campanha_valor_mes_4 = request.POST.get('campanha_valor_mes_4') or None
                     plano_mensal.campanha_valor_mes_5 = request.POST.get('campanha_valor_mes_5') or None
                     plano_mensal.campanha_valor_mes_6 = request.POST.get('campanha_valor_mes_6') or None
+                    plano_mensal.campanha_valor_mes_7 = request.POST.get('campanha_valor_mes_7') or None
+                    plano_mensal.campanha_valor_mes_8 = request.POST.get('campanha_valor_mes_8') or None
+                    plano_mensal.campanha_valor_mes_9 = request.POST.get('campanha_valor_mes_9') or None
+                    plano_mensal.campanha_valor_mes_10 = request.POST.get('campanha_valor_mes_10') or None
+                    plano_mensal.campanha_valor_mes_11 = request.POST.get('campanha_valor_mes_11') or None
+                    plano_mensal.campanha_valor_mes_12 = request.POST.get('campanha_valor_mes_12') or None
             else:
                 # Clear campaign data if not active
                 plano_mensal.campanha_tipo = None
@@ -3263,6 +3304,12 @@ def edit_payment_plan(request, plano_id):
                 plano_mensal.campanha_valor_mes_4 = None
                 plano_mensal.campanha_valor_mes_5 = None
                 plano_mensal.campanha_valor_mes_6 = None
+                plano_mensal.campanha_valor_mes_7 = None
+                plano_mensal.campanha_valor_mes_8 = None
+                plano_mensal.campanha_valor_mes_9 = None
+                plano_mensal.campanha_valor_mes_10 = None
+                plano_mensal.campanha_valor_mes_11 = None
+                plano_mensal.campanha_valor_mes_12 = None
 
             try:
                 plano_mensal.save()
@@ -5271,7 +5318,14 @@ def create_customer(request):
                     logger.error("Erro ao enviar mensagem para o cliente: %s", e, exc_info=True)
                     raise Exception("Erro ao realizar cadastro!<p>Talvez você ainda não tenha conectado a sessão do WhatsApp.</p>")
 
-                # CRIAÇÃO DE MENSALIDADE
+                # ⭐ FASE 2: Auto-enroll in campaign if eligible (DEVE ser antes da criação da mensalidade)
+                try:
+                    from cadastros.utils import enroll_client_in_campaign_if_eligible
+                    enroll_client_in_campaign_if_eligible(cliente)
+                except Exception as e:
+                    logger.error(f"Erro ao inscrever cliente na campanha: {e}", exc_info=True)
+
+                # CRIAÇÃO DE MENSALIDADE (agora com em_campanha=True se elegível)
                 try:
                     criar_mensalidade(cliente)
                 except Exception as e:
@@ -5284,13 +5338,6 @@ def create_customer(request):
                     historico_iniciar(cliente, plano=plano, inicio=inicio_hist, motivo='create')
                 except Exception:
                     pass
-
-                # ⭐ FASE 2: Auto-enroll in campaign if eligible
-                try:
-                    from cadastros.utils import enroll_client_in_campaign_if_eligible
-                    enroll_client_in_campaign_if_eligible(cliente)
-                except Exception as e:
-                    logger.error(f"Erro ao inscrever cliente na campanha: {e}", exc_info=True)
 
             print(f"[{timestamp}] [SUCCESS] [{func_name}] [{usuario}] Cliente {cliente.nome} ({cliente.telefone}) cadastrado com sucesso!")
             log_user_action(
@@ -5393,6 +5440,12 @@ def create_payment_plan(request):
                         plano.campanha_valor_mes_4 = request.POST.get('campanha_valor_mes_4') or None
                         plano.campanha_valor_mes_5 = request.POST.get('campanha_valor_mes_5') or None
                         plano.campanha_valor_mes_6 = request.POST.get('campanha_valor_mes_6') or None
+                        plano.campanha_valor_mes_7 = request.POST.get('campanha_valor_mes_7') or None
+                        plano.campanha_valor_mes_8 = request.POST.get('campanha_valor_mes_8') or None
+                        plano.campanha_valor_mes_9 = request.POST.get('campanha_valor_mes_9') or None
+                        plano.campanha_valor_mes_10 = request.POST.get('campanha_valor_mes_10') or None
+                        plano.campanha_valor_mes_11 = request.POST.get('campanha_valor_mes_11') or None
+                        plano.campanha_valor_mes_12 = request.POST.get('campanha_valor_mes_12') or None
                 else:
                     # Clear campaign data if not active
                     plano.campanha_tipo = None
@@ -5406,6 +5459,12 @@ def create_payment_plan(request):
                     plano.campanha_valor_mes_4 = None
                     plano.campanha_valor_mes_5 = None
                     plano.campanha_valor_mes_6 = None
+                    plano.campanha_valor_mes_7 = None
+                    plano.campanha_valor_mes_8 = None
+                    plano.campanha_valor_mes_9 = None
+                    plano.campanha_valor_mes_10 = None
+                    plano.campanha_valor_mes_11 = None
+                    plano.campanha_valor_mes_12 = None
 
                 plano.save()
 
@@ -5533,7 +5592,7 @@ def create_server(request):
     )
 
 
-# AÇÃO PARA CRIAR NOVO OBJETO FORMA DE PAGAMENTO (TIPOS_PGTO)
+# ACAO PARA CRIAR NOVO OBJETO FORMA DE PAGAMENTO (TIPOS_PGTO) - Versao simples para usuarios comuns
 @login_required
 def create_payment_method(request):
     formas_pgto = Tipos_pgto.objects.filter(usuario=request.user).order_by('nome')
@@ -5545,9 +5604,8 @@ def create_payment_method(request):
         nome = request.POST.get("nome")
 
         if nome:
-
             try:
-                # Consultando o objeto requisitado. Caso não exista, será criado.
+                # Consultando o objeto requisitado. Caso nao exista, sera criado.
                 formapgto, created = Tipos_pgto.objects.get_or_create(nome=nome, usuario=usuario)
 
                 if created:
@@ -5568,32 +5626,530 @@ def create_payment_method(request):
                             "success_message": "Nova Forma de Pagamento cadastrada com sucesso!",
                         },
                     )
-                
+
                 else:
                     return render(
                             request,
                         'pages/cadastro-forma-pagamento.html',
                         {
                             'formas_pgto': formas_pgto,
-                            "error_message": "Já existe uma Forma de Pagamento com este nome!",
+                            "error_message": "Ja existe uma Forma de Pagamento com este nome!",
                         },
                     )
-                
+
             except Exception as e:
                 logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
-                # Capturando outras exceções e renderizando a página novamente com a mensagem de erro
                 return render(
                     request,
                     "pages/cadastro-forma-pagamento.html",
                     {
                         'formas_pgto': formas_pgto,
-                        "error_message": "Não foi possível cadastrar esta nova Forma de Pagamento. Verifique os logs!",
+                        "error_message": "Nao foi possivel cadastrar esta nova Forma de Pagamento. Verifique os logs!",
                     },
                 )
 
     return render(
-        request, 'pages/cadastro-forma-pagamento.html', {'formas_pgto': formas_pgto, "page_group": page_group, "page": page}
+        request, 'pages/cadastro-forma-pagamento.html', {
+            'formas_pgto': formas_pgto,
+            "page_group": page_group,
+            "page": page
+        }
     )
+
+
+# ACAO PARA CRIAR NOVO OBJETO FORMA DE PAGAMENTO - Versao ADMIN com integracao bancaria
+@login_required
+def create_payment_method_admin(request):
+    """
+    View de testes para admins com integracao bancaria completa.
+    Permite cadastrar formas de pagamento com contas bancarias e credenciais API.
+    """
+    # Verificar se e admin
+    if not request.user.is_superuser:
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("Acesso restrito a administradores.")
+
+    formas_pgto = Tipos_pgto.objects.filter(usuario=request.user).order_by('nome').select_related('conta_bancaria', 'conta_bancaria__instituicao')
+    usuario = request.user
+    page_group = "admin"
+    page = "admin-forma-pgto"
+    instituicoes = InstituicaoBancaria.objects.all().order_by('nome')
+    contas_bancarias = ContaBancaria.objects.filter(usuario=request.user, ativo=True).select_related('instituicao')
+
+    def get_context(extra=None):
+        ctx = {
+            'formas_pgto': formas_pgto,
+            'instituicoes': instituicoes,
+            'contas_bancarias': contas_bancarias,
+            "page_group": page_group,
+            "page": page
+        }
+        if extra:
+            ctx.update(extra)
+        return ctx
+
+    if request.method == "POST":
+        nome = request.POST.get("nome")
+
+        if nome:
+            try:
+                conta_bancaria = None
+
+                # Se for PIX, processar conta bancaria
+                if nome == "PIX":
+                    conta_bancaria_id = request.POST.get("conta_bancaria")
+
+                    if conta_bancaria_id:
+                        # Usar conta existente
+                        try:
+                            conta_bancaria = ContaBancaria.objects.get(
+                                id=conta_bancaria_id,
+                                usuario=usuario,
+                                ativo=True
+                            )
+                        except ContaBancaria.DoesNotExist:
+                            return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html',
+                                get_context({"error_message": "Conta bancaria selecionada nao encontrada."}))
+                    else:
+                        # Criar nova conta bancaria
+                        instituicao_id = request.POST.get("instituicao")
+                        nome_identificacao = request.POST.get("nome_identificacao")
+                        tipo_conta = request.POST.get("tipo_conta", "pf")
+                        beneficiario = request.POST.get("beneficiario")
+                        tipo_chave_pix = request.POST.get("tipo_chave_pix")
+                        chave_pix = request.POST.get("chave_pix")
+                        limite_mensal = request.POST.get("limite_mensal")
+
+                        # Validar campos obrigatorios
+                        if not all([instituicao_id, nome_identificacao, beneficiario, tipo_chave_pix, chave_pix]):
+                            return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html',
+                                get_context({"error_message": "Preencha todos os campos obrigatorios da conta bancaria."}))
+
+                        try:
+                            instituicao = InstituicaoBancaria.objects.get(id=instituicao_id, ativo=True)
+                        except InstituicaoBancaria.DoesNotExist:
+                            return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html',
+                                get_context({"error_message": "Instituicao bancaria selecionada nao encontrada."}))
+
+                        # Verificar se ja existe conta com essa chave PIX
+                        if ContaBancaria.objects.filter(usuario=usuario, chave_pix=chave_pix).exists():
+                            return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html',
+                                get_context({"error_message": "Ja existe uma conta bancaria com essa chave PIX."}))
+
+                        # Criar conta bancaria
+                        conta_bancaria = ContaBancaria(
+                            usuario=usuario,
+                            instituicao=instituicao,
+                            nome_identificacao=nome_identificacao,
+                            tipo_conta=tipo_conta,
+                            beneficiario=beneficiario,
+                            tipo_chave_pix=tipo_chave_pix,
+                            chave_pix=chave_pix,
+                        )
+
+                        # Campos opcionais
+                        if limite_mensal:
+                            conta_bancaria.limite_mensal = limite_mensal
+
+                        # Credenciais API (se instituicao tiver API)
+                        if instituicao.tem_api:
+                            conta_bancaria.api_client_id = request.POST.get("api_client_id", "")
+                            conta_bancaria.api_client_secret = request.POST.get("api_client_secret", "")
+                            conta_bancaria.ambiente_sandbox = request.POST.get("ambiente_sandbox") == "on"
+
+                            if instituicao.tipo_integracao == 'mercado_pago':
+                                conta_bancaria.api_access_token = request.POST.get("api_access_token", "")
+
+                            # Certificado Efi Bank
+                            if instituicao.tipo_integracao == 'efi_bank' and 'api_certificado' in request.FILES:
+                                conta_bancaria.api_certificado = request.FILES['api_certificado']
+
+                        conta_bancaria.save()
+
+                        log_user_action(
+                            request=request,
+                            action=UserActionLog.ACTION_CREATE,
+                            instance=conta_bancaria,
+                            message="Conta bancaria criada (Admin).",
+                            extra={"nome": conta_bancaria.nome_identificacao, "instituicao": instituicao.nome},
+                        )
+
+                # Verificar se ja existe forma de pagamento com esse nome E mesma conta bancaria
+                if Tipos_pgto.objects.filter(usuario=usuario, nome=nome, conta_bancaria=conta_bancaria).exists():
+                    return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html',
+                        get_context({"error_message": "Ja existe uma Forma de Pagamento com este nome e esta conta bancaria!"}))
+
+                # Criar forma de pagamento
+                formapgto = Tipos_pgto.objects.create(
+                    nome=nome,
+                    usuario=usuario,
+                    conta_bancaria=conta_bancaria
+                )
+
+                log_user_action(
+                    request=request,
+                    action=UserActionLog.ACTION_CREATE,
+                    instance=formapgto,
+                    message="Forma de pagamento criada (Admin).",
+                    extra={
+                        "nome": formapgto.nome,
+                        "conta_bancaria": conta_bancaria.nome_identificacao if conta_bancaria else None,
+                    },
+                )
+
+                # Recarregar lista atualizada
+                formas_pgto = Tipos_pgto.objects.filter(usuario=request.user).order_by('nome').select_related('conta_bancaria', 'conta_bancaria__instituicao')
+                contas_bancarias = ContaBancaria.objects.filter(usuario=request.user, ativo=True).select_related('instituicao')
+
+                return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html', {
+                    'formas_pgto': formas_pgto,
+                    'instituicoes': instituicoes,
+                    'contas_bancarias': contas_bancarias,
+                    "page_group": page_group,
+                    "page": page,
+                    "success_message": "Nova Forma de Pagamento cadastrada com sucesso!",
+                })
+
+            except Exception as e:
+                logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+                return render(request, "pages/admin/cadastro-forma-pagamento-admin.html",
+                    get_context({"error_message": f"Nao foi possivel cadastrar esta nova Forma de Pagamento. Erro: {str(e)}"}))
+
+    return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html', get_context())
+
+
+# ============================================================================
+# INTEGRAÇÃO BANCÁRIA - VIEWS
+# ============================================================================
+
+@login_required
+@require_http_methods(["GET"])
+def api_instituicoes_bancarias(request):
+    """
+    API JSON para listar instituições bancárias ativas.
+    Retorna lista de instituições disponíveis.
+    """
+    instituicoes = InstituicaoBancaria.objects.filter(ativo=True).order_by('nome')
+    data = [
+        {
+            'id': inst.id,
+            'nome': inst.nome,
+            'tipo_integracao': inst.tipo_integracao,
+            'tipo_integracao_display': inst.get_tipo_integracao_display(),
+            'tem_api': inst.tem_api,
+        }
+        for inst in instituicoes
+    ]
+    return JsonResponse({'instituicoes': data})
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_contas_bancarias(request):
+    """
+    API JSON para listar contas bancárias do usuário.
+    Retorna lista de contas ativas do usuário logado.
+    """
+    contas = ContaBancaria.objects.filter(
+        usuario=request.user,
+        ativo=True
+    ).select_related('instituicao').order_by('nome_identificacao')
+
+    data = [
+        {
+            'id': conta.id,
+            'nome_identificacao': conta.nome_identificacao,
+            'instituicao_id': conta.instituicao.id,
+            'instituicao_nome': conta.instituicao.nome,
+            'tipo_conta': conta.tipo_conta,
+            'tipo_conta_display': conta.get_tipo_conta_display(),
+            'beneficiario': conta.beneficiario,
+            'tipo_chave_pix': conta.tipo_chave_pix,
+            'chave_pix': conta.chave_pix,
+            'tem_api': conta.tem_integracao_api,
+            'is_mei': conta.is_mei,
+            'limite_mensal': str(conta.limite_mensal) if conta.limite_mensal else None,
+            'limite_efetivo': str(conta.limite_efetivo) if conta.limite_efetivo else None,
+            'clientes_count': conta.get_clientes_associados_count(),
+        }
+        for conta in contas
+    ]
+    return JsonResponse({'contas': data})
+
+
+@login_required
+@require_http_methods(["POST"])
+def criar_conta_bancaria(request):
+    """
+    Cria uma nova conta bancária para o usuário.
+    """
+    try:
+        data = json.loads(request.body)
+
+        instituicao_id = data.get('instituicao_id')
+        nome_identificacao = data.get('nome_identificacao', '').strip()
+        tipo_conta = data.get('tipo_conta', 'pf')
+        beneficiario = data.get('beneficiario', '').strip()
+        tipo_chave_pix = data.get('tipo_chave_pix', '')
+        chave_pix = data.get('chave_pix', '').strip()
+        limite_mensal = data.get('limite_mensal')
+
+        # Credenciais API (opcionais)
+        api_client_id = data.get('api_client_id', '').strip()
+        api_client_secret = data.get('api_client_secret', '').strip()
+        api_access_token = data.get('api_access_token', '').strip()
+        ambiente_sandbox = data.get('ambiente_sandbox', True)
+
+        # Validações
+        if not instituicao_id:
+            return JsonResponse({'success': False, 'error': 'Instituição é obrigatória.'}, status=400)
+
+        if not nome_identificacao:
+            return JsonResponse({'success': False, 'error': 'Nome de identificação é obrigatório.'}, status=400)
+
+        if not beneficiario:
+            return JsonResponse({'success': False, 'error': 'Beneficiário é obrigatório.'}, status=400)
+
+        if not tipo_chave_pix:
+            return JsonResponse({'success': False, 'error': 'Tipo de chave PIX é obrigatório.'}, status=400)
+
+        if not chave_pix:
+            return JsonResponse({'success': False, 'error': 'Chave PIX é obrigatória.'}, status=400)
+
+        # MEI deve ter limite
+        if tipo_conta == 'mei' and not limite_mensal:
+            return JsonResponse({'success': False, 'error': 'Contas MEI devem ter um limite mensal definido.'}, status=400)
+
+        # Buscar instituição
+        try:
+            instituicao = InstituicaoBancaria.objects.get(id=instituicao_id, ativo=True)
+        except InstituicaoBancaria.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Instituição não encontrada.'}, status=404)
+
+        # Verificar duplicidade de chave PIX
+        if ContaBancaria.objects.filter(usuario=request.user, chave_pix=chave_pix).exists():
+            return JsonResponse({'success': False, 'error': 'Você já possui uma conta com esta chave PIX.'}, status=400)
+
+        # Criar conta
+        conta = ContaBancaria.objects.create(
+            usuario=request.user,
+            instituicao=instituicao,
+            nome_identificacao=nome_identificacao,
+            tipo_conta=tipo_conta,
+            beneficiario=beneficiario,
+            tipo_chave_pix=tipo_chave_pix,
+            chave_pix=chave_pix,
+            limite_mensal=Decimal(limite_mensal) if limite_mensal else None,
+            api_client_id=api_client_id,
+            api_client_secret=api_client_secret,
+            api_access_token=api_access_token,
+            ambiente_sandbox=ambiente_sandbox,
+        )
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_CREATE,
+            instance=conta,
+            message="Conta bancária criada.",
+            extra={
+                "nome_identificacao": conta.nome_identificacao,
+                "instituicao": instituicao.nome,
+                "tipo_conta": conta.tipo_conta,
+            },
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Conta bancária criada com sucesso!',
+            'conta': {
+                'id': conta.id,
+                'nome_identificacao': conta.nome_identificacao,
+                'instituicao_nome': instituicao.nome,
+                'tipo_conta': conta.tipo_conta,
+            }
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Dados inválidos.'}, status=400)
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao criar conta bancária.'}, status=500)
+
+
+@login_required
+@require_http_methods(["DELETE"])
+def excluir_conta_bancaria(request, pk):
+    """
+    Exclui uma conta bancária do usuário.
+    """
+    try:
+        conta = ContaBancaria.objects.get(pk=pk, usuario=request.user)
+
+        # Verificar se está em uso por alguma forma de pagamento
+        formas_em_uso = Tipos_pgto.objects.filter(conta_bancaria=conta).count()
+        if formas_em_uso > 0:
+            return JsonResponse({
+                'success': False,
+                'error': f'Esta conta está em uso por {formas_em_uso} forma(s) de pagamento. Remova as associações primeiro.'
+            }, status=400)
+
+        log_extra = {
+            "id": conta.id,
+            "nome_identificacao": conta.nome_identificacao,
+            "instituicao": conta.instituicao.nome,
+        }
+        conta.delete()
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_DELETE,
+            instance=conta,
+            message="Conta bancária excluída.",
+            extra=log_extra,
+        )
+
+        return JsonResponse({'success': True, 'message': 'Conta bancária excluída com sucesso!'})
+
+    except ContaBancaria.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Conta bancária não encontrada.'}, status=404)
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao excluir conta bancária.'}, status=500)
+
+
+# --- INSTITUIÇÕES BANCÁRIAS (ADMIN) ---
+
+@login_required
+@require_http_methods(["POST"])
+def criar_instituicao_bancaria(request):
+    """
+    Cria uma nova instituição bancária.
+    Apenas superusuários podem criar.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Acesso negado.'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        nome = data.get('nome', '').strip()
+        tipo_integracao = data.get('tipo_integracao', 'manual')
+
+        if not nome:
+            return JsonResponse({'success': False, 'error': 'Nome é obrigatório.'}, status=400)
+
+        # Verificar duplicidade
+        if InstituicaoBancaria.objects.filter(nome__iexact=nome).exists():
+            return JsonResponse({'success': False, 'error': 'Já existe uma instituição com este nome.'}, status=400)
+
+        instituicao = InstituicaoBancaria.objects.create(
+            nome=nome,
+            tipo_integracao=tipo_integracao,
+            ativo=True,
+        )
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_CREATE,
+            instance=instituicao,
+            message="Instituição bancária criada.",
+            extra={"nome": nome, "tipo_integracao": tipo_integracao},
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Instituição criada com sucesso!',
+            'instituicao': {
+                'id': instituicao.id,
+                'nome': instituicao.nome,
+                'tipo_integracao': instituicao.tipo_integracao,
+                'tipo_integracao_display': instituicao.get_tipo_integracao_display(),
+                'tem_api': instituicao.tem_api,
+            }
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Dados inválidos.'}, status=400)
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao criar instituição.'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def toggle_instituicao_bancaria(request, pk):
+    """
+    Ativa/desativa uma instituição bancária.
+    Apenas superusuários podem alterar.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Acesso negado.'}, status=403)
+
+    try:
+        instituicao = InstituicaoBancaria.objects.get(pk=pk)
+        instituicao.ativo = not instituicao.ativo
+        instituicao.save()
+
+        status_text = "ativada" if instituicao.ativo else "desativada"
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=instituicao,
+            message=f"Instituição bancária {status_text}.",
+            extra={"nome": instituicao.nome, "ativo": instituicao.ativo},
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Instituição {status_text} com sucesso!',
+            'ativo': instituicao.ativo,
+        })
+
+    except InstituicaoBancaria.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Instituição não encontrada.'}, status=404)
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao alterar instituição.'}, status=500)
+
+
+@login_required
+@require_http_methods(["DELETE"])
+def excluir_instituicao_bancaria(request, pk):
+    """
+    Exclui uma instituição bancária.
+    Apenas superusuários podem excluir.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Acesso negado.'}, status=403)
+
+    try:
+        instituicao = InstituicaoBancaria.objects.get(pk=pk)
+
+        # Verificar se está em uso
+        contas_em_uso = ContaBancaria.objects.filter(instituicao=instituicao).count()
+        if contas_em_uso > 0:
+            return JsonResponse({
+                'success': False,
+                'error': f'Esta instituição está em uso por {contas_em_uso} conta(s) bancária(s). Não é possível excluir.'
+            }, status=400)
+
+        log_extra = {"id": instituicao.id, "nome": instituicao.nome}
+        instituicao.delete()
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_DELETE,
+            instance=instituicao,
+            message="Instituição bancária excluída.",
+            extra=log_extra,
+        )
+
+        return JsonResponse({'success': True, 'message': 'Instituição excluída com sucesso!'})
+
+    except InstituicaoBancaria.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Instituição não encontrada.'}, status=404)
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao excluir instituição.'}, status=500)
 
 
 # AÇÃO PARA CRIAR NOVO OBJETO DISPOSITIVO

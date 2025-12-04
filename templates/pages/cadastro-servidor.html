@@ -69,12 +69,28 @@
                     </div>
 
                     <div class="d-grid gap-2 mt-4">
-                      <button type="submit" class="btn btn-primary btn-lg" name="cadastrar">
+                      <button type="submit" class="btn btn-primary btn-lg btn-loading-ready" name="cadastrar" id="btn-cadastrar">
                         <i class="bi bi-check-circle me-2"></i>Cadastrar Servidor
                       </button>
                     </div>
                 </div>
                 </form>
+
+                <script>
+                  (function() {
+                    var form = document.querySelector('.cadastro-form-card form');
+                    var btn = document.getElementById('btn-cadastrar');
+                    if (form && btn) {
+                      form.addEventListener('submit', function() {
+                        if (btn.disabled) return;
+                        setButtonLoading(btn, true);
+                      });
+                      window.addEventListener('pageshow', function(e) {
+                        if (e.persisted) setButtonLoading(btn, false, '<i class="bi bi-check-circle me-2"></i>Cadastrar Servidor');
+                      });
+                    }
+                  })();
+                </script>
               </div>
             </div>
           </div>

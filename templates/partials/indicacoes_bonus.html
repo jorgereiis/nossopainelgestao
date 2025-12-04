@@ -178,7 +178,11 @@
         else if (nomeDisplay.toLowerCase().includes("anuidade")) tipo_plano = "anuidade";
 
         botao.disabled = true;
-        botao.textContent = "Salvando...";
+        if (typeof setButtonLoading === 'function') {
+            setButtonLoading(botao, true);
+        } else {
+            botao.textContent = "Salvando...";
+        }
 
         const payload = {
             id: planoId,
@@ -446,7 +450,11 @@
 
         const novoStatus = (statusAtual === "off");
         botao.disabled = true;
-        botao.textContent = "Salvando...";
+        if (typeof setButtonLoading === 'function') {
+            setButtonLoading(botao, true);
+        } else {
+            botao.textContent = "Salvando...";
+        }
 
         // --- Validação: se for ativar, precisa ter sessão WPP ---
         if (novoStatus && (!sessao_wpp || sessao_wpp === "false")) {
