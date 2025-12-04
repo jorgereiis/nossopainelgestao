@@ -1172,8 +1172,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Desabilitar botão durante upload
       const originalHTML = cropAndUploadBtn.innerHTML;
-      cropAndUploadBtn.disabled = true;
-      cropAndUploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
+      if (typeof setButtonLoading === 'function') {
+        setButtonLoading(cropAndUploadBtn, true);
+      } else {
+        cropAndUploadBtn.disabled = true;
+        cropAndUploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
+      }
 
       try {
         // Obter imagem recortada como blob
@@ -1253,8 +1257,12 @@ document.addEventListener('DOMContentLoaded', function() {
         showToast('error', 'Erro ao enviar avatar: ' + error.message);
       } finally {
         // Restaurar botão
-        cropAndUploadBtn.disabled = false;
-        cropAndUploadBtn.innerHTML = originalHTML;
+        if (typeof setButtonLoading === 'function') {
+          setButtonLoading(cropAndUploadBtn, false, originalHTML);
+        } else {
+          cropAndUploadBtn.disabled = false;
+          cropAndUploadBtn.innerHTML = originalHTML;
+        }
       }
     });
   }
@@ -1530,8 +1538,12 @@ document.addEventListener('DOMContentLoaded', function() {
       form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
 
       // Loading state
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Alterando...';
+      if (typeof setButtonLoading === 'function') {
+        setButtonLoading(submitBtn, true);
+      } else {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Alterando...';
+      }
 
       try {
         const formData = new FormData(form);
@@ -1570,8 +1582,12 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Erro:', error);
         showToast('error', 'Erro ao alterar senha. Tente novamente.');
       } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalBtnText;
+        if (typeof setButtonLoading === 'function') {
+          setButtonLoading(submitBtn, false, originalBtnText);
+        } else {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
+        }
       }
     });
   }
@@ -2096,8 +2112,12 @@ document.addEventListener('DOMContentLoaded', function() {
       const originalHTML = btn.innerHTML;
 
       // Loading state
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+      if (typeof setButtonLoading === 'function') {
+        setButtonLoading(btn, true);
+      } else {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+      }
 
       // Coletar preferências
       const preferences = {
@@ -2109,8 +2129,12 @@ document.addEventListener('DOMContentLoaded', function() {
       // Obter CSRF token
       const csrfToken = getCsrfToken();
       if (!csrfToken) {
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
+        if (typeof setButtonLoading === 'function') {
+          setButtonLoading(btn, false, originalHTML);
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = originalHTML;
+        }
         showToast('error', 'Erro: Token CSRF não encontrado. Recarregue a página.');
         return;
       }
@@ -2136,8 +2160,12 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .then(data => {
         console.log('[NOTIFICATIONS] Resposta:', data);
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
+        if (typeof setButtonLoading === 'function') {
+          setButtonLoading(btn, false, originalHTML);
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = originalHTML;
+        }
 
         if (data.success) {
           showToast('success', data.message);
@@ -2147,8 +2175,12 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(error => {
         console.error('[NOTIFICATIONS] Erro:', error);
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
+        if (typeof setButtonLoading === 'function') {
+          setButtonLoading(btn, false, originalHTML);
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = originalHTML;
+        }
         showToast('error', 'Erro ao salvar preferências: ' + error.message);
       });
     });
@@ -2167,8 +2199,12 @@ document.addEventListener('DOMContentLoaded', function() {
       const originalHTML = btn.innerHTML;
 
       // Loading state
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+      if (typeof setButtonLoading === 'function') {
+        setButtonLoading(btn, true);
+      } else {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+      }
 
       // Coletar configurações
       const settings = {
@@ -2181,8 +2217,12 @@ document.addEventListener('DOMContentLoaded', function() {
       // Obter CSRF token
       const csrfToken = getCsrfToken();
       if (!csrfToken) {
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
+        if (typeof setButtonLoading === 'function') {
+          setButtonLoading(btn, false, originalHTML);
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = originalHTML;
+        }
         showToast('error', 'Erro: Token CSRF não encontrado. Recarregue a página.');
         return;
       }
@@ -2208,8 +2248,12 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .then(data => {
         console.log('[PRIVACY] Resposta:', data);
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
+        if (typeof setButtonLoading === 'function') {
+          setButtonLoading(btn, false, originalHTML);
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = originalHTML;
+        }
 
         if (data.success) {
           showToast('success', data.message);
@@ -2219,8 +2263,12 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(error => {
         console.error('[PRIVACY] Erro:', error);
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
+        if (typeof setButtonLoading === 'function') {
+          setButtonLoading(btn, false, originalHTML);
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = originalHTML;
+        }
         showToast('error', 'Erro ao salvar configurações: ' + error.message);
       });
     });
@@ -2314,8 +2362,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const originalHTML = verifyBtn.innerHTML;
-    verifyBtn.disabled = true;
-    verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verificando...';
+    if (typeof setButtonLoading === 'function') {
+      setButtonLoading(verifyBtn, true);
+    } else {
+      verifyBtn.disabled = true;
+      verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verificando...';
+    }
 
     try {
       const formData = new FormData();
@@ -2349,8 +2401,12 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('[2FA] Enable error:', error);
       showToast('error', error.message);
     } finally {
-      verifyBtn.disabled = false;
-      verifyBtn.innerHTML = originalHTML;
+      if (typeof setButtonLoading === 'function') {
+        setButtonLoading(verifyBtn, false, originalHTML);
+      } else {
+        verifyBtn.disabled = false;
+        verifyBtn.innerHTML = originalHTML;
+      }
     }
   });
 });
@@ -2385,8 +2441,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const originalHTML = confirmDisableBtn.innerHTML;
-    confirmDisableBtn.disabled = true;
-    confirmDisableBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Desativando...';
+    if (typeof setButtonLoading === 'function') {
+      setButtonLoading(confirmDisableBtn, true);
+    } else {
+      confirmDisableBtn.disabled = true;
+      confirmDisableBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Desativando...';
+    }
 
     try {
       const formData = new FormData();
@@ -2416,8 +2476,12 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('[2FA] Disable error:', error);
       showToast('error', error.message);
     } finally {
-      confirmDisableBtn.disabled = false;
-      confirmDisableBtn.innerHTML = originalHTML;
+      if (typeof setButtonLoading === 'function') {
+        setButtonLoading(confirmDisableBtn, false, originalHTML);
+      } else {
+        confirmDisableBtn.disabled = false;
+        confirmDisableBtn.innerHTML = originalHTML;
+      }
     }
   });
 });
@@ -2442,8 +2506,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const originalHTML = confirmRegenBtn.innerHTML;
-    confirmRegenBtn.disabled = true;
-    confirmRegenBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Gerando...';
+    if (typeof setButtonLoading === 'function') {
+      setButtonLoading(confirmRegenBtn, true);
+    } else {
+      confirmRegenBtn.disabled = true;
+      confirmRegenBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Gerando...';
+    }
 
     try {
       const formData = new FormData();
@@ -2477,8 +2545,12 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('[2FA] Regenerate error:', error);
       showToast('error', error.message);
     } finally {
-      confirmRegenBtn.disabled = false;
-      confirmRegenBtn.innerHTML = originalHTML;
+      if (typeof setButtonLoading === 'function') {
+        setButtonLoading(confirmRegenBtn, false, originalHTML);
+      } else {
+        confirmRegenBtn.disabled = false;
+        confirmRegenBtn.innerHTML = originalHTML;
+      }
     }
   });
 });

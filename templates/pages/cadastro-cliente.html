@@ -148,7 +148,7 @@
 
                 <!-- Botão -->
                 <div class="d-grid gap-2 mt-5">
-                  <button type="submit" class="btn btn-primary btn-lg" name="cadastrar" id="cadastrar">
+                  <button type="submit" class="btn btn-primary btn-lg btn-loading-ready" name="cadastrar" id="cadastrar">
                     <i class="bi bi-check-circle me-2"></i>Cadastrar Cliente
                   </button>
                 </div>
@@ -195,8 +195,7 @@
             return;
           }
 
-          submitButton.disabled = true;
-          submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Cadastrando...';
+          setButtonLoading(submitButton, true);
         });
 
         window.addEventListener('pageshow', function () {
@@ -406,7 +405,26 @@
                 <input type="text" class="form-control" placeholder="Digite a senha" id="senha_${index}" name="senha_${index}" minlength="6" required>
               </div>
             `);
+          } else if (appName.includes('xcloud')) {
+            // XCLOUD TV e XCLOUD Mobile: código alfanumérico de 6 caracteres
+            contaContainer.html(`
+              <div class="mb-3">
+                <label for="device_id_${index}" class="form-label fw-semibold">
+                  <i class="bi bi-upc-scan text-success me-2"></i>Device ID <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control" placeholder="Ex: AAAAAA, AER144" id="device_id_${index}" name="device_id_${index}" minlength="6" maxlength="6" style="text-transform: uppercase;" required>
+                <small class="text-muted">Código de 6 caracteres alfanuméricos</small>
+              </div>
+              <div class="mb-3">
+                <label for="senha_${index}" class="form-label fw-semibold">
+                  <i class="bi bi-key-fill text-warning me-2"></i>Device Key (Senha)
+                </label>
+                <input type="text" class="form-control" placeholder="Digite a senha (opcional)" id="senha_${index}" name="senha_${index}" minlength="6">
+                <small class="text-muted">Opcional</small>
+              </div>
+            `);
           } else {
+            // Outros aplicativos: MAC Address com formatação automática
             contaContainer.html(`
               <div class="mb-3">
                 <label for="device_id_${index}" class="form-label fw-semibold">

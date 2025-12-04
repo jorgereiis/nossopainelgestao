@@ -36,11 +36,7 @@
                                             <input name="arquivo" type="file" class="w-100" id="input-arquivo" accept=".xlsx" capture=".xlsx">
                                         </div>
                                     </div>
-                                    <button type="submit" class="btn btn-primary" name="importar" onclick="carregar()" id="btn-importar" disabled>Importar</button>
-                                    <button id="loadingButton" class="btn btn-primary d-none" type="button" disabled>
-                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                        <span class="visually-hidden">Loading...</span>
-                                    </button>
+                                    <button type="submit" class="btn btn-primary btn-loading-ready" name="importar" onclick="carregar()" id="btn-importar" disabled>Importar</button>
                                 </form>
                             </div>
                             <div class="col-md-9">
@@ -299,8 +295,17 @@
     });
 </script>
 <script>
-    document.getElementById('btn-importar').addEventListener('click', function() {
-      document.getElementById('btn-importar').classList.add('d-none');
-      document.getElementById('loadingButton').classList.remove('d-none');
+    document.getElementById('form-importar').addEventListener('submit', function(e) {
+      var btn = document.getElementById('btn-importar');
+      if (btn.disabled) return;
+      setButtonLoading(btn, true);
+    });
+
+    // Restaurar ao voltar (bfcache)
+    window.addEventListener('pageshow', function(e) {
+      if (e.persisted) {
+        var btn = document.getElementById('btn-importar');
+        setButtonLoading(btn, false, 'Importar');
+      }
     });
   </script>

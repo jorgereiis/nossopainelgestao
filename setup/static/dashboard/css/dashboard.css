@@ -1763,6 +1763,30 @@ button.dropdown-item.dropdown-action-delete:focus i {
     height: 2rem;
 }
 
+/* Overlay de loading para modais */
+.modal-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1060;
+    border-radius: inherit;
+}
+
+.modal-loading-overlay .loading-content {
+    text-align: center;
+}
+
+.modal-loading-overlay .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
 /* Animação suave para aparecer os cards */
 @keyframes fadeInUp {
     from {
@@ -1806,4 +1830,51 @@ button.dropdown-item.dropdown-action-delete:focus i {
     .modal-xl {
         max-width: 90%;
     }
+}
+
+/* ========================================
+   EFEITO DE BOLINHAS ONDULARES PARA LOADING
+   ======================================== */
+.loading-dots {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.loading-dots span {
+    width: 8px;
+    height: 8px;
+    background-color: currentColor;
+    border-radius: 50%;
+    animation: wave 1.2s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes wave {
+    0%, 60%, 100% {
+        transform: translateY(0);
+    }
+    30% {
+        transform: translateY(-8px);
+    }
+}
+
+/* Classe para botões com loading - garante altura fixa */
+.btn-loading-ready {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-lg.btn-loading-ready {
+    min-height: 48px;
 }

@@ -30,6 +30,10 @@ from .models import (
     DispositivoMigracaoDNS,
     TarefaEnvio,
     HistoricoExecucaoTarefa,
+    # Integração Bancária
+    InstituicaoBancaria,
+    ContaBancaria,
+    ClienteContaBancaria,
 )
 
 # --- ADMINISTRADORES ---
@@ -51,10 +55,17 @@ class ServidorImagemAdmin(admin.ModelAdmin):
 
 
 class Tipos_pgtoAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "usuario")
-    list_filter = ("usuario",)
-    search_fields = ("nome", "usuario")
+    list_display = ("id", "nome", "conta_bancaria", "tem_api", "usuario")
+    list_filter = ("usuario", "nome", "conta_bancaria__instituicao")
+    search_fields = ("nome", "usuario__username", "conta_bancaria__nome_identificacao")
+    autocomplete_fields = ("conta_bancaria",)
     ordering = ("-id", "nome",)
+
+    def tem_api(self, obj):
+        """Exibe se tem integração com API."""
+        return obj.tem_integracao_api
+    tem_api.boolean = True
+    tem_api.short_description = "API"
 
 
 class DispositivoAdmin(admin.ModelAdmin):
@@ -147,6 +158,117 @@ class DadosBancariosAdmin(admin.ModelAdmin):
     list_filter = ("usuario", "instituicao")
     search_fields = ("beneficiario", "instituicao")
     ordering = ("-id",)
+
+
+# --- INTEGRAÇÃO BANCÁRIA ---
+
+class InstituicaoBancariaAdmin(admin.ModelAdmin):
+    """Admin para gerenciar instituições bancárias."""
+    list_display = ("id", "nome", "tipo_integracao", "tem_api", "ativo", "criado_em")
+    list_filter = ("tipo_integracao", "ativo")
+    search_fields = ("nome",)
+    ordering = ("nome",)
+    list_editable = ("ativo",)
+
+    fieldsets = (
+        ("Informações da Instituição", {
+            "fields": ("nome", "tipo_integracao", "ativo")
+        }),
+    )
+
+    def tem_api(self, obj):
+        """Exibe se tem integração com API."""
+        return obj.tem_api
+    tem_api.boolean = True
+    tem_api.short_description = "API"
+
+
+class ClienteContaBancariaInline(admin.TabularInline):
+    """Inline para mostrar clientes associados à conta."""
+    model = ClienteContaBancaria
+    extra = 0
+    autocomplete_fields = ("cliente",)
+    readonly_fields = ("criado_em",)
+
+
+class ContaBancariaAdmin(admin.ModelAdmin):
+    """Admin para gerenciar contas bancárias dos usuários."""
+    list_display = (
+        "id", "nome_identificacao", "instituicao", "tipo_conta",
+        "beneficiario", "chave_pix_truncada", "tem_api", "clientes_count",
+        "limite_display", "ativo", "usuario"
+    )
+    list_filter = ("tipo_conta", "instituicao", "ativo", "usuario", "ambiente_sandbox")
+    search_fields = ("nome_identificacao", "beneficiario", "chave_pix", "usuario__username")
+    ordering = ("-criado_em",)
+    list_editable = ("ativo",)
+    autocomplete_fields = ("usuario", "instituicao")
+    readonly_fields = ("criado_em", "atualizado_em")
+    inlines = [ClienteContaBancariaInline]
+
+    fieldsets = (
+        ("Identificação", {
+            "fields": ("usuario", "instituicao", "nome_identificacao", "tipo_conta")
+        }),
+        ("Dados Bancários", {
+            "fields": ("beneficiario", "tipo_chave_pix", "chave_pix")
+        }),
+        ("Credenciais API (Efi Bank / Mercado Pago)", {
+            "fields": ("api_client_id", "api_client_secret", "api_certificado", "api_access_token", "ambiente_sandbox"),
+            "classes": ("collapse",),
+            "description": "Preencha apenas se a instituição tiver integração com API."
+        }),
+        ("Controle MEI", {
+            "fields": ("limite_mensal",),
+            "description": "O limite efetivo será 10% menor que o cadastrado."
+        }),
+        ("Status", {
+            "fields": ("ativo",)
+        }),
+        ("Metadados", {
+            "fields": ("criado_em", "atualizado_em"),
+            "classes": ("collapse",)
+        }),
+    )
+
+    def chave_pix_truncada(self, obj):
+        """Exibe chave PIX truncada para segurança."""
+        if obj.chave_pix and len(obj.chave_pix) > 10:
+            return f"{obj.chave_pix[:6]}...{obj.chave_pix[-4:]}"
+        return obj.chave_pix
+    chave_pix_truncada.short_description = "Chave PIX"
+
+    def tem_api(self, obj):
+        """Exibe se tem integração com API."""
+        return obj.tem_integracao_api
+    tem_api.boolean = True
+    tem_api.short_description = "API"
+
+    def clientes_count(self, obj):
+        """Exibe quantidade de clientes associados."""
+        count = obj.get_clientes_associados_count()
+        if obj.tipo_conta == 'pf':
+            return "Ilimitado"
+        return count
+    clientes_count.short_description = "Clientes"
+
+    def limite_display(self, obj):
+        """Exibe limite formatado."""
+        if obj.limite_mensal:
+            efetivo = obj.limite_efetivo
+            return f"R$ {obj.limite_mensal:,.2f} (efetivo: R$ {efetivo:,.2f})"
+        return "-"
+    limite_display.short_description = "Limite MEI"
+
+
+class ClienteContaBancariaAdmin(admin.ModelAdmin):
+    """Admin para visualizar associações cliente-conta."""
+    list_display = ("id", "cliente", "conta_bancaria", "criado_em")
+    list_filter = ("conta_bancaria__instituicao", "conta_bancaria__tipo_conta", "criado_em")
+    search_fields = ("cliente__nome", "conta_bancaria__nome_identificacao")
+    autocomplete_fields = ("cliente", "conta_bancaria")
+    readonly_fields = ("criado_em",)
+    ordering = ("-criado_em",)
 
 
 class MensagemEnviadaWppAdmin(admin.ModelAdmin):
@@ -386,6 +508,11 @@ admin.site.register(OfertaPromocionalEnviada, OfertaPromocionalEnviadaAdmin)
 admin.site.register(ContaReseller, ContaResellerAdmin)
 admin.site.register(TarefaMigracaoDNS, TarefaMigracaoDNSAdmin)
 admin.site.register(DispositivoMigracaoDNS, DispositivoMigracaoDNSAdmin)
+
+# Integração Bancária
+admin.site.register(InstituicaoBancaria, InstituicaoBancariaAdmin)
+admin.site.register(ContaBancaria, ContaBancariaAdmin)
+admin.site.register(ClienteContaBancaria, ClienteContaBancariaAdmin)
 
 
 # --- TAREFAS DE ENVIO ---

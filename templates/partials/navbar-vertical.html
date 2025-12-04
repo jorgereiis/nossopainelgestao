@@ -200,6 +200,13 @@
                     <i data-feather="send" class="nav-icon icon-xs me-2"></i> Tarefas de Envio
                 </a>
             </li>
+
+            <!-- Nav item - Formas de Pagamento (Testes) -->
+            <li class="nav-item">
+                <a class="nav-link {% if page == 'admin-forma-pgto' %}active{% endif %}" href="{% url 'admin-forma-pagamento' %}">
+                    <i data-feather="credit-card" class="nav-icon icon-xs me-2"></i> Formas de Pgto (Teste)
+                </a>
+            </li>
             {% endif %}
         </ul>
     </div>

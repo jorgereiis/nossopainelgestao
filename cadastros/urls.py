@@ -118,6 +118,16 @@ from .views import (
     tarefa_envio_duplicar,
     tarefa_envio_preview,
     tarefa_envio_sugestao_horarios,
+    # Integração Bancária
+    api_instituicoes_bancarias,
+    api_contas_bancarias,
+    criar_conta_bancaria,
+    excluir_conta_bancaria,
+    criar_instituicao_bancaria,
+    toggle_instituicao_bancaria,
+    excluir_instituicao_bancaria,
+    # Admin - Testes
+    create_payment_method_admin,
 )
 
 urlpatterns = [
@@ -267,6 +277,18 @@ urlpatterns = [
     path("tarefas-envio/<int:pk>/duplicar/", tarefa_envio_duplicar, name="tarefas-envio-duplicar"),
     path("tarefas-envio/preview/", tarefa_envio_preview, name="tarefas-envio-preview"),
     path("tarefas-envio/sugestao-horarios/", tarefa_envio_sugestao_horarios, name="tarefas-envio-sugestao-horarios"),
+
+    ############ Integração Bancária ###########
+    path("api/instituicoes-bancarias/", api_instituicoes_bancarias, name="api-instituicoes-bancarias"),
+    path("api/contas-bancarias/", api_contas_bancarias, name="api-contas-bancarias"),
+    path("api/contas-bancarias/criar/", criar_conta_bancaria, name="api-criar-conta-bancaria"),
+    path("api/contas-bancarias/<int:pk>/excluir/", excluir_conta_bancaria, name="api-excluir-conta-bancaria"),
+    path("api/instituicoes-bancarias/criar/", criar_instituicao_bancaria, name="api-criar-instituicao"),
+    path("api/instituicoes-bancarias/<int:pk>/toggle/", toggle_instituicao_bancaria, name="api-toggle-instituicao"),
+    path("api/instituicoes-bancarias/<int:pk>/excluir/", excluir_instituicao_bancaria, name="api-excluir-instituicao"),
+
+    ############ Admin - Paginas de Testes ###########
+    path("admin/forma-pagamento/", create_payment_method_admin, name="admin-forma-pagamento"),
 
     ########### Tests ###########
     path("teste/", test, name="teste"),

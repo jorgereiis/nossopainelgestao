@@ -217,7 +217,7 @@
                     </div>
 
                     <div class="d-grid gap-2 mt-4">
-                      <button type="submit" class="btn btn-primary btn-lg" name="cadastrar">
+                      <button type="submit" class="btn btn-primary btn-lg btn-loading-ready" name="cadastrar" id="btn-cadastrar-plano">
                         <i class="bi bi-check-circle me-2"></i>Cadastrar Plano
                       </button>
                     </div>
@@ -474,7 +474,7 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                       <i class="bi bi-pencil me-2"></i>Editar
                     </button>
-                    <button type="button" class="btn btn-primary" id="btn-confirmar-cadastro">
+                    <button type="button" class="btn btn-primary btn-loading-ready" id="btn-confirmar-cadastro">
                       <i class="bi bi-check-circle me-2"></i>Confirmar Cadastro
                     </button>
                   </div>
@@ -639,7 +639,7 @@
                                   data-servidor="{{plano.id}}"
                                   data-nome="{{plano.nome}}"
                                   data-telas="{{plano.telas}}"
-                                  data-valor="{{plano.valor|floatformat:'-0'}}"
+                                  data-valor="{{plano.valor}}"
                                   data-campanha-ativa="{{plano.campanha_ativa|yesno:'true,false'}}"
                                   data-campanha-tipo="{{plano.campanha_tipo|default:''}}"
                                   data-campanha-data-inicio="{{plano.campanha_data_inicio|date:'Y-m-d'|default:''}}"
@@ -1333,6 +1333,9 @@
     const btnConfirmarCadastro = document.getElementById('btn-confirmar-cadastro');
     if (btnConfirmarCadastro) {
       btnConfirmarCadastro.addEventListener('click', function() {
+        // Ativar loading no botão de confirmação
+        setButtonLoading(btnConfirmarCadastro, true);
+
         // Close modal and submit form
         const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirm-plano-modal'));
         confirmModal.hide();
@@ -1351,6 +1354,16 @@
         form.submit();
       });
     }
+
+    // Restaurar ao voltar (bfcache)
+    window.addEventListener('pageshow', function(e) {
+      if (e.persisted) {
+        const btnCadastrar = document.getElementById('btn-cadastrar-plano');
+        const btnConfirmar = document.getElementById('btn-confirmar-cadastro');
+        if (btnCadastrar) setButtonLoading(btnCadastrar, false, '<i class="bi bi-check-circle me-2"></i>Cadastrar Plano');
+        if (btnConfirmar) setButtonLoading(btnConfirmar, false, '<i class="bi bi-check-circle me-2"></i>Confirmar Cadastro');
+      }
+    });
   });
 
   function exibirModalEdicao(botao) {
