@@ -964,7 +964,7 @@ def envia_mensagem_personalizada(
 
         # Validação via WhatsApp
         numero_existe = check_number_status(telefone, token, usuario)
-        if not numero_existe:
+        if not numero_existe or not numero_existe.get('status'):
             logger.warning(
                 "Número não está no WhatsApp | telefone=%s usuario=%s tipo=%s",
                 telefone,

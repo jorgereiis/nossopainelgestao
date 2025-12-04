@@ -95,7 +95,10 @@
                                                     <div class="d-flex align-items-center">
                                                         <div>
                                                             <div class="icon-shape icon-md border p-1 rounded-circle">
-                                                                <img src="{% static 'assets/images/logo-apps/'|add:cliente.servidor.nome|lower|add:'.png' %}" class="rounded-circle">
+                                                                <img src="{% static 'assets/images/logo-apps/'|add:cliente.servidor.nome|lower|add:'.png' %}"
+                                                                     class="rounded-circle"
+                                                                     style="width: 100%; height: 100%; object-fit: cover;"
+                                                                     onerror="this.src='{% static 'assets/images/logo-apps/default.png' %}'">
                                                             </div>
                                                         </div>
                                                         <div class="ms-3 lh-1" style="max-width: 200px;">
