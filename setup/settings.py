@@ -65,6 +65,7 @@ else:
         'localhost',
         'nossopainel.com.br',
         'www.nossopainel.com.br',
+        'local.nossopainel.com.br',
     ]
     # Adiciona domínio extra do .env (ex: ngrok para testes de webhook)
     extra_host = os.getenv('EXTRA_ALLOWED_HOST', '')
