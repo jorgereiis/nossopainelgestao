@@ -285,6 +285,8 @@ def enroll_client_in_campaign_if_eligible(cliente):
         )
 
         # ⭐ SIMPLIFICAÇÃO: Enroll in campaign (sem persistência de plano_id)
+        assinatura.ativo = True  # Garantir que a assinatura está ativa
+        assinatura.plano = plano  # Sincronizar com o plano atual do cliente
         assinatura.em_campanha = True
         assinatura.campanha_data_adesao = hoje
         assinatura.campanha_mensalidades_pagas = 0
