@@ -339,6 +339,46 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
         return 500, {"status": "error", "message": str(exc)}
 
 
+# --- Função para remover todas as labels de um contato ---
+def remover_todas_labels_contato(telefone, labels, token, user):
+    """Remove todas as labels de um contato no WhatsApp."""
+    telefone = telefone.replace('+', '').replace('@c.us', '').strip()
+
+    if not labels:
+        return 200, {"status": "skipped", "message": "Nenhuma label para remover"}
+
+    url = f'{URL_API_WPP}/{user}/add-or-remove-label'
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': f'Bearer {token}'
+    }
+
+    body = {
+        "chatIds": [telefone],
+        "options": [{"labelId": label, "type": "remove"} for label in labels if label]
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=body)
+        logger.info(
+            "[remover_todas_labels_contato] %s | telefone=%s status=%s",
+            user,
+            telefone,
+            response.status_code
+        )
+
+        try:
+            response_data = response.json()
+        except ValueError:
+            response_data = response.text
+
+        return response.status_code, response_data
+    except requests.RequestException as exc:
+        logger.exception("[remover_todas_labels_contato] %s | Erro: %s", user, exc)
+        return 500, {"status": "error", "message": str(exc)}
+
+
 # --- Função para criar uma nova label se não existir ---
 def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
     """Cria a label no WhatsApp caso ainda não exista e retorna o ID correspondente."""

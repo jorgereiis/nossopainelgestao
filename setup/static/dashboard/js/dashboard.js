@@ -953,6 +953,7 @@ function adicionarEventListenersContas() {
       const clienteNome = botao.dataset.nome;
       const clientePlano = botao.dataset.plano;
       const clienteTelefone = botao.dataset.telefone;
+      const clienteTelefoneRaw = botao.dataset.telefoneRaw || botao.dataset.telefone;
       const clienteServidor = botao.dataset.servidor;
       const clienteFormaPgto = botao.dataset.forma_pgto;
       const clienteNaoEnviarMsgs = botao.dataset.nao_enviar_msgs === 'True';
@@ -984,6 +985,12 @@ function adicionarEventListenersContas() {
       form.querySelector("#edit-cliente-dt_pgto").value = clienteDataVencimento;
       form.querySelector("#edit-cliente-nao_enviar_msgs").checked = clienteNaoEnviarMsgs;
       form.querySelector("#edit-cliente-notas").value = clienteNotas;
+
+      // Detecta o país do telefone e define a bandeira correta
+      const paisDetectado = detectCountryFromPhone(clienteTelefoneRaw);
+      if (editClienteTelefoneIti) {
+          editClienteTelefoneIti.setCountry(paisDetectado);
+      }
 
       // Carrega contas de aplicativos via AJAX
       carregarContasCliente(clienteId);
@@ -1044,10 +1051,18 @@ function adicionarEventListenersContas() {
                     setButtonLoading(btn, false, originalHTML);
                     $loading.fadeOut(200);
 
+                    // Tenta extrair mensagem específica da resposta
+                    let errorMessage = 'Erro ao editar cliente!';
+                    if (xhr.responseJSON) {
+                        errorMessage = xhr.responseJSON.error_message_edit
+                                    || xhr.responseJSON.error_message
+                                    || errorMessage;
+                    }
+
                     fireAlert({
                         icon: 'error',
                         title: 'Oops...',
-                        text: 'Erro ao editar cliente!'
+                        html: errorMessage
                     });
                 }
             });
@@ -1086,65 +1101,239 @@ function adicionarEventListenersContas() {
 //   window.dashboardTableManager.refreshTable()
 
 let editClienteTelefoneIti = null;
-const allowedTelefoneCountries = ["br", "us", "pt"];
+const allowedTelefoneCountries = [
+    "br", "us", "mx", "ar", "co", "cl", "pe", "py", "uy",  // Américas
+    "pt", "es", "it", "fr", "de", "gb", "nl", "be", "ch"   // Europa
+];
+
+// Mapa DDI -> código do país (ordenado do mais específico ao menos)
+const DDI_COUNTRY_MAP = [
+    { ddi: '595', country: 'py' },   // Paraguai
+    { ddi: '598', country: 'uy' },   // Uruguai
+    { ddi: '351', country: 'pt' },   // Portugal
+    { ddi: '55', country: 'br' },    // Brasil
+    { ddi: '54', country: 'ar' },    // Argentina
+    { ddi: '57', country: 'co' },    // Colômbia
+    { ddi: '56', country: 'cl' },    // Chile
+    { ddi: '52', country: 'mx' },    // México
+    { ddi: '51', country: 'pe' },    // Peru
+    { ddi: '49', country: 'de' },    // Alemanha
+    { ddi: '44', country: 'gb' },    // Reino Unido
+    { ddi: '41', country: 'ch' },    // Suíça
+    { ddi: '39', country: 'it' },    // Itália
+    { ddi: '34', country: 'es' },    // Espanha
+    { ddi: '33', country: 'fr' },    // França
+    { ddi: '32', country: 'be' },    // Bélgica
+    { ddi: '31', country: 'nl' },    // Holanda
+    { ddi: '1', country: 'us' },     // EUA/Canadá (por último pois é curto)
+];
+
+function detectCountryFromPhone(phoneNumber) {
+    if (!phoneNumber) return 'br';
+    const numero = phoneNumber.replace(/\D/g, '');
+
+    for (const item of DDI_COUNTRY_MAP) {
+        if (numero.startsWith(item.ddi)) {
+            return item.country;
+        }
+    }
+    return 'br'; // fallback
+}
 
 function formatTelefoneInputValue(input, countryCode) {
     let numero = input.value.replace(/\D/g, '');
 
-    if (countryCode === "br") {
-        numero = numero.substring(0, 11); // 2 DDD + até 9 dígitos locais
-        let formatted = '';
-
-        if (numero.length >= 2) {
-            formatted += '(' + numero.substring(0, 2) + ') ';
-
-            const local = numero.substring(2);
-            if (local.length === 9) {
-                formatted += local.substring(0, 5) + '-' + local.substring(5);
-            } else if (local.length >= 5) {
-                formatted += local.substring(0, 4) + '-' + local.substring(4);
-            } else {
-                formatted += local;
+    const formatters = {
+        // --- Américas ---
+        br: (n) => {
+            n = n.substring(0, 11);
+            if (n.length >= 2) {
+                let f = '(' + n.substring(0, 2) + ') ';
+                const local = n.substring(2);
+                if (local.length === 9) f += local.substring(0, 5) + '-' + local.substring(5);
+                else if (local.length >= 5) f += local.substring(0, 4) + '-' + local.substring(4);
+                else f += local;
+                return f;
             }
-        } else {
-            formatted += numero;
-        }
-
-        input.value = formatted;
-        return;
-    }
-
-    if (countryCode === "us") {
-        numero = numero.substring(0, 10);
-        let formatted = '';
-        if (numero.length >= 3) {
-            formatted += '(' + numero.substring(0, 3) + ') ';
-            if (numero.length >= 6) {
-                formatted += numero.substring(3, 6) + '-' + numero.substring(6);
-            } else if (numero.length > 3) {
-                formatted += numero.substring(3);
+            return n;
+        },
+        us: (n) => {
+            n = n.substring(0, 10);
+            if (n.length >= 3) {
+                let f = '(' + n.substring(0, 3) + ') ';
+                if (n.length >= 6) f += n.substring(3, 6) + '-' + n.substring(6);
+                else f += n.substring(3);
+                return f;
             }
-        } else {
-            formatted += numero;
-        }
-        input.value = formatted;
-        return;
-    }
-
-    if (countryCode === "pt") {
-        numero = numero.substring(0, 9);
-        let formatted = '';
-        if (numero.length >= 3) {
-            formatted += numero.substring(0, 3) + ' ';
-            if (numero.length >= 6) {
-                formatted += numero.substring(3, 6) + ' ' + numero.substring(6);
-            } else if (numero.length > 3) {
-                formatted += numero.substring(3);
+            return n;
+        },
+        mx: (n) => {
+            n = n.substring(0, 10);
+            if (n.length >= 2) {
+                let f = n.substring(0, 2) + ' ';
+                if (n.length >= 6) f += n.substring(2, 6) + ' ' + n.substring(6);
+                else f += n.substring(2);
+                return f;
             }
-        } else {
-            formatted += numero;
+            return n;
+        },
+        ar: (n) => {
+            n = n.substring(0, 10);
+            if (n.length >= 2) {
+                let f = n.substring(0, 2) + ' ';
+                if (n.length >= 6) f += n.substring(2, 6) + '-' + n.substring(6);
+                else f += n.substring(2);
+                return f;
+            }
+            return n;
+        },
+        co: (n) => {
+            n = n.substring(0, 10);
+            if (n.length >= 3) {
+                let f = n.substring(0, 3) + ' ';
+                if (n.length >= 6) f += n.substring(3, 6) + ' ' + n.substring(6);
+                else f += n.substring(3);
+                return f;
+            }
+            return n;
+        },
+        cl: (n) => {
+            n = n.substring(0, 9);
+            if (n.length >= 1) {
+                let f = n.substring(0, 1) + ' ';
+                if (n.length >= 5) f += n.substring(1, 5) + ' ' + n.substring(5);
+                else f += n.substring(1);
+                return f;
+            }
+            return n;
+        },
+        pe: (n) => {
+            n = n.substring(0, 9);
+            if (n.length >= 3) {
+                let f = n.substring(0, 3) + ' ';
+                if (n.length >= 6) f += n.substring(3, 6) + ' ' + n.substring(6);
+                else f += n.substring(3);
+                return f;
+            }
+            return n;
+        },
+        py: (n) => {
+            n = n.substring(0, 9);
+            if (n.length >= 3) {
+                let f = n.substring(0, 3) + ' ';
+                if (n.length >= 6) f += n.substring(3, 6) + ' ' + n.substring(6);
+                else f += n.substring(3);
+                return f;
+            }
+            return n;
+        },
+        uy: (n) => {
+            n = n.substring(0, 8);
+            if (n.length >= 2) {
+                let f = n.substring(0, 2) + ' ';
+                if (n.length >= 5) f += n.substring(2, 5) + ' ' + n.substring(5);
+                else f += n.substring(2);
+                return f;
+            }
+            return n;
+        },
+        // --- Europa ---
+        pt: (n) => {
+            n = n.substring(0, 9);
+            if (n.length >= 3) {
+                let f = n.substring(0, 3) + ' ';
+                if (n.length >= 6) f += n.substring(3, 6) + ' ' + n.substring(6);
+                else f += n.substring(3);
+                return f;
+            }
+            return n;
+        },
+        es: (n) => {
+            n = n.substring(0, 9);
+            if (n.length >= 3) {
+                let f = n.substring(0, 3) + ' ';
+                if (n.length >= 5) f += n.substring(3, 5) + ' ';
+                if (n.length >= 7) f += n.substring(5, 7) + ' ';
+                if (n.length > 7) f += n.substring(7);
+                else if (n.length > 5) f += n.substring(5);
+                else f += n.substring(3);
+                return f.trim();
+            }
+            return n;
+        },
+        it: (n) => {
+            n = n.substring(0, 10);
+            if (n.length >= 3) {
+                let f = n.substring(0, 3) + ' ';
+                if (n.length >= 6) f += n.substring(3, 6) + ' ' + n.substring(6);
+                else f += n.substring(3);
+                return f;
+            }
+            return n;
+        },
+        fr: (n) => {
+            n = n.substring(0, 9);
+            let f = '';
+            for (let i = 0; i < n.length; i += 2) {
+                f += n.substring(i, Math.min(i + 2, n.length)) + ' ';
+            }
+            return f.trim();
+        },
+        de: (n) => {
+            n = n.substring(0, 11);
+            if (n.length >= 4) {
+                let f = n.substring(0, 4) + ' ';
+                if (n.length >= 8) f += n.substring(4, 8) + ' ' + n.substring(8);
+                else f += n.substring(4);
+                return f;
+            }
+            return n;
+        },
+        gb: (n) => {
+            n = n.substring(0, 10);
+            if (n.length >= 5) {
+                return n.substring(0, 5) + ' ' + n.substring(5);
+            }
+            return n;
+        },
+        nl: (n) => {
+            n = n.substring(0, 9);
+            if (n.length >= 2) {
+                return n.substring(0, 2) + ' ' + n.substring(2);
+            }
+            return n;
+        },
+        be: (n) => {
+            n = n.substring(0, 9);
+            if (n.length >= 4) {
+                let f = n.substring(0, 4) + ' ';
+                if (n.length >= 6) f += n.substring(4, 6) + ' ';
+                if (n.length >= 8) f += n.substring(6, 8) + ' ';
+                if (n.length > 8) f += n.substring(8);
+                else if (n.length > 6) f += n.substring(6);
+                else f += n.substring(4);
+                return f.trim();
+            }
+            return n;
+        },
+        ch: (n) => {
+            n = n.substring(0, 9);
+            if (n.length >= 3) {
+                let f = n.substring(0, 3) + ' ';
+                if (n.length >= 6) f += n.substring(3, 6) + ' ';
+                if (n.length >= 8) f += n.substring(6, 8) + ' ';
+                if (n.length > 8) f += n.substring(8);
+                else if (n.length > 6) f += n.substring(6);
+                else f += n.substring(3);
+                return f.trim();
+            }
+            return n;
         }
-        input.value = formatted;
+    };
+
+    const formatter = formatters[countryCode];
+    if (formatter) {
+        input.value = formatter(numero);
     }
 }
 
@@ -1163,7 +1352,7 @@ function ensureEditTelefoneITI() {
     }
 
     editClienteTelefoneIti = window.intlTelInput(telefoneInput, {
-        preferredCountries: ["br", "us", "pt"],
+        preferredCountries: ["br", "us", "pt", "it", "es", "fr", "de"],
         initialCountry: "br",
         formatOnDisplay: false,
         nationalMode: true,

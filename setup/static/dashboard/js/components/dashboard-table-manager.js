@@ -40,6 +40,61 @@ class DashboardTableManager {
         this.isInitialized = false;
         this.currentPage = 1; // Rastreia página atual
         this.currentSearchTerm = ''; // Rastreia termo de busca atual
+        this.currentPerPage = this.getStoredPerPage(); // Rastreia registros por página
+        this.currentSort = this.getStoredSort(); // Rastreia campo de ordenação
+        this.currentOrder = this.getStoredOrder(); // Rastreia direção da ordenação
+    }
+
+    /**
+     * Obtém a preferência de registros por página do localStorage
+     * @returns {number} Quantidade de registros por página (padrão: 10)
+     */
+    getStoredPerPage() {
+        const stored = localStorage.getItem('dashboard_per_page');
+        return stored ? parseInt(stored, 10) : 10;
+    }
+
+    /**
+     * Salva a preferência de registros por página no localStorage
+     * @param {number} value - Quantidade de registros por página
+     */
+    setStoredPerPage(value) {
+        localStorage.setItem('dashboard_per_page', value.toString());
+        this.currentPerPage = value;
+    }
+
+    /**
+     * Obtém a preferência de campo de ordenação do localStorage
+     * @returns {string} Campo de ordenação (padrão: 'dt_vencimento')
+     */
+    getStoredSort() {
+        return localStorage.getItem('dashboard_sort') || 'dt_vencimento';
+    }
+
+    /**
+     * Salva a preferência de campo de ordenação no localStorage
+     * @param {string} value - Campo de ordenação
+     */
+    setStoredSort(value) {
+        localStorage.setItem('dashboard_sort', value);
+        this.currentSort = value;
+    }
+
+    /**
+     * Obtém a preferência de direção da ordenação do localStorage
+     * @returns {string} Direção da ordenação (padrão: 'asc')
+     */
+    getStoredOrder() {
+        return localStorage.getItem('dashboard_order') || 'asc';
+    }
+
+    /**
+     * Salva a preferência de direção da ordenação no localStorage
+     * @param {string} value - Direção da ordenação ('asc' ou 'desc')
+     */
+    setStoredOrder(value) {
+        localStorage.setItem('dashboard_order', value);
+        this.currentOrder = value;
     }
 
     /**
@@ -72,6 +127,12 @@ class DashboardTableManager {
         // Anexa listeners de paginação
         this.attachPaginationListeners();
 
+        // Anexa listener de registros por página
+        this.attachPerPageListener();
+
+        // Anexa listener de ordenação server-side
+        this.attachSortListeners();
+
         this.isInitialized = true;
         console.debug('[DashboardTableManager] Inicializado com sucesso');
 
@@ -79,28 +140,14 @@ class DashboardTableManager {
     }
 
     /**
-     * Inicializa os componentes da tabela (ordenação e dropdowns)
+     * Inicializa os componentes da tabela (dropdowns e tooltips)
+     * NOTA: Ordenação client-side (TableSortable) foi desabilitada em favor de ordenação server-side
      * @private
      */
     initTable() {
-        // Inicializa ou reinicializa ordenação
-        if (this.sortable) {
-            console.debug('[DashboardTableManager] Reinicializando ordenação da tabela');
-            this.sortable.reinit();
-
-            // CRUCIAL: Reaplica ordenação após AJAX
-            if (this.sortable.hasSortState()) {
-                console.debug('[DashboardTableManager] Reaplicando ordenação anterior');
-                this.sortable.reapplySort();
-            }
-        } else {
-            console.debug('[DashboardTableManager] Criando nova instância de TableSortable');
-            this.sortable = new TableSortable(this.options.tableSelector, {
-                defaultOrder: 'desc',
-                locale: 'pt-BR'
-            });
-            this.sortable.init();
-        }
+        // Ordenação server-side: TableSortable desabilitado
+        // A ordenação agora é feita pelo backend Django via parâmetros sort/order
+        // Ver métodos: sortBy(), attachSortListeners(), updateSortIndicators()
 
         // Inicializa dropdowns (usa função global existente)
         if (typeof window.initializeTableDropdowns === 'function') {
@@ -174,6 +221,83 @@ class DashboardTableManager {
     }
 
     /**
+     * Anexa listener ao seletor de registros por página usando event delegation
+     * @private
+     */
+    attachPerPageListener() {
+        this.container.addEventListener('change', (event) => {
+            if (event.target.matches('#per-page-select')) {
+                const perPage = parseInt(event.target.value, 10);
+
+                if (!isNaN(perPage)) {
+                    this.setStoredPerPage(perPage);
+                    this.currentPage = 1; // Reset para primeira página
+                    this.performSearch(this.currentSearchTerm, 1);
+                }
+            }
+        });
+
+        console.debug('[DashboardTableManager] Listener de per_page anexado (event delegation)');
+    }
+
+    /**
+     * Anexa listener de ordenação aos headers da tabela usando event delegation
+     * @private
+     */
+    attachSortListeners() {
+        this.container.addEventListener('click', (event) => {
+            const header = event.target.closest('th[data-sort-field]');
+
+            if (header) {
+                const field = header.dataset.sortField;
+                this.sortBy(field);
+            }
+        });
+
+        console.debug('[DashboardTableManager] Listener de ordenação server-side anexado (event delegation)');
+    }
+
+    /**
+     * Executa ordenação server-side
+     * @param {string} field - Campo para ordenar (ex: 'nome', 'data_adesao')
+     * @returns {Promise<void>}
+     */
+    async sortBy(field) {
+        // Toggle ordem se mesmo campo, senão usa 'asc'
+        const order = (field === this.currentSort && this.currentOrder === 'asc') ? 'desc' : 'asc';
+
+        console.debug(`[DashboardTableManager] Ordenando por ${field} (${order})`);
+
+        this.setStoredSort(field);
+        this.setStoredOrder(order);
+        this.currentPage = 1; // Reset para primeira página
+
+        return this.performSearch(this.currentSearchTerm, 1);
+    }
+
+    /**
+     * Atualiza indicadores visuais de ordenação nos headers
+     * @private
+     */
+    updateSortIndicators() {
+        const headers = this.container.querySelectorAll('th[data-sort-field]');
+
+        headers.forEach(header => {
+            const field = header.dataset.sortField;
+
+            // Remove classes anteriores
+            header.classList.remove('sorted-asc', 'sorted-desc');
+
+            // Adiciona classe se for a coluna ativa
+            if (field === this.currentSort) {
+                header.classList.add(this.currentOrder === 'asc' ? 'sorted-asc' : 'sorted-desc');
+            }
+        });
+
+        console.debug('[DashboardTableManager] Indicadores de ordenação atualizados');
+    }
+
+    /**
      * Navega para uma página específica
      * @param {number} page - Número da página
      * @returns {Promise<void>}
@@ -202,7 +326,7 @@ class DashboardTableManager {
             // Mostra feedback de carregamento
             this.showToast('Buscando clientes...', 'info');
 
-            // Constrói URL com busca e página
+            // Constrói URL com busca, página, registros por página e ordenação
             const params = new URLSearchParams();
             if (searchTerm) {
                 params.append('q', searchTerm);
@@ -210,6 +334,11 @@ class DashboardTableManager {
             if (page > 1) {
                 params.append('page', page);
             }
+            // Sempre envia per_page para manter preferência do usuário
+            params.append('per_page', this.currentPerPage);
+            // Sempre envia parâmetros de ordenação server-side
+            params.append('sort', this.currentSort);
+            params.append('order', this.currentOrder);
 
             const url = `${this.options.searchUrl}?${params.toString()}`;
             const response = await fetch(url);
@@ -223,8 +352,11 @@ class DashboardTableManager {
             // Substitui conteúdo da tabela
             this.container.innerHTML = html;
 
-            // Reinicializa componentes (CRUCIAL para resolver o bug)
+            // Reinicializa componentes (sem ordenação client-side)
             this.initTable();
+
+            // Atualiza indicadores visuais de ordenação
+            this.updateSortIndicators();
 
             // Atualiza URL do navegador (history API)
             this.updateBrowserUrl(searchTerm, page);
@@ -270,12 +402,17 @@ class DashboardTableManager {
             params.append('page', page);
         }
 
+        // Inclui per_page na URL apenas se diferente do padrão (10)
+        if (this.currentPerPage !== 10) {
+            params.append('per_page', this.currentPerPage);
+        }
+
         const newUrl = params.toString()
             ? `${window.location.pathname}?${params.toString()}`
             : window.location.pathname;
 
         // Atualiza URL sem recarregar (History API)
-        window.history.pushState({ searchTerm, page }, '', newUrl);
+        window.history.pushState({ searchTerm, page, perPage: this.currentPerPage }, '', newUrl);
 
         console.debug(`[DashboardTableManager] URL atualizada: ${newUrl}`);
     }

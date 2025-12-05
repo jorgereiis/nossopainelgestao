@@ -131,7 +131,7 @@
                                 <select class="form-select form-select-lg" id="edit-cliente-plano" name="plano" required>
                                     <option value="">Selecione um plano</option>
                                     {% for plano in planos %}
-                                    <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas }}" data-telas="{{ plano.telas }}">
+                                    <option value="{{ plano.id }}" data-telas="{{ plano.telas }}">
                                         {% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %}
                                         {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela{{ plano.telas|pluralize }}
                                     </option>

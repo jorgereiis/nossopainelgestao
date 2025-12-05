@@ -118,6 +118,21 @@ PLANOS_MESES = {
 LOG_DIR = os.path.join(settings.BASE_DIR, 'logs')
 MESES_31_DIAS = [1, 3, 5, 7, 8, 10, 12]
 
+# Opções de paginação para tabela do dashboard
+PAGINATION_OPTIONS = [10, 25, 50, 100]
+DEFAULT_PAGINATION = 10
+
+# Opções de ordenação para tabela do dashboard (whitelist de segurança)
+SORT_FIELDS = {
+    'nome': 'nome',
+    'data_adesao': 'data_adesao',
+    'contas_count': 'contas_count',
+    'ultimo_pagamento': 'ultimo_pagamento',
+    'dt_vencimento': 'mensalidade__dt_vencimento',
+}
+DEFAULT_SORT = 'dt_vencimento'
+DEFAULT_ORDER = 'asc'
+
 warnings.filterwarnings(
     "ignore", message="errors='ignore' is deprecated", category=FutureWarning
 )
@@ -585,14 +600,40 @@ class ClientesCancelados(LoginRequiredMixin, ListView):
 class TabelaDashboardAjax(LoginRequiredMixin, ListView):
     model = Cliente
     template_name = "partials/table-clients.html"
-    paginate_by = 10
+
+    def get_paginate_by(self, queryset):
+        """Retorna quantidade de itens por página baseado no parâmetro da URL ou session."""
+        per_page = self.request.GET.get('per_page')
+        if per_page:
+            try:
+                per_page = int(per_page)
+                if per_page in PAGINATION_OPTIONS:
+                    self.request.session['dashboard_per_page'] = per_page
+                    return per_page
+            except (ValueError, TypeError):
+                pass
+        return self.request.session.get('dashboard_per_page', DEFAULT_PAGINATION)
+
+    def get_sort_params(self):
+        """Extrai e valida parâmetros de ordenação da URL."""
+        sort_field = self.request.GET.get('sort', DEFAULT_SORT)
+        sort_order = self.request.GET.get('order', DEFAULT_ORDER)
+
+        # Validação: só aceita campos do whitelist
+        if sort_field not in SORT_FIELDS:
+            sort_field = DEFAULT_SORT
+        # Validação: só aceita 'asc' ou 'desc'
+        if sort_order not in ('asc', 'desc'):
+            sort_order = DEFAULT_ORDER
+
+        return sort_field, sort_order
 
     def get_queryset(self):
         """
         Retorna a queryset para a listagem de clientes no dashboard.
 
         Filtra os clientes que não foram cancelados e possuem mensalidades não canceladas, não pagas e sem data de pagamento definida.
-        Ordena a queryset pelo campo de data de vencimento da mensalidade.
+        Ordena a queryset pelo campo especificado via parâmetros sort/order.
         Realiza a operação distinct() para evitar duplicatas na listagem.
         Caso haja um valor de busca na URL (parâmetro 'q'), filtra a queryset pelos clientes cujo nome contém o valor de busca.
         """
@@ -625,21 +666,34 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
                 mensalidade__dt_pagamento=None,
                 mensalidade__pgto=False,
                 usuario=self.request.user,
-            ).order_by("mensalidade__dt_vencimento").distinct()
+            ).distinct()
         )
         if query:
             queryset = queryset.filter(
                 Q(nome__icontains=query) | Q(telefone__icontains=query)
             )
-        
+
+        # Aplicar ordenação server-side
+        sort_field, sort_order = self.get_sort_params()
+        db_field = SORT_FIELDS[sort_field]
+        if sort_order == 'desc':
+            db_field = f'-{db_field}'
+        queryset = queryset.order_by(db_field)
+
         time.sleep(0.5)
         return queryset
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["hoje"] = timezone.localtime().date()
+        context['pagination_options'] = PAGINATION_OPTIONS
+        context['current_per_page'] = self.get_paginate_by(self.get_queryset())
+        # Adicionar estado de ordenação ao contexto
+        sort_field, sort_order = self.get_sort_params()
+        context['current_sort'] = sort_field
+        context['current_order'] = sort_order
         return context
-    
+
 
 class ModalDNSJsonView(LoginRequiredMixin, View):
     def get(self, request):
@@ -802,7 +856,33 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
     login_url = "login"
     model = Cliente
     template_name = "dashboard.html"
-    paginate_by = 10    
+
+    def get_paginate_by(self, queryset):
+        """Retorna quantidade de itens por página baseado no parâmetro da URL ou session."""
+        per_page = self.request.GET.get('per_page')
+        if per_page:
+            try:
+                per_page = int(per_page)
+                if per_page in PAGINATION_OPTIONS:
+                    self.request.session['dashboard_per_page'] = per_page
+                    return per_page
+            except (ValueError, TypeError):
+                pass
+        return self.request.session.get('dashboard_per_page', DEFAULT_PAGINATION)
+
+    def get_sort_params(self):
+        """Extrai e valida parâmetros de ordenação da URL."""
+        sort_field = self.request.GET.get('sort', DEFAULT_SORT)
+        sort_order = self.request.GET.get('order', DEFAULT_ORDER)
+
+        # Validação: só aceita campos do whitelist
+        if sort_field not in SORT_FIELDS:
+            sort_field = DEFAULT_SORT
+        # Validação: só aceita 'asc' ou 'desc'
+        if sort_order not in ('asc', 'desc'):
+            sort_order = DEFAULT_ORDER
+
+        return sort_field, sort_order
 
     def get_queryset(self):
 
@@ -835,10 +915,18 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 mensalidade__dt_pagamento=None,
                 mensalidade__pgto=False,
                 usuario=self.request.user,
-            ).order_by("mensalidade__dt_vencimento").distinct()
+            ).distinct()
         )
         if query:
             queryset = queryset.filter(nome__icontains=query)
+
+        # Aplicar ordenação server-side
+        sort_field, sort_order = self.get_sort_params()
+        db_field = SORT_FIELDS[sort_field]
+        if sort_order == 'desc':
+            db_field = f'-{db_field}'
+        queryset = queryset.order_by(db_field)
+
         return queryset
     
     def get_context_data(self, **kwargs):
@@ -1045,6 +1133,12 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "lista_meses": lista_meses,
                 "anuo_atual": ano_atual,
                 "data_atual": data_atual,
+                ## context para paginação configurável
+                "pagination_options": PAGINATION_OPTIONS,
+                "current_per_page": self.get_paginate_by(self.get_queryset()),
+                ## context para ordenação server-side
+                "current_sort": self.get_sort_params()[0],
+                "current_order": self.get_sort_params()[1],
             }
         )
         return context
@@ -1126,7 +1220,7 @@ def send_message_wpp(request):
         clientes = Cliente.objects.filter(
             usuario=usuario,
             cancelado=True,
-            data_cancelamento__lte=timezone.now() - timedelta(days=40),
+            data_cancelamento__lte=timezone.now() - timedelta(days=7),
             nao_enviar_msgs=False
         )
         telefones = [re.sub(r'\s+|\W', '', c.telefone) for c in clientes]
@@ -1731,6 +1825,134 @@ def profile_page(request):
             'has_backup_codes': bool(profile.two_factor_backup_codes),
         },
     )
+
+
+@login_required
+def exportar_clientes_excel(request):
+    """Exporta clientes do usuário para Excel (.xlsx)"""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from django.db.models import Prefetch
+
+    usuario = request.user
+    clientes = Cliente.objects.filter(usuario=usuario).select_related(
+        'servidor', 'dispositivo', 'sistema', 'plano', 'forma_pgto', 'indicado_por'
+    ).prefetch_related(
+        Prefetch('conta_aplicativo', queryset=ContaDoAplicativo.objects.select_related('app', 'dispositivo'))
+    )
+
+    # Criar workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Clientes"
+
+    # Estilos
+    header_font = Font(bold=True, size=14)
+    subheader_font = Font(bold=True, size=11)
+    table_header_font = Font(bold=True, color="FFFFFF")
+    table_header_fill = PatternFill(start_color="4A90D9", end_color="4A90D9", fill_type="solid")
+    font_verde = Font(color="008000")  # Verde para Ativo
+    font_vermelha = Font(color="FF0000")  # Vermelho para Cancelado
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # === CABEÇALHO DO USUÁRIO ===
+    dados_bancarios = DadosBancarios.objects.filter(usuario=usuario).first()
+    telefone_user = dados_bancarios.wpp if dados_bancarios else ""
+
+    ws['A1'] = "RELATÓRIO DE CLIENTES"
+    ws['A1'].font = header_font
+
+    ws['A2'] = f"Nome: {usuario.first_name} {usuario.last_name}"
+    ws['A3'] = f"Usuário: {usuario.username}"
+    ws['A4'] = f"Telefone: {telefone_user}"
+    ws['A5'] = f"Total de Clientes: {clientes.count()}"
+
+    # === CABEÇALHO DA TABELA (linha 7) ===
+    colunas = [
+        'Servidor', 'Dispositivo', 'Aplicativo', 'Device ID', 'Email', 'Device Key',
+        'Nome', 'Telefone', 'Indicado Por', 'Data Vencimento', 'Forma Pgto',
+        'Tipo Plano', 'Plano Valor', 'Qtd. Telas', 'Data Adesão', 'Status'
+    ]
+
+    for col, titulo in enumerate(colunas, 1):
+        cell = ws.cell(row=7, column=col, value=titulo)
+        cell.font = table_header_font
+        cell.fill = table_header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+
+    # === DADOS DOS CLIENTES ===
+    linha = 8
+    for cliente in clientes:
+        contas = cliente.conta_aplicativo.all()
+
+        if contas.exists():
+            # Concatenar dados de múltiplas contas (incluindo o nome do app)
+            aplicativos = " - ".join([c.app.nome for c in contas if c.app])
+            device_ids = " - ".join([c.device_id for c in contas if c.device_id])
+            emails = " - ".join([c.email for c in contas if c.email])
+            device_keys = " - ".join([c.device_key for c in contas if c.device_key])
+        else:
+            aplicativos = cliente.sistema.nome if cliente.sistema else ""
+            device_ids = ""
+            emails = ""
+            device_keys = ""
+
+        dados = [
+            cliente.servidor.nome if cliente.servidor else "",
+            cliente.dispositivo.nome if cliente.dispositivo else "",
+            aplicativos,
+            device_ids,
+            emails,
+            device_keys,
+            cliente.nome,
+            cliente.telefone,
+            cliente.indicado_por.nome if cliente.indicado_por else "",
+            cliente.data_vencimento.strftime('%d/%m/%Y') if cliente.data_vencimento else "",
+            cliente.forma_pgto.nome if cliente.forma_pgto else "",
+            cliente.plano.nome if cliente.plano else "",
+            float(cliente.plano.valor) if cliente.plano else 0,
+            cliente.plano.telas if cliente.plano else 0,
+            cliente.data_adesao.strftime('%d/%m/%Y') if cliente.data_adesao else "",
+            "Cancelado" if cliente.cancelado else "Ativo",
+        ]
+
+        for col, valor in enumerate(dados, 1):
+            cell = ws.cell(row=linha, column=col, value=valor)
+            cell.border = thin_border
+
+        # Aplicar cor na coluna Status
+        status_col = len(colunas)
+        status_cell = ws.cell(row=linha, column=status_col)
+        if cliente.cancelado:
+            status_cell.font = font_vermelha
+        else:
+            status_cell.font = font_verde
+
+        linha += 1
+
+    # Ajustar largura das colunas
+    for col in range(1, len(colunas) + 1):
+        ws.column_dimensions[ws.cell(row=7, column=col).column_letter].width = 15
+
+    # Salvar em bytes
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    # Retornar resposta
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="clientes_{usuario.username}.xlsx"'
+    return response
 
 
 @login_required
@@ -3008,22 +3230,10 @@ def edit_customer(request, cliente_id):
         if forma_pgto and cliente.forma_pgto != forma_pgto:
             cliente.forma_pgto = forma_pgto
 
-        # Plano
-        plano_str = post.get("plano", "")
-        if '-' in plano_str:
-            parts = plano_str.rsplit('-', 2)  # Split into 3 parts: nome - valor - telas
-            if len(parts) == 3:
-                plano_nome, plano_valor, plano_telas = parts
-                plano_nome = plano_nome.strip()
-                plano_valor = Decimal(plano_valor.strip().replace(',', '.'))
-                plano_telas = int(plano_telas.strip())
-                plano = Plano.objects.filter(nome=plano_nome, valor=plano_valor, telas=plano_telas, usuario=user).first()
-            else:
-                # Fallback for old format (backwards compatibility)
-                plano_nome, plano_valor = plano_str.rsplit('-', 1)
-                plano_nome = plano_nome.strip()
-                plano_valor = Decimal(plano_valor.replace(',', '.'))
-                plano = Plano.objects.filter(nome=plano_nome, valor=plano_valor, usuario=user).first()
+        # Plano (agora usando ID ao invés de string formatada)
+        plano_id = post.get("plano", "")
+        if plano_id and plano_id.isdigit():
+            plano = Plano.objects.filter(pk=int(plano_id), usuario=user).first()
             if plano and cliente.plano != plano:
                 cliente.plano = plano
                 mensalidade.valor = calcular_valor_mensalidade(cliente)
@@ -3065,10 +3275,26 @@ def edit_customer(request, cliente_id):
                     enroll_result = enroll_client_in_campaign_if_eligible(cliente)
                     if enroll_result:
                         # Recalculate mensalidade value with new campaign
-                        mensalidade.valor = calcular_valor_mensalidade(cliente)
+                        valor_base = plano.valor
+                        valor_campanha = calcular_valor_mensalidade(cliente)
+
+                        # Atualizar campos de rastreamento da mensalidade atual
+                        mensalidade.valor = valor_campanha
+                        mensalidade.gerada_em_campanha = True
+                        mensalidade.valor_base_plano = valor_base
+                        mensalidade.desconto_campanha = valor_base - valor_campanha
+                        mensalidade.tipo_campanha = plano.campanha_tipo
+                        mensalidade.numero_mes_campanha = 1  # Primeira mensalidade da campanha
+
                         logger.info(
                             f"[CAMPANHA] Cliente {cliente.nome} inscrito na campanha do novo plano '{plano.nome}'"
                         )
+                else:
+                    # Plano Regular - resetar campos de campanha da mensalidade
+                    mensalidade.gerada_em_campanha = False
+                    mensalidade.desconto_campanha = Decimal("0.00")
+                    mensalidade.tipo_campanha = None
+                    mensalidade.numero_mes_campanha = None
 
         # Data de vencimento
         data_vencimento_str = post.get("dt_pgto", "").strip()

@@ -590,7 +590,10 @@
                         <td class="text-center">
                           {% if plano.campanha_ativa %}
                             {% with info=plano.get_campanha_duracao_display %}
-                              <span class="badge bg-light text-dark border" style="font-size: 0.75rem;" data-bs-toggle="tooltip" title="{{ info.texto_completo }}">
+                              <span class="badge bg-light text-dark border" style="font-size: 0.75rem;"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-html="true"
+                                    title="{{ plano.get_campanha_valores_tooltip }}">
                                 {{ info.texto_curto }}
                               </span>
                             {% endwith %}
