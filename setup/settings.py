@@ -65,6 +65,7 @@ else:
         'localhost',
         'nossopainel.com.br',
         'www.nossopainel.com.br',
+        'local.nossopainel.com.br',
     ]
     # Adiciona domínio extra do .env (ex: ngrok para testes de webhook)
     extra_host = os.getenv('EXTRA_ALLOWED_HOST', '')
@@ -106,8 +107,13 @@ MIDDLEWARE = [
 ]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
+# CSRF e Session Cookies - Condicional por ambiente
+if DEBUG:
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
+else:
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
@@ -125,7 +131,19 @@ CSRF_TRUSTED_ORIGINS = [
     'http://nossopainel.com.br',
     'https://www.nossopainel.com.br',
     'http://www.nossopainel.com.br',
+    'https://local.nossopainel.com.br',
+    'http://local.nossopainel.com.br',
 ]
+# Adiciona localhost em desenvolvimento
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS += [
+        'http://localhost:8081',
+        'http://localhost',
+        'http://127.0.0.1:8081',
+        'http://127.0.0.1',
+        'http://local.nossopainel.com.br:8081',
+        'http://local.nossopainel.com.br',
+    ]
 # Adiciona origem extra do .env (ex: ngrok para testes de webhook)
 extra_csrf_origin = os.getenv('EXTRA_CSRF_ORIGIN', '')
 if extra_csrf_origin:

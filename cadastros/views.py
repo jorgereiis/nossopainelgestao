@@ -1170,6 +1170,7 @@ def send_message_wpp(request):
         from django.contrib.auth import get_user_model
         from django.db import IntegrityError
         from .utils import mask_phone_number, get_envios_hoje
+        from wpp.api_connection import check_number_status
 
         User = get_user_model()
 
@@ -1208,6 +1209,15 @@ def send_message_wpp(request):
                 data_envio=hoje
             ).exists():
                 log_result(log_result_filename, f"{telefone} - ⚠️ Já enviado hoje (ignorado)")
+                return False
+
+            # Validação do número via WhatsApp API
+            numero_existe = check_number_status(telefone, token, usuario.username)
+            if not numero_existe or not numero_existe.get('status'):
+                log_result(log_result_filename, f"{telefone} - ❌ Número inválido no WhatsApp")
+                if tipo_envio == 'avulso':
+                    from .models import TelefoneLeads
+                    TelefoneLeads.objects.filter(telefone=telefone, usuario=usuario).delete()
                 return False
 
             # PASSO 1: Cria registro PRIMEIRO (previne duplicata)

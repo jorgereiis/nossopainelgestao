@@ -964,7 +964,7 @@ def envia_mensagem_personalizada(
 
         # Validação via WhatsApp
         numero_existe = check_number_status(telefone, token, usuario)
-        if not numero_existe:
+        if not numero_existe or not numero_existe.get('status'):
             logger.warning(
                 "Número não está no WhatsApp | telefone=%s usuario=%s tipo=%s",
                 telefone,
@@ -1349,7 +1349,7 @@ def run_scheduled_tasks_from_db():
         hora_atual = agora.hour
         minuto_atual = agora.minute
 
-        logger.info(
+        logger.debug(
             "Verificando TarefasEnvio do banco | hora=%02d:%02d",
             hora_atual,
             minuto_atual
