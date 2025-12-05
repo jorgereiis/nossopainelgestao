@@ -3274,7 +3274,7 @@ def edit_payment_plan(request, plano_id):
         if nome and valor:
             plano_mensal.nome = nome
             plano_mensal.telas = telas
-            plano_mensal.valor = valor
+            plano_mensal.valor = Decimal(valor.replace(',', '.'))
 
             # ⭐ FASE 2: Update campaign data
             campanha_ativa = request.POST.get('campanha_ativa') == 'on'
@@ -3287,20 +3287,13 @@ def edit_payment_plan(request, plano_id):
                 plano_mensal.campanha_duracao_meses = request.POST.get('campanha_duracao_meses') or None
 
                 if plano_mensal.campanha_tipo == 'FIXO':
-                    plano_mensal.campanha_valor_fixo = request.POST.get('campanha_valor_fixo') or None
+                    campanha_valor_fixo = request.POST.get('campanha_valor_fixo')
+                    plano_mensal.campanha_valor_fixo = Decimal(campanha_valor_fixo.replace(',', '.')) if campanha_valor_fixo else None
                 else:  # PERSONALIZADO
-                    plano_mensal.campanha_valor_mes_1 = request.POST.get('campanha_valor_mes_1') or None
-                    plano_mensal.campanha_valor_mes_2 = request.POST.get('campanha_valor_mes_2') or None
-                    plano_mensal.campanha_valor_mes_3 = request.POST.get('campanha_valor_mes_3') or None
-                    plano_mensal.campanha_valor_mes_4 = request.POST.get('campanha_valor_mes_4') or None
-                    plano_mensal.campanha_valor_mes_5 = request.POST.get('campanha_valor_mes_5') or None
-                    plano_mensal.campanha_valor_mes_6 = request.POST.get('campanha_valor_mes_6') or None
-                    plano_mensal.campanha_valor_mes_7 = request.POST.get('campanha_valor_mes_7') or None
-                    plano_mensal.campanha_valor_mes_8 = request.POST.get('campanha_valor_mes_8') or None
-                    plano_mensal.campanha_valor_mes_9 = request.POST.get('campanha_valor_mes_9') or None
-                    plano_mensal.campanha_valor_mes_10 = request.POST.get('campanha_valor_mes_10') or None
-                    plano_mensal.campanha_valor_mes_11 = request.POST.get('campanha_valor_mes_11') or None
-                    plano_mensal.campanha_valor_mes_12 = request.POST.get('campanha_valor_mes_12') or None
+                    for i in range(1, 13):
+                        campo = f'campanha_valor_mes_{i}'
+                        valor_mes = request.POST.get(campo)
+                        setattr(plano_mensal, campo, Decimal(valor_mes.replace(',', '.')) if valor_mes else None)
             else:
                 # Clear campaign data if not active
                 plano_mensal.campanha_tipo = None
