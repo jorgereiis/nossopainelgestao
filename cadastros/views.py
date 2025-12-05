@@ -3277,10 +3277,34 @@ def edit_payment_plan(request, plano_id):
             plano_mensal.valor = Decimal(valor.replace(',', '.'))
 
             # ⭐ FASE 2: Update campaign data
-            campanha_ativa = request.POST.get('campanha_ativa') == 'on'
-            plano_mensal.campanha_ativa = campanha_ativa
+            campanha_ativa_nova = request.POST.get('campanha_ativa') == 'on'
+            campanha_ativa_atual = plano_mensal.campanha_ativa
 
-            if campanha_ativa:
+            # Validar duplicidade ao mudar status da campanha
+            if campanha_ativa_nova != campanha_ativa_atual:
+                # Verificar se já existe plano com a nova configuração
+                planos_conflitantes = Plano.objects.filter(
+                    nome=nome,
+                    valor=Decimal(valor.replace(',', '.')),
+                    telas=telas,
+                    usuario=request.user,
+                    campanha_ativa=campanha_ativa_nova
+                ).exclude(pk=plano_mensal.pk)
+
+                if planos_conflitantes.exists():
+                    tipo = "com campanha" if campanha_ativa_nova else "regular"
+                    return render(
+                        request,
+                        "pages/cadastro-plano-adesao.html",
+                        {
+                            'planos_mensalidades': planos_mensalidades,
+                            "error_message": f"Já existe um Plano {tipo} para esta configuração!",
+                        },
+                    )
+
+            plano_mensal.campanha_ativa = campanha_ativa_nova
+
+            if campanha_ativa_nova:
                 plano_mensal.campanha_tipo = request.POST.get('campanha_tipo', 'FIXO')
                 plano_mensal.campanha_data_inicio = request.POST.get('campanha_data_inicio') or None
                 plano_mensal.campanha_data_fim = request.POST.get('campanha_data_fim') or None
@@ -5411,21 +5435,54 @@ def create_payment_plan(request):
         if nome:
 
             try:
-                # Consultando o objeto requisitado. Caso não exista, será criado.
-                # FASE 1: max_dispositivos = telas (automaticamente)
-                # FASE 2: Campanhas não diferenciam planos (são atributos mutáveis)
+                # Obter valores do formulário
                 telas = int(request.POST.get('telas'))
+                valor = Decimal(request.POST.get('valor').replace(',', '.'))
+                campanha_ativa = request.POST.get('campanha_ativa') == 'on'
 
-                plano, created = Plano.objects.get_or_create(
-                    nome=request.POST.get('nome'),
-                    valor=Decimal(request.POST.get('valor').replace(',', '.')),
+                # Buscar planos existentes com mesmo nome/valor/telas
+                planos_existentes = Plano.objects.filter(
+                    nome=nome,
+                    valor=valor,
                     telas=telas,
-                    max_dispositivos=telas,  # ⭐ FASE 1: Dispositivos = Telas
                     usuario=usuario
                 )
 
-                # ⭐ FASE 2: Set campaign data (after creation)
-                campanha_ativa = request.POST.get('campanha_ativa') == 'on'
+                # Verificar se já existe plano com mesma configuração de campanha
+                plano_com_campanha = planos_existentes.filter(campanha_ativa=True).exists()
+                plano_sem_campanha = planos_existentes.filter(campanha_ativa=False).exists()
+
+                # Validar duplicidade
+                if campanha_ativa and plano_com_campanha:
+                    return render(
+                        request,
+                        'pages/cadastro-plano-adesao.html',
+                        {
+                            'planos_mensalidades': planos_mensalidades,
+                            "error_message": "Já existe um Plano com campanha para esta configuração!",
+                        },
+                    )
+
+                if not campanha_ativa and plano_sem_campanha:
+                    return render(
+                        request,
+                        'pages/cadastro-plano-adesao.html',
+                        {
+                            'planos_mensalidades': planos_mensalidades,
+                            "error_message": "Já existe um Plano regular para esta configuração!",
+                        },
+                    )
+
+                # Criar novo plano
+                plano = Plano.objects.create(
+                    nome=nome,
+                    valor=valor,
+                    telas=telas,
+                    max_dispositivos=telas,
+                    usuario=usuario
+                )
+
+                # Configurar dados de campanha
                 plano.campanha_ativa = campanha_ativa
 
                 if campanha_ativa:
@@ -5435,75 +5492,38 @@ def create_payment_plan(request):
                     plano.campanha_duracao_meses = request.POST.get('campanha_duracao_meses') or None
 
                     if plano.campanha_tipo == 'FIXO':
-                        plano.campanha_valor_fixo = request.POST.get('campanha_valor_fixo') or None
+                        campanha_valor_fixo = request.POST.get('campanha_valor_fixo')
+                        plano.campanha_valor_fixo = Decimal(campanha_valor_fixo.replace(',', '.')) if campanha_valor_fixo else None
                     else:  # PERSONALIZADO
-                        plano.campanha_valor_mes_1 = request.POST.get('campanha_valor_mes_1') or None
-                        plano.campanha_valor_mes_2 = request.POST.get('campanha_valor_mes_2') or None
-                        plano.campanha_valor_mes_3 = request.POST.get('campanha_valor_mes_3') or None
-                        plano.campanha_valor_mes_4 = request.POST.get('campanha_valor_mes_4') or None
-                        plano.campanha_valor_mes_5 = request.POST.get('campanha_valor_mes_5') or None
-                        plano.campanha_valor_mes_6 = request.POST.get('campanha_valor_mes_6') or None
-                        plano.campanha_valor_mes_7 = request.POST.get('campanha_valor_mes_7') or None
-                        plano.campanha_valor_mes_8 = request.POST.get('campanha_valor_mes_8') or None
-                        plano.campanha_valor_mes_9 = request.POST.get('campanha_valor_mes_9') or None
-                        plano.campanha_valor_mes_10 = request.POST.get('campanha_valor_mes_10') or None
-                        plano.campanha_valor_mes_11 = request.POST.get('campanha_valor_mes_11') or None
-                        plano.campanha_valor_mes_12 = request.POST.get('campanha_valor_mes_12') or None
-                else:
-                    # Clear campaign data if not active
-                    plano.campanha_tipo = None
-                    plano.campanha_data_inicio = None
-                    plano.campanha_data_fim = None
-                    plano.campanha_duracao_meses = None
-                    plano.campanha_valor_fixo = None
-                    plano.campanha_valor_mes_1 = None
-                    plano.campanha_valor_mes_2 = None
-                    plano.campanha_valor_mes_3 = None
-                    plano.campanha_valor_mes_4 = None
-                    plano.campanha_valor_mes_5 = None
-                    plano.campanha_valor_mes_6 = None
-                    plano.campanha_valor_mes_7 = None
-                    plano.campanha_valor_mes_8 = None
-                    plano.campanha_valor_mes_9 = None
-                    plano.campanha_valor_mes_10 = None
-                    plano.campanha_valor_mes_11 = None
-                    plano.campanha_valor_mes_12 = None
+                        for i in range(1, 13):
+                            campo = f'campanha_valor_mes_{i}'
+                            valor_mes = request.POST.get(campo)
+                            setattr(plano, campo, Decimal(valor_mes.replace(',', '.')) if valor_mes else None)
 
                 plano.save()
 
-                if created:
-                    log_user_action(
-                        request=request,
-                        action=UserActionLog.ACTION_CREATE,
-                        instance=plano,
-                        message="Plano de adesao criado.",
-                        extra={
-                            "nome": plano.nome,
-                            "valor": str(plano.valor),
-                            "telas": plano.telas,
-                            "max_dispositivos": plano.max_dispositivos,  # ⭐ FASE 1
-                            "campanha_ativa": plano.campanha_ativa,  # ⭐ FASE 2
-                            "campanha_tipo": plano.campanha_tipo if plano.campanha_ativa else None,
-                        },
-                    )
-                    return render(
-                            request,
-                        'pages/cadastro-plano-adesao.html',
-                        {
-                            'planos_mensalidades': planos_mensalidades,
-                            "success_message": "Novo Plano cadastrado com sucesso!",
-                        },
-                    )
-                
-                else:
-                    return render(
-                            request,
-                        'pages/cadastro-plano-adesao.html',
-                        {
-                            'planos_mensalidades': planos_mensalidades,
-                            "error_message": "Já existe um Plano com este nome!",
-                        },
-                    )
+                log_user_action(
+                    request=request,
+                    action=UserActionLog.ACTION_CREATE,
+                    instance=plano,
+                    message="Plano de adesao criado.",
+                    extra={
+                        "nome": plano.nome,
+                        "valor": str(plano.valor),
+                        "telas": plano.telas,
+                        "max_dispositivos": plano.max_dispositivos,
+                        "campanha_ativa": plano.campanha_ativa,
+                        "campanha_tipo": plano.campanha_tipo if plano.campanha_ativa else None,
+                    },
+                )
+                return render(
+                    request,
+                    'pages/cadastro-plano-adesao.html',
+                    {
+                        'planos_mensalidades': planos_mensalidades,
+                        "success_message": "Novo Plano cadastrado com sucesso!",
+                    },
+                )
                 
             except Exception as e:
                 logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
