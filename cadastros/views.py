@@ -1126,7 +1126,7 @@ def send_message_wpp(request):
         clientes = Cliente.objects.filter(
             usuario=usuario,
             cancelado=True,
-            data_cancelamento__lte=timezone.now() - timedelta(days=40),
+            data_cancelamento__lte=timezone.now() - timedelta(days=7),
             nao_enviar_msgs=False
         )
         telefones = [re.sub(r'\s+|\W', '', c.telefone) for c in clientes]

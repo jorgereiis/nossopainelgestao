@@ -1349,12 +1349,6 @@ def run_scheduled_tasks_from_db():
         hora_atual = agora.hour
         minuto_atual = agora.minute
 
-        logger.debug(
-            "Verificando TarefasEnvio do banco | hora=%02d:%02d",
-            hora_atual,
-            minuto_atual
-        )
-
         # Busca tarefas ativas que devem executar no horário atual (com margem de 5 min)
         tarefas = TarefaEnvio.objects.filter(
             ativo=True,
@@ -1370,13 +1364,7 @@ def run_scheduled_tasks_from_db():
                 tarefas_para_executar.append(tarefa)
 
         if not tarefas_para_executar:
-            logger.debug("Nenhuma TarefaEnvio para executar neste horário")
             return
-
-        logger.info(
-            "Encontradas %d TarefasEnvio candidatas para execução",
-            len(tarefas_para_executar)
-        )
 
         for tarefa in tarefas_para_executar:
             try:
