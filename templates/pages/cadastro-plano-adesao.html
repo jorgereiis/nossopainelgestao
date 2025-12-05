@@ -1,4 +1,4 @@
-{% load static %}
+{% load static l10n %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -645,19 +645,19 @@
                                   data-campanha-data-inicio="{{plano.campanha_data_inicio|date:'Y-m-d'|default:''}}"
                                   data-campanha-data-fim="{{plano.campanha_data_fim|date:'Y-m-d'|default:''}}"
                                   data-campanha-duracao="{{plano.campanha_duracao_meses|default:''}}"
-                                  data-campanha-valor-fixo="{{plano.campanha_valor_fixo|default:''}}"
-                                  data-campanha-valor-mes-1="{{plano.campanha_valor_mes_1|default:''}}"
-                                  data-campanha-valor-mes-2="{{plano.campanha_valor_mes_2|default:''}}"
-                                  data-campanha-valor-mes-3="{{plano.campanha_valor_mes_3|default:''}}"
-                                  data-campanha-valor-mes-4="{{plano.campanha_valor_mes_4|default:''}}"
-                                  data-campanha-valor-mes-5="{{plano.campanha_valor_mes_5|default:''}}"
-                                  data-campanha-valor-mes-6="{{plano.campanha_valor_mes_6|default:''}}"
-                                  data-campanha-valor-mes-7="{{plano.campanha_valor_mes_7|default:''}}"
-                                  data-campanha-valor-mes-8="{{plano.campanha_valor_mes_8|default:''}}"
-                                  data-campanha-valor-mes-9="{{plano.campanha_valor_mes_9|default:''}}"
-                                  data-campanha-valor-mes-10="{{plano.campanha_valor_mes_10|default:''}}"
-                                  data-campanha-valor-mes-11="{{plano.campanha_valor_mes_11|default:''}}"
-                                  data-campanha-valor-mes-12="{{plano.campanha_valor_mes_12|default:''}}"
+                                  data-campanha-valor-fixo="{{plano.campanha_valor_fixo|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-1="{{plano.campanha_valor_mes_1|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-2="{{plano.campanha_valor_mes_2|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-3="{{plano.campanha_valor_mes_3|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-4="{{plano.campanha_valor_mes_4|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-5="{{plano.campanha_valor_mes_5|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-6="{{plano.campanha_valor_mes_6|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-7="{{plano.campanha_valor_mes_7|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-8="{{plano.campanha_valor_mes_8|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-9="{{plano.campanha_valor_mes_9|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-10="{{plano.campanha_valor_mes_10|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-11="{{plano.campanha_valor_mes_11|unlocalize|default:''}}"
+                                  data-campanha-valor-mes-12="{{plano.campanha_valor_mes_12|unlocalize|default:''}}"
                                   onclick="exibirModalEdicao(this)">
                                   <i class="bi bi-pencil me-2"></i>
                                   <span>Editar Plano</span>
@@ -809,6 +809,19 @@
 </script>
 
 <script>
+  // Função utilitária para loading em botões (copiada de dashboard.js)
+  function setButtonLoading(btn, loading, originalHTML) {
+    if (!btn) return;
+    if (loading) {
+      btn.disabled = true;
+      btn.dataset.originalHtml = btn.innerHTML;
+      btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = originalHTML || btn.dataset.originalHtml || 'Salvar';
+    }
+  }
+
   // ⭐ FASE 2.5: Enhanced Campaign Logic with Spinner, Dynamic Fields, and Confirmation Modal
   document.addEventListener('DOMContentLoaded', function() {
     // Initialize Bootstrap tooltips
@@ -1378,12 +1391,12 @@
     const campanhaDataInicio = botao.dataset.campanhaDataInicio || '';
     const campanhaDataFim = botao.dataset.campanhaDataFim || '';
     const campanhaDuracao = botao.dataset.campanhaDuracao || '1';
-    const campanhaValorFixo = botao.dataset.campanhaValorFixo || '';
+    const campanhaValorFixo = botao.getAttribute('data-campanha-valor-fixo') || '';
 
     // Get all month values (up to 12)
     const valoresMes = [];
     for (let i = 1; i <= 12; i++) {
-      valoresMes[i] = botao.dataset[`campanhaValorMes${i}`] || '';
+      valoresMes[i] = botao.getAttribute(`data-campanha-valor-mes-${i}`) || '';
     }
 
     const form = document.querySelector("#edit-plano-form");
