@@ -38,6 +38,7 @@ from .views import (
     disable_2fa,
     regenerate_backup_codes,
     get_2fa_qr_code,
+    exportar_clientes_excel,
     conectar_wpp,
     get_logs_wpp,
     parar_envio,
@@ -150,6 +151,7 @@ urlpatterns = [
     path("perfil/2fa/disable/", disable_2fa, name="disable-2fa"),
     path("perfil/2fa/regenerate-codes/", regenerate_backup_codes, name="regenerate-backup-codes"),
     path("perfil/2fa/qr-code/", get_2fa_qr_code, name="get-2fa-qr-code"),
+    path("perfil/exportar-clientes/", exportar_clientes_excel, name="exportar_clientes_excel"),
 
     ############ List and Dashboard ###########
     path("dashboard/", TabelaDashboard.as_view(), name="dashboard"),

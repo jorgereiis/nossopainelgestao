@@ -10,34 +10,90 @@ def formatar_telefone(wpp):
 
     numero = re.sub(r'\D+', '', wpp)
 
-    # Detecta país
-    if numero.startswith('55'):
-        pais = 'br'
-        numero = numero[2:]
-    elif numero.startswith('1'):
-        pais = 'us'
-        numero = numero[1:]
+    # Detecta país pelo DDI (ordenado do mais específico ao menos)
+    pais = None
+    if numero.startswith('595'):
+        pais, numero = 'py', numero[3:]
+    elif numero.startswith('598'):
+        pais, numero = 'uy', numero[3:]
     elif numero.startswith('351'):
-        pais = 'pt'
-        numero = numero[3:]
+        pais, numero = 'pt', numero[3:]
+    elif numero.startswith('55'):
+        pais, numero = 'br', numero[2:]
+    elif numero.startswith('54'):
+        pais, numero = 'ar', numero[2:]
+    elif numero.startswith('57'):
+        pais, numero = 'co', numero[2:]
+    elif numero.startswith('56'):
+        pais, numero = 'cl', numero[2:]
+    elif numero.startswith('52'):
+        pais, numero = 'mx', numero[2:]
+    elif numero.startswith('51'):
+        pais, numero = 'pe', numero[2:]
+    elif numero.startswith('49'):
+        pais, numero = 'de', numero[2:]
+    elif numero.startswith('44'):
+        pais, numero = 'gb', numero[2:]
+    elif numero.startswith('41'):
+        pais, numero = 'ch', numero[2:]
+    elif numero.startswith('39'):
+        pais, numero = 'it', numero[2:]
+    elif numero.startswith('34'):
+        pais, numero = 'es', numero[2:]
+    elif numero.startswith('33'):
+        pais, numero = 'fr', numero[2:]
+    elif numero.startswith('32'):
+        pais, numero = 'be', numero[2:]
+    elif numero.startswith('31'):
+        pais, numero = 'nl', numero[2:]
+    elif numero.startswith('1') and len(numero) == 11:
+        pais, numero = 'us', numero[1:]
     else:
-        return '+' + numero  # Exibe como está para outros países
+        return '+' + numero
 
-    # --- Brasil ---
+    # --- Américas ---
     if pais == 'br':
         if len(numero) == 11:
             return f'({numero[:2]}) {numero[2:7]}-{numero[7:]}'
         elif len(numero) == 10:
             return f'({numero[:2]}) {numero[2:6]}-{numero[6:]}'
         return numero
-
-    # --- EUA ---
-    if pais == 'us' and len(numero) == 10:
+    elif pais == 'us' and len(numero) == 10:
         return f'({numero[:3]}) {numero[3:6]}-{numero[6:]}'
-
-    # --- Portugal ---
-    if pais == 'pt' and len(numero) == 9:
+    elif pais == 'mx' and len(numero) == 10:
+        return f'{numero[:2]} {numero[2:6]} {numero[6:]}'
+    elif pais == 'ar' and len(numero) == 10:
+        return f'{numero[:2]} {numero[2:6]}-{numero[6:]}'
+    elif pais == 'co' and len(numero) == 10:
         return f'{numero[:3]} {numero[3:6]} {numero[6:]}'
+    elif pais == 'cl' and len(numero) == 9:
+        return f'{numero[:1]} {numero[1:5]} {numero[5:]}'
+    elif pais == 'pe' and len(numero) == 9:
+        return f'{numero[:3]} {numero[3:6]} {numero[6:]}'
+    elif pais == 'py' and len(numero) == 9:
+        return f'{numero[:3]} {numero[3:6]} {numero[6:]}'
+    elif pais == 'uy' and len(numero) >= 8:
+        return f'{numero[:2]} {numero[2:5]} {numero[5:]}'
+
+    # --- Europa ---
+    elif pais == 'pt' and len(numero) == 9:
+        return f'{numero[:3]} {numero[3:6]} {numero[6:]}'
+    elif pais == 'es' and len(numero) == 9:
+        return f'{numero[:3]} {numero[3:5]} {numero[5:7]} {numero[7:]}'
+    elif pais == 'it' and len(numero) >= 9:
+        return f'{numero[:3]} {numero[3:6]} {numero[6:]}'
+    elif pais == 'fr' and len(numero) == 9:
+        return f'{numero[:2]} {numero[2:4]} {numero[4:6]} {numero[6:8]} {numero[8:]}'
+    elif pais == 'de' and len(numero) >= 10:
+        return f'{numero[:4]} {numero[4:8]} {numero[8:]}'
+    elif pais == 'gb' and len(numero) == 10:
+        return f'{numero[:5]} {numero[5:]}'
+    elif pais == 'nl' and len(numero) == 9:
+        return f'{numero[:2]} {numero[2:]}'
+    elif pais == 'be' and len(numero) == 9:
+        return f'{numero[:4]} {numero[4:6]} {numero[6:8]} {numero[8:]}'
+    elif pais == 'ch' and len(numero) == 9:
+        return f'{numero[:3]} {numero[3:6]} {numero[6:8]} {numero[8:]}'
 
     return '+' + numero
 
