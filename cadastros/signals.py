@@ -13,7 +13,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from .models import Cliente, Mensalidade, SessaoWpp, UserProfile, AssinaturaCliente
-from wpp.api_connection import add_or_remove_label_contact, criar_label_se_nao_existir, get_label_contact
+from wpp.api_connection import add_or_remove_label_contact, criar_label_se_nao_existir, get_label_contact, remover_todas_labels_contato
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +202,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
 _clientes_servidor_anterior = {}
 _clientes_cancelado_anterior = {}
 _clientes_indicado_por_anterior = {}
+_clientes_telefone_anterior = {}
 
 # Mapeamento fixo de labels para paleta definida no WhatsApp.
 LABELS_CORES_FIXAS = {
@@ -227,6 +228,7 @@ def registrar_valores_anteriores(sender, instance, **kwargs):
         _clientes_servidor_anterior[instance.pk] = cliente_existente.servidor_id
         _clientes_cancelado_anterior[instance.pk] = cliente_existente.cancelado
         _clientes_indicado_por_anterior[instance.pk] = cliente_existente.indicado_por_id
+        _clientes_telefone_anterior[instance.pk] = cliente_existente.telefone
 
 
 @receiver(post_save, sender=Cliente)
@@ -236,6 +238,8 @@ def cliente_post_save(sender, instance, created, **kwargs):
     servidor_foi_modificado = False
     cliente_foi_cancelado = False
     cliente_foi_reativado = False
+    telefone_foi_modificado = False
+    telefone_anterior = None
 
     if not created:
         # Detecta mudança de servidor
@@ -249,7 +253,12 @@ def cliente_post_save(sender, instance, created, **kwargs):
             cliente_foi_cancelado = not cancelado_anterior and instance.cancelado
             cliente_foi_reativado = cancelado_anterior and not instance.cancelado
 
-    if not (created or servidor_foi_modificado or cliente_foi_cancelado or cliente_foi_reativado):
+        # Detecta mudança de telefone
+        if instance.pk in _clientes_telefone_anterior:
+            telefone_anterior = _clientes_telefone_anterior.pop(instance.pk)
+            telefone_foi_modificado = telefone_anterior != instance.telefone
+
+    if not (created or servidor_foi_modificado or cliente_foi_cancelado or cliente_foi_reativado or telefone_foi_modificado):
         return
 
     telefone = str(instance.telefone)
@@ -258,6 +267,16 @@ def cliente_post_save(sender, instance, created, **kwargs):
     if not token:
         _log_event(logging.INFO, instance, func_name, "Sessão do WhatsApp não encontrada para o usuário.")
         return
+
+    # Se telefone mudou, remover etiquetas do número antigo
+    if telefone_foi_modificado and telefone_anterior:
+        try:
+            labels_telefone_antigo = get_label_contact(telefone_anterior, token.token, user=token)
+            if labels_telefone_antigo:
+                remover_todas_labels_contato(telefone_anterior, labels_telefone_antigo, token.token, token)
+                _log_event(logging.INFO, instance, func_name, f"Etiquetas removidas do telefone antigo: {telefone_anterior}")
+        except Exception as error:
+            _log_event(logging.ERROR, instance, func_name, f"Erro ao remover etiquetas do telefone antigo {telefone_anterior}", exc_info=error)
 
     # TODO: Reativar a verificação de número (`check_number_status`) caso volte a ser necessária.
 
