@@ -618,6 +618,32 @@ class Plano(models.Model):
             'multiplicador': multiplicador
         }
 
+    def get_campanha_valores_tooltip(self):
+        """
+        Retorna HTML formatado com os valores de cada pagamento da campanha
+        para exibição em tooltip.
+        """
+        if not self.campanha_ativa or not self.campanha_duracao_meses:
+            return "Sem campanha configurada"
+
+        linhas = []
+        duracao = self.campanha_duracao_meses
+
+        if self.campanha_tipo == 'FIXO':
+            # Valor fixo para todos os pagamentos
+            valor = self.campanha_valor_fixo or 0
+            for i in range(1, duracao + 1):
+                valor_fmt = f"{valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+                linhas.append(f"Pagamento {i}: R$ {valor_fmt}")
+        else:
+            # Valores personalizados por mês
+            for i in range(1, duracao + 1):
+                valor = getattr(self, f'campanha_valor_mes_{i}', None) or 0
+                valor_fmt = f"{valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+                linhas.append(f"Pagamento {i}: R$ {valor_fmt}")
+
+        return "<br>".join(linhas)
+
 
 class Cliente(models.Model):
     """Modela o cliente da plataforma com todos os seus dados cadastrais e plano."""
