@@ -1349,7 +1349,7 @@ def run_scheduled_tasks_from_db():
         hora_atual = agora.hour
         minuto_atual = agora.minute
 
-        logger.info(
+        logger.debug(
             "Verificando TarefasEnvio do banco | hora=%02d:%02d",
             hora_atual,
             minuto_atual
