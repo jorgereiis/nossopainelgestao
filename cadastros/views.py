@@ -4704,6 +4704,67 @@ def edit_horario_envios(request):
 
 @login_required
 @require_http_methods(["GET", "POST"])
+def edit_reject_call_config(request):
+    """Edita configurações de rejeição automática de chamadas."""
+    sessao = SessaoWpp.objects.filter(user=request.user, is_active=True).first()
+
+    if request.method == "GET":
+        if not sessao:
+            return JsonResponse({
+                "success": True,
+                "sessao_wpp": False,
+                "config": {
+                    "reject_call_enabled": True,
+                    "reject_call_horario_inicio": None,
+                    "reject_call_horario_fim": None
+                }
+            })
+        return JsonResponse({
+            "success": True,
+            "sessao_wpp": True,
+            "config": {
+                "reject_call_enabled": sessao.reject_call_enabled,
+                "reject_call_horario_inicio": sessao.reject_call_horario_inicio.strftime("%H:%M") if sessao.reject_call_horario_inicio else None,
+                "reject_call_horario_fim": sessao.reject_call_horario_fim.strftime("%H:%M") if sessao.reject_call_horario_fim else None
+            }
+        })
+
+    # POST - Atualizar configurações
+    if not sessao:
+        return JsonResponse({
+            "success": False,
+            "message": "Você não possui uma sessão WhatsApp ativa."
+        }, status=400)
+
+    data = json.loads(request.body)
+
+    sessao.reject_call_enabled = data.get("reject_call_enabled", True)
+
+    horario_inicio = data.get("reject_call_horario_inicio")
+    horario_fim = data.get("reject_call_horario_fim")
+
+    if horario_inicio and horario_fim:
+        from datetime import datetime
+        sessao.reject_call_horario_inicio = datetime.strptime(horario_inicio, "%H:%M").time()
+        sessao.reject_call_horario_fim = datetime.strptime(horario_fim, "%H:%M").time()
+    else:
+        sessao.reject_call_horario_inicio = None
+        sessao.reject_call_horario_fim = None
+
+    sessao.save(update_fields=[
+        'reject_call_enabled',
+        'reject_call_horario_inicio',
+        'reject_call_horario_fim'
+    ])
+
+    return JsonResponse({
+        "success": True,
+        "message": "Configurações de chamadas atualizadas."
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
 def edit_referral_plan(request):
     PLANOS_OBRIGATORIOS = [
         {"tipo_plano": "desconto", "valor": 0.00, "valor_minimo_mensalidade": 5.00, "limite_indicacoes": 0},

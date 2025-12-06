@@ -85,6 +85,9 @@ def webhook_wppconnect(request):
     elif event in ('onmessage-sent', 'onsendmessage'):
         _handle_message_sent(payload, session)
 
+    elif event == 'incomingcall':
+        _handle_incoming_call(payload, sessao, session)
+
     else:
         logger.debug(
             "Evento não tratado | event=%s session=%s",
@@ -216,6 +219,128 @@ def _handle_message_sent(payload: dict, session: str):
         'chatId': msg_to,
         'message': message_data
     })
+
+
+def _should_reject_call(sessao) -> bool:
+    """Verifica se deve rejeitar chamada baseado nas configurações da sessão."""
+    if not sessao.reject_call_enabled:
+        return False
+
+    # Se não tem horários definidos, rejeita sempre
+    if not sessao.reject_call_horario_inicio or not sessao.reject_call_horario_fim:
+        return True
+
+    # Verificar se está dentro do horário configurado
+    from django.utils import timezone
+    agora = timezone.localtime().time()
+    inicio = sessao.reject_call_horario_inicio
+    fim = sessao.reject_call_horario_fim
+
+    # Trata caso de horário que atravessa meia-noite (ex: 22:00 às 06:00)
+    if inicio <= fim:
+        return inicio <= agora <= fim
+    else:
+        return agora >= inicio or agora <= fim
+
+
+def _handle_incoming_call(payload: dict, sessao, session: str):
+    """
+    Trata evento de chamada recebida.
+
+    Fluxo:
+    1. Ignora chamadas de grupo
+    2. Verifica se rejeição está habilitada e dentro do horário
+    3. Rejeita a chamada
+    4. Envia mensagem informando que não atendemos chamadas
+    5. Marca a conversa como não lida
+    """
+    from wpp import api_connection
+
+    # Payload vem diretamente na raiz (sem wrapper 'data')
+    call_id = payload.get('id', '')
+    caller = payload.get('peerJid', '')
+    is_group = payload.get('isGroup', False)
+
+    # Ignorar chamadas de grupos
+    if is_group:
+        logger.debug(
+            "Chamada de grupo ignorada | session=%s caller=%s",
+            session,
+            caller
+        )
+        return
+
+    if not sessao:
+        logger.warning(
+            "Chamada recebida sem sessão ativa | session=%s",
+            session
+        )
+        return
+
+    # Verificar se deve rejeitar chamada (configuração + horário)
+    if not _should_reject_call(sessao):
+        logger.info(
+            "Rejeição de chamadas desativada ou fora do horário | session=%s caller=%s",
+            session,
+            caller
+        )
+        return
+
+    token = sessao.token
+
+    # 1. Rejeitar chamada
+    logger.info(
+        "Rejeitando chamada | session=%s callId=%s caller=%s",
+        session,
+        call_id,
+        caller
+    )
+    reject_result, reject_status = api_connection.reject_call(session, token, call_id)
+
+    if reject_status not in (200, 201):
+        logger.error(
+            "Falha ao rejeitar chamada | session=%s status=%s response=%s",
+            session,
+            reject_status,
+            reject_result
+        )
+
+    # 2. Enviar mensagem ao contato
+    mensagem = (
+        "🚫 *NÃO ATENDEMOS CHAMADAS* 🚫\n\n"
+        "Estaremos lhe atendendo em alguns instantes.\n\n"
+        "Enquanto isso, informe aqui como podemos ajudá-lo(a)."
+    )
+    msg_result, msg_status = api_connection.send_text_message(
+        session, token, caller, mensagem
+    )
+
+    if msg_status not in (200, 201):
+        logger.error(
+            "Falha ao enviar mensagem pós-chamada | session=%s caller=%s status=%s",
+            session,
+            caller,
+            msg_status
+        )
+
+    # 3. Marcar conversa como não lida
+    unread_result, unread_status = api_connection.mark_chat_unread(
+        session, token, caller
+    )
+
+    if unread_status not in (200, 201):
+        logger.error(
+            "Falha ao marcar conversa como não lida | session=%s caller=%s status=%s",
+            session,
+            caller,
+            unread_status
+        )
+
+    logger.info(
+        "Chamada rejeitada com sucesso | session=%s caller=%s",
+        session,
+        caller
+    )
 
 
 def _get_client_ip(request) -> str:

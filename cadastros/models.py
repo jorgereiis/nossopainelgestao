@@ -1388,6 +1388,22 @@ class SessaoWpp(models.Model):
     dt_inicio = models.DateTimeField()
     is_active = models.BooleanField(default=True)
 
+    # Configurações de Reject-Call
+    reject_call_enabled = models.BooleanField(
+        default=True,
+        verbose_name='Rejeitar chamadas automaticamente'
+    )
+    reject_call_horario_inicio = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name='Horário início (rejeição ativa)'
+    )
+    reject_call_horario_fim = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name='Horário fim (rejeição ativa)'
+    )
+
     class Meta:
         verbose_name = "Sessão do WhatsApp"
         verbose_name_plural = "Sessões do WhatsApp"
