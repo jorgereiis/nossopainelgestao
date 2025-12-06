@@ -2,6 +2,8 @@
 
 import json
 import logging
+import threading
+import time
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -247,28 +249,21 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
     """
     Trata evento de chamada recebida.
 
-    Fluxo:
-    1. Ignora chamadas de grupo
-    2. Verifica se rejeição está habilitada e dentro do horário
-    3. Rejeita a chamada
-    4. Envia mensagem informando que não atendemos chamadas
+    Fluxo para GRUPOS:
+    1. Rejeita a chamada (sem mensagem, sem marcar não lido)
+
+    Fluxo para CONTATOS:
+    1. Rejeita a chamada
+    2. Aguarda 2 segundos
+    3. Envia mensagem informando que não atendemos chamadas
+    4. Aguarda 10 segundos
     5. Marca a conversa como não lida
     """
     from wpp import api_connection
 
-    # Payload vem diretamente na raiz (sem wrapper 'data')
     call_id = payload.get('id', '')
     caller = payload.get('peerJid', '')
     is_group = payload.get('isGroup', False)
-
-    # Ignorar chamadas de grupos
-    if is_group:
-        logger.debug(
-            "Chamada de grupo ignorada | session=%s caller=%s",
-            session,
-            caller
-        )
-        return
 
     if not sessao:
         logger.warning(
@@ -288,12 +283,13 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
 
     token = sessao.token
 
-    # 1. Rejeitar chamada
+    # 1. Rejeitar chamada (sempre, grupo ou contato)
     logger.info(
-        "Rejeitando chamada | session=%s callId=%s caller=%s",
+        "Rejeitando chamada | session=%s callId=%s caller=%s is_group=%s",
         session,
         call_id,
-        caller
+        caller,
+        is_group
     )
     reject_result, reject_status = api_connection.reject_call(session, token, call_id)
 
@@ -305,36 +301,61 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
             reject_result
         )
 
-    # 2. Enviar mensagem ao contato
-    mensagem = (
-        "🚫 *NÃO ATENDEMOS CHAMADAS* 🚫\n\n"
-        "Estaremos lhe atendendo em alguns instantes.\n\n"
-        "Enquanto isso, informe aqui como podemos ajudá-lo(a)."
-    )
-    msg_result, msg_status = api_connection.send_text_message(
-        session, token, caller, mensagem
-    )
-
-    if msg_status not in (200, 201):
-        logger.error(
-            "Falha ao enviar mensagem pós-chamada | session=%s caller=%s status=%s",
+    # Se for grupo, para aqui (sem mensagem, sem marcar não lido)
+    if is_group:
+        logger.info(
+            "Chamada de grupo rejeitada | session=%s caller=%s",
             session,
-            caller,
-            msg_status
+            caller
         )
+        return
 
-    # 3. Marcar conversa como não lida
-    unread_result, unread_status = api_connection.mark_chat_unread(
-        session, token, caller
-    )
+    # 2. Contato direto: executar envio + marcação em thread separada
+    def _processo_pos_rejeicao():
+        try:
+            # Aguarda 2s antes de enviar mensagem
+            time.sleep(2)
 
-    if unread_status not in (200, 201):
-        logger.error(
-            "Falha ao marcar conversa como não lida | session=%s caller=%s status=%s",
-            session,
-            caller,
-            unread_status
-        )
+            mensagem = (
+                "🚫 *NÃO ATENDEMOS CHAMADAS* 🚫\n\n"
+                "Estaremos lhe atendendo em alguns instantes.\n\n"
+                "Enquanto isso, informe aqui como podemos ajudá-lo(a)."
+            )
+            msg_result, msg_status = api_connection.send_text_message(
+                session, token, caller, mensagem
+            )
+
+            if msg_status not in (200, 201):
+                logger.error(
+                    "Falha ao enviar mensagem pós-chamada | session=%s caller=%s status=%s",
+                    session,
+                    caller,
+                    msg_status
+                )
+
+            # Aguarda 10s antes de marcar como não lido
+            time.sleep(10)
+
+            unread_result, unread_status = api_connection.mark_chat_unread(
+                session, token, caller
+            )
+
+            if unread_status not in (200, 201):
+                logger.error(
+                    "Falha ao marcar conversa como não lida | session=%s caller=%s status=%s",
+                    session,
+                    caller,
+                    unread_status
+                )
+        except Exception as e:
+            logger.error(
+                "Erro no processo pós-rejeição | session=%s caller=%s error=%s",
+                session,
+                caller,
+                str(e)
+            )
+
+    threading.Thread(target=_processo_pos_rejeicao, daemon=True).start()
 
     logger.info(
         "Chamada rejeitada com sucesso | session=%s caller=%s",
