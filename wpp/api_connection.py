@@ -296,7 +296,7 @@ def get_all_labels(token, user):
 def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, token, user):
     """Aplica a label desejada ao contato e remove labels anteriores."""
 
-    telefone = telefone.replace('+', '').replace('@c.us', '').strip()
+    telefone = telefone.replace('+', '').replace('@c.us', '').replace('@lid', '').strip()
 
     labels_atual = label_id_2 if isinstance(label_id_2, list) else [label_id_2]
 
@@ -360,7 +360,7 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
 # --- Função para remover todas as labels de um contato ---
 def remover_todas_labels_contato(telefone, labels, token, user):
     """Remove todas as labels de um contato no WhatsApp."""
-    telefone = telefone.replace('+', '').replace('@c.us', '').strip()
+    telefone = telefone.replace('+', '').replace('@c.us', '').replace('@lid', '').strip()
 
     if not labels:
         return 200, {"status": "skipped", "message": "Nenhuma label para remover"}
@@ -684,8 +684,8 @@ def send_text_message(session: str, token: str, phone: str, message: str):
         # Grupo - usar ID completo
         data = {"phone": phone, "message": message, "isGroup": True}
     else:
-        # Contato - remover @c.us se presente
-        clean_phone = phone.replace("@c.us", "")
+        # Contato - remover @c.us ou @lid se presente
+        clean_phone = phone.replace("@c.us", "").replace("@lid", "")
         data = {"phone": clean_phone, "message": message}
     return _make_request("POST", url, headers=headers, json_data=data)
 
@@ -699,7 +699,8 @@ def _normalize_phone(phone: str) -> tuple:
     """
     if "@g.us" in phone:
         return phone, True
-    return phone.replace("@c.us", ""), False
+    # Remover @c.us ou @lid para contatos
+    return phone.replace("@c.us", "").replace("@lid", ""), False
 
 
 def send_image_message(session: str, token: str, phone: str, base64_image: str, caption: str = ""):
@@ -813,5 +814,8 @@ def mark_chat_unread(session: str, token: str, phone: str):
     """
     url = f"{URL_API_WPP}/{session}/mark-unseen"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    # Normalizar telefone - remover @c.us ou @lid para contatos
+    if "@g.us" not in phone:
+        phone = phone.replace("@c.us", "").replace("@lid", "")
     data = {"phone": phone}
     return _make_request("POST", url, headers=headers, json_data=data)
