@@ -85,6 +85,9 @@ def webhook_wppconnect(request):
     elif event in ('onmessage-sent', 'onsendmessage'):
         _handle_message_sent(payload, session)
 
+    elif event == 'incomingcall':
+        _handle_incoming_call(payload, sessao, session)
+
     else:
         logger.debug(
             "Evento não tratado | event=%s session=%s",
@@ -216,6 +219,92 @@ def _handle_message_sent(payload: dict, session: str):
         'chatId': msg_to,
         'message': message_data
     })
+
+
+def _handle_incoming_call(payload: dict, sessao, session: str):
+    """
+    Trata evento de chamada recebida.
+
+    Fluxo:
+    1. Ignora chamadas de grupo
+    2. Rejeita a chamada
+    3. Envia mensagem informando que não atendemos chamadas
+    4. Marca a conversa como não lida
+    """
+    from wpp import api_connection
+
+    # Payload vem diretamente na raiz (sem wrapper 'data')
+    call_id = payload.get('id', '')
+    caller = payload.get('peerJid', '')
+    is_group = payload.get('isGroup', False)
+
+    # Ignorar chamadas de grupos
+    if is_group:
+        logger.debug(
+            "Chamada de grupo ignorada | session=%s caller=%s",
+            session,
+            caller
+        )
+        return
+
+    if not sessao:
+        logger.warning(
+            "Chamada recebida sem sessão ativa | session=%s",
+            session
+        )
+        return
+
+    token = sessao.token
+
+    # 1. Rejeitar chamada
+    logger.info(
+        "Rejeitando chamada | session=%s callId=%s caller=%s",
+        session,
+        call_id,
+        caller
+    )
+    reject_result, reject_status = api_connection.reject_call(session, token, call_id)
+
+    if reject_status not in (200, 201):
+        logger.error(
+            "Falha ao rejeitar chamada | session=%s status=%s response=%s",
+            session,
+            reject_status,
+            reject_result
+        )
+
+    # 2. Enviar mensagem ao contato
+    mensagem = "🚫 *NÃO ATENDEMOS CHAMADAS* 🚫"
+    msg_result, msg_status = api_connection.send_text_message(
+        session, token, caller, mensagem
+    )
+
+    if msg_status not in (200, 201):
+        logger.error(
+            "Falha ao enviar mensagem pós-chamada | session=%s caller=%s status=%s",
+            session,
+            caller,
+            msg_status
+        )
+
+    # 3. Marcar conversa como não lida
+    unread_result, unread_status = api_connection.mark_chat_unread(
+        session, token, caller
+    )
+
+    if unread_status not in (200, 201):
+        logger.error(
+            "Falha ao marcar conversa como não lida | session=%s caller=%s status=%s",
+            session,
+            caller,
+            unread_status
+        )
+
+    logger.info(
+        "Chamada rejeitada com sucesso | session=%s caller=%s",
+        session,
+        caller
+    )
 
 
 def _get_client_ip(request) -> str:

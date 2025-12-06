@@ -158,6 +158,24 @@ def logout_session(session: str, token: str):
     headers = {"Authorization": f"Bearer {token}"}
     return _make_request("POST", url, headers=headers)
 
+
+def reject_call(session: str, token: str, call_id: str):
+    """Rejeita uma chamada recebida no WhatsApp.
+
+    Args:
+        session: Nome da sessão
+        token: Token de autenticação
+        call_id: ID da chamada a ser rejeitada
+
+    Returns:
+        tuple: (response_data, status_code)
+    """
+    url = f"{URL_API_WPP}/{session}/reject-call"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    data = {"callId": call_id}
+    return _make_request("POST", url, headers=headers, json_data=data)
+
+
 ##### FUNÇÕES PARA GERENCIAR CONTATOS E LABELS #####
 # --- Função para obter labels de um contato ---
 def get_label_contact(telefone, token, user):
@@ -776,6 +794,24 @@ def send_seen(session: str, token: str, phone: str):
         tuple: (response_data, status_code)
     """
     url = f"{URL_API_WPP}/{session}/send-seen"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    data = {"phone": phone}
+    return _make_request("POST", url, headers=headers, json_data=data)
+
+
+def mark_chat_unread(session: str, token: str, phone: str):
+    """
+    Marca conversa como não lida.
+
+    Args:
+        session: Nome da sessão
+        token: Token de autenticação
+        phone: ID do chat (número@c.us, número@lid ou grupo@g.us)
+
+    Returns:
+        tuple: (response_data, status_code)
+    """
+    url = f"{URL_API_WPP}/{session}/mark-unseen"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     data = {"phone": phone}
     return _make_request("POST", url, headers=headers, json_data=data)
