@@ -1,13 +1,244 @@
 {% load static %}
 
-<div class="d-flex flex-row flex-column gap-3">
+<style>
+/* Timeline com ícones à esquerda */
+.timeline {
+    margin-bottom: 0 !important;
+}
+.timeline .timeline-event {
+    position: relative;
+    padding-bottom: 0.75rem;
+    padding-top: 0;
+    margin: 0;
+}
+.timeline .timeline-event::before {
+    content: "";
+    position: absolute;
+    top: 2.75rem;
+    left: 1.1rem;
+    bottom: -0.75rem;
+    width: 1px;
+    background-color: var(--bs-gray-300, #dee2e6);
+}
+/* Esconder linha apenas no último item da última lista */
+#lista-reject-call .timeline-event:last-child::before {
+    display: none;
+}
+.timeline .timeline-event .timeline-event-icon {
+    position: absolute;
+    top: 0.75rem;
+    left: 0;
+    z-index: 1;
+}
+.timeline .timeline-event .timeline-event-icon .icon-shape {
+    width: 2.25rem;
+    height: 2.25rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.timeline .timeline-event .timeline-event-card {
+    margin-left: 3rem;
+}
+.timeline .timeline-event .timeline-event-card .card-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* Status ON/OFF sempre à direita sem quebra */
+.timeline .timeline-event .status-badge {
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Rotação do chevron ao expandir */
+.timeline .timeline-event .chevron-toggle {
+    transition: transform 0.2s ease-in-out;
+}
+.timeline .timeline-event a[aria-expanded="true"] .chevron-toggle {
+    transform: rotate(90deg);
+}
+
+/* Container cinza para conteúdo expandido */
+.timeline .config-content-box {
+    background-color: var(--bs-gray-100, #f8f9fa);
+    border: 1px solid var(--bs-gray-200, #e9ecef);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-top: 1rem;
+    font-size: 0.8125rem;
+}
+.timeline .config-content-box .card-text {
+    font-size: 0.8125rem;
+    color: var(--bs-gray-600, #6c757d);
+    margin-bottom: 0.75rem;
+}
+.timeline .config-content-box .form-check-label {
+    font-size: 0.8125rem;
+}
+
+/* Inputs e botões menores */
+.timeline .config-content-box .input-group-sm .form-control,
+.timeline .config-content-box .input-group-sm .input-group-text {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+.timeline .config-content-box .btn-sm-config {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    font-weight: 500;
+}
+
+/* Header do card mais compacto */
+.timeline .timeline-event .card-body {
+    padding: 0.875rem 1rem;
+}
+
+/* Balão de mensagem estilo WhatsApp */
+.message-preview-balloon {
+    background-color: #dcf8c6;
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    margin-bottom: 0.75rem;
+    position: relative;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.message-preview-balloon::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: -8px;
+    border-width: 8px;
+    border-style: solid;
+    border-color: #dcf8c6 transparent transparent transparent;
+}
+.message-preview-balloon .msg-label {
+    font-size: 0.625rem;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.message-preview-balloon .msg-content {
+    color: #303030;
+    white-space: pre-line;
+}
+</style>
+
+<div class="d-flex flex-column">
     <div id="accordionExample1">
-        <ul class="timeline list-unstyled d-flex flex-column mb-0" id="lista-planos-indicacao">
+        <ul class="timeline list-unstyled mb-0" id="lista-planos-indicacao">
             <!-- Items dos PLANOS serão inseridos aqui pelo JS -->
         </ul>
-        
-        <ul class="timeline list-unstyled d-flex flex-column mt-0" id="lista-horarios-envios">
+
+        <ul class="timeline list-unstyled mb-0" id="lista-horarios-envios">
             <!-- Items dos HORARIOS serão inseridos aqui pelo JS -->
+        </ul>
+
+        <!-- Seção: Rejeição de Chamadas -->
+        <ul class="timeline list-unstyled mb-0" id="lista-reject-call">
+            <li class="timeline-event">
+                <div class="timeline-event-icon">
+                    <div class="icon-shape icon-md text-danger-emphasis bg-danger-subtle rounded-circle">
+                        <i data-feather="phone-off" class="icon-xs"></i>
+                    </div>
+                </div>
+                <div class="card timeline-event-card">
+                    <div class="card-body">
+                        <div class="d-flex flex-row align-items-center justify-content-between">
+                            <a
+                                href="#"
+                                class="d-flex flex-row gap-2 align-items-center collapsed text-inherit flex-grow-1"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapseRejectCall"
+                                aria-expanded="false"
+                                aria-controls="collapseRejectCall"
+                            >
+                                <i data-feather="chevron-right" class="icon-xs chevron-toggle text-primary"></i>
+                                <h4 class="card-title mb-0" style="cursor:pointer;">
+                                    Rejeição de Chamadas
+                                </h4>
+                            </a>
+                            <span id="status-reject-call" class="status-badge">
+                                OFF <i class="bi bi-x-circle-fill text-danger"></i>
+                            </span>
+                        </div>
+                        <div id="collapseRejectCall"
+                            class="accordion-collapse collapse"
+                            data-bs-parent="#accordionExample1"
+                        >
+                            <div class="config-content-box">
+                                <p class="card-text mb-2">
+                                    Configure a rejeição automática de chamadas recebidas no WhatsApp.
+                                </p>
+
+                                <!-- Preview da mensagem -->
+                                <div class="message-preview-balloon">
+                                    <div class="msg-label"><i class="bi bi-chat-dots me-1"></i>Mensagem enviada</div>
+                                    <div class="msg-content">🚫 <strong>NÃO ATENDEMOS CHAMADAS</strong> 🚫
+
+Estaremos lhe atendendo em alguns instantes.
+
+Enquanto isso, informe aqui como podemos ajudá-lo(a).</div>
+                                </div>
+
+                                <!-- Checkbox horários -->
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox"
+                                           id="rejectCallUseHorarios"
+                                           onchange="toggleRejectCallHorarios(this)"
+                                           style="cursor: pointer;">
+                                    <label class="form-check-label" for="rejectCallUseHorarios">
+                                        Definir horário específico
+                                    </label>
+                                </div>
+
+                                <!-- Inputs de horário (ocultos inicialmente) -->
+                                <div id="rejectCallHorariosInputs" style="display: none;">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text"><i class="bi bi-clock"></i></span>
+                                                <input type="time" class="form-control"
+                                                       id="rejectCallHorarioInicio" value="08:00">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text"><i class="bi bi-clock"></i></span>
+                                                <input type="time" class="form-control"
+                                                       id="rejectCallHorarioFim" value="18:00">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-2">
+                                        <i class="bi bi-info-circle"></i> Suporta horários que atravessam meia-noite
+                                    </p>
+                                </div>
+
+                                <!-- Botão Ativar/Desativar -->
+                                <div class="d-flex justify-content-end mt-2">
+                                    <button
+                                        class="btn btn-primary btn-sm-config"
+                                        type="button"
+                                        id="btn-toggle-reject-call"
+                                        data-status="off"
+                                        onclick="toggleRejectCallStatus(this)"
+                                    >
+                                        Ativar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </li>
         </ul>
     </div>
 </div>
@@ -39,76 +270,71 @@
                     const collapseId = `collapse${plano.id}`;
                     // Monta o HTML
                     const item = `
-                    <li class="timeline-event mt-2" data-plano-tipo="${plano.tipo_plano}">
+                    <li class="timeline-event" data-plano-tipo="${plano.tipo_plano}">
+                        <div class="timeline-event-icon">
+                            <div class="icon-shape icon-md text-success-emphasis bg-success-subtle rounded-circle">
+                                <i data-feather="gift" class="icon-xs"></i>
+                            </div>
+                        </div>
                         <div class="card timeline-event-card">
                             <div class="card-body">
-                                <div class="d-flex flex-lg-row flex-column align-items-lg-center gap-3 justify-content-between">
-                                    <div>
-                                        <a
-                                            href="#"
-                                            class="d-flex flex-row gap-2 collapsed text-inherit"
-                                            data-bs-toggle="collapse"
-                                            data-bs-target="#${collapseId}"
-                                            aria-expanded="false"
-                                            aria-controls="${collapseId}"
-                                        >
-                                            <i data-feather="chevron-right" class="icon-xs chevron-down mt-1 text-primary"></i>
-                                            <div class="d-flex flex-md-row flex-column align-items-md-center gap-md-2">
-                                                <h4 class="card-title mb-0" style="cursor:pointer;">
-                                                    ${plano.nome_display}
-                                                </h4>
-                                            </div>
-                                        </a>
-                                    </div>
-                                    <div class="d-flex flex-row gap-2">
-                                        <span id="status-plano-${plano.id}">
-                                            ${plano.status
-                                            ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
-                                            : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>'}
-                                        </span>
-                                    </div>
+                                <div class="d-flex flex-row align-items-center justify-content-between">
+                                    <a
+                                        href="#"
+                                        class="d-flex flex-row gap-2 align-items-center collapsed text-inherit flex-grow-1"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#${collapseId}"
+                                        aria-expanded="false"
+                                        aria-controls="${collapseId}"
+                                    >
+                                        <i data-feather="chevron-right" class="icon-xs chevron-toggle text-primary"></i>
+                                        <h4 class="card-title mb-0" style="cursor:pointer;">
+                                            ${plano.nome_display}
+                                        </h4>
+                                    </a>
+                                    <span id="status-plano-${plano.id}" class="status-badge">
+                                        ${plano.status
+                                        ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
+                                        : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>'}
+                                    </span>
                                 </div>
                                 <div id="${collapseId}"
                                     class="accordion-collapse collapse get-collapse-plans"
                                     data-bs-parent="#accordionExample1"
                                     data-plano-id="${plano.id}"
                                 >
-                                    <div class="d-flex flex-column mt-4">
-                                        <p class="card-text">
+                                    <div class="config-content-box">
+                                        <p class="card-text mb-2">
                                             ${plano.descricao}
-                                            <a href="#">Saiba mais</a>
                                         </p>
-                                        <p class="fs-6 mb-0">
-                                            <strong>Exemplo:</strong>
-                                            ${plano.exemplo}
+                                        <p class="small text-muted mb-2">
+                                            <strong>Ex:</strong> ${plano.exemplo}
                                         </p>
-                                        <br>
-                                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                            <div class="input-group input-group-sm">
+                                        <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
+                                            <div class="input-group input-group-sm" style="width: auto;">
                                                 <span class="input-group-text">R$</span>
                                                 <input type="text" class="form-control"
                                                     id="valor_indicacao_${plano.id}"
                                                     name="valor_indicacao"
                                                     value="${plano.valor}"
-                                                    placeholder="Valor desconto"
-                                                    required style="max-width: 150px;"
+                                                    placeholder="Valor"
+                                                    required style="width: 70px;"
                                                     ${plano.status ? "disabled" : ""}>
                                             </div>
                                             ${plano.tipo_plano === 'desconto_progressivo' ? `
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text" title="Limite de indicações com desconto (0 = ilimitado)">Limite</span>
+                                            <div class="input-group input-group-sm" style="width: auto;">
+                                                <span class="input-group-text" title="Limite (0 = ilimitado)">Lim</span>
                                                 <input type="number" class="form-control"
                                                     id="limite_indicacoes_${plano.id}"
                                                     name="limite_indicacoes"
                                                     value="${plano.limite_indicacoes || 0}"
-                                                    placeholder="0"
                                                     min="0"
-                                                    style="max-width: 100px;"
+                                                    style="width: 60px;"
                                                     ${plano.status ? "disabled" : ""}>
                                             </div>
                                             ` : ''}
                                             <button
-                                                class="btn btn-confirmar-acao ${plano.status ? "btn-danger" : "btn-primary"}"
+                                                class="btn btn-sm-config ${plano.status ? "btn-danger" : "btn-primary"}"
                                                 type="button"
                                                 data-plano-id="${plano.id}"
                                                 data-nome="${plano.nome_display}"
@@ -358,61 +584,56 @@
                         : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
 
                     const item = `
-                        <li class="timeline-event mt-2">
+                        <li class="timeline-event">
+                            <div class="timeline-event-icon">
+                                <div class="icon-shape icon-md text-warning-emphasis bg-warning-subtle rounded-circle">
+                                    <i data-feather="clock" class="icon-xs"></i>
+                                </div>
+                            </div>
                             <div class="card timeline-event-card">
                                 <div class="card-body">
-                                    <div class="d-flex flex-lg-row flex-column align-items-lg-center gap-3 justify-content-between">
-                                        <div>
-                                            <a
-                                                href="#"
-                                                class="d-flex flex-row gap-2 collapsed text-inherit"
-                                                data-bs-toggle="collapse"
-                                                data-bs-target="#${collapseId}"
-                                                aria-expanded="false"
-                                                aria-controls="${collapseId}"
-                                            >
-                                                <i data-feather="chevron-right" class="icon-xs chevron-down mt-1 text-primary"></i>
-                                                <div class="d-flex flex-md-row flex-column align-items-md-center gap-md-2">
-                                                    <h4 class="card-title mb-0" style="cursor:pointer;">
-                                                        ${horario.nome_display}
-                                                    </h4>
-                                                </div>
-                                            </a>
-                                        </div>
-                                        <div class="d-flex flex-row gap-2">
-                                            <span id="status-horario-${horario.id}">
-                                                ${statusHtml}
-                                            </span>
-                                        </div>
+                                    <div class="d-flex flex-row align-items-center justify-content-between">
+                                        <a
+                                            href="#"
+                                            class="d-flex flex-row gap-2 align-items-center collapsed text-inherit flex-grow-1"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#${collapseId}"
+                                            aria-expanded="false"
+                                            aria-controls="${collapseId}"
+                                        >
+                                            <i data-feather="chevron-right" class="icon-xs chevron-toggle text-primary"></i>
+                                            <h4 class="card-title mb-0" style="cursor:pointer;">
+                                                ${horario.nome_display}
+                                            </h4>
+                                        </a>
+                                        <span id="status-horario-${horario.id}" class="status-badge">
+                                            ${statusHtml}
+                                        </span>
                                     </div>
                                     <div id="${collapseId}"
                                         class="accordion-collapse collapse get-collapse-horario"
                                         data-bs-parent="#accordionExample1"
                                         data-horario-id="${horario.id}"
                                     >
-                                        <div class="d-flex flex-column mt-4">
-                                            <p class="card-text">
+                                        <div class="config-content-box">
+                                            <p class="card-text mb-2">
                                                 ${horario.descricao}
-                                                <a href="#">Saiba mais</a>
                                             </p>
-                                            <p class="fs-6 mb-0">
-                                                <strong>Exemplo:</strong>
-                                                ${horario.exemplo}
+                                            <p class="small text-muted mb-2">
+                                                <strong>Ex:</strong> ${horario.exemplo}
                                             </p>
-                                            <br>
-                                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                                <div class="input-group input-group-sm">
+                                            <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
+                                                <div class="input-group input-group-sm" style="width: auto;">
                                                     <span class="input-group-text"><i class="bi bi-clock"></i></span>
                                                     <input type="time" class="form-control"
                                                         id="horario_envio_${horario.id}"
                                                         name="horario_envio"
                                                         value="${horario.horario || ""}"
-                                                        placeholder="hh:mm"
-                                                        style="max-width: 120px;"
+                                                        style="width: 100px;"
                                                         ${isInputDisabled}>
                                                 </div>
                                                 <button
-                                                    class="btn btn-confirmar-acao ${btnClass}"
+                                                    class="btn btn-sm-config ${btnClass}"
                                                     type="button"
                                                     data-horario-id="${horario.id}"
                                                     data-status="${horario.status ? "on" : "off"}"
@@ -549,5 +770,154 @@
         .finally(() => {
             botao.disabled = false;
         });
+    }
+
+    // ========== REJEIÇÃO DE CHAMADAS ==========
+
+    document.addEventListener('DOMContentLoaded', function() {
+        buscarConfigRejectCall();
+    });
+
+    async function buscarConfigRejectCall() {
+        try {
+            const response = await fetch('/edit-reject-call-config/', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await parseJsonResponse(response, 'carregamento config reject-call');
+
+            if (data.success) {
+                const config = data.config;
+                const statusSpan = document.getElementById('status-reject-call');
+                const btnToggle = document.getElementById('btn-toggle-reject-call');
+                const useHorariosCheckbox = document.getElementById('rejectCallUseHorarios');
+                const horariosInputs = document.getElementById('rejectCallHorariosInputs');
+                const inputInicio = document.getElementById('rejectCallHorarioInicio');
+                const inputFim = document.getElementById('rejectCallHorarioFim');
+
+                // Status visual
+                if (statusSpan) {
+                    statusSpan.innerHTML = config.reject_call_enabled
+                        ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
+                        : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
+                }
+
+                // Botão
+                if (btnToggle) {
+                    btnToggle.setAttribute('data-status', config.reject_call_enabled ? 'on' : 'off');
+                    btnToggle.textContent = config.reject_call_enabled ? 'Desativar' : 'Ativar';
+                    btnToggle.classList.remove('btn-primary', 'btn-danger');
+                    btnToggle.classList.add(config.reject_call_enabled ? 'btn-danger' : 'btn-primary');
+                }
+
+                // Horários
+                if (config.reject_call_horario_inicio && config.reject_call_horario_fim) {
+                    if (useHorariosCheckbox) useHorariosCheckbox.checked = true;
+                    if (horariosInputs) horariosInputs.style.display = 'block';
+                    if (inputInicio) inputInicio.value = config.reject_call_horario_inicio;
+                    if (inputFim) inputFim.value = config.reject_call_horario_fim;
+                } else {
+                    if (useHorariosCheckbox) useHorariosCheckbox.checked = false;
+                    if (horariosInputs) horariosInputs.style.display = 'none';
+                }
+
+                // Desabilitar inputs se ativo
+                if (inputInicio) inputInicio.disabled = config.reject_call_enabled;
+                if (inputFim) inputFim.disabled = config.reject_call_enabled;
+                if (useHorariosCheckbox) useHorariosCheckbox.disabled = config.reject_call_enabled;
+
+                if (window.feather) window.feather.replace();
+            }
+        } catch (error) {
+            console.error('[Reject-Call] Erro ao buscar config:', error);
+        }
+    }
+
+    function toggleRejectCallHorarios(checkbox) {
+        const horariosInputs = document.getElementById('rejectCallHorariosInputs');
+        if (horariosInputs) {
+            horariosInputs.style.display = checkbox.checked ? 'block' : 'none';
+        }
+    }
+
+    async function toggleRejectCallStatus(botao) {
+        const statusAtual = botao.getAttribute('data-status');
+        const novoStatus = (statusAtual === 'off');
+        const statusSpan = document.getElementById('status-reject-call');
+        const useHorariosCheckbox = document.getElementById('rejectCallUseHorarios');
+        const inputInicio = document.getElementById('rejectCallHorarioInicio');
+        const inputFim = document.getElementById('rejectCallHorarioFim');
+
+        botao.disabled = true;
+        botao.textContent = 'Salvando...';
+
+        // Montar payload
+        const payload = {
+            reject_call_enabled: novoStatus
+        };
+
+        // Se ativando e tem horários definidos, incluir no payload
+        if (novoStatus && useHorariosCheckbox?.checked && inputInicio?.value && inputFim?.value) {
+            payload.reject_call_horario_inicio = inputInicio.value;
+            payload.reject_call_horario_fim = inputFim.value;
+        } else if (!novoStatus) {
+            // Ao desativar, limpar horários
+            payload.reject_call_horario_inicio = null;
+            payload.reject_call_horario_fim = null;
+        }
+
+        try {
+            const response = await fetch('/edit-reject-call-config/', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await parseJsonResponse(response, 'salvar config reject-call');
+
+            if (data.success) {
+                // Atualizar UI
+                botao.setAttribute('data-status', novoStatus ? 'on' : 'off');
+                botao.textContent = novoStatus ? 'Desativar' : 'Ativar';
+                botao.classList.remove('btn-primary', 'btn-danger');
+                botao.classList.add(novoStatus ? 'btn-danger' : 'btn-primary');
+
+                if (statusSpan) {
+                    statusSpan.innerHTML = novoStatus
+                        ? 'ON <i class="bi bi-check-circle-fill text-success"></i>'
+                        : 'OFF <i class="bi bi-x-circle-fill text-danger"></i>';
+                }
+
+                // Desabilitar/habilitar inputs
+                if (inputInicio) inputInicio.disabled = novoStatus;
+                if (inputFim) inputFim.disabled = novoStatus;
+                if (useHorariosCheckbox) useHorariosCheckbox.disabled = novoStatus;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Salvo!',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                throw new Error(data.message || 'Erro ao salvar configurações.');
+            }
+        } catch (error) {
+            console.error('[Reject-Call] Erro ao salvar:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro',
+                text: error.message || 'Falha ao salvar configurações.'
+            });
+            // Reverter botão
+            botao.textContent = statusAtual === 'on' ? 'Desativar' : 'Ativar';
+        } finally {
+            botao.disabled = false;
+        }
     }
 </script>

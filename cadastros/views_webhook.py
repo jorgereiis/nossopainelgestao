@@ -221,15 +221,38 @@ def _handle_message_sent(payload: dict, session: str):
     })
 
 
+def _should_reject_call(sessao) -> bool:
+    """Verifica se deve rejeitar chamada baseado nas configurações da sessão."""
+    if not sessao.reject_call_enabled:
+        return False
+
+    # Se não tem horários definidos, rejeita sempre
+    if not sessao.reject_call_horario_inicio or not sessao.reject_call_horario_fim:
+        return True
+
+    # Verificar se está dentro do horário configurado
+    from django.utils import timezone
+    agora = timezone.localtime().time()
+    inicio = sessao.reject_call_horario_inicio
+    fim = sessao.reject_call_horario_fim
+
+    # Trata caso de horário que atravessa meia-noite (ex: 22:00 às 06:00)
+    if inicio <= fim:
+        return inicio <= agora <= fim
+    else:
+        return agora >= inicio or agora <= fim
+
+
 def _handle_incoming_call(payload: dict, sessao, session: str):
     """
     Trata evento de chamada recebida.
 
     Fluxo:
     1. Ignora chamadas de grupo
-    2. Rejeita a chamada
-    3. Envia mensagem informando que não atendemos chamadas
-    4. Marca a conversa como não lida
+    2. Verifica se rejeição está habilitada e dentro do horário
+    3. Rejeita a chamada
+    4. Envia mensagem informando que não atendemos chamadas
+    5. Marca a conversa como não lida
     """
     from wpp import api_connection
 
@@ -254,6 +277,15 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
         )
         return
 
+    # Verificar se deve rejeitar chamada (configuração + horário)
+    if not _should_reject_call(sessao):
+        logger.info(
+            "Rejeição de chamadas desativada ou fora do horário | session=%s caller=%s",
+            session,
+            caller
+        )
+        return
+
     token = sessao.token
 
     # 1. Rejeitar chamada
@@ -274,7 +306,11 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
         )
 
     # 2. Enviar mensagem ao contato
-    mensagem = "🚫 *NÃO ATENDEMOS CHAMADAS* 🚫"
+    mensagem = (
+        "🚫 *NÃO ATENDEMOS CHAMADAS* 🚫\n\n"
+        "Estaremos lhe atendendo em alguns instantes.\n\n"
+        "Enquanto isso, informe aqui como podemos ajudá-lo(a)."
+    )
     msg_result, msg_status = api_connection.send_text_message(
         session, token, caller, mensagem
     )
