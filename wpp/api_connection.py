@@ -677,17 +677,27 @@ def send_text_message(session: str, token: str, phone: str, message: str):
     """Envia mensagem de texto."""
     url = f"{URL_API_WPP}/{session}/send-message"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
     # A API WPPConnect espera o phone SEM sufixo para contatos, mas COM sufixo para grupos
-    # Para grupos (@g.us), enviar com o ID completo
-    # Para contatos, a API adiciona @c.us automaticamente
     if "@g.us" in phone:
         # Grupo - usar ID completo
         data = {"phone": phone, "message": message, "isGroup": True}
+    elif "@lid" in phone:
+        # Linked ID - tentar enviar COM o sufixo @lid
+        data = {"phone": phone, "message": message}
+        logger.info("[send_text_message] DEBUG @lid | phone=%s", phone)
     else:
-        # Contato - remover @c.us ou @lid se presente
-        clean_phone = phone.replace("@c.us", "").replace("@lid", "")
+        # Contato normal - remover @c.us
+        clean_phone = phone.replace("@c.us", "")
         data = {"phone": clean_phone, "message": message}
-    return _make_request("POST", url, headers=headers, json_data=data)
+
+    result, status = _make_request("POST", url, headers=headers, json_data=data)
+
+    # DEBUG: Log da resposta
+    if "@lid" in phone:
+        logger.info("[send_text_message] DEBUG @lid response | status=%s result=%s", status, result)
+
+    return result, status
 
 
 def _normalize_phone(phone: str) -> tuple:
@@ -814,8 +824,74 @@ def mark_chat_unread(session: str, token: str, phone: str):
     """
     url = f"{URL_API_WPP}/{session}/mark-unseen"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    # Normalizar telefone - remover @c.us ou @lid para contatos
-    if "@g.us" not in phone:
-        phone = phone.replace("@c.us", "").replace("@lid", "")
+
+    # Para @lid, tentar COM o sufixo; para @c.us, remover
+    if "@lid" in phone:
+        # Tentar com @lid
+        logger.info("[mark_chat_unread] DEBUG @lid | phone=%s", phone)
+    elif "@g.us" not in phone:
+        # Contato normal - remover @c.us
+        phone = phone.replace("@c.us", "")
+
     data = {"phone": phone}
-    return _make_request("POST", url, headers=headers, json_data=data)
+    result, status = _make_request("POST", url, headers=headers, json_data=data)
+
+    # DEBUG: Log da resposta
+    if "@lid" in phone or status not in (200, 201):
+        logger.info("[mark_chat_unread] DEBUG response | phone=%s status=%s result=%s", phone, status, result)
+
+    return result, status
+
+
+def get_phone_from_lid(session: str, token: str, lid: str):
+    """
+    Tenta obter o número de telefone real a partir de um @lid.
+
+    O formato @lid é usado pelo WhatsApp Multi-Device e não é um número
+    de telefone válido. Esta função usa o endpoint /contact/{lid} para
+    obter informações do contato, incluindo o número real.
+
+    Args:
+        session: Nome da sessão
+        token: Token de autenticação
+        lid: ID no formato número@lid
+
+    Returns:
+        tuple: (phone_number ou None, status_code)
+    """
+    # Usar endpoint /contact/{lid} para obter informações do contato
+    url = f"{URL_API_WPP}/{session}/contact/{lid}"
+    headers = {"Authorization": f"Bearer {token}"}
+    data, status = _make_request("GET", url, headers=headers)
+
+    # DEBUG: Log completo da resposta
+    logger.info(
+        "[get_phone_from_lid] DEBUG | url=%s status=%s response=%s",
+        url,
+        status,
+        data
+    )
+
+    if status == 200 and data:
+        response = data.get("response", {})
+        if isinstance(response, dict):
+            # Tentar extrair phoneNumber (estrutura do wa-js)
+            phone_number = response.get("phoneNumber", {})
+            if isinstance(phone_number, dict):
+                phone = phone_number.get("_serialized", "") or phone_number.get("id", "")
+                if phone:
+                    return phone.replace("@c.us", ""), status
+
+            # Fallback: tentar campo id.user ou number
+            id_obj = response.get("id", {})
+            if isinstance(id_obj, dict):
+                phone = id_obj.get("user", "")
+                if phone:
+                    return phone, status
+
+            # Fallback: campo number direto
+            phone = response.get("number", "")
+            if phone:
+                return phone, status
+
+    return None, status

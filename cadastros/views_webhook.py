@@ -310,9 +310,20 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
         )
         return
 
+    # Se for @lid, para aqui (limitação do WhatsApp - não é possível enviar mensagem)
+    if "@lid" in caller:
+        logger.info(
+            "Chamada @lid rejeitada (sem envio de mensagem - limitação WhatsApp) | session=%s caller=%s",
+            session,
+            caller
+        )
+        return
+
     # 2. Contato direto: executar envio + marcação em thread separada
     def _processo_pos_rejeicao():
         try:
+            phone = caller
+
             # Aguarda 2s antes de enviar mensagem
             time.sleep(2)
 
@@ -322,14 +333,14 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
                 "Enquanto isso, informe aqui como podemos ajudá-lo(a)."
             )
             msg_result, msg_status = api_connection.send_text_message(
-                session, token, caller, mensagem
+                session, token, phone, mensagem
             )
 
             if msg_status not in (200, 201):
                 logger.error(
-                    "Falha ao enviar mensagem pós-chamada | session=%s caller=%s status=%s",
+                    "Falha ao enviar mensagem pós-chamada | session=%s phone=%s status=%s",
                     session,
-                    caller,
+                    phone,
                     msg_status
                 )
 
@@ -337,14 +348,14 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
             time.sleep(10)
 
             unread_result, unread_status = api_connection.mark_chat_unread(
-                session, token, caller
+                session, token, phone
             )
 
             if unread_status not in (200, 201):
                 logger.error(
-                    "Falha ao marcar conversa como não lida | session=%s caller=%s status=%s",
+                    "Falha ao marcar conversa como não lida | session=%s phone=%s status=%s",
                     session,
-                    caller,
+                    phone,
                     unread_status
                 )
         except Exception as e:

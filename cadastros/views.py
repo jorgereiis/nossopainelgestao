@@ -5516,7 +5516,9 @@ def create_customer(request):
             return render(request, "pages/cadastro-cliente.html", {
                 "error_message": "Plano inválido.",
             })
-        plano, _ = Plano.objects.get_or_create(nome=plano_nome, valor=plano_valor, telas=plano_telas, usuario=usuario)
+        plano = Plano.objects.filter(nome=plano_nome, valor=plano_valor, telas=plano_telas, usuario=usuario).first()
+        if not plano:
+            plano = Plano.objects.create(nome=plano_nome, valor=plano_valor, telas=plano_telas, usuario=usuario)
 
         # Trata relacionados
         servidor, _ = Servidor.objects.get_or_create(nome=servidor_nome, usuario=usuario)
