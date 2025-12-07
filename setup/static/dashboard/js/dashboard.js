@@ -22,27 +22,7 @@ const fireAlert = (options) => {
     return Promise.resolve();
 };
 
-/**
- * Ativa/desativa efeito de loading (bolinhas ondulares) em botão
- * @param {HTMLElement} btn - Elemento do botão
- * @param {boolean} loading - true para ativar loading, false para desativar
- * @param {string} originalHTML - HTML original do botão (para restaurar)
- */
-function setButtonLoading(btn, loading, originalHTML) {
-    if (!btn) return;
-
-    if (loading) {
-        btn.disabled = true;
-        btn.dataset.originalHtml = btn.innerHTML;
-        btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
-    } else {
-        btn.disabled = false;
-        btn.innerHTML = originalHTML || btn.dataset.originalHtml || 'Salvar';
-    }
-}
-
-// Expor globalmente para uso em outros scripts
-window.setButtonLoading = setButtonLoading;
+// Função setButtonLoading movida para /assets/js/button-loading.js (carregamento global via scripts.html)
 
 const eyeIcon = document.getElementById("eye");
 const values1_h1 = document.querySelectorAll(".values1_h1");
