@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import logging
-from cadastros.services.logging_config import (
+from nossopainel.services.logging_config import (
     get_logger,
     get_console_formatter,
     get_file_formatter,

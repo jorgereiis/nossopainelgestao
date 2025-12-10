@@ -11,7 +11,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 # Inicializar o ambiente Django para acesso aos modelos
 django.setup()
 
-from cadastros.services.logging_config import get_m3u8_logger
+from nossopainel.services.logging_config import get_m3u8_logger
 
 # Configuração do logger centralizado com rotação automática
 logger = get_m3u8_logger()

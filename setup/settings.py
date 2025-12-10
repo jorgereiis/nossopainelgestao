@@ -54,6 +54,9 @@ RECAPTCHA_REQUIRED_SCORE = 0.85
 # CapSolver
 CAPSOLVER_API_KEY = os.getenv("CAPSOLVER_API_KEY")
 
+# API-Football (JampaBet)
+API_FOOTBALL_KEY = os.getenv("API_FOOTBALL_KEY")
+
 # SECURITY WARNING: don't run with debug turned on in production!
 # SEGURANÇA: Default é False. Para desenvolvimento, configure DEBUG=True no .env
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
@@ -66,6 +69,10 @@ else:
         'nossopainel.com.br',
         'www.nossopainel.com.br',
         'local.nossopainel.com.br',
+        # JampaBet domains
+        'jampabet.com.br',
+        'www.jampabet.com.br',
+        'local.jampabet.com.br',
     ]
     # Adiciona domínio extra do .env (ex: ngrok para testes de webhook)
     extra_host = os.getenv('EXTRA_ALLOWED_HOST', '')
@@ -83,7 +90,8 @@ INSTALLED_APPS = [
     'whitenoise.runserver_nostatic', # whitenoise para servir arquivos estáticos
     "django.contrib.staticfiles",
     "axes",  # django-axes para rate limiting e bloqueio de tentativas de login
-    "cadastros.apps.CadastrosConfig",
+    "nossopainel.apps.NossopainelConfig",
+    "jampabet.apps.JampabetConfig",  # JampaBet - Sistema de Palpites
     "crispy_forms",
     "crispy_bootstrap5",
     "django_recaptcha",
@@ -93,6 +101,7 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "setup.middleware.DomainRoutingMiddleware",  # Roteamento por domínio (JampaBet vs NossoPainel)
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -133,14 +142,23 @@ CSRF_TRUSTED_ORIGINS = [
     'http://www.nossopainel.com.br',
     'https://local.nossopainel.com.br',
     'http://local.nossopainel.com.br',
+    # JampaBet origins
+    'https://jampabet.com.br',
+    'http://jampabet.com.br',
+    'https://www.jampabet.com.br',
+    'http://www.jampabet.com.br',
+    'https://local.jampabet.com.br',
+    'http://local.jampabet.com.br',
 ]
 # Adiciona localhost em desenvolvimento
 if DEBUG:
     CSRF_TRUSTED_ORIGINS += [
         'http://localhost:8081',
         'http://localhost',
+        'http://localhost:8001',  # JampaBet dev
         'http://127.0.0.1:8081',
         'http://127.0.0.1',
+        'http://127.0.0.1:8001',  # JampaBet dev
         'http://local.nossopainel.com.br:8081',
         'http://local.nossopainel.com.br',
     ]
@@ -266,7 +284,7 @@ LOGIN_URL = "login"
 
 # Session Configs
 
-SESSION_COOKIE_AGE = 7200  # tempo em segundos
+SESSION_COOKIE_AGE = 172800  # 48 horas em segundos (48 * 60 * 60)
 SESSION_SAVE_EVERY_REQUEST = True
 
 # ==================== CONFIGURAÇÃO DE LOGGING ====================
@@ -313,17 +331,17 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
-        'cadastros': {
+        'nossopainel': {
             'handlers': ['console', 'file'],
             'level': 'DEBUG',
             'propagate': False,
         },
-        'cadastros.views': {
+        'nossopainel.views': {
             'handlers': ['console', 'file'],
             'level': 'DEBUG',
             'propagate': False,
         },
-        'cadastros.forms': {
+        'nossopainel.forms': {
             'handlers': ['console', 'file'],
             'level': 'DEBUG',
             'propagate': False,
@@ -407,3 +425,18 @@ AXES_IPWARE_META_PRECEDENCE_ORDER = [
     'HTTP_X_REAL_IP',
     'REMOTE_ADDR',
 ]
+
+# ========================================
+# Configurações de E-mail
+# ========================================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 'yes')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'JampaBet <noreply@jampabet.com.br>')
+
+# Para desenvolvimento, usar console backend se não tiver SMTP configurado
+if DEBUG and not EMAIL_HOST_USER:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

@@ -20,7 +20,7 @@ import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Importa configuração centralizada de logging
-from cadastros.services.logging_config import get_logger
+from nossopainel.services.logging_config import get_logger
 from scripts.logging_utils import (
     registrar_log_json_auditoria,
     log_envio_mensagem,
@@ -42,11 +42,11 @@ from django.utils import timezone
 from django.utils.timezone import localtime
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
-from cadastros.utils import (
+from nossopainel.utils import (
     get_saudacao_por_hora,
     registrar_log,
 )
-from cadastros.services.wpp import (
+from nossopainel.services.wpp import (
     LogTemplates,
     MessageSendConfig,
     send_message,
@@ -57,7 +57,7 @@ from wpp.api_connection import (
 )
 from integracoes.openai_chat import consultar_chatgpt
 
-from cadastros.models import (
+from nossopainel.models import (
     Mensalidade, SessaoWpp, MensagemEnviadaWpp,
     Cliente, DadosBancarios, HorarioEnvios,
     MensagensLeads, TelefoneLeads, OfertaPromocionalEnviada,

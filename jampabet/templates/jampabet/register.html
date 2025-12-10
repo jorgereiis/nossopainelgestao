@@ -1,0 +1,60 @@
+{% extends 'jampabet/base.html' %}
+{% load static %}
+
+{% block title %}Cadastro{% endblock %}
+
+{% block header %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--primary-blue), var(--primary-red)); padding: 20px;">
+    <div class="modal-content login-modal-content" style="position: relative; max-width: 400px;">
+        <div class="modal-header" style="text-align: center;">
+            <div style="margin-bottom: 15px;">
+                <i class="fas fa-futbol" style="font-size: 3rem; color: var(--primary-red);"></i>
+            </div>
+            <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--primary-blue);">
+                JAMPA<span style="color: var(--primary-red);">BET</span>
+            </h1>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px;">Criar conta</p>
+        </div>
+        <div class="modal-body">
+            {% if error %}
+            <div style="background: #fef2f2; border: 1px solid var(--error); color: var(--error); padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem;">
+                <i class="fas fa-exclamation-circle"></i> {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'jampabet:register' %}">
+                {% csrf_token %}
+                <div class="input-group">
+                    <label for="name">Nome</label>
+                    <input type="text" id="name" name="name" placeholder="Seu nome" maxlength="100" required autofocus value="{{ form.name.value|default:'' }}">
+                </div>
+                <div class="input-group">
+                    <label for="email">E-mail</label>
+                    <input type="email" id="email" name="email" placeholder="seu@email.com" required value="{{ form.email.value|default:'' }}">
+                </div>
+                <div class="input-group">
+                    <label for="password">Senha</label>
+                    <input type="password" id="password" name="password" placeholder="Mínimo 6 caracteres" minlength="6" required>
+                </div>
+                <div class="input-group">
+                    <label for="confirm_password">Confirmar Senha</label>
+                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Repita a senha" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i class="fas fa-user-plus"></i> Criar Conta
+                </button>
+            </form>
+
+            <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                    Já tem conta? <a href="{% url 'jampabet:login' %}" style="color: var(--primary-blue); font-weight: 600; text-decoration: none;">Entrar</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

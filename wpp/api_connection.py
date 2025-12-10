@@ -15,8 +15,8 @@ from pathlib import Path
 # Adiciona o caminho para imports do sistema centralizado de logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from cadastros.services.logging import append_line
-from cadastros.services.logging_config import get_wpp_logger
+from nossopainel.services.logging import append_line
+from nossopainel.services.logging_config import get_wpp_logger
 
 URL_API_WPP = os.getenv("URL_API_WPP")
 MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")

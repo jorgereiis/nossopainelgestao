@@ -12,7 +12,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 django.setup()
 
 # Modelos Django
-from cadastros.models import ConteudoM3U8, User
+from nossopainel.models import ConteudoM3U8, User
 
 # Variáveis de ambiente e caminhos utilizados no script
 NOME_SCRIPT = "PROCESSAR NOVOS TITULOS"

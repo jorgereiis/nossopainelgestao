@@ -15,7 +15,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "setup.settings")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 django.setup()
 
-from cadastros.services.logging_config import get_telegram_logger
+from nossopainel.services.logging_config import get_telegram_logger
 
 
 def _get_env_setting(name: str, *, cast=str, required: bool = True, default=None):

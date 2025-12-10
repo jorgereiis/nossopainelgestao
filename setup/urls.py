@@ -24,7 +24,11 @@ from django.urls import path, include
 
 urlpatterns = [
     path("painel-configs/", admin.site.urls),
-    path("", include("cadastros.urls"))
+    path("", include("nossopainel.urls")),
+    # JampaBet - Sistema de Palpites
+    # Estrutura: /app/{clube}/ - preparado para múltiplos clubes
+    # Exemplos futuros: /app/sport/, /app/vitoria/, /app/saopaulo/
+    path("app/bahia/", include("jampabet.urls", namespace="jampabet")),
 ]
 
 # ============================================================================
@@ -150,4 +154,4 @@ else:
     print(f"   - {settings.MEDIA_URL} -> {settings.MEDIA_ROOT}")
     print(f"   - {settings.STATIC_URL} -> {settings.STATIC_ROOT}")
 
-handler404 = 'cadastros.views.not_found'
+handler404 = 'nossopainel.views.not_found'

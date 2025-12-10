@@ -1,0 +1,396 @@
+{% extends 'jampabet/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block splash %}
+<div id="splash-screen" class="splash-screen">
+    <div class="splash-content">
+        <div class="logo-container">
+            <div class="logo-icon">
+                <i class="fas fa-futbol"></i>
+            </div>
+            <h1 class="logo-text">JAMPA<span>BET</span></h1>
+        </div>
+        <div class="loading-bar">
+            <div class="loading-progress"></div>
+        </div>
+        <p class="splash-tagline">Bora Bahêa Minha Porra!</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block app_class %}hidden{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+{% if next_match %}
+<section class="hero-section">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <div class="next-match-card">
+            <div class="match-badge {% if next_match.is_today %}today{% endif %}">
+                <i class="fas fa-fire"></i> {% if next_match.is_today %}HOJE{% else %}PRÓXIMO JOGO{% endif %}
+            </div>
+            <div class="match-teams">
+                <div class="team home">
+                    <div class="team-logo-img">
+                        <img src="{{ next_match.home_team_logo }}" alt="{{ next_match.home_team }}">
+                    </div>
+                    <span class="team-name">{{ next_match.home_team }}</span>
+                </div>
+                <div class="match-info">
+                    <span class="match-time">{{ next_match.date|date:"H:i" }}</span>
+                    <span class="match-date">{{ next_match.date|date:"D, d M"|upper }}</span>
+                    <span class="match-competition">{{ next_match.competition }}</span>
+                </div>
+                <div class="team away">
+                    <div class="team-logo-img">
+                        <img src="{{ next_match.away_team_logo }}" alt="{{ next_match.away_team }}">
+                    </div>
+                    <span class="team-name">{{ next_match.away_team }}</span>
+                </div>
+            </div>
+            {% if not next_match.user_bet %}
+            <button class="btn btn-glow" data-match-id="{{ next_match.id }}" data-match='{"opponent": "{{ next_match.opponent_name }}", "date": "{{ next_match.date|date:"c" }}", "competition": "{{ next_match.competition }}"}'>
+                <i class="fas fa-bolt"></i> FAZER PALPITE
+            </button>
+            {% else %}
+            <div style="background: rgba(5, 150, 105, 0.2); padding: 12px 20px; border-radius: 10px; color: #10b981;">
+                <i class="fas fa-check-circle"></i> Palpite registrado
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Stats Cards -->
+<section class="stats-section">
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-trophy"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value">{{ user_position|default:"-" }}º</span>
+                <span class="stat-label">Sua Posição</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value">{{ user.hits }}</span>
+                <span class="stat-label">Acertos</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-star"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value">{{ user.points }}</span>
+                <span class="stat-label">Pontos</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value">{{ total_players }}</span>
+                <span class="stat-label">Participantes</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Tabs Navigation -->
+<nav class="tabs-nav">
+    <button class="tab-btn active" data-tab="palpites">
+        <i class="fas fa-ticket-alt"></i>
+        <span>Palpites</span>
+    </button>
+    <button class="tab-btn" data-tab="ranking">
+        <i class="fas fa-medal"></i>
+        <span>Ranking</span>
+    </button>
+    <button class="tab-btn" data-tab="classificacao">
+        <i class="fas fa-table"></i>
+        <span>Tabela</span>
+    </button>
+    <button class="tab-btn" data-tab="jogos">
+        <i class="fas fa-calendar-alt"></i>
+        <span>Jogos</span>
+    </button>
+</nav>
+
+<!-- Tab Contents -->
+<div class="tab-contents">
+    <!-- Palpites Tab -->
+    <div class="tab-content active" id="palpites">
+        <div class="section-header">
+            <h2><i class="fas fa-ticket-alt"></i> Próximos Jogos</h2>
+        </div>
+        <div class="palpites-container">
+            {% for match in upcoming_matches %}
+            <div class="palpite-card {% if match.user_bet %}has-bet{% endif %}">
+                <div class="palpite-header">
+                    <span class="palpite-competition">{{ match.competition }}</span>
+                    <span class="palpite-date">{{ match.date|date:"d/m H:i" }}</span>
+                </div>
+                <div class="palpite-teams">
+                    <div class="palpite-team">
+                        <div class="palpite-team-logo">
+                            <img src="{{ match.home_team_logo }}" alt="{{ match.home_team }}">
+                        </div>
+                        <span class="{% if match.home_team == 'Bahia' %}team-bahia{% endif %}">{{ match.home_team }}</span>
+                    </div>
+                    <div class="palpite-vs">
+                        <span class="palpite-location">{{ match.location|upper }}</span>
+                        <span class="vs-text">VS</span>
+                    </div>
+                    <div class="palpite-team">
+                        <span class="{% if match.away_team == 'Bahia' %}team-bahia{% endif %}">{{ match.away_team }}</span>
+                        <div class="palpite-team-logo">
+                            <img src="{{ match.away_team_logo }}" alt="{{ match.away_team }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="palpite-action">
+                    {% if match.user_bet %}
+                    <span class="palpite-made">
+                        <i class="fas fa-check-circle"></i> Palpite: {{ match.user_bet.home_win_bahia }}x{{ match.user_bet.home_win_opponent }} / {{ match.user_bet.draw_bahia }}x{{ match.user_bet.draw_opponent }}
+                    </span>
+                    {% else %}
+                    <span class="palpite-pending">
+                        <i class="fas fa-clock"></i> Aguardando palpite
+                    </span>
+                    <button class="btn btn-bet" data-match-id="{{ match.id }}" data-match='{"opponent": "{{ match.opponent_name }}", "date": "{{ match.date|date:"c" }}", "competition": "{{ match.competition }}"}'>
+                        <i class="fas fa-plus"></i> Palpitar
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <i class="fas fa-calendar-times"></i>
+                <p>Nenhum jogo disponível para palpites</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Ranking Tab -->
+    <div class="tab-content" id="ranking">
+        <div class="section-header">
+            <h2><i class="fas fa-medal"></i> Ranking Geral</h2>
+        </div>
+        <div class="ranking-container">
+            {% if top_users %}
+            <div class="podium-container">
+                {% for rank_user in top_users|slice:":3" %}
+                <div class="podium-place place-{{ forloop.counter }} {% if rank_user.id == user.id %}current-user{% endif %}" style="order: {% if forloop.counter == 1 %}2{% elif forloop.counter == 2 %}1{% else %}3{% endif %}">
+                    <div class="podium-avatar">
+                        {{ rank_user.name|slice:":1"|upper }}
+                        <div class="podium-medal medal-{{ forloop.counter }}">
+                            <i class="fas fa-{% if forloop.counter == 1 %}crown{% else %}medal{% endif %}"></i>
+                        </div>
+                    </div>
+                    <div class="podium-info">
+                        <span class="podium-name">{{ rank_user.name }}</span>
+                        <span class="podium-points">{{ rank_user.points }} pts</span>
+                    </div>
+                    <div class="podium-bar"></div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="ranking-table">
+                {% for rank_user in ranking_users %}
+                <div class="ranking-row {% if rank_user.id == user.id %}current-user{% endif %}">
+                    <span class="ranking-position">{{ forloop.counter }}º</span>
+                    <div class="ranking-user">
+                        <div class="ranking-avatar">{{ rank_user.name|slice:":1"|upper }}</div>
+                        <span class="ranking-name">{{ rank_user.name }}</span>
+                    </div>
+                    <div class="ranking-stats">
+                        <span class="ranking-hits">{{ rank_user.hits }} acertos</span>
+                        <span class="ranking-points">{{ rank_user.points }} pts</span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    <i class="fas fa-users"></i>
+                    <p>Nenhum participante ainda</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Classificação Tab -->
+    <div class="tab-content" id="classificacao">
+        <div class="section-header">
+            <h2><i class="fas fa-table"></i> Classificação</h2>
+            <select id="standings-select" class="standings-select">
+                <option value="71">Brasileirão Série A</option>
+                <option value="604">Campeonato Baiano</option>
+            </select>
+        </div>
+        <div class="standings-container" id="standings-container">
+            <div class="loading-spinner">
+                <i class="fas fa-futbol fa-spin"></i>
+                <span>Carregando classificação...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Jogos Tab -->
+    <div class="tab-content" id="jogos">
+        <div class="section-header">
+            <h2><i class="fas fa-calendar-alt"></i> Próximos Jogos</h2>
+        </div>
+        <div class="jogos-container">
+            {% for match in all_matches %}
+            <div class="jogo-card {% if match.status == 'finished' %}finished{% endif %}">
+                <div class="jogo-status">
+                    <span class="status-badge {{ match.status }}">
+                        {% if match.status == 'upcoming' %}Agendado{% elif match.status == 'live' %}Ao Vivo{% elif match.status == 'finished' %}Encerrado{% else %}{{ match.status }}{% endif %}
+                    </span>
+                    <span class="jogo-competition">{{ match.competition }}</span>
+                </div>
+                <div class="jogo-content">
+                    <div class="jogo-datetime">
+                        <i class="fas fa-calendar"></i>
+                        {{ match.date|date:"d/m/Y" }} às {{ match.date|date:"H:i" }}
+                    </div>
+                    <div class="jogo-teams">
+                        <div class="jogo-team">
+                            <div class="jogo-team-logo">
+                                <img src="{{ match.home_team_logo }}" alt="{{ match.home_team }}">
+                            </div>
+                            <span class="{% if match.home_team == 'Bahia' %}team-bahia{% endif %}">{{ match.home_team }}</span>
+                        </div>
+                        {% if match.status == 'finished' %}
+                        <div class="match-score">
+                            <span>{{ match.result_bahia|default:"-" }}</span>
+                            <span class="jogo-vs">x</span>
+                            <span>{{ match.result_opponent|default:"-" }}</span>
+                        </div>
+                        {% else %}
+                        <span class="jogo-vs">VS</span>
+                        {% endif %}
+                        <div class="jogo-team">
+                            <span class="{% if match.away_team == 'Bahia' %}team-bahia{% endif %}">{{ match.away_team }}</span>
+                            <div class="jogo-team-logo">
+                                <img src="{{ match.away_team_logo }}" alt="{{ match.away_team }}">
+                            </div>
+                        </div>
+                    </div>
+                    {% if match.venue %}
+                    <div class="jogo-location">
+                        <i class="fas fa-map-marker-alt"></i>
+                        {{ match.venue }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <i class="fas fa-calendar-times"></i>
+                <p>Nenhum jogo cadastrado</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Bet Modal -->
+<div id="bet-modal" class="modal">
+    <div class="modal-content bet-modal-content">
+        <button class="modal-close" id="close-bet-modal">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="modal-header">
+            <h2><i class="fas fa-futbol"></i> Fazer Palpite</h2>
+        </div>
+        <div class="modal-body">
+            <div class="bet-match-info">
+                <div class="bet-teams">
+                    <div class="bet-team">
+                        <div class="bet-team-logo-img" id="bet-bahia-logo">
+                            <img src="https://logodetimes.com/times/bahia/logo-bahia-256.png" alt="Bahia">
+                        </div>
+                        <span class="bet-team-name">Bahia</span>
+                    </div>
+                    <span class="bet-vs">VS</span>
+                    <div class="bet-team">
+                        <div class="bet-team-logo-img" id="bet-opponent-logo">
+                            <img src="" alt="Adversário">
+                        </div>
+                        <span class="bet-team-name" id="bet-opponent-name">Adversário</span>
+                    </div>
+                </div>
+                <div class="bet-match-details">
+                    <span id="bet-match-date">Data do Jogo</span>
+                    <span id="bet-match-competition">Competição</span>
+                </div>
+            </div>
+            <div class="bet-options">
+                <h3>Informe seus palpites:</h3>
+
+                <!-- Palpite Triunfo Bahia -->
+                <div class="score-bet-option">
+                    <div class="score-bet-header">
+                        <i class="fas fa-trophy"></i>
+                        <span>Triunfo Bahia</span>
+                        <small class="score-points">+3 pts</small>
+                    </div>
+                    <div class="score-inputs">
+                        <div class="score-team">
+                            <span>Bahia</span>
+                            <input type="number" id="home-win-bahia" min="0" max="20" placeholder="0" class="score-input">
+                        </div>
+                        <span class="score-x">x</span>
+                        <div class="score-team">
+                            <input type="number" id="home-win-opponent" min="0" max="20" placeholder="0" class="score-input">
+                            <span id="score-opponent-name-1">Adversário</span>
+                        </div>
+                    </div>
+                    <small class="score-hint">Placar a favor do Bahia</small>
+                </div>
+
+                <!-- Palpite Empate -->
+                <div class="score-bet-option">
+                    <div class="score-bet-header">
+                        <i class="fas fa-handshake"></i>
+                        <span>Empate</span>
+                        <small class="score-points">+1 pt</small>
+                    </div>
+                    <div class="score-inputs">
+                        <div class="score-team">
+                            <span>Bahia</span>
+                            <input type="number" id="draw-bahia" min="0" max="20" placeholder="0" class="score-input">
+                        </div>
+                        <span class="score-x">x</span>
+                        <div class="score-team">
+                            <input type="number" id="draw-opponent" min="0" max="20" placeholder="0" class="score-input">
+                            <span id="score-opponent-name-2">Adversário</span>
+                        </div>
+                    </div>
+                    <small class="score-hint">Placar com empate</small>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-block" id="confirm-bet-btn" disabled>
+                <i class="fas fa-check"></i> Confirmar Palpites
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

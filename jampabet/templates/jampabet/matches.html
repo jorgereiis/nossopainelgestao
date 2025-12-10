@@ -1,0 +1,82 @@
+{% extends 'jampabet/base.html' %}
+{% load static %}
+
+{% block title %}Jogos{% endblock %}
+
+{% block content %}
+<div style="padding: 20px; max-width: 800px; margin: 0 auto;">
+    <div class="section-header">
+        <h2><i class="fas fa-calendar-alt"></i> Jogos do Bahia</h2>
+    </div>
+
+    <div class="jogos-container">
+        {% for match in matches %}
+        <div class="jogo-card {% if match.status == 'finished' %}finished{% endif %}">
+            <div class="jogo-status">
+                <span class="status-badge {{ match.status }}">
+                    {% if match.status == 'upcoming' %}Agendado
+                    {% elif match.status == 'live' %}Ao Vivo
+                    {% elif match.status == 'finished' %}Encerrado
+                    {% elif match.status == 'postponed' %}Adiado
+                    {% elif match.status == 'cancelled' %}Cancelado
+                    {% else %}{{ match.status }}{% endif %}
+                </span>
+                <span class="jogo-competition">{{ match.competition }}</span>
+            </div>
+            <div class="jogo-content">
+                <div class="jogo-datetime">
+                    <i class="fas fa-calendar"></i>
+                    {{ match.date|date:"d/m/Y" }} às {{ match.date|date:"H:i" }}
+                </div>
+                <div class="jogo-teams">
+                    <div class="jogo-team">
+                        <div class="jogo-team-logo">
+                            <img src="{{ match.home_team_logo }}" alt="{{ match.home_team }}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ccircle cx=%2750%27 cy=%2750%27 r=%2745%27 fill=%27%23e5e7eb%27/%3E%3Ctext x=%2750%27 y=%2768%27 text-anchor=%27middle%27 fill=%27%236b7280%27 font-size=%2750%27%3E?%3C/text%3E%3C/svg%3E'">
+                        </div>
+                        <span class="{% if match.home_team == 'Bahia' %}team-bahia{% endif %}">{{ match.home_team }}</span>
+                    </div>
+                    {% if match.status == 'finished' and match.result_bahia is not None %}
+                    <div class="match-score">
+                        {% if match.location == 'home' %}
+                        <span>{{ match.result_bahia }}</span>
+                        <span class="jogo-vs">x</span>
+                        <span>{{ match.result_opponent }}</span>
+                        {% else %}
+                        <span>{{ match.result_opponent }}</span>
+                        <span class="jogo-vs">x</span>
+                        <span>{{ match.result_bahia }}</span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <span class="jogo-vs">VS</span>
+                    {% endif %}
+                    <div class="jogo-team">
+                        <span class="{% if match.away_team == 'Bahia' %}team-bahia{% endif %}">{{ match.away_team }}</span>
+                        <div class="jogo-team-logo">
+                            <img src="{{ match.away_team_logo }}" alt="{{ match.away_team }}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ccircle cx=%2750%27 cy=%2750%27 r=%2745%27 fill=%27%23e5e7eb%27/%3E%3Ctext x=%2750%27 y=%2768%27 text-anchor=%27middle%27 fill=%27%236b7280%27 font-size=%2750%27%3E?%3C/text%3E%3C/svg%3E'">
+                        </div>
+                    </div>
+                </div>
+                {% if match.venue %}
+                <div class="jogo-location">
+                    <i class="fas fa-map-marker-alt"></i>
+                    {{ match.venue }}
+                </div>
+                {% endif %}
+                {% if match.round %}
+                <div class="jogo-location" style="margin-top: 5px;">
+                    <i class="fas fa-flag"></i>
+                    {{ match.round }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <i class="fas fa-calendar-times"></i>
+            <p>Nenhum jogo cadastrado</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

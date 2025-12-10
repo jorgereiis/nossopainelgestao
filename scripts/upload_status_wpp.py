@@ -14,8 +14,8 @@ from django.utils.timezone import localtime
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "setup.settings")
 django.setup()
 
-from cadastros.models import User, ConteudoM3U8, SessaoWpp
-from cadastros.services.logging_config import get_wpp_logger
+from nossopainel.models import User, ConteudoM3U8, SessaoWpp
+from nossopainel.services.logging_config import get_wpp_logger
 from wpp.api_connection import upload_imagem_status, upload_status_sem_imagem
 
 # Configuração do logger centralizado com rotação automática

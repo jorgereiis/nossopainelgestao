@@ -1,0 +1,3188 @@
+"""
+Módulo de definição das models principais da aplicação.
+Inclui entidades como Cliente, Plano, Mensalidade, Aplicativo, Sessão WhatsApp, entre outras.
+"""
+
+from datetime import date, timedelta
+from decimal import Decimal
+import re
+import os
+import uuid
+
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
+from django.db import models
+from django.utils import timezone
+
+# Mapeamento de DDDs nacionais para a unidade federativa correspondente.
+DDD_UF_MAP = {
+    '11': 'SP', '12': 'SP', '13': 'SP', '14': 'SP', '15': 'SP', '16': 'SP', '17': 'SP', '18': 'SP', '19': 'SP',
+    '21': 'RJ', '22': 'RJ', '24': 'RJ',
+    '27': 'ES', '28': 'ES',
+    '31': 'MG', '32': 'MG', '33': 'MG', '34': 'MG', '35': 'MG', '37': 'MG', '38': 'MG',
+    '41': 'PR', '42': 'PR', '43': 'PR', '44': 'PR', '45': 'PR', '46': 'PR',
+    '47': 'SC', '48': 'SC', '49': 'SC',
+    '51': 'RS', '53': 'RS', '54': 'RS', '55': 'RS',
+    '61': 'DF',
+    '62': 'GO', '64': 'GO',
+    '63': 'TO',
+    '65': 'MT', '66': 'MT',
+    '67': 'MS',
+    '68': 'AC',
+    '69': 'RO',
+    '71': 'BA', '73': 'BA', '74': 'BA', '75': 'BA', '77': 'BA',
+    '79': 'SE',
+    '81': 'PE', '87': 'PE',
+    '82': 'AL',
+    '83': 'PB',
+    '84': 'RN',
+    '85': 'CE', '88': 'CE',
+    '86': 'PI', '89': 'PI',
+    '91': 'PA', '93': 'PA', '94': 'PA',
+    '92': 'AM', '97': 'AM',
+    '95': 'RR',
+    '96': 'AP',
+    '98': 'MA', '99': 'MA',
+}
+
+def default_vencimento():
+    """Retorna a data de vencimento padrão: 30 dias a partir da data atual."""
+    return timezone.now().date() + timedelta(days=30)
+
+
+def servidor_upload_path(instance, filename):
+    """
+    Gera caminho de upload com UUID para imagens de servidor.
+
+    SEGURANÇA: UUID previne information disclosure via filenames.
+    Preserva extensão do arquivo para correto MIME type.
+
+    Formato: servidores/<uuid>.<ext>
+    Exemplo: servidores/c3d4e5f6-a7b8-9012-cdef-123456789012.png
+    """
+    ext = filename.split('.')[-1].lower()
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('servidores', filename)
+
+
+class Servidor(models.Model):
+    """Representa os servidores associados aos clientes."""
+    CLUB = "CLUB"
+    PLAY = "PLAY"
+    PLAYON = "PlayON"
+    ALPHA = "ALPHA"
+    SEVEN = "SEVEN"
+    FIVE = "FIVE"
+    GF = "GF"
+    WAREZ = "WAREZ"
+
+    CHOICES = (
+        (CLUB, CLUB),
+        (PLAY, PLAY),
+        (PLAYON, PLAYON),
+        (ALPHA, ALPHA),
+        (SEVEN, SEVEN),
+        (FIVE, FIVE),
+        (GF, GF),
+        (WAREZ, WAREZ)
+    )
+
+    nome = models.CharField(max_length=255, choices=CHOICES)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    imagem_admin = models.ImageField(
+        upload_to=servidor_upload_path,
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+        help_text='Imagem padrão do servidor (adminuser). Tamanho máximo: 5MB. Formatos: JPG, PNG, GIF, WEBP'
+    )
+
+    class Meta:
+        db_table = 'cadastros_servidor'
+        verbose_name_plural = "Servidores"
+
+    def get_imagem_url(self, usuario_atual=None):
+        """
+        Retorna a URL da imagem do servidor com fallback hierárquico:
+        1. Imagem específica do usuário atual (ServidorImagem)
+        2. Imagem do adminuser (ServidorImagem - usuário com is_superuser=True)
+        3. Imagem padrão do servidor (campo imagem_admin)
+        4. Imagem genérica estática baseada no nome do servidor
+
+        Args:
+            usuario_atual: User object do usuário atual (opcional)
+
+        Returns:
+            str: URL da imagem do servidor
+        """
+        from django.conf import settings
+
+        # 1. Tentar imagem do usuário atual
+        if usuario_atual:
+            try:
+                imagem_usuario = ServidorImagem.objects.filter(
+                    servidor=self,
+                    usuario=usuario_atual
+                ).first()
+                if imagem_usuario and imagem_usuario.imagem:
+                    return imagem_usuario.imagem.url
+            except:
+                pass
+
+        # 2. Tentar imagem do adminuser
+        try:
+            adminuser = User.objects.filter(is_superuser=True).first()
+            if adminuser:
+                imagem_admin = ServidorImagem.objects.filter(
+                    servidor=self,
+                    usuario=adminuser
+                ).first()
+                if imagem_admin and imagem_admin.imagem:
+                    return imagem_admin.imagem.url
+        except:
+            pass
+
+        # 3. Tentar imagem_admin do modelo Servidor
+        if self.imagem_admin:
+            return self.imagem_admin.url
+
+        # 4. Fallback para imagem estática genérica
+        nome_lower = self.nome.lower()
+        return f'{settings.STATIC_URL}assets/images/logo-apps/{nome_lower}.png'
+
+    def __str__(self):
+        return self.nome
+
+
+class ServidorImagem(models.Model):
+    """
+    Armazena imagens personalizadas de servidores por usuário.
+
+    Permite que cada usuário tenha sua própria imagem para um servidor específico,
+    sobrescrevendo a imagem padrão definida no modelo Servidor.
+    """
+    servidor = models.ForeignKey(Servidor, on_delete=models.CASCADE, related_name='imagens_customizadas')
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    imagem = models.ImageField(
+        upload_to=servidor_upload_path,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+        help_text='Imagem personalizada do servidor. Tamanho máximo: 5MB. Formatos: JPG, PNG, GIF, WEBP'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'cadastros_servidorimagem'
+        verbose_name = "Imagem de Servidor"
+        verbose_name_plural = "Imagens de Servidores"
+        unique_together = ('servidor', 'usuario')
+        indexes = [
+            models.Index(fields=['servidor', 'usuario']),
+        ]
+
+    def save(self, *args, **kwargs):
+        """Otimiza a imagem antes de salvar."""
+        super().save(*args, **kwargs)
+
+        if self.imagem and os.path.isfile(self.imagem.path):
+            try:
+                from PIL import Image
+                img = Image.open(self.imagem.path)
+
+                # Redimensionar se muito grande
+                if img.height > 500 or img.width > 500:
+                    output_size = (500, 500)
+                    img.thumbnail(output_size, Image.Resampling.LANCZOS)
+                    img.save(self.imagem.path, quality=85, optimize=True)
+            except ImportError:
+                pass
+
+    def __str__(self):
+        return f"{self.servidor.nome} - {self.usuario.username}"
+
+
+class Tipos_pgto(models.Model):
+    """
+    Define os tipos de pagamento disponíveis para o cliente.
+    Para PIX, pode estar associado a uma conta bancária específica.
+    """
+    PIX = "PIX"
+    CARTAO = "Cartão de Crédito"
+    BOLETO = "Boleto"
+
+    CHOICES = ((PIX, PIX), (CARTAO, CARTAO), (BOLETO, BOLETO))
+
+    nome = models.CharField(max_length=255, choices=CHOICES, default=PIX)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    # Conta bancária associada (obrigatório para PIX)
+    conta_bancaria = models.ForeignKey(
+        'ContaBancaria',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='formas_pagamento',
+        verbose_name="Conta Bancária",
+        help_text="Conta bancária para recebimento (obrigatório para PIX)"
+    )
+
+    class Meta:
+        db_table = 'cadastros_tipos_pgto'
+        verbose_name = "Tipo de Pagamento"
+        verbose_name_plural = "Tipos de Pagamentos"
+        # Permite múltiplos PIX com diferentes contas
+        unique_together = [['usuario', 'nome', 'conta_bancaria']]
+
+    def __str__(self):
+        if self.nome == self.PIX and self.conta_bancaria:
+            return f"{self.nome} - {self.conta_bancaria.nome_identificacao}"
+        return self.nome
+
+    def clean(self):
+        """Validações customizadas."""
+        from django.core.exceptions import ValidationError
+
+        # PIX deve ter conta bancária associada
+        if self.nome == self.PIX and not self.conta_bancaria:
+            raise ValidationError({
+                'conta_bancaria': 'Formas de pagamento PIX devem ter uma conta bancária associada.'
+            })
+
+    @property
+    def tem_integracao_api(self):
+        """Verifica se tem integração com API de pagamento."""
+        if self.conta_bancaria:
+            return self.conta_bancaria.tem_integracao_api
+        return False
+
+
+class Dispositivo(models.Model):
+    """Define o nome de um dispositivo utilizado por clientes."""
+    nome = models.CharField(max_length=255, null=False, blank=False)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    class Meta:
+        db_table = 'cadastros_dispositivo'
+
+    def __str__(self):
+        return self.nome
+
+
+class Aplicativo(models.Model):
+    """Modela os aplicativos utilizados na conta do cliente."""
+    nome = models.CharField(max_length=255)
+    device_has_mac = models.BooleanField(default=False)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    def tem_automacao_implementada(self):
+        """Verifica se este aplicativo possui automação DNS implementada."""
+        return self.nome.lower() == 'dreamtv'
+
+    def get_logo_url(self):
+        """
+        Retorna o caminho da logo do aplicativo usando matching inteligente com 3 níveis de prioridade.
+
+        Sistema de matching que elimina falsos positivos:
+        - Nível 1 (Exato): "duplexplay" == "duplexplay" → duplexplay.png 
+        - Nível 2 (Início): "duplexplayiptv" começa com "duplexplay" → duplexplay.png 
+        - Nível 3 (Contém): "smartersplayer" contém "smarters" → Validação contra blacklist
+
+        Apps sem logo específica retornam default.png corretamente.
+        """
+        import re
+
+        # Normalização agressiva: remove espaços, acentos, caracteres especiais
+        nome_normalizado = re.sub(r'[^a-z0-9]', '', self.nome.lower())
+
+        # Blacklist: palavras muito genéricas que causam falsos positivos
+        # Não podem ser usadas sozinhas para matching por "contém"
+        GENERIC_WORDS = {'play', 'player', 'tv', 'iptv', 'app', 'mobile'}
+
+        # Mapeamento de logos para suas palavras-chave
+        # Organizadas por especificidade (mais específicas primeiro)
+        logo_keywords = {
+            # Multiplayers
+            'multiplayer.png': ['multiplayerxc', 'multiplayeribo', 'multiplayer', 'multi'],
+
+            # Duplex family
+            'duplextv.png': ['duplextv'],
+            'duplecast.png': ['duplecast',],
+            'duplexplay.png': ['duplexplayer', 'duplexplay', 'duplex'],
+
+            # Players diversos
+            'xp.png': ['xpplayer', 'xp'],
+            'vizzion.png': ['vizzion', 'viz'],
+            'maximus.png': ['maximus', 'maxi'],
+            'dreamtv.png': ['dreamtv', 'dream'],
+            'quick.png': ['quickplayer', 'quick'],
+            'iboplayer.png': ['iboplayer', 'ibo'],
+            'bobplayer.png': ['bobplayer', 'bob'],
+            'webplayer.png': ['webplayer', 'dns'],
+            'lazerplay.png': ['lazerplay', 'lazer'],
+            'metaplayer.png': ['metaplayer', 'meta'],
+            'ninjaplayer.png': ['ninjaplayer', 'ninja'],
+            'vuplayer.png': ['vuplayer', 'vuplay', 'vu'],
+            'capplayer.png': ['capplayer', 'capp', 'cap'],
+            'xtreamplayer.png': ['xtreamplayer', 'xtream'],
+            'smarters.png': ['smartersplayer', 'smarters'],
+            'ultraplayer.png': ['ultraplayer', 'ultraplay', 'ultra'],
+            'webcastvideo.png': ['webcastvideo', 'castvideo', 'cast'],
+            
+            # Smart family
+            'smartup.png': ['smartup'],
+            'smartone.png': ['smartone'],
+            'stb.png': ['smartstb', 'stb'],
+
+            # SS IPTV
+            'ssiptv.png': ['ssiptv', 'ss'],
+
+            # Cloud/XCloud/XCIPTV
+            'xciptv.png': ['xciptv'],
+            'xcloud.png': ['xcloud'],
+            'clouddy.png': ['clouddy', 'cloud'],
+
+            # Servers
+            'five.png': ['five'],
+            'prime.png': ['prime'],
+            'alpha.png': ['alpha'],
+            'warez.png': ['warez'],
+            'playon.png': ['playon'],
+            'gf.png': ['globalfilmes', 'gf'],
+            'club.png': ['club', 'cplayer', 'clite'],
+            'seven.png': ['sevenxc', 'seven', '7flix'],
+        }
+
+        # Matching por prioridade (3 níveis)
+        for logo_file, keywords in logo_keywords.items():
+            # Ordena keywords por tamanho (desc) para priorizar matches específicos
+            for keyword in sorted(keywords, key=len, reverse=True):
+
+                # NÍVEL 1: Match Exato (prioridade máxima)
+                if nome_normalizado == keyword:
+                    return f'/static/assets/images/logo-apps/{logo_file}'
+
+                # NÍVEL 2: Match por Início (prioridade alta)
+                # Nome começa com keyword e keyword tem pelo menos 3 caracteres
+                if nome_normalizado.startswith(keyword) and len(keyword) >= 3:
+                    return f'/static/assets/images/logo-apps/{logo_file}'
+
+                # NÍVEL 3: Match por Contém (prioridade baixa, com validação)
+                # Keyword está contida no nome, mas NÃO pode ser palavra genérica
+                if keyword in nome_normalizado and keyword not in GENERIC_WORDS:
+                    return f'/static/assets/images/logo-apps/{logo_file}'
+
+        # Fallback para logo padrão
+        return '/static/assets/images/logo-apps/default.png'
+
+    class Meta:
+        db_table = 'cadastros_aplicativo'
+
+    def __str__(self):
+        return self.nome
+
+
+class Plano(models.Model):
+    """Modela os planos de mensalidade disponíveis para os clientes."""
+    MENSAL = "Mensal"
+    BIMESTRAL = "Bimestral"
+    TRIMESTRAL = "Trimestral"
+    SEMESTRAL = "Semestral"
+    ANUAL = "Anual"
+
+    CHOICES = ((MENSAL, MENSAL), (BIMESTRAL, BIMESTRAL), (TRIMESTRAL, TRIMESTRAL), (SEMESTRAL, SEMESTRAL), (ANUAL, ANUAL))
+
+    nome = models.CharField("Nome do plano", max_length=255, choices=CHOICES, default=MENSAL)
+    telas = models.IntegerField("Número de telas", default=1)
+    valor = models.DecimalField("Valor", max_digits=5, decimal_places=2)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    # ⭐ FASE 1: Controle de recursos (Dispositivos = Telas)
+    max_dispositivos = models.IntegerField(
+        "Máximo de dispositivos",
+        default=1,
+        help_text="Quantidade máxima de dispositivos (sempre igual ao número de telas)"
+    )
+
+    # ⭐ FASE 2: Campanhas Promocionais (Redesign)
+    campanha_ativa = models.BooleanField(
+        "Campanha Ativa",
+        default=False,
+        help_text="Define se este plano possui uma campanha promocional ativa"
+    )
+
+    DESCONTO_FIXO = "FIXO"
+    DESCONTO_PERSONALIZADO = "PERSONALIZADO"
+    CAMPANHA_TIPO_CHOICES = (
+        (DESCONTO_FIXO, "Desconto Fixo"),
+        (DESCONTO_PERSONALIZADO, "Desconto Personalizado"),
+    )
+
+    campanha_tipo = models.CharField(
+        "Tipo de Campanha",
+        max_length=20,
+        choices=CAMPANHA_TIPO_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Tipo de desconto da campanha"
+    )
+
+    campanha_data_inicio = models.DateField(
+        "Campanha - Data Início",
+        null=True,
+        blank=True,
+        help_text="Data de início da validade (controla adesão de NOVOS clientes)"
+    )
+
+    campanha_data_fim = models.DateField(
+        "Campanha - Data Fim",
+        null=True,
+        blank=True,
+        help_text="Data de fim da validade (controla adesão de NOVOS clientes)"
+    )
+
+    campanha_duracao_meses = models.IntegerField(
+        "Campanha - Duração (meses)",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+        help_text="Quantos meses a campanha dura para clientes inscritos (1-12)"
+    )
+
+    # Para DESCONTO_FIXO
+    campanha_valor_fixo = models.DecimalField(
+        "Campanha - Valor Fixo",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor fixo da mensalidade durante a campanha (DESCONTO_FIXO)"
+    )
+
+    # Para DESCONTO_PERSONALIZADO (valores progressivos)
+    campanha_valor_mes_1 = models.DecimalField(
+        "Campanha - Valor Mês 1",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor da 1ª mensalidade (DESCONTO_PERSONALIZADO)"
+    )
+    campanha_valor_mes_2 = models.DecimalField(
+        "Campanha - Valor Mês 2",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_3 = models.DecimalField(
+        "Campanha - Valor Mês 3",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_4 = models.DecimalField(
+        "Campanha - Valor Mês 4",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_5 = models.DecimalField(
+        "Campanha - Valor Mês 5",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_6 = models.DecimalField(
+        "Campanha - Valor Mês 6",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_7 = models.DecimalField(
+        "Campanha - Valor Mês 7",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_8 = models.DecimalField(
+        "Campanha - Valor Mês 8",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_9 = models.DecimalField(
+        "Campanha - Valor Mês 9",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_10 = models.DecimalField(
+        "Campanha - Valor Mês 10",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_11 = models.DecimalField(
+        "Campanha - Valor Mês 11",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    campanha_valor_mes_12 = models.DecimalField(
+        "Campanha - Valor Mês 12",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    def save(self, *args, **kwargs):
+        """Garante que max_dispositivos sempre seja igual ao número de telas."""
+        self.max_dispositivos = self.telas
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.nome} - {self.telas} tela(s) - R$ {self.valor}"
+
+    def get_descricao_completa(self):
+        """Retorna descrição completa do plano para exibição."""
+        return (
+            f"{self.nome} - R$ {self.valor}\n"
+            f"• {self.telas} tela(s) simultânea(s) e dispositivo(s)"
+        )
+
+    def get_campanha_duracao_display(self):
+        """
+        Retorna informações sobre a duração da campanha considerando o tipo de plano.
+
+        Como o sistema rastreia PAGAMENTOS (não meses calendário), a duração real
+        em meses varia de acordo com a periodicidade do plano:
+        - Mensal: 1 pagamento = 1 mês
+        - Bimestral: 1 pagamento = 2 meses
+        - Trimestral: 1 pagamento = 3 meses
+        - Semestral: 1 pagamento = 6 meses
+        - Anual: 1 pagamento = 12 meses
+
+        Returns:
+            dict: Dicionário com informações formatadas da campanha
+                {
+                    'pagamentos': int - Número de pagamentos com desconto,
+                    'meses_reais': int - Duração aproximada em meses,
+                    'texto_curto': str - "3 pagtos" para tabelas,
+                    'texto_completo': str - "3 pagamentos (~9 meses)" para tooltips,
+                    'multiplicador': int - Fator de multiplicação (1, 2, 3, 6, 12)
+                }
+        """
+        if not self.campanha_duracao_meses:
+            return {
+                'pagamentos': 0,
+                'meses_reais': 0,
+                'texto_curto': '-',
+                'texto_completo': 'Sem campanha',
+                'multiplicador': 1
+            }
+
+        # Mapeamento de multiplicadores por tipo de plano
+        multiplicadores = {
+            'mensal': 1,
+            'bimestral': 2,
+            'trimestral': 3,
+            'semestral': 6,
+            'anual': 12,
+        }
+
+        # Detecta o tipo de plano (case-insensitive)
+        plano_tipo = self.nome.lower().split()[0] if self.nome else 'mensal'
+        multiplicador = multiplicadores.get(plano_tipo, 1)
+
+        pagamentos = self.campanha_duracao_meses
+        meses_reais = pagamentos * multiplicador
+
+        # Texto curto para tabelas
+        texto_curto = f"{pagamentos} pagto{'s' if pagamentos != 1 else ''}"
+
+        # Texto completo para tooltips e modais
+        if multiplicador == 1:
+            # Plano mensal: pagamentos = meses
+            texto_completo = f"{pagamentos} pagamento{'s' if pagamentos != 1 else ''}"
+        else:
+            # Outros planos: mostrar equivalência
+            texto_completo = f"{pagamentos} pagamento{'s' if pagamentos != 1 else ''} (~{meses_reais} meses)"
+
+        return {
+            'pagamentos': pagamentos,
+            'meses_reais': meses_reais,
+            'texto_curto': texto_curto,
+            'texto_completo': texto_completo,
+            'multiplicador': multiplicador
+        }
+
+    def get_campanha_valores_tooltip(self):
+        """
+        Retorna HTML formatado com os valores de cada pagamento da campanha
+        para exibição em tooltip.
+        """
+        if not self.campanha_ativa or not self.campanha_duracao_meses:
+            return "Sem campanha configurada"
+
+        linhas = []
+        duracao = self.campanha_duracao_meses
+
+        if self.campanha_tipo == 'FIXO':
+            # Valor fixo para todos os pagamentos
+            valor = self.campanha_valor_fixo or 0
+            for i in range(1, duracao + 1):
+                valor_fmt = f"{valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+                linhas.append(f"Pagamento {i}: R$ {valor_fmt}")
+        else:
+            # Valores personalizados por mês
+            for i in range(1, duracao + 1):
+                valor = getattr(self, f'campanha_valor_mes_{i}', None) or 0
+                valor_fmt = f"{valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+                linhas.append(f"Pagamento {i}: R$ {valor_fmt}")
+
+        return "<br>".join(linhas)
+
+    class Meta:
+        db_table = 'cadastros_plano'
+
+
+class Cliente(models.Model):
+    """Modela o cliente da plataforma com todos os seus dados cadastrais e plano."""
+    servidor = models.ForeignKey(Servidor, on_delete=models.CASCADE)
+    # Campos opcionais - representam o dispositivo/aplicativo "principal" (primeiro cadastrado)
+    dispositivo = models.ForeignKey(Dispositivo, on_delete=models.CASCADE, null=True, blank=True, default=None)
+    sistema = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, null=True, blank=True, default=None)
+    nome = models.CharField(max_length=255)
+    email = models.EmailField(max_length=255, blank=True, null=True)
+    telefone = models.CharField(max_length=20)
+    uf = models.CharField(max_length=2, blank=True, null=True)
+    indicado_por = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
+    data_vencimento = models.DateField("Data de vencimento inicial", blank=True, null=True)
+    forma_pgto = models.ForeignKey(Tipos_pgto, on_delete=models.CASCADE, default=1, verbose_name="Forma de pagamento")
+    plano = models.ForeignKey(Plano, on_delete=models.CASCADE, default=1)
+    data_adesao = models.DateField("Data de adesão", default=date.today)
+    data_cancelamento = models.DateField("Data de cancelamento", blank=True, null=True)
+    ultimo_pagamento = models.DateField("Último pagamento realizado", blank=True, null=True)
+    cancelado = models.BooleanField("Cancelado", default=False)
+    nao_enviar_msgs = models.BooleanField("Não enviar", default=False)
+    enviado_oferta_promo = models.BooleanField("Oferta PROMO", default=False)
+    notas = models.TextField("Notas", blank=True, null=True)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    class Meta:
+        db_table = 'cadastros_cliente'
+        ordering = ['-data_adesao']
+
+    def save(self, *args, **kwargs):
+        """Garante vencimento inicial e sincroniza a UF a partir do telefone."""
+        if self.data_adesao and self.data_vencimento is None:
+            self.data_vencimento = self.data_adesao
+
+        self.definir_uf()
+        super().save(*args, **kwargs)
+
+    def definir_uf(self):
+        """Define a unidade federativa (UF) com base no DDD do telefone apenas se for nacional."""
+        if not self.telefone.startswith('+55') or len(self.telefone) < 5:
+            self.uf = None
+            return
+
+        ddd = self.telefone[3:5]
+        self.uf = DDD_UF_MAP.get(ddd)
+
+    def __str__(self):
+        return self.nome
+
+
+class OfertaPromocionalEnviada(models.Model):
+    """
+    Rastreia o histórico de ofertas promocionais enviadas para clientes cancelados.
+
+    Garante que cada cliente receba no máximo 3 ofertas em toda a vida:
+    - Oferta 1: 60 dias após cancelamento
+    - Oferta 2: 240 dias após cancelamento (8 meses)
+    - Oferta 3: 420 dias após cancelamento (14 meses)
+
+    A contagem de dias é sempre a partir da data_cancelamento atual do cliente,
+    permitindo que clientes reativados recebam ofertas subsequentes em futuros cancelamentos.
+    """
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='ofertas_enviadas',
+        verbose_name="Cliente"
+    )
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    data_envio = models.DateTimeField("Data de Envio", auto_now_add=True)
+    numero_oferta = models.IntegerField(
+        "Número da Oferta",
+        choices=[(1, "Primeira Oferta"), (2, "Segunda Oferta"), (3, "Terceira Oferta")],
+        help_text="Sequência da oferta (1, 2 ou 3)"
+    )
+    dias_apos_cancelamento = models.IntegerField(
+        "Dias Após Cancelamento",
+        help_text="Quantidade de dias após o cancelamento (60, 240 ou 420)"
+    )
+    data_cancelamento_ref = models.DateField(
+        "Data de Cancelamento (Referência)",
+        help_text="Data de cancelamento do cliente no momento do envio"
+    )
+    mensagem_enviada = models.TextField("Mensagem Enviada", blank=True)
+
+    class Meta:
+        db_table = 'cadastros_ofertapromocionalenviada'
+        verbose_name = "Oferta Promocional Enviada"
+        verbose_name_plural = "Ofertas Promocionais Enviadas"
+        ordering = ['-data_envio']
+        indexes = [
+            models.Index(fields=['cliente', '-data_envio'], name='oferta_cliente_idx'),
+            models.Index(fields=['usuario', '-data_envio'], name='oferta_usuario_idx'),
+            models.Index(fields=['numero_oferta'], name='oferta_numero_idx'),
+        ]
+
+    def __str__(self):
+        return f"Oferta {self.numero_oferta} - {self.cliente.nome} ({self.data_envio.strftime('%d/%m/%Y')})"
+
+
+class Mensalidade(models.Model):
+    """Modela a mensalidade de um cliente com informações de pagamento, vencimento e status."""
+    cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT)
+    valor = models.DecimalField("Valor", max_digits=5, decimal_places=2, default=None)
+    dt_vencimento = models.DateField("Data do vencimento", default=default_vencimento)
+    dt_pagamento = models.DateField("Data do pagamento", null=True, blank=True)
+    dt_cancelamento = models.DateField("Data do cancelamento", null=True, blank=True)
+    dt_notif_wpp1 = models.DateField("Data envio notificação PROMO", null=True, blank=True)
+    pgto = models.BooleanField("Pago", default=False)
+    cancelado = models.BooleanField(default=False)
+    notificacao_wpp1 = models.BooleanField("Notificação PROMO", default=False)
+    recebeu_pix_indicacao = models.BooleanField("PIX R$50", default=False)
+    isencao_anuidade = models.BooleanField("Isenção por bônus anuidade", default=False)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    # ⭐ FASE 2.5: Rastreamento de Campanhas e Descontos
+    gerada_em_campanha = models.BooleanField(
+        "Gerada em Campanha",
+        default=False,
+        help_text="Indica se esta mensalidade foi gerada durante uma campanha promocional"
+    )
+    valor_base_plano = models.DecimalField(
+        "Valor Base do Plano",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor original do plano no momento da criação (antes de descontos)"
+    )
+    desconto_campanha = models.DecimalField(
+        "Desconto de Campanha",
+        max_digits=7,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Valor de desconto aplicado por campanha promocional"
+    )
+    desconto_progressivo = models.DecimalField(
+        "Desconto Progressivo",
+        max_digits=7,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Valor de desconto aplicado por indicações progressivas"
+    )
+    tipo_campanha = models.CharField(
+        "Tipo de Campanha",
+        max_length=20,
+        null=True,
+        blank=True,
+        help_text="FIXO ou PERSONALIZADO (se gerada em campanha)"
+    )
+    numero_mes_campanha = models.IntegerField(
+        "Número do Mês na Campanha",
+        null=True,
+        blank=True,
+        help_text="Qual mês/pagamento da campanha esta mensalidade representa (1, 2, 3...)"
+    )
+    dados_historicos_verificados = models.BooleanField(
+        "Dados Históricos Verificados",
+        default=True,
+        help_text="False = dados estimados (mensalidades antigas). True = dados precisos (mensalidades novas)"
+    )
+
+    class Meta:
+        db_table = 'cadastros_mensalidade'
+
+    def __str__(self):
+        return f"[{self.dt_vencimento.strftime('%d/%m/%Y')}] {self.valor} - {self.cliente}"
+
+
+class ClientePlanoHistorico(models.Model):
+    """Mantém o histórico do plano/valor por cliente para cálculo de patrimônio.
+
+    Cada registro representa um período contínuo em que o cliente esteve com um
+    determinado plano e valor. Ao mudar de plano, cancelar ou reativar, abrimos
+    ou encerramos registros para manter a linha do tempo sem sobreposição.
+    """
+
+    MOTIVO_CREATE = "create"
+    MOTIVO_PLAN_CHANGE = "plan_change"
+    MOTIVO_CANCEL = "cancel"
+    MOTIVO_REACTIVATE = "reactivate"
+
+    MOTIVO_CHOICES = [
+        (MOTIVO_CREATE, "Criação"),
+        (MOTIVO_PLAN_CHANGE, "Troca de plano"),
+        (MOTIVO_CANCEL, "Cancelamento"),
+        (MOTIVO_REACTIVATE, "Reativação"),
+    ]
+
+    cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='historico_planos')
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    plano = models.ForeignKey('Plano', on_delete=models.SET_NULL, null=True, blank=True)
+    plano_nome = models.CharField(max_length=255)
+    telas = models.IntegerField(default=1)
+    valor_plano = models.DecimalField(max_digits=7, decimal_places=2)
+    inicio = models.DateField()
+    fim = models.DateField(null=True, blank=True)
+    motivo = models.CharField(max_length=32, choices=MOTIVO_CHOICES, default=MOTIVO_CREATE)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'cadastros_clienteplanohistorico'
+        verbose_name = "Histórico de Plano do Cliente"
+        verbose_name_plural = "Históricos de Plano dos Clientes"
+        ordering = ["cliente", "-inicio", "-criado_em"]
+        indexes = [
+            models.Index(fields=["usuario", "inicio"], name="cadastros_c_usuario_07f805_idx"),
+            models.Index(fields=["cliente", "inicio"], name="cadastros_c_cliente_9a7e3f_idx"),
+            models.Index(fields=["cliente", "fim"], name="cadastros_c_cliente_2a7d1b_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.cliente} - {self.plano_nome} ({self.valor_plano}) {self.inicio} -> {self.fim or '...'}"
+
+
+class AssinaturaCliente(models.Model):
+    """
+    Gerencia a assinatura ativa do cliente com controle de recursos.
+
+    FASE 1: MVP - Controle de Dispositivos e Apps
+
+    Este modelo serve como camada intermediária entre Cliente e Plano,
+    permitindo:
+    - Rastrear recursos utilizados (dispositivos, contas app)
+    - Aplicar ofertas promocionais (Fase 2)
+    - Aplicar valores progressivos (Fase 3)
+    - Calcular valor da mensalidade dinamicamente
+    - Emitir avisos de excesso de limites (não bloqueia)
+    """
+
+    cliente = models.OneToOneField(
+        'Cliente',
+        on_delete=models.CASCADE,
+        related_name='assinatura',
+        verbose_name="Cliente"
+    )
+
+    plano = models.ForeignKey(
+        'Plano',
+        on_delete=models.PROTECT,
+        verbose_name="Plano"
+    )
+
+    data_inicio_assinatura = models.DateField(
+        "Data de início da assinatura",
+        help_text="Data em que o cliente aderiu ao plano atual"
+    )
+
+    # Contadores de recursos utilizados
+    dispositivos_usados = models.IntegerField(
+        "Dispositivos em uso",
+        default=0,
+        help_text="Quantidade atual de dispositivos cadastrados (informativo)"
+    )
+
+    # ⭐ FASE 2.5: Rastreamento de Campanhas Promocionais (Simplificado)
+    em_campanha = models.BooleanField(
+        "Em Campanha",
+        default=False,
+        help_text="Cliente está participando de uma campanha promocional"
+    )
+
+    campanha_data_adesao = models.DateField(
+        "Data de Adesão à Campanha",
+        null=True,
+        blank=True,
+        help_text="Quando o cliente se inscreveu na campanha"
+    )
+
+    campanha_mensalidades_pagas = models.IntegerField(
+        "Mensalidades Pagas (Campanha)",
+        default=0,
+        help_text="Contador de mensalidades pagas durante a campanha"
+    )
+
+    campanha_duracao_total = models.IntegerField(
+        "Duração Total da Campanha",
+        null=True,
+        blank=True,
+        help_text="Snapshot da duração quando cliente aderiu (usado para calcular progresso)"
+    )
+
+    # Campos para Fase 3 (preparação futura)
+    # valor_progressivo = FK PlanoValorProgressivo (Fase 3)
+
+    ativo = models.BooleanField("Ativo", default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'cadastros_assinaturacliente'
+        verbose_name = "Assinatura de Cliente"
+        verbose_name_plural = "Assinaturas de Clientes"
+        indexes = [
+            models.Index(fields=['cliente', 'ativo']),
+        ]
+
+    def __str__(self):
+        return f"Assinatura: {self.cliente.nome} - {self.plano.nome}"
+
+    # ===== MÉTODOS DE VALIDAÇÃO (FASE 1) =====
+
+    def validar_limite_dispositivos(self):
+        """
+        Verifica se há excesso de dispositivos.
+        Retorna dict com informações para exibir aviso.
+        """
+        limite = self.plano.max_dispositivos
+        usado = self.dispositivos_usados
+
+        return {
+            'dentro_limite': usado < limite,
+            'no_limite': usado == limite,
+            'excedeu': usado > limite,
+            'limite': limite,
+            'usado': usado,
+            'disponivel': max(0, limite - usado),
+            'excesso': max(0, usado - limite),
+            'percentual': (usado / limite * 100) if limite > 0 else 0
+        }
+
+    def obter_avisos_necessarios(self):
+        """
+        Retorna lista de avisos que devem ser exibidos ao usuário.
+        Sistema NÃO BLOQUEIA, apenas avisa.
+        """
+        avisos = []
+
+        # Verificar dispositivos
+        disp = self.validar_limite_dispositivos()
+        if disp['excedeu']:
+            avisos.append({
+                'tipo': 'dispositivos',
+                'nivel': 'warning',
+                'mensagem': f"Cliente possui {disp['excesso']} dispositivo(s) acima do limite ({disp['usado']}/{disp['limite']})"
+            })
+        elif disp['no_limite']:
+            avisos.append({
+                'tipo': 'dispositivos',
+                'nivel': 'info',
+                'mensagem': f"Limite de dispositivos atingido ({disp['usado']}/{disp['limite']})"
+            })
+
+        return avisos
+
+    def obter_status_recursos(self):
+        """Retorna dicionário completo com status de todos os recursos."""
+        return {
+            'telas': {
+                'usado': None,  # Implementar futuramente com controle de streaming
+                'maximo': self.plano.telas,
+            },
+            'dispositivos': self.validar_limite_dispositivos(),
+        }
+
+    # ===== MÉTODOS DE CÁLCULO DE VALOR (FASE 1, 2, 3) =====
+
+    def calcular_valor_atual(self):
+        """
+        Calcula o valor atual da mensalidade do cliente.
+
+        FASE 1: Retorna apenas valor base do plano
+        FASE 2: Adicionará verificação de oferta promocional
+        FASE 3: Adicionará verificação de valor progressivo
+
+        Ordem de prioridade (implementação futura):
+        1. Oferta promocional (se vigente) - Fase 2
+        2. Valor progressivo (se configurado) - Fase 3
+        3. Valor base do plano
+
+        Returns:
+            Decimal: Valor calculado para a próxima mensalidade
+        """
+        # FASE 1: Retorna apenas valor base
+        return self.plano.valor
+
+
+class OfertaPromocional(models.Model):
+    """
+    ⭐ FASE 2: Ofertas promocionais com valores progressivos por mensalidade.
+
+    Permite criar ofertas com valores diferenciados por mês (ex: R$10, R$20, R$30)
+    que expiram automaticamente após número definido de mensalidades pagas.
+    """
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='ofertas_promocionais',
+        verbose_name="Cliente"
+    )
+
+    plano_oferta = models.ForeignKey(
+        Plano,
+        on_delete=models.PROTECT,
+        limit_choices_to={'permite_oferta_promocional': True},
+        verbose_name="Plano Promocional",
+        help_text="Apenas planos marcados como promocionais"
+    )
+
+    # Controle de duração
+    numero_mensalidades = models.IntegerField(
+        "Número de Mensalidades",
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+        help_text="Quantos meses a oferta dura (1-12)"
+    )
+
+    mensalidades_restantes = models.IntegerField(
+        "Mensalidades Restantes",
+        validators=[MinValueValidator(0)],
+        help_text="Contador de meses restantes"
+    )
+
+    # Valores progressivos (até 6 meses - suficiente para maioria dos casos)
+    valor_mes_1 = models.DecimalField(
+        "Valor Mês 1",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor da 1ª mensalidade"
+    )
+    valor_mes_2 = models.DecimalField(
+        "Valor Mês 2",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    valor_mes_3 = models.DecimalField(
+        "Valor Mês 3",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    valor_mes_4 = models.DecimalField(
+        "Valor Mês 4",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    valor_mes_5 = models.DecimalField(
+        "Valor Mês 5",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    valor_mes_6 = models.DecimalField(
+        "Valor Mês 6",
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    # Datas
+    data_inicio = models.DateField("Data de Início", default=date.today)
+    data_fim = models.DateField("Data de Fim", null=True, blank=True)
+
+    # Status
+    ativo = models.BooleanField("Ativo", default=True)
+
+    # Metadados
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'cadastros_ofertapromocional'
+        verbose_name = "Oferta Promocional"
+        verbose_name_plural = "Ofertas Promocionais"
+        ordering = ['-criado_em']
+        indexes = [
+            models.Index(fields=['cliente', 'ativo']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(mensalidades_restantes__gte=0),
+                name='mensalidades_restantes_nao_negativo'
+            ),
+        ]
+
+    def clean(self):
+        """Validações customizadas."""
+        super().clean()
+
+        # ✅ VALIDAÇÃO 1: Plano deve permitir ofertas promocionais
+        if self.plano_oferta and not self.plano_oferta.permite_oferta_promocional:
+            raise ValidationError({
+                'plano_oferta':
+                    'Este plano não está habilitado para ofertas promocionais. '
+                    'Marque a opção "Plano Promocional" antes de usar em ofertas.'
+            })
+
+        # ✅ VALIDAÇÃO 2: Pelo menos um valor mensal deve ser definido
+        valores_definidos = sum([
+            1 for i in range(1, 7)
+            if getattr(self, f'valor_mes_{i}') is not None
+        ])
+
+        if valores_definidos == 0:
+            raise ValidationError(
+                'Defina pelo menos um valor mensal para a oferta promocional.'
+            )
+
+    def calcular_valor_mensalidade(self, numero_mes):
+        """
+        Calcula valor da mensalidade baseado no mês da oferta.
+
+        Args:
+            numero_mes: Número do mês na oferta (1, 2, 3...)
+
+        Returns:
+            Decimal: Valor a cobrar ou valor do plano_oferta como fallback
+        """
+        # Tentar valor específico do mês
+        if numero_mes <= 6:
+            valor_campo = getattr(self, f'valor_mes_{numero_mes}', None)
+            if valor_campo:
+                return valor_campo
+
+        # Fallback: valor do plano promocional
+        return self.plano_oferta.valor
+
+    def save(self, *args, **kwargs):
+        """Executa validação antes de salvar."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"Oferta {self.plano_oferta.nome} - {self.cliente.nome} "
+            f"({self.mensalidades_restantes}/{self.numero_mensalidades})"
+        )
+
+
+class HorarioEnvios(models.Model):
+    """Define o horário preferencial de envio de mensagens automáticas."""
+    TITULO = [
+        ("mensalidades_a_vencer", "Notificação de vencimentos"),
+        ("obter_mensalidades_vencidas", "Notificação de atrasos"),
+    ]
+
+    DESCRICOES = {
+        "mensalidades_a_vencer": "Defina aqui o horário do dia em que deseja que as mensagens de Notificação de Vencimento sejam enviadas para os seus clientes.",
+        "obter_mensalidades_vencidas": "Defina aqui o horário do dia em que deseja que as mensagens de Notificação de Atraso sejam enviadas para os seus clientes.",
+    }
+
+    EXEMPLOS = {
+        "mensalidades_a_vencer": "Todos os clientes com mensalidades vencendo daqui há 2 dias receberão uma mensagem no WhatsApp informando sobre Data de Vencimento, Tipo do Plano, Valor e Dados de Pagamento.",
+        "obter_mensalidades_vencidas": "Todos os clientes com mensalidades vencidas há 2 dias receberão uma mensagem no WhatsApp informando sobre a mensalidade pendentes para realizarem seus pagamentos antes que seja feito o cancelamento.",
+    }
+
+    nome = models.CharField(max_length=255, choices=TITULO)
+    tipo_envio = models.CharField(max_length=255, choices=TITULO)
+    horario = models.TimeField(null=True)
+    ultimo_envio = models.DateField(null=True, blank=True)
+    status = models.BooleanField(default=False)
+    ativo = models.BooleanField(default=True)
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = 'cadastros_horarioenvios'
+        verbose_name = "Horário de Envio"
+        verbose_name_plural = "Horarios de Envio"
+        indexes = [
+            # Índice composto para queries de envios agendados (melhora performance do select_for_update)
+            models.Index(fields=['status', 'ativo', 'horario', 'ultimo_envio'], name='horarioenvios_agendados_idx'),
+            # Índice para filtros por usuário e tipo de envio
+            models.Index(fields=['usuario', 'tipo_envio'], name='horarioenvios_usuario_tipo_idx'),
+        ]
+
+    def __str__(self):
+        return self.get_nome_display()
+
+    @property
+    def descricao(self):
+        """Retorna a descrição exibida no painel para o tipo de envio."""
+        return self.DESCRICOES.get(self.tipo_envio, "")
+
+    @property
+    def exemplo(self):
+        """Apresenta um exemplo do fluxo disparado para o tipo."""
+        return self.EXEMPLOS.get(self.tipo_envio, "")
+
+    
+class PlanoIndicacao(models.Model):
+    """Representa um plano de indicação que oferece desconto ou valor em dinheiro."""
+    TITULO = [
+        ("desconto", "Desconto por Indicação"),
+        ("dinheiro", "Bônus por Indicações"),
+        ("anuidade", "Bônus por Anuidade"),
+        ("desconto_progressivo", "Desconto Progressivo Por Indicação"),
+    ]
+    DESCRICOES = {
+        "desconto": "Permite que o sistema aplique desconto à mensalidade do cliente que fez indicação de um novo cliente no mês.",
+        "dinheiro": "Permite que o sistema bonifique o cliente com um valor a receber após realizar indicações de pelo menos 2 novos clientes no mesmo mês.",
+        "anuidade": "Permite que o sistema aplique desconto à mensalidade dos clientes que completarem 12 meses consecutivos como clientes.",
+        "desconto_progressivo": "Aplica desconto permanente e cumulativo na mensalidade do cliente indicador enquanto seus indicados permanecerem ativos. O desconto é aplicado automaticamente em todas as mensalidades futuras.",
+    }
+    EXEMPLOS = {
+        "desconto": "Indicou 1 novo cliente neste mês, terá R$ 20.00 de desconto no próximo pagamento.",
+        "dinheiro": "Indicou 2 novos clientes no mês de Janeiro, o sistema enviará uma mensagem por WhatsApp informando ao cliente que ele tem um valor a receber como bonificação e agradecimento pelas indicações feitas.",
+        "anuidade": "Aderiu em Jan/23 e terá desconto do valor definido na mensalidade de Jan/24, desde que não tenha passado ao menos 30 dias com uma das suas mensalidades CANCELADAS. Uma mensagem será enviada por WhatsApp para informar o cliente sobre a bonificação.",
+        "desconto_progressivo": "Cliente indicou 3 novos clientes ativos. Com desconto de R$ 2.00 por indicação e limite de 5 indicações, terá R$ 6.00 de desconto permanente em todas as suas mensalidades. Se um indicado cancelar, o desconto será reduzido para R$ 4.00.",
+    }
+    nome = models.CharField(max_length=255, choices=TITULO)
+    tipo_plano = models.CharField(max_length=255, choices=TITULO)
+    valor = models.DecimalField('Valor para desconto ou bonificação', max_digits=6, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    valor_minimo_mensalidade = models.DecimalField('Valor mínimo a ser mantido na mensalidade', max_digits=6, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    limite_indicacoes = models.IntegerField('Limite máximo de indicações com desconto', validators=[MinValueValidator(0)], default=0, help_text="Apenas para Desconto Progressivo. Define quantas indicações contam para desconto (0 = ilimitado).")
+    status = models.BooleanField(default=False)
+    ativo = models.BooleanField(default=True)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    class Meta:
+        db_table = 'cadastros_planoindicacao'
+        verbose_name_plural = "Planos de Indicação"
+        unique_together = ('usuario', 'tipo_plano')
+
+    def __str__(self):
+        return self.get_nome_display()
+
+    @property
+    def descricao(self):
+        """Sintetiza a finalidade do plano de indicação escolhido."""
+        return self.DESCRICOES.get(self.tipo_plano, "")
+
+    @property
+    def exemplo(self):
+        """Fornece um cenário ilustrativo da bonificação."""
+        return self.EXEMPLOS.get(self.tipo_plano, "")
+
+
+class DescontoProgressivoIndicacao(models.Model):
+    """
+    Rastreia descontos progressivos por indicação.
+
+    Cada registro representa um desconto individual gerado por uma indicação específica.
+    O desconto permanece ativo enquanto o cliente indicado estiver ativo no sistema.
+    """
+    cliente_indicador = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name="descontos_progressivos_recebidos",
+        verbose_name="Cliente Indicador"
+    )
+    cliente_indicado = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name="desconto_progressivo_gerado",
+        verbose_name="Cliente Indicado"
+    )
+    plano_indicacao = models.ForeignKey(
+        'PlanoIndicacao',
+        on_delete=models.CASCADE,
+        verbose_name="Plano de Indicação"
+    )
+    valor_desconto = models.DecimalField(
+        "Valor do Desconto",
+        max_digits=6,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    data_inicio = models.DateField("Data de Início", default=date.today)
+    data_fim = models.DateField("Data de Fim", null=True, blank=True)
+    ativo = models.BooleanField("Ativo", default=True)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'cadastros_descontoprogressivoindicacao'
+        verbose_name = "Desconto Progressivo por Indicação"
+        verbose_name_plural = "Descontos Progressivos por Indicação"
+        ordering = ["-data_inicio", "-criado_em"]
+        indexes = [
+            models.Index(fields=["cliente_indicador", "ativo"], name="cadastros_d_cliente_idx"),
+            models.Index(fields=["cliente_indicado", "ativo"], name="cadastros_d_indicado_idx"),
+            models.Index(fields=["usuario", "ativo"], name="cadastros_d_usuario_idx"),
+        ]
+
+    def __str__(self):
+        status = "✓" if self.ativo else "✗"
+        return f"{status} {self.cliente_indicador.nome} ← {self.cliente_indicado.nome} (R$ {self.valor_desconto})"
+
+
+class ContaDoAplicativo(models.Model):
+    """Armazena as credenciais de acesso de um cliente a um determinado aplicativo."""
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name="conta_aplicativo")
+    dispositivo = models.ForeignKey(Dispositivo, on_delete=models.CASCADE, null=True, blank=True, verbose_name="Tipo de Dispositivo", help_text="Em qual dispositivo esta conta está instalada")
+    app = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, related_name="aplicativos", verbose_name="Aplicativo")
+    device_id = models.CharField("ID", max_length=255, blank=True, null=True)
+    email = models.EmailField("E-mail", max_length=255, blank=True, null=True)
+    device_key = models.CharField("Senha", max_length=255, blank=True, null=True)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    verificado = models.BooleanField(default=False)
+    is_principal = models.BooleanField("Conta Principal", default=False, help_text="Define esta conta como principal. Os dados desta conta sincronizam com os campos Dispositivo e Aplicativo do cliente.")
+
+    def save(self, *args, **kwargs):
+        """Normaliza o identificador do dispositivo para formato MAC quando necessário."""
+        if self.device_id and not len(self.device_id) <= 10:
+            raw = re.sub(r'[^A-Fa-f0-9]', '', self.device_id).upper()
+            self.device_id = ':'.join(raw[i:i+2] for i in range(0, len(raw), 2))
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = 'cadastros_contadoaplicativo'
+        verbose_name = "Conta do Aplicativo"
+        verbose_name_plural = "Contas dos Aplicativos"
+
+        indexes = [
+            models.Index(fields=['cliente', 'app']),
+            models.Index(fields=['device_id']),
+        ]
+
+    def __str__(self):
+        if self.dispositivo:
+            return f"{self.app.nome} ({self.dispositivo.nome})"
+        return self.app.nome
+
+    def marcar_como_principal(self):
+        """
+        Marca esta conta como principal e desmarca todas as outras do mesmo cliente.
+        Sincroniza os campos Cliente.dispositivo e Cliente.sistema com esta conta.
+        """
+        # Desmarca todas as outras contas do mesmo cliente
+        ContaDoAplicativo.objects.filter(cliente=self.cliente).exclude(id=self.id).update(is_principal=False)
+
+        # Marca esta conta como principal
+        self.is_principal = True
+        self.save(update_fields=['is_principal'])
+
+        # Sincroniza com o Cliente
+        self.cliente.dispositivo = self.dispositivo
+        self.cliente.sistema = self.app
+        self.cliente.save(update_fields=['dispositivo', 'sistema'])
+
+
+class SessaoWpp(models.Model):
+    """Armazena as informações da sessão do WhatsApp integrada."""
+    usuario = models.CharField(max_length=255)  # Nome da sessão no WPPConnect
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='sessoes_wpp',
+        verbose_name='Usuário Django'
+    )
+    token = models.CharField(max_length=255)
+    dt_inicio = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+
+    # Configurações de Reject-Call
+    reject_call_enabled = models.BooleanField(
+        default=True,
+        verbose_name='Rejeitar chamadas automaticamente'
+    )
+    reject_call_horario_inicio = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name='Horário início (rejeição ativa)'
+    )
+    reject_call_horario_fim = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name='Horário fim (rejeição ativa)'
+    )
+
+    class Meta:
+        db_table = 'cadastros_sessaowpp'
+        verbose_name = "Sessão do WhatsApp"
+        verbose_name_plural = "Sessões do WhatsApp"
+
+    def __str__(self) -> str:
+        return self.usuario
+
+
+class SecretTokenAPI(models.Model):
+    """Armazena tokens secretos para autenticação via API personalizada."""
+    token = models.CharField(max_length=255)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    dt_criacao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'cadastros_secrettokenapi'
+        verbose_name = "Secret Token API"
+        verbose_name_plural = "Secrets Tokens API"
+
+    def __str__(self) -> str:
+        return self.token
+
+
+class DadosBancarios(models.Model):
+    """Modela os dados bancários do usuário para recebimentos."""
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    wpp = models.CharField(max_length=20, null=True, blank=True)
+    beneficiario = models.CharField(max_length=255)
+    instituicao = models.CharField(max_length=255)
+    tipo_chave = models.CharField(max_length=255)
+    chave = models.CharField(max_length=255)
+
+    def formatar_telefone(self):
+        """Normaliza o telefone para o padrão internacional E.164: +55DDDNÚMERO."""
+        numero = re.sub(r'\D+', '', self.wpp)
+
+        # Adiciona DDI Brasil se for nacional
+        if len(numero) in (10, 11) and not numero.startswith('55'):
+            numero = '55' + numero
+
+        if len(numero) < 10:
+            raise ValueError("Telefone inválido")
+
+        self.wpp = '+' + numero  # Ex: +5500000000000
+
+    def save(self, *args, **kwargs):
+        """Normaliza o telefone antes de persistir os dados bancários."""
+        self.formatar_telefone()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = 'cadastros_dadosbancarios'
+        verbose_name_plural = "Dados Bancários"
+
+    def __str__(self) -> str:
+        return f'{self.usuario.first_name} {self.usuario.last_name}'
+
+
+# ============================================================================
+# MODELOS DE INTEGRAÇÃO BANCÁRIA (PIX, Boleto, Cartão)
+# ============================================================================
+
+def certificado_upload_path(instance, filename):
+    """
+    Gera caminho de upload seguro para certificados bancários.
+    Formato: certificados/<user_id>/<uuid>.<ext>
+    """
+    ext = filename.split('.')[-1].lower()
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('certificados', str(instance.usuario.id), filename)
+
+
+class InstituicaoBancaria(models.Model):
+    """
+    Cadastro de instituições bancárias pelo Admin.
+    Apenas Efi Bank e Mercado Pago terão integração com API.
+    Outras instituições funcionam no modo manual (sem geração automática de link).
+    """
+    TIPO_INTEGRACAO = [
+        ('efi_bank', 'Efi Bank (API)'),
+        ('mercado_pago', 'Mercado Pago (API)'),
+        ('manual', 'Manual (sem API)'),
+    ]
+
+    nome = models.CharField(max_length=255, unique=True, verbose_name="Nome da Instituição")
+    tipo_integracao = models.CharField(
+        max_length=20,
+        choices=TIPO_INTEGRACAO,
+        default='manual',
+        verbose_name="Tipo de Integração"
+    )
+    ativo = models.BooleanField(default=True, verbose_name="Ativo")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'cadastros_instituicaobancaria'
+        verbose_name = "Instituição Bancária"
+        verbose_name_plural = "Instituições Bancárias"
+        ordering = ['nome']
+
+    def __str__(self):
+        return f"{self.nome} ({self.get_tipo_integracao_display()})"
+
+    @property
+    def tem_api(self):
+        """Verifica se a instituição tem integração com API."""
+        return self.tipo_integracao in ['efi_bank', 'mercado_pago']
+
+
+class ContaBancaria(models.Model):
+    """
+    Conta bancária do usuário em uma instituição.
+    Pode ser PF (Pessoa Física) ou MEI com limite de recebimento mensal.
+    """
+    TIPO_CONTA = [
+        ('pf', 'Pessoa Física'),
+        ('mei', 'MEI'),
+    ]
+
+    TIPO_CHAVE_PIX = [
+        ('cpf', 'CPF'),
+        ('cnpj', 'CNPJ'),
+        ('email', 'E-mail'),
+        ('celular', 'Celular'),
+        ('aleatoria', 'Chave Aleatória'),
+    ]
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='contas_bancarias'
+    )
+    instituicao = models.ForeignKey(
+        InstituicaoBancaria,
+        on_delete=models.PROTECT,
+        verbose_name="Instituição"
+    )
+
+    # Identificação da conta
+    nome_identificacao = models.CharField(
+        max_length=100,
+        verbose_name="Nome de Identificação",
+        help_text="Ex: Minha conta Efi Principal"
+    )
+    tipo_conta = models.CharField(
+        max_length=10,
+        choices=TIPO_CONTA,
+        default='pf',
+        verbose_name="Tipo de Conta"
+    )
+
+    # Dados bancários
+    beneficiario = models.CharField(max_length=255, verbose_name="Beneficiário")
+    tipo_chave_pix = models.CharField(
+        max_length=50,
+        choices=TIPO_CHAVE_PIX,
+        verbose_name="Tipo de Chave PIX"
+    )
+    chave_pix = models.CharField(max_length=255, verbose_name="Chave PIX")
+
+    # Credenciais API (apenas para Efi Bank e Mercado Pago)
+    api_client_id = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Client ID",
+        help_text="Credencial da API (Efi Bank ou Mercado Pago)"
+    )
+    api_client_secret = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Client Secret",
+        help_text="Será armazenado de forma segura"
+    )
+    api_certificado = models.FileField(
+        upload_to=certificado_upload_path,
+        blank=True,
+        null=True,
+        verbose_name="Certificado (.p12)",
+        help_text="Obrigatório para Efi Bank"
+    )
+    api_access_token = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name="Access Token",
+        help_text="Obrigatório para Mercado Pago"
+    )
+    ambiente_sandbox = models.BooleanField(
+        default=True,
+        verbose_name="Ambiente Sandbox",
+        help_text="Marque para usar ambiente de testes"
+    )
+
+    # Controle MEI - limite de recebimento
+    limite_mensal = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Limite Mensal (R$)",
+        help_text="Limite de recebimento mensal para contas MEI"
+    )
+
+    ativo = models.BooleanField(default=True, verbose_name="Ativo")
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'cadastros_contabancaria'
+        verbose_name = "Conta Bancária"
+        verbose_name_plural = "Contas Bancárias"
+        # Impede mesma chave PIX duplicada para o mesmo usuário
+        unique_together = [['usuario', 'chave_pix']]
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        tipo = "MEI" if self.tipo_conta == 'mei' else "PF"
+        return f"{self.nome_identificacao} ({self.instituicao.nome} - {tipo})"
+
+    @property
+    def limite_efetivo(self):
+        """
+        Retorna o limite efetivo com 10% de margem de segurança.
+        Ex: Se limite_mensal = R$ 10.000, limite_efetivo = R$ 9.000
+        """
+        if self.limite_mensal:
+            return self.limite_mensal * Decimal('0.90')
+        return None
+
+    @property
+    def tem_integracao_api(self):
+        """Verifica se a conta tem integração com API."""
+        return self.instituicao.tipo_integracao in ['efi_bank', 'mercado_pago']
+
+    @property
+    def is_mei(self):
+        """Verifica se é conta MEI."""
+        return self.tipo_conta == 'mei'
+
+    def get_clientes_associados_count(self):
+        """Retorna a quantidade de clientes associados a esta conta."""
+        return self.clientecontabancaria_set.count()
+
+    def clean(self):
+        """Validações customizadas."""
+        # MEI deve ter limite definido
+        if self.tipo_conta == 'mei' and not self.limite_mensal:
+            raise ValidationError({
+                'limite_mensal': 'Contas MEI devem ter um limite mensal definido.'
+            })
+
+        # Efi Bank deve ter certificado
+        if (self.instituicao and
+            self.instituicao.tipo_integracao == 'efi_bank' and
+            not self.api_certificado and
+            self.api_client_id):
+            raise ValidationError({
+                'api_certificado': 'Certificado é obrigatório para Efi Bank.'
+            })
+
+        # Mercado Pago deve ter access token
+        if (self.instituicao and
+            self.instituicao.tipo_integracao == 'mercado_pago' and
+            not self.api_access_token and
+            self.api_client_id):
+            raise ValidationError({
+                'api_access_token': 'Access Token é obrigatório para Mercado Pago.'
+            })
+
+
+class ClienteContaBancaria(models.Model):
+    """
+    Associação de clientes a contas bancárias.
+    Necessário para contas MEI que têm limite de recebimento.
+    Clientes associados a uma conta MEI terão suas cobranças direcionadas para ela.
+    """
+    cliente = models.ForeignKey(
+        'Cliente',
+        on_delete=models.CASCADE,
+        related_name='contas_bancarias_associadas'
+    )
+    conta_bancaria = models.ForeignKey(
+        ContaBancaria,
+        on_delete=models.CASCADE,
+        related_name='clientes_associados'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'cadastros_clientecontabancaria'
+        verbose_name = "Cliente - Conta Bancária"
+        verbose_name_plural = "Clientes - Contas Bancárias"
+        unique_together = [['cliente', 'conta_bancaria']]
+
+    def __str__(self):
+        return f"{self.cliente.nome} → {self.conta_bancaria.nome_identificacao}"
+
+    def clean(self):
+        """Validações customizadas."""
+        # Verificar se o limite da conta MEI foi atingido
+        if self.conta_bancaria.is_mei:
+            limite = self.conta_bancaria.limite_efetivo
+            if limite:
+                # Aqui poderia verificar total de mensalidades do mês
+                # Por enquanto, apenas valida se tem limite definido
+                pass
+
+
+def avatar_upload_path(instance, filename):
+    """
+    Gera caminho de upload com UUID para avatares.
+
+    SEGURANÇA: UUID previne information disclosure via filenames.
+    Preserva extensão do arquivo para correto MIME type.
+
+    Formato: avatars/<uuid>.<ext>
+    Exemplo: avatars/a1b2c3d4-e5f6-7890-abcd-ef1234567890.jpg
+    """
+    ext = filename.split('.')[-1].lower()
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('avatars', filename)
+
+
+def cover_upload_path(instance, filename):
+    """
+    Gera caminho de upload com UUID para imagens de capa.
+
+    SEGURANÇA: UUID previne information disclosure via filenames.
+    Preserva extensão do arquivo para correto MIME type.
+
+    Formato: covers/<uuid>.<ext>
+    Exemplo: covers/b2c3d4e5-f6a7-8901-bcde-f12345678901.jpg
+    """
+    ext = filename.split('.')[-1].lower()
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('covers', filename)
+
+
+class UserProfile(models.Model):
+    """Estende o modelo User com informações adicionais de perfil (avatar, bio, etc)."""
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    avatar = models.ImageField(
+        upload_to=avatar_upload_path,
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+        help_text='Tamanho máximo: 5MB. Formatos: JPG, PNG, GIF, WEBP'
+    )
+    bio = models.TextField(max_length=500, blank=True, null=True)
+    cover_image = models.ImageField(
+        upload_to=cover_upload_path,
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])]
+    )
+
+    # Preferências de Notificação
+    email_on_profile_change = models.BooleanField(default=True, verbose_name='Notificar por email alterações no perfil')
+    email_on_password_change = models.BooleanField(default=True, verbose_name='Notificar por email alterações de senha')
+    email_on_login = models.BooleanField(default=False, verbose_name='Notificar por email em novos logins')
+
+    # Preferências de Tema
+    THEME_LIGHT = 'light'
+    THEME_DARK = 'dark'
+    THEME_AUTO = 'auto'
+    THEME_CHOICES = [
+        (THEME_LIGHT, 'Claro'),
+        (THEME_DARK, 'Escuro'),
+        (THEME_AUTO, 'Automático'),
+    ]
+    theme_preference = models.CharField(max_length=10, choices=THEME_CHOICES, default=THEME_LIGHT, verbose_name='Tema preferido')
+
+    # Configurações de Privacidade
+    profile_public = models.BooleanField(default=False, verbose_name='Perfil público')
+    show_email = models.BooleanField(default=False, verbose_name='Mostrar email publicamente')
+    show_phone = models.BooleanField(default=False, verbose_name='Mostrar telefone publicamente')
+    show_statistics = models.BooleanField(default=True, verbose_name='Mostrar estatísticas')
+
+    # Autenticação em Dois Fatores
+    two_factor_enabled = models.BooleanField(default=False, verbose_name='2FA ativado')
+    two_factor_secret = models.CharField(max_length=32, blank=True, null=True, verbose_name='Chave secreta 2FA')
+    two_factor_backup_codes = models.JSONField(blank=True, null=True, verbose_name='Códigos de backup 2FA')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        """Otimiza a imagem antes de salvar."""
+        super().save(*args, **kwargs)
+
+        if self.avatar and os.path.isfile(self.avatar.path):
+            try:
+                from PIL import Image
+                img = Image.open(self.avatar.path)
+
+                # Redimensionar se muito grande
+                if img.height > 500 or img.width > 500:
+                    output_size = (500, 500)
+                    img.thumbnail(output_size, Image.Resampling.LANCZOS)
+                    img.save(self.avatar.path, quality=85, optimize=True)
+            except ImportError:
+                pass
+
+    def get_avatar_url(self):
+        """Retorna URL do avatar ou imagem padrão."""
+        if self.avatar:
+            return self.avatar.url
+        return '/static/assets/images/avatar/default-avatar.svg'
+
+    def delete_old_avatar(self):
+        """Remove avatar antigo do sistema de arquivos."""
+        if self.avatar and os.path.isfile(self.avatar.path):
+            try:
+                os.remove(self.avatar.path)
+            except OSError:
+                pass
+
+    def generate_2fa_secret(self):
+        """Gera uma nova chave secreta para 2FA."""
+        import pyotp
+        self.two_factor_secret = pyotp.random_base32()
+        return self.two_factor_secret
+
+    def get_2fa_qr_code(self):
+        """Retorna a URL para gerar o QR Code do 2FA."""
+        if not self.two_factor_secret:
+            self.generate_2fa_secret()
+        import pyotp
+        totp = pyotp.TOTP(self.two_factor_secret)
+        return totp.provisioning_uri(
+            name=self.user.email,
+            issuer_name='Nosso Painel'
+        )
+
+    def verify_2fa_code(self, code):
+        """Verifica se o código 2FA fornecido é válido.
+
+        SEGURANÇA: Proteção contra timing attacks com delay fixo.
+        """
+        import time
+
+        # Executar validação
+        if not self.two_factor_enabled or not self.two_factor_secret:
+            time.sleep(0.1)
+            return False
+
+        import pyotp
+        totp = pyotp.TOTP(self.two_factor_secret)
+        result = totp.verify(code, valid_window=1)
+
+        # Delay fixo de 100ms para normalizar tempo de resposta
+        # Previne que atacante descubra diferenças entre TOTP e backup code
+        time.sleep(0.1)
+
+        return result
+
+    def generate_backup_codes(self):
+        """Gera códigos de backup para 2FA e retorna códigos em plaintext.
+
+        SEGURANÇA: Os códigos são hasheados antes de serem salvos no banco.
+        Os códigos em plaintext são retornados APENAS uma vez para o usuário salvar.
+        """
+        import secrets
+        from django.contrib.auth.hashers import make_password
+
+        # Gerar códigos em plaintext
+        codes = [secrets.token_hex(4).upper() for _ in range(10)]
+
+        # Armazenar HASHES, não plaintext
+        self.two_factor_backup_codes = [make_password(code) for code in codes]
+
+        # Retornar codes em plaintext APENAS uma vez
+        return codes
+
+    def use_backup_code(self, code):
+        """Usa um código de backup e o remove da lista.
+
+        SEGURANÇA: Verifica o código contra hashes usando constant-time comparison.
+        Proteção contra timing attacks com delay fixo.
+        """
+        import time
+
+        if not self.two_factor_backup_codes:
+            time.sleep(0.1)
+            return False
+
+        from django.contrib.auth.hashers import check_password
+
+        code = code.upper().strip()
+
+        # Verificar contra hashes usando constant-time comparison
+        # check_password já usa constant-time internamente
+        found_code = None
+        for hashed_code in self.two_factor_backup_codes:
+            if check_password(code, hashed_code):
+                found_code = hashed_code
+                break
+
+        if found_code:
+            # Código válido encontrado, remover do banco
+            self.two_factor_backup_codes.remove(found_code)
+            self.save()
+            time.sleep(0.1)
+            return True
+
+        time.sleep(0.1)
+        return False
+
+    class Meta:
+        db_table = 'cadastros_userprofile'
+        verbose_name = "Perfil de Usuário"
+        verbose_name_plural = "Perfis de Usuários"
+
+    def __str__(self):
+        return f'Perfil de {self.user.username}'
+
+
+class MensagemEnviadaWpp(models.Model):
+    """
+    Registra o histórico de mensagens enviadas ao WhatsApp.
+
+    CONSTRAINT UNIQUE:
+    Previne envio duplicado para o mesmo telefone no mesmo dia pelo mesmo usuário.
+    Protege contra race conditions em requests concorrentes.
+    """
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    telefone = models.CharField(max_length=20)
+    data_envio = models.DateField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'cadastros_mensagemenviadawpp'
+        verbose_name = "Mensagem Enviada ao WhatsApp"
+        verbose_name_plural = "Mensagens Enviadas ao WhatsApp"
+        constraints = [
+            models.UniqueConstraint(
+                fields=['usuario', 'telefone', 'data_envio'],
+                name='unique_msg_por_usuario_telefone_dia'
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.telefone
+
+
+class ConteudoM3U8(models.Model):
+    """Modela os conteúdos processados a partir de arquivos M3U8 (filmes, séries etc)."""
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    nome = models.CharField(max_length=255)
+    capa = models.URLField()
+    temporada = models.IntegerField(null=True, blank=True)
+    episodio = models.IntegerField(null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    upload = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'cadastros_conteudom3u8'
+        verbose_name = "Conteúdo M3U8"
+        verbose_name_plural = "Conteúdos M3U8"
+
+    def __str__(self):
+        return self.nome
+
+
+class DominiosDNS(models.Model):
+    """Modela os domínios DNS utilizados para verificar a disponibilidade de canais."""
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    servidor = models.ForeignKey(Servidor, on_delete=models.CASCADE)
+    data_online = models.DateTimeField(blank=True, null=True)
+    data_offline = models.DateTimeField(blank=True, null=True)
+    acesso_canais = models.CharField(max_length=255, blank=True, null=True)
+    data_ultima_verificacao = models.DateTimeField(blank=True, null=True)
+    data_envio_alerta = models.DateTimeField(blank=True, null=True)
+    dominio = models.CharField(max_length=255, unique=True)
+    monitorado = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, default='online', choices=[('online', 'Online'), ('offline', 'Offline')])
+
+    class Meta:
+        db_table = 'cadastros_dominiosdns'
+        verbose_name = "Domínio DNS"
+        verbose_name_plural = "Domínios DNS"
+
+    def save(self, *args, **kwargs):
+        """Salva o domínio DNS, garantindo que o domínio seja formatado corretamente."""
+        self.dominio = self.dominio.strip().lower()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.dominio
+
+
+class TelefoneLeads(models.Model):
+    """Modela os números de telefone coletados como leads para futuras campanhas."""
+    telefone = models.CharField(max_length=20, unique=True)
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = 'cadastros_telefoneleads'
+        verbose_name_plural = "Telefones Leads"
+
+    def __str__(self):
+        return self.telefone
+    
+
+class EnviosLeads(models.Model):
+    """Registra os envios de mensagens para os leads coletados."""
+    telefone = models.CharField(max_length=20)
+    data_envio = models.DateTimeField(auto_now_add=True)
+    mensagem = models.TextField()
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = 'cadastros_enviosleads'
+        verbose_name_plural = "Envios de Mensagens Leads"
+
+    def __str__(self):
+        return self.telefone
+    
+
+class MensagensLeads(models.Model):
+    """Armazena as mensagens enviadas para os leads."""
+    nome = models.CharField(max_length=255)
+    tipo = models.CharField(max_length=50, choices=[('ativos', 'Clientes ativos'), ('cancelados', 'Clientes cancelados'), ('avulso', 'Leads avulsos')])
+    mensagem = models.TextField()
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = 'cadastros_mensagensleads'
+        verbose_name_plural = "Mensagens Leads"
+
+    def __str__(self):
+        return self.tipo
+
+
+class NotificationRead(models.Model):
+    """Registra notificações de mensalidade marcadas como lidas."""
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications_read")
+    mensalidade = models.ForeignKey(Mensalidade, on_delete=models.CASCADE, related_name="notifications_read")
+    marcado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'cadastros_notificationread'
+        verbose_name = "Notificação lida"
+        verbose_name_plural = "Notificações lidas"
+        unique_together = (("usuario", "mensalidade"),)
+
+    def __str__(self):
+        return f"{self.usuario} - {self.mensalidade_id}"
+
+
+class UserActionLog(models.Model):
+    """Armazena o histórico de ações feitas manualmente pelos usuários no sistema."""
+
+    ACTION_CREATE = "create"
+    ACTION_UPDATE = "update"
+    ACTION_DELETE = "delete"
+    ACTION_IMPORT = "import"
+    ACTION_CANCEL = "cancel"
+    ACTION_REACTIVATE = "reactivate"
+    ACTION_PAYMENT = "payment"
+    ACTION_MIGRATION = "migration"
+    ACTION_OTHER = "other"
+
+    ACTION_CHOICES = [
+        (ACTION_CREATE, "Criação"),
+        (ACTION_UPDATE, "Atualização"),
+        (ACTION_DELETE, "Exclusão"),
+        (ACTION_IMPORT, "Importação"),
+        (ACTION_CANCEL, "Cancelamento"),
+        (ACTION_REACTIVATE, "Reativação"),
+        (ACTION_PAYMENT, "Pagamento"),
+        (ACTION_MIGRATION, "Migração"),
+        (ACTION_OTHER, "Ação"),
+    ]
+
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name="action_logs")
+    acao = models.CharField(max_length=32, choices=ACTION_CHOICES, default=ACTION_OTHER)
+    entidade = models.CharField(max_length=100, blank=True)
+    objeto_id = models.CharField(max_length=64, blank=True)
+    objeto_repr = models.CharField(max_length=255, blank=True)
+    mensagem = models.TextField(blank=True)
+    extras = models.JSONField(blank=True, null=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    request_path = models.CharField(max_length=255, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'cadastros_useractionlog'
+        verbose_name = "Log de ação de usuário"
+        verbose_name_plural = "Logs de ações de usuários"
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(fields=["usuario", "-criado_em"], name="cadastros_u_usuario_966dcb_idx"),
+            models.Index(fields=["entidade", "acao"], name="cadastros_u_entidad_4d2aba_idx"),
+        ]
+
+    def __str__(self):
+        entidade = self.entidade or "Objeto"
+        return f"{self.usuario} - {entidade} - {self.get_acao_display()} em {self.criado_em:%d/%m/%Y %H:%M}"
+
+
+class LoginLog(models.Model):
+    """
+    Registra todos os logins (bem-sucedidos e falhados) dos usuários no sistema.
+
+    Útil para:
+    - Auditoria de acessos
+    - Detecção de acessos suspeitos
+    - Análise de padrões de uso
+    - Compliance com LGPD/GDPR
+    - Identificação de tentativas de brute force
+    """
+
+    # Tipos de método de login
+    METHOD_PASSWORD = 'password'
+    METHOD_2FA = '2fa'
+    METHOD_BACKUP_CODE = 'backup_code'
+
+    METHOD_CHOICES = [
+        (METHOD_PASSWORD, 'Senha'),
+        (METHOD_2FA, '2FA'),
+        (METHOD_BACKUP_CODE, 'Código de Backup'),
+    ]
+
+    # Campos principais
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='login_logs',
+        null=True,
+        blank=True,
+        help_text='Usuário que tentou fazer login (null se usuário não encontrado)'
+    )
+    username_tentado = models.CharField(
+        max_length=150,
+        blank=True,
+        help_text='Username que foi tentado no login (útil para logins falhados)'
+    )
+
+    # Informações de rede
+    ip = models.GenericIPAddressField(
+        protocol='IPv4',
+        null=True,
+        blank=True,
+        help_text='Endereço IPv4 do cliente'
+    )
+    user_agent = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text='User-Agent do navegador/dispositivo'
+    )
+
+    # Detalhes do login
+    login_method = models.CharField(
+        max_length=20,
+        choices=METHOD_CHOICES,
+        default=METHOD_PASSWORD,
+        help_text='Método usado para fazer login'
+    )
+    success = models.BooleanField(
+        default=True,
+        help_text='Se o login foi bem-sucedido'
+    )
+    failure_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text='Motivo da falha (se success=False)'
+    )
+
+    # Informações geográficas
+    location_country = models.CharField(max_length=100, blank=True)
+    location_city = models.CharField(max_length=100, blank=True)
+
+    # Metadados
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = 'cadastros_loginlog'
+        verbose_name = 'Log de Login'
+        verbose_name_plural = 'Logs de Login'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['usuario', '-created_at'], name='loginlog_user_created_idx'),
+            models.Index(fields=['-created_at'], name='loginlog_created_idx'),
+            models.Index(fields=['success', '-created_at'], name='loginlog_success_idx'),
+            models.Index(fields=['ip', '-created_at'], name='loginlog_ip_idx'),
+        ]
+
+    def __str__(self):
+        status = '✓' if self.success else '✗'
+        user_display = self.usuario.username if self.usuario else self.username_tentado
+        return f"{status} {user_display} - {self.get_login_method_display()} - {self.created_at:%d/%m/%Y %H:%M}"
+
+    def get_browser_info(self):
+        """Extrai informações do navegador do user_agent."""
+        if not self.user_agent:
+            return {'browser': 'Desconhecido', 'os': 'Desconhecido', 'device': 'Desconhecido'}
+
+        import re
+        ua = self.user_agent.lower()
+
+        # Detectar navegador
+        if 'firefox' in ua:
+            browser = 'Firefox'
+        elif 'chrome' in ua and 'edg' not in ua:
+            browser = 'Chrome'
+        elif 'edg' in ua:
+            browser = 'Edge'
+        elif 'safari' in ua and 'chrome' not in ua:
+            browser = 'Safari'
+        elif 'opera' in ua or 'opr' in ua:
+            browser = 'Opera'
+        else:
+            browser = 'Outro'
+
+        # Detectar OS
+        if 'windows' in ua:
+            os_name = 'Windows'
+        elif 'mac' in ua and 'iphone' not in ua and 'ipad' not in ua:
+            os_name = 'macOS'
+        elif 'linux' in ua:
+            os_name = 'Linux'
+        elif 'android' in ua:
+            os_name = 'Android'
+        elif 'iphone' in ua or 'ipad' in ua:
+            os_name = 'iOS'
+        else:
+            os_name = 'Outro'
+
+        # Detectar tipo de dispositivo
+        if 'mobile' in ua or 'android' in ua or 'iphone' in ua:
+            device = 'Mobile'
+        elif 'tablet' in ua or 'ipad' in ua:
+            device = 'Tablet'
+        else:
+            device = 'Desktop'
+
+        return {
+            'browser': browser,
+            'os': os_name,
+            'device': device
+        }
+
+
+class ContaReseller(models.Model):
+    """
+    Armazena credenciais e sessão de autenticação para painéis reseller de aplicativos IPTV.
+
+    Suporta login manual com reCAPTCHA e reutilização de sessão para evitar logins repetidos.
+    A senha é criptografada usando Fernet antes de ser armazenada no banco.
+    """
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='contas_reseller',
+        help_text='Usuário proprietário desta conta reseller'
+    )
+    aplicativo = models.ForeignKey(
+        Aplicativo,
+        on_delete=models.CASCADE,
+        related_name='contas_reseller',
+        help_text='Aplicativo/plataforma do reseller (ex: DreamTV, NetFlox)'
+    )
+    email_login = models.EmailField(
+        max_length=255,
+        verbose_name='Email/Usuário',
+        help_text='Email ou username usado para login no painel reseller'
+    )
+    senha_login = models.CharField(
+        max_length=500,
+        verbose_name='Senha',
+        help_text='Senha criptografada com Fernet'
+    )
+    session_data = models.TextField(
+        blank=True,
+        verbose_name='Dados de Sessão',
+        help_text='JSON contendo cookies e localStorage para reutilização de sessão'
+    )
+    ultimo_login = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Último Login',
+        help_text='Data/hora do último login manual bem-sucedido'
+    )
+    sessao_valida = models.BooleanField(
+        default=False,
+        verbose_name='Sessão Válida',
+        help_text='Indica se a sessão armazenada ainda está ativa'
+    )
+    login_progresso = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name='Progresso do Login',
+        help_text='Etapa atual do processo de login automático',
+        choices=[
+            ('', 'Não iniciado'),
+            ('conectando', 'Conectando ao painel'),
+            ('pagina_carregada', 'Página carregada'),
+            ('resolvendo_captcha', 'Resolvendo reCAPTCHA'),
+            ('captcha_resolvido', 'reCAPTCHA resolvido'),
+            ('validando', 'Validando credenciais'),
+            ('concluido', 'Login concluído'),
+            ('erro', 'Erro no login'),
+        ]
+    )
+    data_criacao = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Data de Criação'
+    )
+    data_atualizacao = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Última Atualização'
+    )
+
+    class Meta:
+        db_table = 'cadastros_contareseller'
+        verbose_name = 'Conta de Reseller'
+        verbose_name_plural = 'Contas de Reseller'
+        unique_together = [['usuario', 'aplicativo']]
+        ordering = ['-data_atualizacao']
+        indexes = [
+            models.Index(fields=['usuario', 'aplicativo'], name='conta_reseller_user_app_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.usuario.username} - {self.aplicativo.nome} ({self.email_login})"
+
+
+class TarefaMigracaoDNS(models.Model):
+    """
+    Registra execuções de migração de domínios DNS para dispositivos IPTV.
+
+    Cada tarefa pode atualizar um dispositivo específico ou todos os dispositivos
+    do usuário no painel reseller.
+    """
+
+    STATUS_AGUARDANDO_LOGIN = 'aguardando_login'
+    STATUS_INICIANDO = 'iniciando'
+    STATUS_EM_ANDAMENTO = 'em_andamento'
+    STATUS_CONCLUIDA = 'concluida'
+    STATUS_ERRO_LOGIN = 'erro_login'
+    STATUS_CANCELADA = 'cancelada'
+
+    STATUS_CHOICES = [
+        (STATUS_AGUARDANDO_LOGIN, 'Aguardando Login'),
+        (STATUS_INICIANDO, 'Iniciando'),
+        (STATUS_EM_ANDAMENTO, 'Em Andamento'),
+        (STATUS_CONCLUIDA, 'Concluída'),
+        (STATUS_ERRO_LOGIN, 'Erro no Login'),
+        (STATUS_CANCELADA, 'Cancelada'),
+    ]
+
+    TIPO_TODOS = 'todos'
+    TIPO_ESPECIFICO = 'especifico'
+
+    TIPO_CHOICES = [
+        (TIPO_TODOS, 'Todos os Dispositivos'),
+        (TIPO_ESPECIFICO, 'Dispositivo Específico'),
+    ]
+
+    # Relacionamentos
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='tarefas_migracao_dns',
+        help_text='Usuário que iniciou a migração'
+    )
+    aplicativo = models.ForeignKey(
+        Aplicativo,
+        on_delete=models.CASCADE,
+        related_name='tarefas_migracao_dns',
+        help_text='Aplicativo/plataforma onde a migração será executada'
+    )
+    conta_reseller = models.ForeignKey(
+        ContaReseller,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tarefas_migracao',
+        help_text='Conta reseller usada para executar a migração'
+    )
+
+    # Configuração da migração
+    tipo_migracao = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default=TIPO_ESPECIFICO,
+        verbose_name='Tipo de Migração',
+        help_text='Se migração é para todos os dispositivos ou apenas um específico'
+    )
+    mac_alvo = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='MAC Alvo',
+        help_text='MAC Address do dispositivo específico (se tipo_migracao=especifico)'
+    )
+
+    # Domínios DNS (protocolo + host + porta opcional)
+    dominio_origem = models.CharField(
+        max_length=255,
+        verbose_name='Domínio Origem',
+        help_text='Domínio DNS atual (protocolo + host + porta, ex: http://dominio.com:8080)'
+    )
+    dominio_destino = models.CharField(
+        max_length=255,
+        verbose_name='Domínio Destino',
+        help_text='Novo domínio DNS (protocolo + host + porta, ex: http://dominio-novo.com)'
+    )
+
+    # Status e progresso
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_INICIANDO,
+        db_index=True
+    )
+    total_dispositivos = models.IntegerField(
+        default=0,
+        verbose_name='Total de Dispositivos',
+        help_text='Quantidade total de dispositivos a serem migrados'
+    )
+    processados = models.IntegerField(
+        default=0,
+        verbose_name='Dispositivos Processados',
+        help_text='Quantidade de dispositivos já processados'
+    )
+    sucessos = models.IntegerField(
+        default=0,
+        verbose_name='Sucessos',
+        help_text='Quantidade de dispositivos migrados com sucesso'
+    )
+    falhas = models.IntegerField(
+        default=0,
+        verbose_name='Falhas',
+        help_text='Quantidade de dispositivos com erro na migração'
+    )
+
+    pulados = models.IntegerField(
+        default=0,
+        verbose_name='Pulados',
+        help_text='Quantidade de dispositivos pulados (DNS não corresponde ao domínio origem)'
+    )
+
+    # Campos de progresso em tempo real (UX)
+    etapa_atual = models.CharField(
+        max_length=50,
+        default='iniciando',
+        verbose_name='Etapa Atual',
+        help_text='Etapa atual da execução (iniciando, analisando, processando, concluida, cancelada)'
+    )
+    mensagem_progresso = models.TextField(
+        blank=True,
+        verbose_name='Mensagem de Progresso',
+        help_text='Mensagem dinâmica exibida durante a execução'
+    )
+    progresso_percentual = models.IntegerField(
+        default=0,
+        verbose_name='Progresso (%)',
+        help_text='Percentual de conclusão da tarefa (0-100)'
+    )
+
+    # Timestamps
+    criada_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Data de Criação'
+    )
+    iniciada_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Data de Início',
+        help_text='Quando a execução efetivamente começou'
+    )
+    concluida_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Data de Conclusão'
+    )
+
+    # Erro geral (não específico de dispositivo)
+    erro_geral = models.TextField(
+        blank=True,
+        verbose_name='Erro Geral',
+        help_text='Mensagem de erro que impediu a execução da tarefa inteira'
+    )
+
+    # Otimização: cache temporário de devices (v2.0)
+    cached_devices = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name='Cache de Devices',
+        help_text='JSON temporário com devices do frontend (evita chamadas à API)'
+    )
+
+    class Meta:
+        db_table = 'cadastros_tarefamigracaodns'
+        verbose_name = 'Tarefa de Migração DNS'
+        verbose_name_plural = 'Tarefas de Migração DNS'
+        ordering = ['-criada_em']
+        indexes = [
+            models.Index(fields=['usuario', '-criada_em'], name='tarefa_dns_user_created_idx'),
+            models.Index(fields=['status', '-criada_em'], name='tarefa_dns_status_idx'),
+        ]
+
+    def __str__(self):
+        tipo_display = 'Todos' if self.tipo_migracao == self.TIPO_TODOS else f'MAC:{self.mac_alvo}'
+        return f"Migração DNS #{self.id} - {tipo_display} - {self.get_status_display()}"
+
+    def get_progresso_percentual(self):
+        """Retorna o progresso em percentual (0-100)."""
+        if self.total_dispositivos == 0:
+            return 0
+        return int((self.processados / self.total_dispositivos) * 100)
+
+    def esta_concluida(self):
+        """Verifica se a tarefa está em um estado final."""
+        return self.status in [
+            self.STATUS_CONCLUIDA,
+            self.STATUS_ERRO_LOGIN,
+            self.STATUS_CANCELADA
+        ]
+
+
+class DispositivoMigracaoDNS(models.Model):
+    """
+    Registra o status individual de cada dispositivo em uma tarefa de migração DNS.
+
+    Permite rastrear exatamente quais dispositivos foram migrados com sucesso
+    e quais falharam (com mensagens de erro específicas).
+    """
+
+    STATUS_PENDENTE = 'pendente'
+    STATUS_PROCESSANDO = 'processando'
+    STATUS_SUCESSO = 'sucesso'
+    STATUS_ERRO = 'erro'
+    STATUS_PULADO = 'pulado'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDENTE, 'Pendente'),
+        (STATUS_PROCESSANDO, 'Processando'),
+        (STATUS_SUCESSO, 'Sucesso'),
+        (STATUS_ERRO, 'Erro'),
+        (STATUS_PULADO, 'Pulado'),
+    ]
+
+    tarefa = models.ForeignKey(
+        TarefaMigracaoDNS,
+        on_delete=models.CASCADE,
+        related_name='dispositivos',
+        help_text='Tarefa de migração à qual este dispositivo pertence'
+    )
+    device_id = models.CharField(
+        max_length=100,
+        verbose_name='MAC Address',
+        help_text='Identificador do dispositivo (MAC Address)'
+    )
+    nome_dispositivo = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Nome/Comentário',
+        help_text='Nome ou comentário do dispositivo no painel reseller'
+    )
+
+    # URLs DNS
+    dns_encontrado = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name='DNS Encontrado',
+        help_text='URL do DNS que estava configurada no painel antes da migração'
+    )
+    dns_atualizado = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name='DNS Atualizado',
+        help_text='URL do DNS que foi configurada após a migração'
+    )
+
+    # Status
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDENTE,
+        db_index=True
+    )
+    mensagem_erro = models.TextField(
+        blank=True,
+        verbose_name='Mensagem de Erro',
+        help_text='Detalhes do erro ocorrido (se status=erro)'
+    )
+    processado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Data de Processamento',
+        help_text='Quando este dispositivo foi processado'
+    )
+
+    class Meta:
+        db_table = 'cadastros_dispositivomigracaodns'
+        verbose_name = 'Dispositivo em Migração'
+        verbose_name_plural = 'Dispositivos em Migração'
+        ordering = ['id']
+        indexes = [
+            models.Index(fields=['tarefa', 'status'], name='disp_dns_tarefa_status_idx'),
+        ]
+
+    def get_dns_encontrado_formatado(self):
+        """Retorna apenas protocolo + domínio + porta do DNS encontrado."""
+        from .utils import extrair_dominio_de_url
+        return extrair_dominio_de_url(self.dns_encontrado) if self.dns_encontrado else '-'
+
+    def get_dns_atualizado_formatado(self):
+        """Retorna apenas protocolo + domínio + porta do DNS atualizado."""
+        from .utils import extrair_dominio_de_url
+        return extrair_dominio_de_url(self.dns_atualizado) if self.dns_atualizado else '-'
+
+    def __str__(self):
+        return f"{self.device_id} - {self.get_status_display()}"
+
+
+class ConfiguracaoAutomacao(models.Model):
+    """
+    Configurações de automação por usuário (principalmente para debug).
+    Permite controlar comportamento do Playwright (headless mode, etc).
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='config_automacao',
+        verbose_name='Usuário'
+    )
+    debug_headless_mode = models.BooleanField(
+        default=False,
+        verbose_name='Modo Debug (Navegador Visível)',
+        help_text='Quando ativado, o navegador Playwright ficará visível durante automações (útil para debug)'
+    )
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Criado Em'
+    )
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Atualizado Em'
+    )
+
+    class Meta:
+        db_table = 'cadastros_configuracaoautomacao'
+        verbose_name = 'Configuração de Automação'
+        verbose_name_plural = 'Configurações de Automação'
+
+    def __str__(self):
+        status = "Debug ON" if self.debug_headless_mode else "Debug OFF"
+        return f"{self.user.username} - {status}"
+
+
+def tarefa_envio_imagem_upload_path(instance, filename):
+    """
+    Gera caminho de upload com UUID para imagens de tarefas de envio.
+    Formato: tarefas_envio/<tipo_envio>/<uuid>.<ext>
+    """
+    ext = filename.split('.')[-1].lower()
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('tarefas_envio', instance.tipo_envio, filename)
+
+
+class TarefaEnvio(models.Model):
+    """
+    Armazena as configurações de tarefas de envio de mensagens WhatsApp.
+    Permite gerenciar envios programados por dia da semana, período do mês e horário.
+    """
+
+    # Choices para tipo de envio
+    TIPO_ENVIO_CHOICES = [
+        ('ativos', 'Clientes Ativos'),
+        ('cancelados', 'Clientes Cancelados'),
+        ('avulso', 'Leads (Avulso)'),
+    ]
+
+    # Choices para período do mês
+    PERIODO_CHOICES = [
+        ('', 'Selecione o período'),
+        ('1-10', 'Dias 1 a 10'),
+        ('11-20', 'Dias 11 a 20'),
+        ('21-31', 'Dias 21 a 31'),
+        ('1-15', 'Primeira quinzena (1-15)'),
+        ('16-31', 'Segunda quinzena (16-31)'),
+        ('todos', 'Todos os dias do mês'),
+    ]
+
+    # Mapeamento de dias da semana (compatível com weekday() do Python)
+    DIAS_SEMANA_MAP = {
+        0: 'Segunda-feira',
+        1: 'Terça-feira',
+        2: 'Quarta-feira',
+        3: 'Quinta-feira',
+        4: 'Sexta-feira',
+        5: 'Sábado',
+        6: 'Domingo',
+    }
+
+    # Campos principais
+    nome = models.CharField(
+        max_length=100,
+        verbose_name='Nome da Tarefa',
+        help_text='Nome identificador da tarefa (ex: "Promoção Natal Ativos")'
+    )
+
+    tipo_envio = models.CharField(
+        max_length=20,
+        choices=TIPO_ENVIO_CHOICES,
+        verbose_name='Tipo de Envio',
+        help_text='Público-alvo do envio'
+    )
+
+    # Dias da semana - armazenado como JSON array [0,1,2,3,4,5,6]
+    dias_semana = models.JSONField(
+        default=list,
+        verbose_name='Dias da Semana',
+        help_text='Lista de dias da semana para execução (0=Segunda, 6=Domingo)'
+    )
+
+    # Período do mês
+    periodo_mes = models.CharField(
+        max_length=10,
+        choices=PERIODO_CHOICES,
+        blank=False,
+        verbose_name='Período do Mês',
+        help_text='Intervalo de dias do mês para execução'
+    )
+
+    # Horário de envio
+    horario = models.TimeField(
+        verbose_name='Horário',
+        help_text='Horário do dia para início dos envios'
+    )
+
+    # Imagem (opcional)
+    imagem = models.ImageField(
+        upload_to=tarefa_envio_imagem_upload_path,
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+        verbose_name='Imagem',
+        help_text='Imagem a ser enviada (opcional). Max 5MB. Formatos: JPG, PNG, GIF, WEBP'
+    )
+
+    # Mensagem com formatação HTML (Quill)
+    mensagem = models.TextField(
+        verbose_name='Mensagem',
+        help_text='Texto da mensagem (suporta negrito e itálico)'
+    )
+
+    # Mensagem em formato plaintext para envio WhatsApp
+    mensagem_plaintext = models.TextField(
+        blank=True,
+        verbose_name='Mensagem (Plaintext)',
+        help_text='Versão plaintext da mensagem com formatação WhatsApp (gerada automaticamente)'
+    )
+
+    # Status e controle
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name='Ativo',
+        help_text='Se desativado, a tarefa não será executada'
+    )
+
+    ultimo_envio = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Último Envio',
+        help_text='Data/hora da última execução'
+    )
+
+    total_envios = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Total de Envios',
+        help_text='Contador total de mensagens enviadas'
+    )
+
+    # Segmentação geográfica
+    filtro_estados = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Filtro por Estados',
+        help_text='Lista de UFs para filtrar clientes (vazio = todos)'
+    )
+
+    filtro_cidades = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Filtro por Cidades',
+        help_text='Lista de cidades para filtrar clientes (vazio = todas)'
+    )
+
+    # Pausa temporária
+    pausado_ate = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Pausado Até',
+        help_text='Data/hora até quando a tarefa está pausada'
+    )
+
+    # Metadados
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='tarefas_envio',
+        verbose_name='Usuário'
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Criado Em'
+    )
+
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Atualizado Em'
+    )
+
+    class Meta:
+        db_table = 'cadastros_tarefaenvio'
+        verbose_name = 'Tarefa de Envio'
+        verbose_name_plural = 'Tarefas de Envio'
+        ordering = ['-criado_em']
+        indexes = [
+            models.Index(fields=['usuario', 'tipo_envio', 'ativo'], name='tarefa_usr_tipo_ativo_idx'),
+            models.Index(fields=['ativo', 'horario'], name='tarefa_ativo_horario_idx'),
+        ]
+
+    def __str__(self):
+        status = "✓" if self.ativo else "✗"
+        return f"[{status}] {self.nome} ({self.get_tipo_envio_display()})"
+
+    def get_dias_semana_display(self):
+        """Retorna lista legível dos dias selecionados."""
+        if not self.dias_semana:
+            return []
+        return [self.DIAS_SEMANA_MAP.get(d, '') for d in self.dias_semana if d in self.DIAS_SEMANA_MAP]
+
+    def get_dias_semana_abrev(self):
+        """Retorna lista abreviada dos dias (Seg, Ter, Qua...)."""
+        abrev = {0: 'Seg', 1: 'Ter', 2: 'Qua', 3: 'Qui', 4: 'Sex', 5: 'Sáb', 6: 'Dom'}
+        if not self.dias_semana:
+            return []
+        return [abrev.get(d, '') for d in self.dias_semana if d in abrev]
+
+    def esta_pausada(self):
+        """Verifica se a tarefa está temporariamente pausada."""
+        if self.pausado_ate:
+            return timezone.localtime() < self.pausado_ate
+        return False
+
+    def get_pausado_ate_display(self):
+        """Retorna a data de retorno formatada."""
+        if self.pausado_ate:
+            return self.pausado_ate.strftime('%d/%m/%Y %H:%M')
+        return None
+
+    def deve_executar_hoje(self):
+        """Verifica se a tarefa deve executar no dia atual."""
+        # Verifica se está pausada
+        if self.esta_pausada():
+            return False
+
+        agora = timezone.localtime()
+        dia_semana = agora.weekday()  # 0=segunda, 6=domingo
+        dia_mes = agora.day
+
+        # Verifica dia da semana
+        if dia_semana not in self.dias_semana:
+            return False
+
+        # Verifica período do mês
+        if self.periodo_mes == 'todos':
+            return True
+        elif self.periodo_mes == '1-10':
+            return 1 <= dia_mes <= 10
+        elif self.periodo_mes == '11-20':
+            return 11 <= dia_mes <= 20
+        elif self.periodo_mes == '21-31':
+            return dia_mes >= 21
+        elif self.periodo_mes == '1-15':
+            return 1 <= dia_mes <= 15
+        elif self.periodo_mes == '16-31':
+            return dia_mes >= 16
+
+        return False
+
+    def get_filtro_estados_display(self):
+        """Retorna lista legível dos estados selecionados."""
+        if not self.filtro_estados:
+            return 'Todos'
+        return ', '.join(self.filtro_estados)
+
+    def get_filtro_cidades_display(self):
+        """Retorna lista legível das cidades selecionadas."""
+        if not self.filtro_cidades:
+            return 'Todas'
+        if len(self.filtro_cidades) > 3:
+            return f"{', '.join(self.filtro_cidades[:3])} +{len(self.filtro_cidades) - 3}"
+        return ', '.join(self.filtro_cidades)
+
+    def converter_html_para_whatsapp(self):
+        """
+        Converte formatação HTML (Quill) para formato WhatsApp.
+        <strong>texto</strong> -> *texto*
+        <em>texto</em> -> _texto_
+        """
+        from html import unescape
+
+        texto = self.mensagem
+
+        # Remove tags de parágrafo
+        texto = re.sub(r'<p>', '', texto)
+        texto = re.sub(r'</p>', '\n', texto)
+
+        # Converte negrito
+        texto = re.sub(r'<strong>(.*?)</strong>', r'*\1*', texto)
+        texto = re.sub(r'<b>(.*?)</b>', r'*\1*', texto)
+
+        # Converte itálico
+        texto = re.sub(r'<em>(.*?)</em>', r'_\1_', texto)
+        texto = re.sub(r'<i>(.*?)</i>', r'_\1_', texto)
+
+        # Remove outras tags HTML
+        texto = re.sub(r'<[^>]+>', '', texto)
+
+        # Decodifica entidades HTML
+        texto = unescape(texto)
+
+        # Remove linhas em branco extras
+        texto = re.sub(r'\n{3,}', '\n\n', texto)
+
+        return texto.strip()
+
+    def save(self, *args, **kwargs):
+        # Gera versão plaintext automaticamente
+        if self.mensagem:
+            self.mensagem_plaintext = self.converter_html_para_whatsapp()
+        super().save(*args, **kwargs)
+
+
+class HistoricoExecucaoTarefa(models.Model):
+    """
+    Armazena o histórico de execuções das tarefas de envio.
+    Permite rastrear sucesso, falhas e métricas de cada execução.
+    """
+
+    STATUS_CHOICES = [
+        ('sucesso', 'Sucesso'),
+        ('parcial', 'Parcial'),
+        ('erro', 'Erro'),
+    ]
+
+    tarefa = models.ForeignKey(
+        TarefaEnvio,
+        on_delete=models.CASCADE,
+        related_name='historico',
+        verbose_name='Tarefa'
+    )
+
+    data_execucao = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Data da Execução'
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        verbose_name='Status'
+    )
+
+    quantidade_enviada = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Quantidade Enviada'
+    )
+
+    quantidade_erros = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Quantidade de Erros'
+    )
+
+    detalhes = models.TextField(
+        blank=True,
+        verbose_name='Detalhes',
+        help_text='JSON com detalhes da execução e eventuais erros'
+    )
+
+    duracao_segundos = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Duração (segundos)'
+    )
+
+    class Meta:
+        db_table = 'cadastros_historicoexecucaotarefa'
+        verbose_name = 'Histórico de Execução'
+        verbose_name_plural = 'Históricos de Execução'
+        ordering = ['-data_execucao']
+        indexes = [
+            models.Index(fields=['tarefa', 'data_execucao'], name='hist_tarefa_data_idx'),
+            models.Index(fields=['status'], name='hist_status_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.tarefa.nome} - {self.data_execucao.strftime('%d/%m/%Y %H:%M')} - {self.get_status_display()}"
+
+    def get_duracao_formatada(self):
+        """Retorna duração formatada (ex: '2m 30s')."""
+        minutos = self.duracao_segundos // 60
+        segundos = self.duracao_segundos % 60
+        if minutos > 0:
+            return f"{minutos}m {segundos}s"
+        return f"{segundos}s"
+
+    def get_taxa_sucesso(self):
+        """Retorna a taxa de sucesso em percentual."""
+        total = self.quantidade_enviada + self.quantidade_erros
+        if total == 0:
+            return 0
+        return round((self.quantidade_enviada / total) * 100, 1)
+
+
+class ConfiguracaoEnvio(models.Model):
+    """
+    Configurações globais de envio de mensagens.
+    Singleton - apenas 1 registro deve existir.
+    """
+    limite_envios_por_execucao = models.PositiveIntegerField(
+        default=100,
+        verbose_name='Limite de Envios por Execução',
+        help_text='Máximo de mensagens enviadas por execução de tarefa'
+    )
+
+    intervalo_entre_mensagens = models.PositiveIntegerField(
+        default=5,
+        verbose_name='Intervalo Entre Mensagens (seg)',
+        help_text='Segundos de espera entre cada mensagem enviada'
+    )
+
+    horario_inicio_permitido = models.TimeField(
+        default='08:00',
+        verbose_name='Horário Início Permitido',
+        help_text='Horário mínimo para iniciar envios'
+    )
+
+    horario_fim_permitido = models.TimeField(
+        default='20:00',
+        verbose_name='Horário Fim Permitido',
+        help_text='Horário máximo para envios'
+    )
+
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Atualizado Em'
+    )
+
+    class Meta:
+        db_table = 'cadastros_configuracaoenvio'
+        verbose_name = 'Configuração de Envio'
+        verbose_name_plural = 'Configurações de Envio'
+
+    def save(self, *args, **kwargs):
+        # Garante apenas 1 registro (Singleton)
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Impede exclusão do registro singleton
+        pass
+
+    @classmethod
+    def get_config(cls):
+        """Retorna a configuração, criando se não existir."""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"Configurações de Envio (Limite: {self.limite_envios_por_execucao})"
+
+
+class VarianteMensagem(models.Model):
+    """
+    Variantes de mensagem para A/B Testing.
+    Permite testar diferentes mensagens na mesma tarefa.
+    """
+    tarefa = models.ForeignKey(
+        TarefaEnvio,
+        on_delete=models.CASCADE,
+        related_name='variantes',
+        verbose_name='Tarefa'
+    )
+
+    nome = models.CharField(
+        max_length=50,
+        verbose_name='Nome da Variante',
+        help_text='Ex: Variante A, Variante B'
+    )
+
+    imagem = models.ImageField(
+        upload_to='tarefas_envio/variantes/',
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+        verbose_name='Imagem',
+        help_text='Imagem alternativa (opcional)'
+    )
+
+    mensagem = models.TextField(
+        verbose_name='Mensagem',
+        help_text='Texto alternativo da mensagem'
+    )
+
+    mensagem_plaintext = models.TextField(
+        blank=True,
+        verbose_name='Mensagem (Plaintext)',
+        help_text='Versão plaintext gerada automaticamente'
+    )
+
+    peso = models.PositiveIntegerField(
+        default=50,
+        verbose_name='Peso (%)',
+        help_text='Percentual de envios para esta variante (0-100)'
+    )
+
+    # Métricas
+    total_envios = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Total de Envios'
+    )
+
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name='Ativo'
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Criado Em'
+    )
+
+    class Meta:
+        db_table = 'cadastros_variantemensagem'
+        verbose_name = 'Variante de Mensagem'
+        verbose_name_plural = 'Variantes de Mensagem'
+        ordering = ['tarefa', 'nome']
+
+    def __str__(self):
+        return f"{self.tarefa.nome} - {self.nome}"
+
+    def get_taxa_envio(self):
+        """Retorna a taxa de envio desta variante em relação ao total da tarefa."""
+        total_tarefa = self.tarefa.total_envios
+        if total_tarefa == 0:
+            return 0
+        return round((self.total_envios / total_tarefa) * 100, 1)
+
+
