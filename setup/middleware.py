@@ -20,8 +20,9 @@ class DomainRoutingMiddleware:
         'jampabet.com.br',
         'www.jampabet.com.br',
         'local.jampabet.com.br',
-        'localhost:8001',  # Dev JampaBet
-        '127.0.0.1:8001',  # Dev JampaBet
+        'localhost:8002',  # Dev JampaBet
+        '127.0.0.1:8002',  # Dev JampaBet
+        'local.jampabet.com.br:8002',  # Dev JampaBet com domínio local
     }
 
     def __init__(self, get_response):

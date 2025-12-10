@@ -140,27 +140,23 @@ CSRF_TRUSTED_ORIGINS = [
     'http://nossopainel.com.br',
     'https://www.nossopainel.com.br',
     'http://www.nossopainel.com.br',
-    'https://local.nossopainel.com.br',
-    'http://local.nossopainel.com.br',
-    # JampaBet origins
     'https://jampabet.com.br',
     'http://jampabet.com.br',
     'https://www.jampabet.com.br',
     'http://www.jampabet.com.br',
-    'https://local.jampabet.com.br',
-    'http://local.jampabet.com.br',
 ]
 # Adiciona localhost em desenvolvimento
 if DEBUG:
     CSRF_TRUSTED_ORIGINS += [
-        'http://localhost:8081',
         'http://localhost',
-        'http://localhost:8001',  # JampaBet dev
-        'http://127.0.0.1:8081',
+        'http://localhost:8001',  # NossoPainel dev
+        'http://localhost:8002',  # JampaBet dev
         'http://127.0.0.1',
-        'http://127.0.0.1:8001',  # JampaBet dev
-        'http://local.nossopainel.com.br:8081',
+        'http://127.0.0.1:8001',  # NossoPainel dev
+        'http://127.0.0.1:8002',  # JampaBet dev
         'http://local.nossopainel.com.br',
+        'http://local.nossopainel.com.br:8001', # NossoPainel dev
+        'http://local.jampabet.com.br:8002',    # JampaBet dev
     ]
 # Adiciona origem extra do .env (ex: ngrok para testes de webhook)
 extra_csrf_origin = os.getenv('EXTRA_CSRF_ORIGIN', '')
