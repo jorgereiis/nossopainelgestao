@@ -26,6 +26,7 @@ class Migration(migrations.Migration):
                 ('dt_inicio', models.DateTimeField()),
             ],
             options={
+                'db_table': 'cadastros_sessaowpp',
                 'verbose_name': 'Sessão do WhatsApp',
                 'verbose_name_plural': 'Sessões do WhatsApp',
             },
@@ -38,6 +39,9 @@ class Migration(migrations.Migration):
                 ('device_has_mac', models.BooleanField(default=False)),
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
             ],
+            options={
+                'db_table': 'cadastros_aplicativo',
+            },
         ),
         migrations.CreateModel(
             name='ConteudoM3U8',
@@ -52,6 +56,7 @@ class Migration(migrations.Migration):
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
             ],
             options={
+                'db_table': 'cadastros_conteudom3u8',
                 'verbose_name': 'Conteúdo M3U8',
                 'verbose_name_plural': 'Conteúdos M3U8',
             },
@@ -68,6 +73,7 @@ class Migration(migrations.Migration):
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
             ],
             options={
+                'db_table': 'cadastros_dadosbancarios',
                 'verbose_name_plural': 'Dados Bancários',
             },
         ),
@@ -78,6 +84,9 @@ class Migration(migrations.Migration):
                 ('nome', models.CharField(max_length=255)),
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
             ],
+            options={
+                'db_table': 'cadastros_dispositivo',
+            },
         ),
         migrations.CreateModel(
             name='Cliente',
@@ -101,6 +110,7 @@ class Migration(migrations.Migration):
                 ('dispositivo', models.ForeignKey(default=None, on_delete=django.db.models.deletion.CASCADE, to='nossopainel.dispositivo')),
             ],
             options={
+                'db_table': 'cadastros_cliente',
                 'ordering': ['-data_adesao'],
             },
         ),
@@ -113,6 +123,7 @@ class Migration(migrations.Migration):
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
             ],
             options={
+                'db_table': 'cadastros_horarioenvios',
                 'verbose_name': 'Horário de Envio',
                 'verbose_name_plural': 'Horarios de Envio',
             },
@@ -126,6 +137,7 @@ class Migration(migrations.Migration):
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
             ],
             options={
+                'db_table': 'cadastros_mensagemenviadawpp',
                 'verbose_name': 'Mensagem Enviada ao WhatsApp',
                 'verbose_name_plural': 'Mensagens Enviadas ao WhatsApp',
             },
@@ -146,6 +158,9 @@ class Migration(migrations.Migration):
                 ('cliente', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='nossopainel.cliente')),
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
             ],
+            options={
+                'db_table': 'cadastros_mensalidade',
+            },
         ),
         migrations.CreateModel(
             name='Plano',
@@ -156,6 +171,9 @@ class Migration(migrations.Migration):
                 ('valor', models.DecimalField(decimal_places=2, max_digits=5, verbose_name='Valor')),
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
             ],
+            options={
+                'db_table': 'cadastros_plano',
+            },
         ),
         migrations.AddField(
             model_name='cliente',
@@ -174,6 +192,7 @@ class Migration(migrations.Migration):
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
             ],
             options={
+                'db_table': 'cadastros_planoindicacao',
                 'verbose_name_plural': 'Planos de Indicação',
             },
         ),
@@ -186,6 +205,7 @@ class Migration(migrations.Migration):
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
             ],
             options={
+                'db_table': 'cadastros_secrettokenapi',
                 'verbose_name': 'Secret Token API',
                 'verbose_name_plural': 'Secrets Tokens API',
             },
@@ -198,6 +218,7 @@ class Migration(migrations.Migration):
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
             ],
             options={
+                'db_table': 'cadastros_servidor',
                 'verbose_name_plural': 'Servidores',
             },
         ),
@@ -214,6 +235,7 @@ class Migration(migrations.Migration):
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
             ],
             options={
+                'db_table': 'cadastros_tipos_pgto',
                 'verbose_name': 'Tipo de Pagamento',
                 'verbose_name_plural': 'Tipos de Pagamentos',
             },
@@ -236,6 +258,7 @@ class Migration(migrations.Migration):
                 ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
             ],
             options={
+                'db_table': 'cadastros_contadoaplicativo',
                 'verbose_name': 'Conta do Aplicativo',
                 'verbose_name_plural': 'Contas dos Aplicativos',
                 'indexes': [models.Index(fields=['cliente', 'app'], name='cadastros_c_cliente_d49878_idx'), models.Index(fields=['device_id'], name='cadastros_c_device__90d23d_idx')],
