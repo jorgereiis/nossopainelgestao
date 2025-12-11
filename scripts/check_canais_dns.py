@@ -14,8 +14,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 django.setup()
 
-from cadastros.models import DominiosDNS, SessaoWpp, User
-from cadastros.services.logging_config import get_dns_logger
+from nossopainel.models import DominiosDNS, SessaoWpp, User
+from nossopainel.services.logging_config import get_dns_logger
 
 # Configuração do logger com rotação automática
 logger = get_dns_logger()

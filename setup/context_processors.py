@@ -1,7 +1,7 @@
 from django.db.models import DurationField, ExpressionWrapper, F
 from django.utils import timezone
 
-from cadastros.models import Mensalidade, Tipos_pgto, UserProfile
+from nossopainel.models import Mensalidade, Tipos_pgto, UserProfile
 
 
 def notifications(request):

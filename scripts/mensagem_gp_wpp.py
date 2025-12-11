@@ -19,7 +19,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 django.setup()
 
 # Importa configuração centralizada de logging
-from cadastros.services.logging_config import get_groups_logger
+from nossopainel.services.logging_config import get_groups_logger
 
 # Configuração do logger com rotação automática
 logger = get_groups_logger()
@@ -33,7 +33,7 @@ from wpp.api_connection import (
     registrar_log,
 )
 
-from cadastros.models import (
+from nossopainel.models import (
     SessaoWpp,
 )
 

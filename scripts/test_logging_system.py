@@ -25,7 +25,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 import django
 django.setup()
 
-from cadastros.services.logging_config import (
+from nossopainel.services.logging_config import (
     get_logger,
     get_scheduler_logger,
     get_audit_logger,

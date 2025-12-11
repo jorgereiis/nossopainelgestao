@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 800">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#003399"/>
+      <stop offset="100%" style="stop-color:#DC2626"/>
+    </linearGradient>
+    <linearGradient id="heroGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#003399"/>
+      <stop offset="100%" style="stop-color:#004499"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="800" fill="#f5f7fa"/>
+
+  <!-- Header -->
+  <rect width="400" height="70" fill="white" opacity="0.98"/>
+  <circle cx="40" cy="35" r="15" fill="#DC2626" opacity="0.8"/>
+  <rect x="65" y="25" width="80" height="20" rx="4" fill="#003399" opacity="0.3"/>
+  <circle cx="360" cy="35" r="20" fill="url(#headerGrad)" opacity="0.5"/>
+
+  <!-- Hero Section -->
+  <rect y="70" width="400" height="280" fill="url(#heroGrad)"/>
+
+  <!-- Match Card -->
+  <rect x="20" y="100" width="360" height="220" rx="20" fill="rgba(0,0,0,0.4)"/>
+
+  <!-- Team logos placeholder -->
+  <circle cx="90" cy="180" r="40" fill="white" opacity="0.95"/>
+  <circle cx="310" cy="180" r="40" fill="white" opacity="0.95"/>
+
+  <!-- VS text area -->
+  <rect x="150" y="160" width="100" height="50" rx="8" fill="rgba(255,255,255,0.1)"/>
+
+  <!-- Button -->
+  <rect x="80" y="260" width="240" height="45" rx="12" fill="#DC2626"/>
+
+  <!-- Stats Cards -->
+  <rect x="15" y="330" width="88" height="70" rx="12" fill="white"/>
+  <rect x="108" y="330" width="88" height="70" rx="12" fill="white"/>
+  <rect x="201" y="330" width="88" height="70" rx="12" fill="white"/>
+  <rect x="294" y="330" width="88" height="70" rx="12" fill="white"/>
+
+  <!-- Stats icons -->
+  <circle cx="35" cy="355" r="15" fill="url(#headerGrad)" opacity="0.7"/>
+  <circle cx="128" cy="355" r="15" fill="url(#headerGrad)" opacity="0.7"/>
+  <circle cx="221" cy="355" r="15" fill="url(#headerGrad)" opacity="0.7"/>
+  <circle cx="314" cy="355" r="15" fill="url(#headerGrad)" opacity="0.7"/>
+
+  <!-- Tabs -->
+  <rect x="15" y="420" width="88" height="40" rx="10" fill="url(#headerGrad)"/>
+  <rect x="108" y="420" width="88" height="40" rx="10" fill="white"/>
+  <rect x="201" y="420" width="88" height="40" rx="10" fill="white"/>
+  <rect x="294" y="420" width="88" height="40" rx="10" fill="white"/>
+
+  <!-- Content cards -->
+  <rect x="15" y="480" width="370" height="100" rx="16" fill="white"/>
+  <rect x="15" y="590" width="370" height="100" rx="16" fill="white"/>
+
+  <!-- Bottom nav -->
+  <rect y="730" width="400" height="70" fill="white"/>
+  <circle cx="50" cy="760" r="15" fill="#DC2626" opacity="0.3"/>
+  <circle cx="150" cy="760" r="15" fill="#9ca3af" opacity="0.3"/>
+  <circle cx="250" cy="760" r="15" fill="#9ca3af" opacity="0.3"/>
+  <circle cx="350" cy="760" r="15" fill="#9ca3af" opacity="0.3"/>
+</svg>

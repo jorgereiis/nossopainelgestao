@@ -1,0 +1,228 @@
+{% extends 'jampabet/base.html' %}
+{% load static %}
+
+{% block title %}Classificacao{% endblock %}
+
+{% block content %}
+<div class="standings-page">
+    <div class="section-header">
+        <h2><i class="fas fa-table"></i> Classificacao</h2>
+        <select id="standings-select" class="standings-select">
+            <option value="71" {% if league_id == 71 %}selected{% endif %}>Brasileirao Serie A</option>
+            <option value="604" {% if league_id == 604 %}selected{% endif %}>Campeonato Baiano</option>
+        </select>
+    </div>
+
+    <div class="standings-layout">
+        <!-- Tabela de Classificacao -->
+        <div class="standings-container" id="standings-container">
+            {% if standings %}
+            <div class="standings-table">
+                <div class="standings-header">
+                    <span class="col-pos">#</span>
+                    <span class="col-team">Time</span>
+                    <span class="col-pts">Pts</span>
+                    <span class="col-stat">SG</span>
+                    <span class="col-stat">V</span>
+                    <span class="col-stat">E</span>
+                    <span class="col-stat">D</span>
+                    <span class="col-stat">P</span>
+                    <span class="col-form">Ultimas 5</span>
+                </div>
+                {% for team in standings %}
+                <div class="standings-row {% if 'bahia' in team.team_name|lower %}bahia-row{% endif %} {% if team.position <= 4 %}zone-libertadores{% elif team.position <= 6 %}zone-prelibertadores{% elif team.position <= 12 %}zone-sulamericana{% elif team.position >= 17 %}zone-rebaixamento{% endif %}">
+                    <span class="standings-pos col-pos">{{ team.position }}</span>
+                    <div class="standings-team col-team">
+                        <img src="{{ team.team_logo }}" alt="{{ team.team_name }}" class="team-logo-small">
+                        <span class="standings-team-name">{{ team.team_name }}</span>
+                    </div>
+                    <span class="standings-points col-pts">{{ team.points }}</span>
+                    <span class="standings-gd col-stat {% if team.goal_difference > 0 %}positive{% elif team.goal_difference < 0 %}negative{% endif %}">{% if team.goal_difference > 0 %}+{% endif %}{{ team.goal_difference }}</span>
+                    <span class="standings-stat col-stat">{{ team.wins }}</span>
+                    <span class="standings-stat col-stat">{{ team.draws }}</span>
+                    <span class="standings-stat col-stat">{{ team.losses }}</span>
+                    <span class="standings-stat col-stat">{{ team.played }}</span>
+                    <div class="standings-form col-form">
+                        {% for char in team.form %}
+                            <span class="form-indicator form-{{ char }}">{{ char }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="standings-legend">
+                <div class="legend-item"><div class="legend-color zone-libertadores"></div> Libertadores</div>
+                <div class="legend-item"><div class="legend-color zone-prelibertadores"></div> Pre-Libertadores</div>
+                <div class="legend-item"><div class="legend-color zone-sulamericana"></div> Sul-Americana</div>
+                <div class="legend-item"><div class="legend-color zone-rebaixamento"></div> Rebaixamento</div>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-table"></i>
+                <p>Classificacao nao disponivel</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Jogos da Rodada -->
+        <div class="round-fixtures-container" id="round-fixtures-container">
+            <div class="round-header">
+                <button class="round-nav-btn" id="prev-round" title="Rodada anterior">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="round-title">
+                    <span class="round-label">Rodada</span>
+                    <span class="round-number" id="current-round">-</span>
+                </div>
+                <button class="round-nav-btn" id="next-round" title="Proxima rodada">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <div class="round-fixtures-list" id="round-fixtures-list">
+                <div class="loading-spinner">
+                    <i class="fas fa-futbol fa-spin"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    let currentLeague = {{ league_id|default:71 }};
+    let currentRound = 1;
+    let totalRounds = 1;
+    let roundsCache = {};
+
+    const standingsSelect = document.getElementById('standings-select');
+    const prevRoundBtn = document.getElementById('prev-round');
+    const nextRoundBtn = document.getElementById('next-round');
+    const currentRoundEl = document.getElementById('current-round');
+    const fixturesList = document.getElementById('round-fixtures-list');
+
+    // Inicializar
+    init();
+
+    async function init() {
+        await loadRounds();
+        // Carregar ultima rodada por padrao
+        currentRound = totalRounds;
+        await loadFixtures(currentRound);
+        updateNavButtons();
+    }
+
+    // Event listeners
+    standingsSelect?.addEventListener('change', function(e) {
+        window.location.href = '{% url "jampabet:standings" %}?league=' + e.target.value;
+    });
+
+    prevRoundBtn?.addEventListener('click', async () => {
+        if (currentRound > 1) {
+            currentRound--;
+            await loadFixtures(currentRound);
+            updateNavButtons();
+        }
+    });
+
+    nextRoundBtn?.addEventListener('click', async () => {
+        if (currentRound < totalRounds) {
+            currentRound++;
+            await loadFixtures(currentRound);
+            updateNavButtons();
+        }
+    });
+
+    async function loadRounds() {
+        try {
+            const response = await fetch(`/app/bahia/api/rounds/${currentLeague}/`);
+            const data = await response.json();
+            if (data.rounds && data.rounds.length > 0) {
+                totalRounds = Math.max(...data.rounds);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar rodadas:', error);
+        }
+    }
+
+    async function loadFixtures(round) {
+        currentRoundEl.textContent = round;
+        fixturesList.innerHTML = '<div class="loading-spinner"><i class="fas fa-futbol fa-spin"></i></div>';
+
+        // Verificar cache
+        const cacheKey = `${currentLeague}_${round}`;
+        if (roundsCache[cacheKey]) {
+            renderFixtures(roundsCache[cacheKey]);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/app/bahia/api/fixtures/${currentLeague}/?round=${round}`);
+            const data = await response.json();
+
+            if (data.matches) {
+                roundsCache[cacheKey] = data.matches;
+                renderFixtures(data.matches);
+            } else {
+                fixturesList.innerHTML = '<div class="empty-state"><p>Nenhum jogo encontrado</p></div>';
+            }
+        } catch (error) {
+            console.error('Erro ao carregar jogos:', error);
+            fixturesList.innerHTML = '<div class="empty-state"><p>Erro ao carregar jogos</p></div>';
+        }
+    }
+
+    function renderFixtures(matches) {
+        if (!matches || matches.length === 0) {
+            fixturesList.innerHTML = '<div class="empty-state"><p>Nenhum jogo nesta rodada</p></div>';
+            return;
+        }
+
+        let html = '';
+        matches.forEach(match => {
+            const isBahia = match.is_bahia;
+            const statusClass = match.status === 'finished' ? 'finished' : match.status === 'live' ? 'live' : 'upcoming';
+            const date = match.date ? new Date(match.date) : null;
+            const dateStr = date ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '';
+            const timeStr = date ? date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+
+            html += `
+                <div class="fixture-card ${isBahia ? 'bahia-fixture' : ''} ${statusClass}">
+                    <div class="fixture-teams">
+                        <div class="fixture-team home">
+                            <img src="${match.home_logo}" alt="${match.home_team}" class="fixture-team-logo">
+                            <span class="fixture-team-name">${match.home_team}</span>
+                        </div>
+                        <div class="fixture-score">
+                            ${match.status === 'finished' || match.status === 'live'
+                                ? `<span class="score">${match.home_goals ?? '-'}</span><span class="score-separator">x</span><span class="score">${match.away_goals ?? '-'}</span>`
+                                : `<span class="fixture-time">${timeStr}</span>`
+                            }
+                        </div>
+                        <div class="fixture-team away">
+                            <span class="fixture-team-name">${match.away_team}</span>
+                            <img src="${match.away_logo}" alt="${match.away_team}" class="fixture-team-logo">
+                        </div>
+                    </div>
+                    ${match.status === 'upcoming' ? `<div class="fixture-date">${dateStr}</div>` : ''}
+                    ${match.status === 'live' ? '<div class="fixture-live-badge"><i class="fas fa-circle"></i> AO VIVO</div>' : ''}
+                </div>
+            `;
+        });
+
+        fixturesList.innerHTML = html;
+    }
+
+    function updateNavButtons() {
+        prevRoundBtn.disabled = currentRound <= 1;
+        nextRoundBtn.disabled = currentRound >= totalRounds;
+        prevRoundBtn.classList.toggle('disabled', currentRound <= 1);
+        nextRoundBtn.classList.toggle('disabled', currentRound >= totalRounds);
+    }
+})();
+</script>
+{% endblock %}

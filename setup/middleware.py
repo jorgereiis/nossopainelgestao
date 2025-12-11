@@ -3,6 +3,60 @@ from django.shortcuts import redirect
 from django.urls import NoReverseMatch, reverse
 
 
+class DomainRoutingMiddleware:
+    """
+    Middleware para roteamento baseado em domínio.
+    Permite que múltiplos apps Django rodem com domínios diferentes.
+
+    - jampabet.com.br -> reescreve URL para /app/bahia/ (ex: jampabet.com.br/login -> /app/bahia/login)
+    - nossopainel.com.br -> URLs normais (padrão)
+
+    Usa URL rewriting ao invés de trocar URLconf, mantendo todos os
+    namespaces registrados no setup/urls.py.
+    """
+
+    # Mapeamento de domínios do JampaBet
+    JAMPABET_DOMAINS = {
+        'jampabet.com.br',
+        'www.jampabet.com.br',
+        'local.jampabet.com.br',
+        'localhost:8002',  # Dev JampaBet
+        '127.0.0.1:8002',  # Dev JampaBet
+        'local.jampabet.com.br:8002',  # Dev JampaBet com domínio local
+    }
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        host = request.get_host().lower()
+
+        # Verifica se é domínio do JampaBet
+        if self._is_jampabet_domain(host):
+            request.is_jampabet = True
+            # Reescreve a URL para incluir o prefixo /app/bahia/
+            # Isso permite que jampabet.com.br/ seja tratado como /app/bahia/
+            if not request.path.startswith('/app/bahia/'):
+                # Não reescreve paths de static/media/admin
+                if not request.path.startswith(('/static/', '/media/', '/painel-configs/')):
+                    request.path_info = '/app/bahia' + request.path
+                    request.path = '/app/bahia' + request.path
+        else:
+            request.is_jampabet = False
+
+        return self.get_response(request)
+
+    def _is_jampabet_domain(self, host):
+        """Verifica se o host é um domínio do JampaBet"""
+        # Verifica match exato
+        if host in self.JAMPABET_DOMAINS:
+            return True
+
+        # Verifica sem porta
+        host_without_port = host.split(':')[0]
+        return host_without_port in {'jampabet.com.br', 'www.jampabet.com.br', 'local.jampabet.com.br'}
+
+
 class CheckUserLoggedInMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -10,6 +64,11 @@ class CheckUserLoggedInMiddleware:
         self._public_prefixes = None
 
     def __call__(self, request):
+        # Se for JampaBet, usa lógica própria de autenticação
+        if getattr(request, 'is_jampabet', False):
+            return self._handle_jampabet(request)
+
+        # Lógica original para NossoPainel
         if request.user.is_authenticated:
             return self.get_response(request)
 
@@ -22,6 +81,54 @@ class CheckUserLoggedInMiddleware:
                 return self.get_response(request)
 
         return redirect("login")
+
+    def _handle_jampabet(self, request):
+        """
+        Tratamento especifico para requisicoes do JampaBet.
+        Usa sistema de autenticacao isolado.
+        """
+        from django.http import JsonResponse
+        from jampabet.auth import JampabetAuth
+
+        # Paths publicos do JampaBet (apos rewrite, path comeca com /app/bahia/)
+        jampabet_public_paths = {
+            '/app/bahia/', '/app/bahia',
+            '/app/bahia/login/', '/app/bahia/login',
+        }
+
+        # Prefixos publicos (APIs de auth, ativacao, static/media)
+        jampabet_public_prefixes = (
+            '/static/',
+            '/media/',
+            '/app/bahia/api/auth/',      # APIs de autenticacao (login step1, step2, resend)
+            '/app/bahia/activate/',       # Ativacao de conta
+        )
+
+        path = request.path
+
+        # Injeta o usuario JampaBet no request
+        request.jampabet_user = JampabetAuth.get_user(request)
+
+        # Verifica se e path publico
+        if path in jampabet_public_paths:
+            return self.get_response(request)
+
+        for prefix in jampabet_public_prefixes:
+            if path.startswith(prefix):
+                return self.get_response(request)
+
+        # Se nao esta autenticado no JampaBet
+        if not request.jampabet_user:
+            # Para APIs, retorna JSON 401 ao inves de redirecionar
+            if '/api/' in path:
+                return JsonResponse(
+                    {'error': 'Nao autenticado', 'redirect': '/app/bahia/login/'},
+                    status=401
+                )
+            # Para paginas, redireciona para login
+            return redirect('jampabet:login')
+
+        return self.get_response(request)
 
     @property
     def public_paths(self):

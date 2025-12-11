@@ -1,0 +1,1007 @@
+{% extends 'jampabet/base.html' %}
+{% load static %}
+
+{% block title %}App{% endblock %}
+
+{% block app_class %}{% endblock %} {# Herda hidden do base.html, sera removido apos splash #}
+
+{% block content %}
+<!-- Hero Section - Card Principal da Proxima Partida -->
+<section class="hero-section" id="hero">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <div class="next-match-card" id="next-match-hero" data-match-id="">
+            <!-- Badge de status (sera atualizado via JS) -->
+            <div class="match-badge" id="hero-match-badge">
+                <i class="fas fa-fire"></i> <span>PROXIMO JOGO</span>
+            </div>
+
+            <!-- Times e Info Central -->
+            <div class="match-teams">
+                <!-- Time da Casa -->
+                <div class="team home" id="hero-home-team">
+                    <div class="team-logo-img" id="hero-home-logo">
+                        <img src="" alt="Mandante">
+                    </div>
+                    <span class="team-name" id="hero-home-name">Mandante</span>
+                </div>
+
+                <!-- Centro: Info da partida OU Placar -->
+                <div class="match-center" id="hero-match-center">
+                    <!-- Bloco para partida agendada (competicao, horario, data, local) -->
+                    <div class="hero-match-details" id="hero-match-details">
+                        <div class="hero-competition">
+                            <span id="hero-match-competition">Brasileirao</span>
+                        </div>
+                        <div class="match-time-container" id="hero-time-container">
+                            <span class="match-time" id="hero-match-time">19:00</span>
+                            <span class="match-date" id="hero-match-date">DOM, 15 DEZ</span>
+                        </div>
+                        <div class="hero-venue" id="hero-venue">
+                            <span id="hero-venue-text">Arena Fonte Nova</span>
+                        </div>
+                    </div>
+
+                    <!-- Bloco para partida ao vivo ou encerrada (placar) -->
+                    <div class="match-score-container hidden" id="hero-score-container">
+                        <span class="match-score" id="hero-match-score">0 x 0</span>
+                        <span class="match-status-text" id="hero-status-text"></span>
+                    </div>
+                </div>
+
+                <!-- Time Visitante -->
+                <div class="team away" id="hero-away-team">
+                    <div class="team-logo-img" id="hero-away-logo">
+                        <img src="" alt="Visitante">
+                    </div>
+                    <span class="team-name" id="hero-away-name">Visitante</span>
+                </div>
+            </div>
+
+            <!-- Contador regressivo para palpites (redesenhado) -->
+            <div class="bet-countdown-wrapper" id="hero-bet-countdown">
+                <span class="countdown-label" id="hero-countdown-text">Palpites encerram em</span>
+                <span class="countdown-timer" id="hero-countdown-timer">--:--</span>
+            </div>
+
+            <!-- Palpite do usuario (se existir) -->
+            <div class="user-bet-info hidden" id="hero-user-bet">
+                <div class="user-bet-label">
+                    <i id="hero-bet-icon" class="fas fa-check-circle"></i> Seu palpite:
+                </div>
+                <div class="user-bet-values">
+                    <span id="hero-bet-vitoria"></span>
+                    <span class="bet-separator">|</span>
+                    <span id="hero-bet-empate"></span>
+                </div>
+            </div>
+
+            <!-- Botao de palpite ou status bloqueado -->
+            <div class="hero-action" id="hero-action">
+                <button class="btn btn-glow" id="hero-bet-btn">
+                    <i class="fas fa-bolt"></i> FAZER PALPITE
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Cards -->
+<section class="stats-section">
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-trophy"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value" id="stat-position">-</span>
+                <span class="stat-label">Sua Posicao</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value" id="stat-hits">{{ request.jampabet_user.hits }}</span>
+                <span class="stat-label">Acertos</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-star"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value" id="stat-total-points">{{ request.jampabet_user.points }}</span>
+                <span class="stat-label">Pontos</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value" id="stat-players">{{ total_players }}</span>
+                <span class="stat-label">Participantes</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Tabs Navigation -->
+<nav class="tabs-nav">
+    <button class="tab-btn active" data-tab="palpites">
+        <i class="fas fa-ticket-alt"></i>
+        <span>Palpites</span>
+    </button>
+    <button class="tab-btn" data-tab="ranking">
+        <i class="fas fa-medal"></i>
+        <span>Ranking</span>
+    </button>
+    <button class="tab-btn" data-tab="classificacao">
+        <i class="fas fa-table"></i>
+        <span>Tabela</span>
+    </button>
+</nav>
+
+<!-- Tab Contents -->
+<div class="tab-contents">
+    <!-- Palpites Tab -->
+    <div class="tab-content active" id="palpites">
+        <div class="section-header">
+            <h2><i class="fas fa-ticket-alt"></i> Seus Palpites</h2>
+        </div>
+        <div class="palpites-container" id="palpites-container">
+            <!-- Carregando... (sera substituido via JS) -->
+            <div class="loading-spinner">
+                <i class="fas fa-futbol fa-spin"></i>
+                <span>Carregando palpites...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ranking Tab -->
+    <div class="tab-content" id="ranking">
+        <div class="section-header">
+            <h2><i class="fas fa-medal"></i> Ranking Geral</h2>
+            <span class="ranking-total" id="ranking-total-players">
+                <i class="fas fa-users"></i> <span>--</span> participantes
+            </span>
+        </div>
+        <div class="ranking-container" id="ranking-container">
+            <!-- Podio Top 3 -->
+            <div class="podium" id="podium">
+                <div class="loading-spinner">
+                    <i class="fas fa-futbol fa-spin"></i>
+                    <span>Carregando ranking...</span>
+                </div>
+            </div>
+            <!-- Lista posicoes 4-10 -->
+            <div class="ranking-list" id="ranking-list">
+            </div>
+        </div>
+    </div>
+
+    <!-- Classificacao Tab -->
+    <div class="tab-content" id="classificacao">
+        <div class="section-header">
+            <h2><i class="fas fa-table"></i> Classificacao</h2>
+            <div class="standings-selects">
+                <select id="standings-select" class="standings-select">
+                    <option value="71">Brasileirao Serie A</option>
+                </select>
+                <select id="season-select" class="season-select">
+                    <!-- Opções serão populadas via JS -->
+                </select>
+            </div>
+        </div>
+        <div class="standings-layout">
+            <!-- Tabela de Classificacao -->
+            <div class="standings-container" id="standings-container">
+                <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Carregando classificacao...</p>
+            </div>
+
+            <!-- Jogos da Rodada -->
+            <div class="round-fixtures-container" id="round-fixtures-container">
+                <div class="round-header">
+                    <button class="round-nav-btn" id="prev-round" title="Rodada anterior">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div id="round-selector">
+                        <!-- Select sera populado via JS -->
+                        <span class="round-number" id="current-round">Carregando...</span>
+                    </div>
+                    <button class="round-nav-btn" id="next-round" title="Proxima rodada">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="round-fixtures-list" id="round-fixtures-list">
+                    <div class="loading-spinner">
+                        <i class="fas fa-futbol fa-spin"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Bet Modal -->
+<div id="bet-modal" class="modal">
+    <div class="modal-content bet-modal-content">
+        <button class="modal-close" id="close-bet-modal">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="modal-header">
+            <h2><i class="fas fa-futbol"></i> Fazer Palpite</h2>
+        </div>
+        <div class="modal-body">
+            <!-- Info da partida -->
+            <div class="bet-match-info">
+                <div class="bet-teams">
+                    <div class="bet-team">
+                        <div class="bet-team-logo-img" id="bet-bahia-logo">
+                            <img src="https://www.thesportsdb.com/images/media/team/badge/xytvwt1448813301.png" alt="Bahia">
+                        </div>
+                        <span class="bet-team-name">Bahia</span>
+                    </div>
+                    <span class="bet-vs" id="bet-vs-score">VS</span>
+                    <div class="bet-team">
+                        <div class="bet-team-logo-img" id="bet-opponent-logo">
+                            <img src="" alt="Adversario">
+                        </div>
+                        <span class="bet-team-name" id="bet-opponent-name">Adversario</span>
+                    </div>
+                </div>
+                <div class="bet-match-details">
+                    <span class="bet-mando-info" id="bet-mando-info">
+                        <i class="fas fa-home"></i> Bahia joga em casa
+                    </span>
+                    <span class="bet-date" id="bet-match-date">Data do Jogo</span>
+                    <span class="bet-competition" id="bet-match-competition">Competicao</span>
+                    <span class="bet-venue" id="bet-match-venue"></span>
+                </div>
+                <div class="bet-countdown" id="bet-countdown">
+                    <i class="fas fa-clock"></i> Palpites encerram em --
+                </div>
+            </div>
+
+            <!-- Regras -->
+            <div class="bet-rules">
+                <div class="bet-rules-header">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Como funciona</span>
+                </div>
+                <ul class="bet-rules-list">
+                    <li><strong>Triunfo:</strong> Palpite a favor do Bahia = <span class="points-highlight">+3 pts</span> se acertar</li>
+                    <li><strong>Empate:</strong> Palpite de empate = <span class="points-highlight">+1 pt</span> se acertar</li>
+                    <li>Voce deve preencher AMBOS os palpites</li>
+                    <li>Palpites encerram <strong>10 minutos</strong> antes do jogo</li>
+                </ul>
+            </div>
+
+            <!-- Opcoes de palpite -->
+            <div class="bet-options">
+                <!-- Palpite Triunfo Bahia -->
+                <div class="score-bet-option" id="bet-option-win">
+                    <div class="score-bet-header">
+                        <div class="score-bet-title">
+                            <i class="fas fa-trophy"></i>
+                            <span>Triunfo Bahia</span>
+                        </div>
+                        <span class="score-points">+3 pts</span>
+                    </div>
+                    <div class="score-inputs">
+                        <div class="score-team">
+                            <span>Bahia</span>
+                            <input type="number" id="home-win-bahia" min="0" max="20" placeholder="-" class="score-input" inputmode="numeric">
+                        </div>
+                        <span class="score-x">x</span>
+                        <div class="score-team">
+                            <input type="number" id="home-win-opponent" min="0" max="20" placeholder="-" class="score-input" inputmode="numeric">
+                            <span id="score-opponent-name-1">Adversario</span>
+                        </div>
+                    </div>
+                    <small class="score-hint">
+                        <i class="fas fa-check-circle"></i> Bahia precisa ter mais gols
+                    </small>
+                </div>
+
+                <!-- Palpite Empate -->
+                <div class="score-bet-option" id="bet-option-draw">
+                    <div class="score-bet-header">
+                        <div class="score-bet-title">
+                            <i class="fas fa-handshake"></i>
+                            <span>Empate</span>
+                        </div>
+                        <span class="score-points">+1 pt</span>
+                    </div>
+                    <div class="score-inputs">
+                        <div class="score-team">
+                            <span>Bahia</span>
+                            <input type="number" id="draw-bahia" min="0" max="20" placeholder="-" class="score-input" inputmode="numeric">
+                        </div>
+                        <span class="score-x">x</span>
+                        <div class="score-team">
+                            <input type="number" id="draw-opponent" min="0" max="20" placeholder="-" class="score-input" inputmode="numeric">
+                            <span id="score-opponent-name-2">Adversario</span>
+                        </div>
+                    </div>
+                    <small class="score-hint">
+                        <i class="fas fa-equals"></i> Mesmo numero de gols
+                    </small>
+                </div>
+            </div>
+
+            <!-- Botao confirmar -->
+            <button class="btn btn-primary btn-block" id="confirm-bet-btn" disabled>
+                <i class="fas fa-check"></i> Confirmar Palpites
+            </button>
+            <p class="bet-disclaimer">
+                <i class="fas fa-lock"></i> Apos confirmar, o palpite nao podera ser alterado
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- User Menu Modal -->
+<div id="user-menu-modal" class="modal">
+    <div class="modal-content user-menu-content">
+        <button class="modal-close" id="close-user-menu">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <!-- Header com avatar e info -->
+        <div class="user-menu-header">
+            <div class="user-menu-avatar">
+                <span>{{ request.jampabet_user.name|slice:":1"|upper }}</span>
+            </div>
+            <div class="user-menu-info">
+                <h3>{{ request.jampabet_user.name }}</h3>
+                <p><i class="fas fa-envelope"></i> {{ request.jampabet_user.email }}</p>
+            </div>
+        </div>
+
+        <!-- Posicao no ranking -->
+        <div class="user-menu-ranking">
+            <div class="ranking-badge">
+                <i class="fas fa-trophy"></i>
+                <span class="position">{{ user_position }}º</span>
+            </div>
+            <div class="ranking-text">
+                <span class="label">Posicao no Ranking</span>
+                <span class="total">de {{ total_players }} participantes</span>
+            </div>
+        </div>
+
+        <!-- Estatisticas -->
+        <div class="user-menu-stats">
+            <div class="user-stat">
+                <div class="stat-icon-small">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="value">{{ request.jampabet_user.points }}</span>
+                    <span class="label">Pontos</span>
+                </div>
+            </div>
+            <div class="user-stat">
+                <div class="stat-icon-small">
+                    <i class="fas fa-bullseye"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="value">{{ request.jampabet_user.hits }}</span>
+                    <span class="label">Acertos</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acoes -->
+        <div class="user-menu-actions">
+            {% if request.jampabet_user.is_admin %}
+            <button type="button" class="btn btn-admin" id="open-admin-modal">
+                <i class="fas fa-cog"></i> Painel Admin
+            </button>
+            {% endif %}
+            <form method="post" action="{% url 'jampabet:logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> Sair da Conta
+                </button>
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="user-menu-footer">
+            <p><i class="fas fa-futbol"></i> JampaBet - Palpites do Bahia</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Administrativo -->
+{% if request.jampabet_user.is_admin %}
+<div id="admin-modal" class="modal">
+    <div class="modal-content admin-modal-content">
+        <button class="modal-close" id="close-admin-modal">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="modal-header">
+            <h2><i class="fas fa-cog"></i> Painel Administrativo</h2>
+        </div>
+        <div class="modal-body admin-modal-body">
+            <!-- Stats -->
+            <div class="admin-stats" id="admin-stats">
+                <div class="admin-stat-card">
+                    <i class="fas fa-futbol"></i>
+                    <span class="stat-value" id="admin-stat-teams">-</span>
+                    <span class="stat-label">Times</span>
+                </div>
+                <div class="admin-stat-card">
+                    <i class="fas fa-trophy"></i>
+                    <span class="stat-value" id="admin-stat-competitions">-</span>
+                    <span class="stat-label">Competicoes</span>
+                </div>
+                <div class="admin-stat-card">
+                    <i class="fas fa-calendar"></i>
+                    <span class="stat-value" id="admin-stat-fixtures">-</span>
+                    <span class="stat-label">Partidas</span>
+                </div>
+                <div class="admin-stat-card">
+                    <i class="fas fa-users"></i>
+                    <span class="stat-value" id="admin-stat-users">-</span>
+                    <span class="stat-label">Usuarios</span>
+                </div>
+            </div>
+
+            <!-- Configuracoes da API -->
+            <div class="admin-section">
+                <h3><i class="fas fa-cogs"></i> Configuracoes da API</h3>
+                <p class="admin-section-desc">Configuracoes de polling e atualizacao automatica de partidas</p>
+
+                <div class="api-config-form" id="api-config-form">
+                    <div class="config-row">
+                        <div class="config-group">
+                            <label>
+                                <input type="checkbox" id="config-api-enabled" checked>
+                                <span>API Habilitada</span>
+                            </label>
+                            <small>Permite consultas a API externa</small>
+                        </div>
+                        <div class="config-group">
+                            <label>
+                                <input type="checkbox" id="config-auto-start" checked>
+                                <span>Iniciar Partidas Automaticamente</span>
+                            </label>
+                            <small>Mudar status para "ao vivo" no horario de inicio</small>
+                        </div>
+                    </div>
+
+                    <div class="config-row">
+                        <div class="config-group">
+                            <label>
+                                <input type="checkbox" id="config-auto-update" checked>
+                                <span>Atualizar Placares Automaticamente</span>
+                            </label>
+                            <small>Buscar placares em tempo real via API</small>
+                        </div>
+                        <div class="config-group">
+                            <label for="config-polling-interval">Intervalo de Polling (segundos)</label>
+                            <input type="number" id="config-polling-interval" class="form-input" min="30" max="300" value="60">
+                            <small>Intervalo para consultar partidas ao vivo (min: 30s)</small>
+                        </div>
+                    </div>
+
+                    <div class="config-row">
+                        <div class="config-group">
+                            <label for="config-minutes-before">Bloquear Palpites (minutos antes)</label>
+                            <input type="number" id="config-minutes-before" class="form-input" min="5" max="60" value="10">
+                            <small>Tempo antes do inicio para bloquear palpites</small>
+                        </div>
+                        <div class="config-group config-status">
+                            <label>Status do Polling</label>
+                            <div class="polling-status" id="polling-status">
+                                <span class="status-badge status-idle">Aguardando</span>
+                                <small id="polling-last-update">-</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-actions">
+                        <button class="btn btn-admin-action btn-primary-action" id="btn-save-api-config">
+                            <i class="fas fa-save"></i> Salvar Configuracoes
+                        </button>
+                        <span class="api-calls-today">
+                            <i class="fas fa-chart-line"></i>
+                            Chamadas API hoje: <strong id="api-calls-count">0</strong>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regras de Pontuacao -->
+            <div class="admin-section">
+                <h3><i class="fas fa-star"></i> Regras de Pontuacao</h3>
+                <p class="admin-section-desc">Configure os pontos por acerto e valor por rodada</p>
+
+                <div class="scoring-config-form" id="scoring-config-form">
+                    <div class="config-row">
+                        <div class="config-group">
+                            <label for="config-points-victory">Pontos por Placar Exato de Triunfo</label>
+                            <input type="number" id="config-points-victory" class="form-input" min="0" max="100" value="3">
+                            <small>Pontuacao para quem acertar o placar exato em vitoria do Bahia</small>
+                        </div>
+                        <div class="config-group">
+                            <label for="config-points-draw">Pontos por Placar Exato de Empate</label>
+                            <input type="number" id="config-points-draw" class="form-input" min="0" max="100" value="1">
+                            <small>Pontuacao para quem acertar o placar exato em empate</small>
+                        </div>
+                    </div>
+
+                    <div class="config-row">
+                        <div class="config-group">
+                            <label for="config-round-cost">Valor por Rodada (R$)</label>
+                            <input type="number" id="config-round-cost" class="form-input" min="0" max="1000" step="0.01" value="0.00">
+                            <small>Valor que o usuario deve pagar por rodada com palpite feito</small>
+                        </div>
+                        <div class="config-group config-info">
+                            <label>Regras Atuais</label>
+                            <div class="scoring-info">
+                                <span class="info-item"><i class="fas fa-trophy text-gold"></i> Triunfo: <strong id="info-points-victory">3</strong> pts</span>
+                                <span class="info-item"><i class="fas fa-handshake text-silver"></i> Empate: <strong id="info-points-draw">1</strong> pt</span>
+                                <span class="info-item"><i class="fas fa-dollar-sign text-green"></i> Valor: R$ <strong id="info-round-cost">0,00</strong></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-actions">
+                        <button class="btn btn-admin-action btn-primary-action" id="btn-save-scoring-config">
+                            <i class="fas fa-save"></i> Salvar Pontuacao
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sincronizacao -->
+            <div class="admin-section">
+                <h3><i class="fas fa-sync"></i> Sincronizacao de Dados</h3>
+                <p class="admin-section-desc">Atualiza os dados do banco a partir da API-Football</p>
+                <div class="admin-actions">
+                    <button class="btn btn-admin-action" id="sync-teams-btn">
+                        <i class="fas fa-futbol"></i> Sincronizar Times
+                    </button>
+                    <button class="btn btn-admin-action" id="sync-competitions-btn">
+                        <i class="fas fa-trophy"></i> Sincronizar Competicoes
+                    </button>
+                    <button class="btn btn-admin-action" id="sync-fixtures-btn">
+                        <i class="fas fa-calendar"></i> Sincronizar Partidas
+                    </button>
+                </div>
+            </div>
+
+            <!-- Competicoes -->
+            <div class="admin-section">
+                <h3><i class="fas fa-list"></i> Competicoes Monitoradas</h3>
+                <p class="admin-section-desc">Selecione quais competicoes terao partidas sincronizadas</p>
+                <div class="admin-competitions-list" id="admin-competitions-list">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i> Carregando...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gerenciamento de Usuarios -->
+            <div class="admin-section">
+                <h3><i class="fas fa-users-cog"></i> Gerenciar Usuarios</h3>
+                <p class="admin-section-desc">Cadastrar, editar e gerenciar usuarios do sistema</p>
+
+                <!-- Stats de usuarios -->
+                <div class="admin-users-stats" id="admin-users-stats">
+                    <div class="user-stat-item">
+                        <span class="stat-label">Total</span>
+                        <span class="stat-value" id="stat-total-users">-</span>
+                    </div>
+                    <div class="user-stat-item stat-admin">
+                        <span class="stat-label">Admins</span>
+                        <span class="stat-value" id="stat-admins">-</span>
+                    </div>
+                    <div class="user-stat-item stat-supervisor">
+                        <span class="stat-label">Supervisores</span>
+                        <span class="stat-value" id="stat-supervisors">-</span>
+                    </div>
+                    <div class="user-stat-item stat-user">
+                        <span class="stat-label">Palpiteiros</span>
+                        <span class="stat-value" id="stat-palpiteiros">-</span>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="admin-users-toolbar">
+                    <div class="users-filters">
+                        <select id="filter-user-role" class="filter-select">
+                            <option value="">Todas categorias</option>
+                            <option value="admin">Administrador</option>
+                            <option value="supervisor">Supervisor</option>
+                            <option value="user">Palpiteiro</option>
+                        </select>
+                        <select id="filter-user-status" class="filter-select">
+                            <option value="">Todos status</option>
+                            <option value="active">Ativos</option>
+                            <option value="inactive">Inativos</option>
+                            <option value="verified">Verificados</option>
+                            <option value="unverified">Nao verificados</option>
+                        </select>
+                        <input type="text" id="filter-user-search" class="filter-input" placeholder="Buscar por nome ou e-mail...">
+                    </div>
+                </div>
+
+                <!-- Botao Novo Usuario -->
+                <button class="btn btn-admin-action btn-primary-action btn-new-user-full" id="btn-new-user">
+                    <i class="fas fa-user-plus"></i> Novo Usuario
+                </button>
+
+                <!-- Lista de Usuarios -->
+                <div class="admin-users-list" id="admin-users-list">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i> Carregando usuarios...
+                    </div>
+                </div>
+            </div>
+
+            {% if is_dev_mode %}
+            <!-- Gerenciamento de Partidas (DEV ONLY) -->
+            <div class="admin-section admin-section-dev">
+                <h3><i class="fas fa-futbol"></i> Gerenciar Partidas <span class="dev-badge">DEV</span></h3>
+                <p class="admin-section-desc">Cadastrar, editar e remover partidas manualmente (apenas em desenvolvimento)</p>
+
+                <!-- Botao Nova Partida -->
+                <button class="btn btn-admin-action btn-primary-action btn-new-match-full" id="btn-new-match">
+                    <i class="fas fa-plus"></i> Nova Partida
+                </button>
+
+                <!-- Lista de Partidas -->
+                <div class="admin-matches-list" id="admin-matches-list">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i> Carregando partidas...
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Log de Acoes -->
+            <div class="admin-section">
+                <div class="admin-log" id="admin-log">
+                    <div class="log-entry info">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Painel administrativo carregado</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if is_dev_mode %}
+<!-- Modal de Edicao/Criacao de Partida -->
+<div id="match-edit-modal" class="modal">
+    <div class="modal-content match-edit-modal-content">
+        <button class="modal-close" id="close-match-edit-modal">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="modal-header">
+            <h2 id="match-edit-title"><i class="fas fa-futbol"></i> Nova Partida</h2>
+        </div>
+        <div class="modal-body">
+            <form id="match-edit-form">
+                <input type="hidden" id="match-edit-id" value="">
+                <!-- Dados ocultos dos times selecionados -->
+                <input type="hidden" id="match-home-team-id" value="">
+                <input type="hidden" id="match-home-team-logo" value="">
+                <input type="hidden" id="match-home-team-stadium" value="">
+                <input type="hidden" id="match-away-team-id" value="">
+                <input type="hidden" id="match-away-team-logo" value="">
+                <input type="hidden" id="match-away-team-stadium" value="">
+                <!-- Dados ocultos da competicao selecionada -->
+                <input type="hidden" id="match-competition-id" value="">
+                <input type="hidden" id="match-competition-logo" value="">
+
+                <!-- Mando do Bahia (primeiro para definir posicoes) -->
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="match-location">Mando do Bahia *</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="match-location" value="home" checked>
+                                <span class="radio-label"><i class="fas fa-home"></i> SIM - Bahia joga em casa</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="match-location" value="away">
+                                <span class="radio-label"><i class="fas fa-plane"></i> NAO - Bahia joga fora</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Times -->
+                <div class="form-row">
+                    <div class="form-group autocomplete-container">
+                        <label for="match-home-team">Time da Casa *</label>
+                        <div class="autocomplete-wrapper">
+                            <div class="selected-team-preview" id="home-team-preview" style="display: none;">
+                                <img src="" alt="" class="team-preview-logo" id="home-team-preview-logo">
+                                <span id="home-team-preview-name"></span>
+                                <button type="button" class="btn-clear-team" data-target="home">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <input type="text" id="match-home-team" class="form-input team-autocomplete"
+                                   data-type="home" autocomplete="off" placeholder="Buscar time...">
+                            <div class="autocomplete-results" id="home-team-results"></div>
+                        </div>
+                    </div>
+                    <div class="form-group autocomplete-container">
+                        <label for="match-away-team">Time Visitante *</label>
+                        <div class="autocomplete-wrapper">
+                            <div class="selected-team-preview" id="away-team-preview" style="display: none;">
+                                <img src="" alt="" class="team-preview-logo" id="away-team-preview-logo">
+                                <span id="away-team-preview-name"></span>
+                                <button type="button" class="btn-clear-team" data-target="away">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <input type="text" id="match-away-team" class="form-input team-autocomplete"
+                                   data-type="away" autocomplete="off" placeholder="Buscar time...">
+                            <div class="autocomplete-results" id="away-team-results"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="match-date">Data/Hora *</label>
+                        <input type="datetime-local" id="match-date" class="form-input" required>
+                    </div>
+                    <div class="form-group autocomplete-container">
+                        <label for="match-competition">Competicao *</label>
+                        <div class="autocomplete-wrapper">
+                            <div class="selected-competition-preview" id="competition-preview" style="display: none;">
+                                <img src="" alt="" class="competition-preview-logo" id="competition-preview-logo">
+                                <span id="competition-preview-name"></span>
+                                <button type="button" class="btn-clear-competition">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <input type="text" id="match-competition" class="form-input competition-autocomplete"
+                                   autocomplete="off" placeholder="Buscar competicao...">
+                            <div class="autocomplete-results" id="competition-results"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="match-venue">
+                            Estadio
+                            <span class="venue-auto-hint" id="venue-auto-hint" style="display: none;">
+                                (preenchido automaticamente)
+                            </span>
+                        </label>
+                        <input type="text" id="match-venue" class="form-input" placeholder="Ex: Arena Fonte Nova">
+                    </div>
+                    <div class="form-group">
+                        <label for="match-round">Rodada</label>
+                        <input type="text" id="match-round" class="form-input" placeholder="Ex: 10">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="match-status">Status</label>
+                        <select id="match-status" class="form-input">
+                            <option value="upcoming">Agendado</option>
+                            <option value="live">Ao Vivo</option>
+                            <option value="finished">Encerrado</option>
+                            <option value="postponed">Adiado</option>
+                            <option value="cancelled">Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="match-result-group" style="display: none;">
+                        <label>Resultado</label>
+                        <div class="result-inputs">
+                            <input type="number" id="match-result-bahia" class="form-input result-input" min="0" placeholder="Bahia">
+                            <span class="result-x">x</span>
+                            <input type="number" id="match-result-opponent" class="form-input result-input" min="0" placeholder="Adv.">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="btn-cancel-match">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-match">
+                        <i class="fas fa-save"></i> Salvar Partida
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal de Edicao/Criacao de Usuario -->
+<div id="user-edit-modal" class="modal">
+    <div class="modal-content user-edit-modal-content">
+        <button class="modal-close" id="close-user-edit-modal">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="modal-header">
+            <h2 id="user-edit-title"><i class="fas fa-user-plus"></i> Novo Usuario</h2>
+        </div>
+        <div class="modal-body">
+            <form id="user-edit-form">
+                <input type="hidden" id="user-edit-id" value="">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="user-name">Nome *</label>
+                        <input type="text" id="user-name" class="form-input" required placeholder="Nome completo">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-email">E-mail *</label>
+                        <input type="email" id="user-email" class="form-input" required placeholder="email@exemplo.com">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="user-role">Categoria *</label>
+                        <select id="user-role" class="form-input" required>
+                            <option value="user">Palpiteiro</option>
+                            <option value="supervisor">Supervisor</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                        <small class="form-help">
+                            <strong>Administrador:</strong> Acesso total ao sistema<br>
+                            <strong>Supervisor:</strong> Acesso a relatorios internos<br>
+                            <strong>Palpiteiro:</strong> Usuario comum
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="user-password">Senha</label>
+                        <input type="password" id="user-password" class="form-input" placeholder="Deixe em branco para manter">
+                        <small class="form-help">Minimo 6 caracteres. Deixe em branco para nao alterar.</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="user-points">Pontos</label>
+                        <input type="number" id="user-points" class="form-input" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-hits">Acertos</label>
+                        <input type="number" id="user-hits" class="form-input" min="0" value="0">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="user-is-active" checked>
+                            <span>Usuario Ativo</span>
+                        </label>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="user-is-verified">
+                            <span>E-mail Verificado</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="btn-cancel-user">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-user">
+                        <i class="fas fa-save"></i> Salvar Usuario
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab navigation
+    const tabBtns = document.querySelectorAll('.tab-btn, .bottom-nav-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tab = this.dataset.tab;
+
+            // Remove active from all
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+
+            // Add active to clicked and corresponding content
+            document.querySelectorAll(`[data-tab="${tab}"]`).forEach(b => b.classList.add('active'));
+            document.getElementById(tab).classList.add('active');
+        });
+    });
+
+    // Bet Modal
+    const betModal = document.getElementById('bet-modal');
+    const closeBetModal = document.getElementById('close-bet-modal');
+    const heroBetBtn = document.getElementById('hero-bet-btn');
+
+    if (heroBetBtn) {
+        heroBetBtn.addEventListener('click', function() {
+            betModal.classList.add('active');
+        });
+    }
+
+    if (closeBetModal) {
+        closeBetModal.addEventListener('click', function() {
+            betModal.classList.remove('active');
+        });
+    }
+
+    // User Menu
+    const userInfo = document.querySelector('.user-info');
+    const userMenuModal = document.getElementById('user-menu-modal');
+    const closeUserMenu = document.getElementById('close-user-menu');
+
+    if (userInfo && userMenuModal) {
+        userInfo.addEventListener('click', function(e) {
+            e.preventDefault();
+            userMenuModal.classList.add('active');
+        });
+    }
+
+    if (closeUserMenu) {
+        closeUserMenu.addEventListener('click', function() {
+            userMenuModal.classList.remove('active');
+        });
+    }
+
+    // Close modals on backdrop click
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('active');
+            }
+        });
+    });
+
+    // Bet form validation
+    const inputs = ['home-win-bahia', 'home-win-opponent', 'draw-bahia', 'draw-opponent'];
+    const confirmBtn = document.getElementById('confirm-bet-btn');
+
+    inputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('input', validateBetForm);
+        }
+    });
+
+    function validateBetForm() {
+        const homeWinBahia = parseInt(document.getElementById('home-win-bahia').value) || 0;
+        const homeWinOpp = parseInt(document.getElementById('home-win-opponent').value) || 0;
+        const drawBahia = parseInt(document.getElementById('draw-bahia').value) || 0;
+        const drawOpp = parseInt(document.getElementById('draw-opponent').value) || 0;
+
+        // Vitoria Bahia: Bahia > Adversario
+        const validWin = homeWinBahia > homeWinOpp;
+        // Empate: Bahia == Adversario
+        const validDraw = drawBahia === drawOpp;
+
+        if (confirmBtn) {
+            confirmBtn.disabled = !(validWin && validDraw);
+        }
+    }
+});
+</script>
+{% endblock %}

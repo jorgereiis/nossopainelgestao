@@ -1,0 +1,141 @@
+{% extends 'jampabet/base.html' %}
+{% load static %}
+
+{% block title %}Início{% endblock %}
+
+{% block splash %}
+<div id="splash-screen" class="splash-screen">
+    <div class="splash-content">
+        <div class="logo-container">
+            <div class="logo-icon">
+                <i class="fas fa-futbol"></i>
+            </div>
+            <h1 class="logo-text">JAMPA<span>BET</span></h1>
+        </div>
+        <div class="loading-bar">
+            <div class="loading-progress"></div>
+        </div>
+        <p class="splash-tagline">Bora Bahêa Minha Porra!</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block app_class %}hidden{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+{% if next_match %}
+<section class="hero-section">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <div class="next-match-card">
+            <div class="match-badge">
+                <i class="fas fa-fire"></i> PRÓXIMO JOGO
+            </div>
+            <div class="match-teams">
+                <div class="team home">
+                    <div class="team-logo-img">
+                        <img src="{{ next_match.home_team_logo }}" alt="{{ next_match.home_team }}">
+                    </div>
+                    <span class="team-name">{{ next_match.home_team }}</span>
+                </div>
+                <div class="match-info">
+                    <span class="match-time">{{ next_match.date|date:"H:i" }}</span>
+                    <span class="match-date">{{ next_match.date|date:"D, d M"|upper }}</span>
+                    <span class="match-competition">{{ next_match.competition }}</span>
+                </div>
+                <div class="team away">
+                    <div class="team-logo-img">
+                        <img src="{{ next_match.away_team_logo }}" alt="{{ next_match.away_team }}">
+                    </div>
+                    <span class="team-name">{{ next_match.away_team }}</span>
+                </div>
+            </div>
+            <a href="{% url 'jampabet:login' %}" class="btn btn-glow">
+                <i class="fas fa-bolt"></i> ENTRAR PARA PALPITAR
+            </a>
+        </div>
+    </div>
+</section>
+{% else %}
+<section class="hero-section">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <div class="next-match-card">
+            <div style="text-align: center; padding: 30px;">
+                <i class="fas fa-futbol" style="font-size: 4rem; color: rgba(255,255,255,0.5); margin-bottom: 20px;"></i>
+                <h2 style="color: white; margin-bottom: 10px;">JampaBet</h2>
+                <p style="color: rgba(255,255,255,0.8);">Palpites dos jogos do Bahia entre amigos</p>
+                <a href="{% url 'jampabet:login' %}" class="btn btn-glow" style="margin-top: 20px;">
+                    <i class="fas fa-sign-in-alt"></i> Entrar
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Info Section -->
+<section style="padding: 40px 20px; max-width: 800px; margin: 0 auto;">
+    <div style="text-align: center; margin-bottom: 40px;">
+        <h2 style="font-size: 1.5rem; color: var(--text-primary); margin-bottom: 10px;">
+            <i class="fas fa-trophy" style="color: var(--gold);"></i> Como funciona?
+        </h2>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        <div class="stat-card" style="flex-direction: column; text-align: center; padding: 30px;">
+            <div class="stat-icon" style="margin-bottom: 15px;">
+                <i class="fas fa-envelope"></i>
+            </div>
+            <h3 style="font-size: 1rem; margin-bottom: 8px;">1. Receba o convite</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">Ative sua conta pelo e-mail</p>
+        </div>
+
+        <div class="stat-card" style="flex-direction: column; text-align: center; padding: 30px;">
+            <div class="stat-icon" style="margin-bottom: 15px;">
+                <i class="fas fa-ticket-alt"></i>
+            </div>
+            <h3 style="font-size: 1rem; margin-bottom: 8px;">2. Faca seus palpites</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">Aposte nos jogos do Bahia</p>
+        </div>
+
+        <div class="stat-card" style="flex-direction: column; text-align: center; padding: 30px;">
+            <div class="stat-icon" style="margin-bottom: 15px;">
+                <i class="fas fa-medal"></i>
+            </div>
+            <h3 style="font-size: 1rem; margin-bottom: 8px;">3. Ganhe pontos</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">Acerte e suba no ranking!</p>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 40px;">
+        <a href="{% url 'jampabet:login' %}" class="btn btn-primary">
+            <i class="fas fa-sign-in-alt"></i> Entrar
+        </a>
+    </div>
+</section>
+
+<!-- Pontuação -->
+<section style="padding: 20px; max-width: 600px; margin: 0 auto;">
+    <div class="stat-card" style="flex-direction: column; padding: 25px;">
+        <h3 style="margin-bottom: 20px; color: var(--text-primary);">
+            <i class="fas fa-star" style="color: var(--gold);"></i> Sistema de Pontuação
+        </h3>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; padding: 10px; background: #f9fafb; border-radius: 8px;">
+                <span><i class="fas fa-trophy" style="color: var(--primary-blue);"></i> Vitória do Bahia</span>
+                <strong style="color: var(--success);">+3 pontos</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 10px; background: #f9fafb; border-radius: 8px;">
+                <span><i class="fas fa-handshake" style="color: var(--text-secondary);"></i> Empate</span>
+                <strong style="color: var(--warning);">+1 ponto</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 10px; background: #f9fafb; border-radius: 8px;">
+                <span><i class="fas fa-bullseye" style="color: var(--primary-red);"></i> Placar exato</span>
+                <strong style="color: var(--gold);">+5 pontos</strong>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

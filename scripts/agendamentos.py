@@ -22,6 +22,7 @@ from mensagens_wpp import (
 )
 from upload_status_wpp import executar_upload_image_from_telegram_com_lock
 from integracoes.telegram_connection import telegram_connection
+from jampabet_live_matches import run_check_and_poll as jampabet_check_live_matches
 
 ################################################
 ##### PROTEÇÃO CONTRA MÚLTIPLAS INSTÂNCIAS #####
@@ -186,6 +187,9 @@ schedule.every().day.at("23:50").do(run_threaded_sync, executar_upload_image_fro
 schedule.every(60).minutes.do(run_threaded_sync, backup_db_sh).tag("backup_db")
 schedule.every(1).minutes.do(run_threaded_sync_nolog, executar_envios_agendados_com_lock).tag("envios_agendados")
 schedule.every(1).minutes.do(run_threaded_sync_nolog, run_scheduled_tasks_from_db).tag("tarefas_envio_db")
+
+# JampaBet - Verificacao de partidas ao vivo (a cada 1 minuto)
+schedule.every(1).minutes.do(run_threaded_sync_nolog, jampabet_check_live_matches).tag("jampabet_live")
 
 # --------------- Verificação de Lock de Instância Única ---------------
 if not acquire_scheduler_lock():
