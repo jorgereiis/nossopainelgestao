@@ -50,6 +50,7 @@ from nossopainel.services.wpp import (
     LogTemplates,
     MessageSendConfig,
     send_message,
+    _sanitize_response,
 )
 from wpp.api_connection import (
     check_number_status,
@@ -1055,7 +1056,8 @@ def envia_mensagem_personalizada(
                 try:
                     response_payload = response.json()
                 except json.JSONDecodeError:
-                    response_payload = response.text
+                    # Sanitiza para evitar registrar HTML de páginas de erro
+                    response_payload = _sanitize_response(response.text)
 
                 if status_code in (200, 201):
                     registrar_log(
@@ -1084,7 +1086,8 @@ def envia_mensagem_personalizada(
                     break
 
                 error_message = (
-                    response_payload.get('message', 'Erro desconhecido')
+                    # Suporta tanto respostas da API quanto dicts sanitizados de HTML
+                    response_payload.get('message') or response_payload.get('mensagem', 'Erro desconhecido')
                     if isinstance(response_payload, dict)
                     else str(response_payload)
                 )
@@ -1095,7 +1098,8 @@ def envia_mensagem_personalizada(
                     try:
                         response_payload = exc.response.json()
                     except (ValueError, AttributeError):
-                        response_payload = getattr(exc.response, "text", None)
+                        # Sanitiza para evitar registrar HTML de páginas de erro
+                        response_payload = _sanitize_response(getattr(exc.response, "text", None))
                 error_message = str(exc)
 
             if status_code in (200, 201):
@@ -1615,9 +1619,12 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
                         error_data = exc_envio.response.json()
                         error_msg = error_data.get('message', error_data.get('error', str(error_data)))
                     except Exception:
-                        # Se não for JSON, limita tamanho para evitar HTML
-                        raw_text = exc_envio.response.text
-                        error_msg = raw_text[:200] if len(raw_text) <= 200 else "Resposta não-JSON truncada"
+                        # Sanitiza para evitar registrar HTML de páginas de erro (ex: Cloudflare 504)
+                        sanitized = _sanitize_response(exc_envio.response.text)
+                        if isinstance(sanitized, dict):
+                            error_msg = sanitized.get('mensagem', 'Erro desconhecido')
+                        else:
+                            error_msg = str(sanitized)
 
                 logger.error(
                     "Erro no envio - revertendo ultimo_envio | usuario=%s tipo=%s status_code=%s erro=%s",

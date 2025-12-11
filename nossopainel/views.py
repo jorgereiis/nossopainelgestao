@@ -1,6 +1,7 @@
 """Views responsáveis por dashboards, cadastros e integrações do painel."""
 
 import base64
+from .services.wpp import _sanitize_response
 from .email_utils import (
     send_profile_change_notification,
     send_password_change_notification,
@@ -1352,9 +1353,14 @@ def send_message_wpp(request):
                         else:
                             try:
                                 response_data = response.json()
-                                error_message = response_data.get('message', response.text)
+                                error_message = response_data.get('message', 'Erro desconhecido')
                             except json.decoder.JSONDecodeError:
-                                error_message = response.text
+                                # Sanitiza para evitar registrar HTML de páginas de erro
+                                sanitized = _sanitize_response(response.text)
+                                if isinstance(sanitized, dict):
+                                    error_message = sanitized.get('mensagem', 'Erro desconhecido')
+                                else:
+                                    error_message = str(sanitized)
 
                             masked_phone = mask_phone_number(telefone)
                             log_result(log_filename, f"[TIPO][Manual] [USUÁRIO][{usuario}] [TELEFONE][{masked_phone}] [CODE][{response.status_code}] - {error_message}")
@@ -7018,13 +7024,15 @@ def internal_send_whatsapp(request):
         timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
         client_ip = request.META.get('REMOTE_ADDR', 'unknown')
 
+        # Sanitiza resposta para evitar registrar HTML de páginas de erro
+        sanitized_resp = _sanitize_response(response.text, max_length=200)
         log_entry = (
             f"[{timestamp}] "
             f"Tipo: {tipo} | "
             f"IP: {client_ip} | "
             f"Telefone: {telefone_admin} | "
             f"Status: {response.status_code} | "
-            f"Response: {response.text[:200]}"
+            f"Response: {sanitized_resp}"
         )
         append_line(str(log_path), log_entry)
 

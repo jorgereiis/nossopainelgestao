@@ -312,8 +312,12 @@ def get_all_labels(token, user):
         'Authorization': f'Bearer {token}'
     }
 
+    body = {
+        "phone": MEU_NUM_CLARO,
+    }
+
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, json=body)
 
         if response.status_code in [200, 201]:
             response_data = response.json()

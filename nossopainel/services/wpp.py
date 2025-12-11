@@ -15,6 +15,55 @@ from django.utils.timezone import localtime
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_response(response: Any, max_length: int = 500) -> Any:
+    """
+    Sanitiza respostas para evitar que HTML de páginas de erro seja registrado.
+
+    - Se for dict, retorna como está
+    - Se for string HTML, extrai informações úteis (status code, mensagem)
+    - Se for string longa, trunca
+    """
+    if response is None:
+        return None
+
+    if isinstance(response, dict):
+        return response
+
+    if isinstance(response, str):
+        response_lower = response.lower()
+        # Detecta se é uma página HTML de erro
+        if '<!doctype' in response_lower or '<html' in response_lower:
+            # Tenta extrair informações úteis do HTML de erro
+            error_info = {"tipo": "html_error_page"}
+
+            # Extrai o título/código de erro comum (Cloudflare, Nginx, etc.)
+            if 'gateway time-out' in response_lower or '504' in response:
+                error_info["codigo"] = 504
+                error_info["mensagem"] = "Gateway time-out"
+            elif 'bad gateway' in response_lower or '502' in response:
+                error_info["codigo"] = 502
+                error_info["mensagem"] = "Bad Gateway"
+            elif 'service unavailable' in response_lower or '503' in response:
+                error_info["codigo"] = 503
+                error_info["mensagem"] = "Service Unavailable"
+            elif 'not found' in response_lower or '404' in response:
+                error_info["codigo"] = 404
+                error_info["mensagem"] = "Not Found"
+            elif 'cloudflare' in response_lower:
+                error_info["origem"] = "Cloudflare"
+                error_info["mensagem"] = "Erro de proxy Cloudflare"
+            else:
+                error_info["mensagem"] = "Página de erro HTML recebida"
+
+            return error_info
+
+        # Para strings não-HTML, trunca se muito longa
+        if len(response) > max_length:
+            return response[:max_length] + "... [truncado]"
+
+    return response
+
+
 JsonDict = Dict[str, Any]
 AuditCallback = Callable[[JsonDict], None]
 LogWriter = Callable[[str], None]
@@ -121,7 +170,8 @@ def send_raw_message(
     try:
         payload = response.json()
     except ValueError:
-        payload = response.text
+        # Sanitiza para evitar propagar HTML de páginas de erro
+        payload = _sanitize_response(response.text)
     return response.status_code, payload
 
 
@@ -233,7 +283,8 @@ def send_message(config: MessageSendConfig) -> MessageSendResult:
             try:
                 last_response = response.json() if response else None
             except (ValueError, AttributeError):
-                last_response = getattr(response, "text", None)
+                # Sanitiza para evitar registrar HTML de páginas de erro (ex: Cloudflare 504)
+                last_response = _sanitize_response(getattr(response, "text", None))
             error_message = str(exc)
         except RuntimeError as exc:
             last_status = None
@@ -265,7 +316,8 @@ def send_message(config: MessageSendConfig) -> MessageSendResult:
 
         if error_message is None:
             if isinstance(last_response, dict):
-                error_message = last_response.get("message", "Erro desconhecido")
+                # Suporta tanto respostas da API quanto dicts sanitizados de HTML
+                error_message = last_response.get("message") or last_response.get("mensagem", "Erro desconhecido")
             else:
                 error_message = str(last_response)
         last_error = error_message
