@@ -214,11 +214,28 @@ def get_label_contact(telefone, token, user):
 def check_number_status(telefone, token, user):
     """Verifica se o telefone informado está registrado no WhatsApp.
 
+    A validação considera 3 cenários de resposta da API WPPConnect:
+
+    1. Número VÁLIDO e ATIVO:
+       - ``id`` é um objeto com ``user``, ``server``, ``_serialized``
+       - ``numberExists: true``, ``canReceiveMessage: true``
+
+    2. Número NUNCA EXISTIU (falso positivo da API):
+       - ``id`` está AUSENTE (campo não retornado)
+       - ``numberExists: true`` (INCORRETO - bug da API)
+
+    3. Número EXISTIU mas FOI DESATIVADO:
+       - ``id`` é uma string (ex: "5521972516590@c.us")
+       - ``numberExists: false``, ``canReceiveMessage: false``
+
     Returns
     -------
     dict
-        Estrutura com as chaves ``status`` (bool) e ``user`` (str ou ``None``).
-        Em caso de erro adiciona ``error`` com detalhe textual.
+        Estrutura com as chaves:
+        - ``status`` (bool): True apenas se número realmente existe e pode receber mensagens
+        - ``user`` (str ou None): Número corrigido/normalizado pela API
+        - ``can_receive`` (bool): Se pode receber mensagens
+        - ``error`` (str, opcional): Detalhe textual em caso de erro
     """
 
     url = f'{URL_API_WPP}/{user}/check-number-status/{telefone}'
@@ -227,34 +244,62 @@ def check_number_status(telefone, token, user):
         'Authorization': f'Bearer {token}'
     }
 
-    body = {
-        "phone": telefone,
-    }
-
     try:
-        response = requests.get(url, headers=headers, json=body)
+        response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
 
         if response.status_code in [200, 201]:
             response_data = response.json()
-            status = response_data.get('response', {}).get('numberExists', False)
-            user_data = response_data.get('response', {}).get('id') or {}
-            user_number = user_data.get('user')
-            logger.info("[check_number_status] %s | Número válido: %s", user, telefone)
-            return {'status': status, 'user': user_number}
+            resp = response_data.get('response', {})
 
-        error_message = (
-            f"{response.status_code} - {response.text}"
-        )
+            number_exists = resp.get('numberExists', False)
+            can_receive = resp.get('canReceiveMessage', False)
+            id_field = resp.get('id')
+
+            # Validação robusta: o 'id' deve ser um objeto com 'user'
+            # Se 'id' está ausente ou é string, o número não é válido
+            id_is_valid = isinstance(id_field, dict) and id_field.get('user') is not None
+            user_number = id_field.get('user') if id_is_valid else None
+
+            # Número só é considerado válido se:
+            # 1. numberExists == True
+            # 2. canReceiveMessage == True
+            # 3. id é um objeto válido com 'user'
+            is_valid = number_exists and can_receive and id_is_valid
+
+            if is_valid:
+                logger.info(
+                    "[check_number_status] %s | Número VÁLIDO: %s -> %s",
+                    user, telefone, user_number
+                )
+            elif number_exists and not id_is_valid:
+                # Falso positivo da API (número nunca existiu)
+                logger.warning(
+                    "[check_number_status] %s | Falso positivo detectado (sem id válido): %s",
+                    user, telefone
+                )
+            else:
+                logger.info(
+                    "[check_number_status] %s | Número INVÁLIDO: %s (exists=%s, canReceive=%s)",
+                    user, telefone, number_exists, can_receive
+                )
+
+            return {
+                'status': is_valid,
+                'user': user_number,
+                'can_receive': can_receive,
+                'number_exists_raw': number_exists,  # Valor bruto da API (para debug)
+            }
+
+        error_message = f"{response.status_code} - {response.text}"
         logger.error(
             "[check_number_status] %s | Erro ao verificar %s: %s",
-            user,
-            telefone,
-            error_message,
+            user, telefone, error_message,
         )
-        return {'status': False, 'user': None, 'error': error_message}
+        return {'status': False, 'user': None, 'can_receive': False, 'error': error_message}
+
     except requests.RequestException as exc:
         logger.exception("[check_number_status] %s | Falha de requisição: %s", user, exc)
-        return {'status': False, 'user': None, 'error': str(exc)}
+        return {'status': False, 'user': None, 'can_receive': False, 'error': str(exc)}
 
 
 # --- Função para obter todas as labels disponíveis para um contato ---
@@ -267,12 +312,8 @@ def get_all_labels(token, user):
         'Authorization': f'Bearer {token}'
     }
 
-    body = {
-        "phone": MEU_NUM_CLARO,
-    }
-
     try:
-        response = requests.get(url, headers=headers, json=body)
+        response = requests.get(url, headers=headers)
 
         if response.status_code in [200, 201]:
             response_data = response.json()

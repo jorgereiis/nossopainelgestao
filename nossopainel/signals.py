@@ -278,8 +278,6 @@ def cliente_post_save(sender, instance, created, **kwargs):
         except Exception as error:
             _log_event(logging.ERROR, instance, func_name, f"Erro ao remover etiquetas do telefone antigo {telefone_anterior}", exc_info=error)
 
-    # TODO: Reativar a verificação de número (`check_number_status`) caso volte a ser necessária.
-
     try:
         labels_atuais = get_label_contact(telefone, token.token, user=token)
     except Exception as error:
