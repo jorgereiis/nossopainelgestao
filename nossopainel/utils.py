@@ -514,6 +514,33 @@ def existe_cliente_variacoes(telefone_variacoes, user):
 
     return cliente_telefone
 
+def normalizar_telefone_br(telefone: str) -> str:
+    """
+    Normaliza telefone brasileiro removendo DDI duplicado e caracteres especiais.
+
+    Exemplos:
+        +55558396239140 -> 5583996239140 (remove 55 duplicado)
+        +5583996239140  -> 5583996239140
+        5583996239140   -> 5583996239140
+        83996239140     -> 5583996239140 (adiciona DDI)
+    """
+    # Remove tudo exceto dígitos
+    tel = re.sub(r'\D+', '', telefone)
+
+    # Corrige DDI duplicado: 5555... -> 55...
+    # Telefone BR válido com DDI tem 12-13 dígitos (55 + DDD + número)
+    # Se tem 14+ dígitos e começa com 5555, provavelmente é DDI duplicado
+    if len(tel) >= 14 and tel.startswith('5555'):
+        tel = tel[2:]  # Remove os primeiros 55
+        logger.debug("[normalizar_telefone_br] DDI duplicado corrigido: %s -> %s", telefone, tel)
+
+    # Se não tem DDI, adiciona
+    if len(tel) in [10, 11] and not tel.startswith('55'):
+        tel = '55' + tel
+
+    return tel
+
+
 def validar_tel_whatsapp(telefone: str, token: str, user=None) -> dict:
     """
     Valida um telefone contra a base de clientes e a API do WhatsApp.
@@ -523,9 +550,20 @@ def validar_tel_whatsapp(telefone: str, token: str, user=None) -> dict:
     número está apto a receber mensagens.
     """
     func_name = validar_tel_whatsapp.__name__
+
+    # Normaliza o telefone antes de validar (corrige DDI duplicado, etc)
+    telefone_original = telefone
+    telefone = normalizar_telefone_br(telefone)
+
+    if telefone != re.sub(r'\D+', '', telefone_original):
+        logger.info(
+            "[%s] Telefone normalizado: %s -> %s",
+            func_name, telefone_original, telefone
+        )
+
     telefone_variacoes = gerar_variacoes_telefone(telefone)
     resultado = {
-        "telefone_cadastro": telefone,
+        "telefone_cadastro": telefone_original,
         "telefone_validado_wpp": None,
         "cliente_existe_telefone": None,
         "wpp": False,

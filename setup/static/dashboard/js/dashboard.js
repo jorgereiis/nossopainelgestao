@@ -1363,7 +1363,12 @@ function ensureEditTelefoneITI() {
             }
             if (countryCode === 'br') {
                 let numero = telefoneInput.value.replace(/\D/g, '');
-                if (numero.length >= 10) {
+                // Remove DDI duplicado: se já começa com 55, não adiciona novamente
+                if (numero.startsWith('55') && numero.length >= 12) {
+                    // Já tem DDI, apenas formata com +
+                    telefoneInput.value = '+' + numero;
+                } else if (numero.length >= 10) {
+                    // Não tem DDI, adiciona +55
                     telefoneInput.value = '+55' + numero;
                 }
             } else {
