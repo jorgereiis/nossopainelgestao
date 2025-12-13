@@ -1398,55 +1398,70 @@ def run_scheduled_tasks_from_db():
                     tarefa.usuario.username
                 )
 
+                # Marca tarefa como em execução
+                tarefa.em_execucao = True
+                tarefa.execucao_iniciada_em = agora
+                tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
+
                 inicio = time.time()
 
-                # Determina caminho da imagem
-                image_path = None
-                if tarefa.imagem:
-                    image_path = tarefa.imagem.path
+                try:
+                    # Determina caminho da imagem
+                    image_path = None
+                    if tarefa.imagem:
+                        image_path = tarefa.imagem.path
 
-                # Executa envio usando a função existente
-                resultado = envia_mensagem_personalizada(
-                    tipo_envio=tarefa.tipo_envio,
-                    mensagem_direta=tarefa.mensagem_plaintext or tarefa.mensagem,
-                    image_path=image_path,
-                    usuario_id=tarefa.usuario_id
-                )
+                    # Executa envio usando a função existente
+                    resultado = envia_mensagem_personalizada(
+                        tipo_envio=tarefa.tipo_envio,
+                        mensagem_direta=tarefa.mensagem_plaintext or tarefa.mensagem,
+                        image_path=image_path,
+                        usuario_id=tarefa.usuario_id
+                    )
 
-                duracao = int(time.time() - inicio)
+                    duracao = int(time.time() - inicio)
 
-                # Determina status
-                if resultado['erros'] == 0 and resultado['enviados'] > 0:
-                    status = 'sucesso'
-                elif resultado['enviados'] > 0:
-                    status = 'parcial'
-                else:
-                    status = 'erro'
+                    # Determina status
+                    if resultado['erros'] == 0 and resultado['enviados'] > 0:
+                        status = 'sucesso'
+                    elif resultado['enviados'] > 0:
+                        status = 'parcial'
+                    else:
+                        status = 'erro'
 
-                # Registra histórico
-                HistoricoExecucaoTarefa.objects.create(
-                    tarefa=tarefa,
-                    status=status,
-                    quantidade_enviada=resultado['enviados'],
-                    quantidade_erros=resultado['erros'],
-                    detalhes=json.dumps(resultado.get('detalhes', {})),
-                    duracao_segundos=duracao
-                )
+                    # Registra histórico
+                    HistoricoExecucaoTarefa.objects.create(
+                        tarefa=tarefa,
+                        status=status,
+                        quantidade_enviada=resultado['enviados'],
+                        quantidade_erros=resultado['erros'],
+                        detalhes=json.dumps(resultado.get('detalhes', {})),
+                        duracao_segundos=duracao
+                    )
 
-                # Atualiza tarefa
-                tarefa.ultimo_envio = agora
-                tarefa.total_envios += resultado['enviados']
-                tarefa.save(update_fields=['ultimo_envio', 'total_envios'])
+                    # Atualiza tarefa (marca como não mais em execução)
+                    tarefa.ultimo_envio = agora
+                    tarefa.total_envios += resultado['enviados']
+                    tarefa.em_execucao = False
+                    tarefa.execucao_iniciada_em = None
+                    tarefa.save(update_fields=['ultimo_envio', 'total_envios', 'em_execucao', 'execucao_iniciada_em'])
 
-                logger.info(
-                    "TarefaEnvio concluída | tarefa_id=%d nome=%s status=%s enviados=%d erros=%d duracao=%ds",
-                    tarefa.id,
-                    tarefa.nome,
-                    status,
-                    resultado['enviados'],
-                    resultado['erros'],
-                    duracao
-                )
+                    logger.info(
+                        "TarefaEnvio concluída | tarefa_id=%d nome=%s status=%s enviados=%d erros=%d duracao=%ds",
+                        tarefa.id,
+                        tarefa.nome,
+                        status,
+                        resultado['enviados'],
+                        resultado['erros'],
+                        duracao
+                    )
+
+                except Exception as e:
+                    # Garante que em_execucao é resetado mesmo em caso de erro interno
+                    tarefa.em_execucao = False
+                    tarefa.execucao_iniciada_em = None
+                    tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
+                    raise  # Re-lança a exceção para o handler externo
 
             except Exception as e:
                 logger.exception(
@@ -1455,6 +1470,13 @@ def run_scheduled_tasks_from_db():
                     tarefa.nome,
                     str(e)
                 )
+                # Garante que em_execucao é resetado
+                try:
+                    tarefa.em_execucao = False
+                    tarefa.execucao_iniciada_em = None
+                    tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
+                except:
+                    pass
                 # Registra erro no histórico
                 HistoricoExecucaoTarefa.objects.create(
                     tarefa=tarefa,

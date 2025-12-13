@@ -2706,6 +2706,12 @@ class TarefaEnvio(models.Model):
         ('avulso', 'Leads (Avulso)'),
     ]
 
+    # Choices para tipo de agendamento
+    TIPO_AGENDAMENTO_CHOICES = [
+        ('recorrente', 'Recorrente'),
+        ('unico', 'Envio Único'),
+    ]
+
     # Choices para período do mês
     PERIODO_CHOICES = [
         ('', 'Selecione o período'),
@@ -2794,6 +2800,19 @@ class TarefaEnvio(models.Model):
         help_text='Se desativado, a tarefa não será executada'
     )
 
+    em_execucao = models.BooleanField(
+        default=False,
+        verbose_name='Em Execução',
+        help_text='Indica se a tarefa está sendo executada no momento'
+    )
+
+    execucao_iniciada_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Execução Iniciada Em',
+        help_text='Data/hora do início da execução atual'
+    )
+
     ultimo_envio = models.DateTimeField(
         null=True,
         blank=True,
@@ -2828,6 +2847,23 @@ class TarefaEnvio(models.Model):
         blank=True,
         verbose_name='Pausado Até',
         help_text='Data/hora até quando a tarefa está pausada'
+    )
+
+    # Tipo de agendamento (recorrente ou único)
+    tipo_agendamento = models.CharField(
+        max_length=20,
+        choices=TIPO_AGENDAMENTO_CHOICES,
+        default='recorrente',
+        verbose_name='Tipo de Agendamento',
+        help_text='Recorrente: repete nos dias selecionados. Único: executa apenas uma vez na data específica.'
+    )
+
+    # Data para envio único
+    data_envio_unico = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Data do Envio Único',
+        help_text='Data específica para envio único (ignora dias da semana)'
     )
 
     # Metadados
@@ -2969,6 +3005,86 @@ class TarefaEnvio(models.Model):
         if self.mensagem:
             self.mensagem_plaintext = self.converter_html_para_whatsapp()
         super().save(*args, **kwargs)
+
+
+class TemplateMensagem(models.Model):
+    """
+    Templates pré-definidos de mensagens para reutilização nas tarefas de envio.
+    Permite salvar mensagens frequentes para uso posterior.
+    """
+
+    CATEGORIA_CHOICES = [
+        ('promocao', 'Promoção'),
+        ('lembrete', 'Lembrete'),
+        ('boas_vindas', 'Boas-vindas'),
+        ('cobranca', 'Cobrança'),
+        ('geral', 'Geral'),
+    ]
+
+    nome = models.CharField(
+        max_length=100,
+        verbose_name='Nome do Template',
+        help_text='Nome identificador do template'
+    )
+
+    descricao = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Descrição',
+        help_text='Descrição breve do template'
+    )
+
+    categoria = models.CharField(
+        max_length=50,
+        choices=CATEGORIA_CHOICES,
+        default='geral',
+        verbose_name='Categoria',
+        help_text='Categoria para organização'
+    )
+
+    mensagem_html = models.TextField(
+        verbose_name='Mensagem (HTML)',
+        help_text='Conteúdo da mensagem com formatação'
+    )
+
+    imagem = models.ImageField(
+        upload_to='templates_mensagem/',
+        null=True,
+        blank=True,
+        verbose_name='Imagem',
+        help_text='Imagem associada ao template (opcional)'
+    )
+
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name='Ativo'
+    )
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='templates_mensagem',
+        verbose_name='Usuário'
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Criado Em'
+    )
+
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Atualizado Em'
+    )
+
+    class Meta:
+        db_table = 'cadastros_templatemensagem'
+        verbose_name = 'Template de Mensagem'
+        verbose_name_plural = 'Templates de Mensagem'
+        ordering = ['categoria', 'nome']
+
+    def __str__(self):
+        return f"[{self.get_categoria_display()}] {self.nome}"
 
 
 class HistoricoExecucaoTarefa(models.Model):

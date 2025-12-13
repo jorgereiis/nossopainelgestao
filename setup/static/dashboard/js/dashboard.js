@@ -1539,6 +1539,69 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ----------------------
+// DROPDOWN MOBILE COM BACKDROP
+// ----------------------
+function isMobileDevice() {
+    return window.innerWidth <= 991;
+}
+
+// Adiciona backdrop quando dropdown abre em mobile
+document.addEventListener('show.bs.dropdown', function(event) {
+    if (isMobileDevice()) {
+        // Verifica se é um dropdown de tabela
+        const dropdown = event.target.closest('.dropdown');
+        const table = dropdown ? dropdown.closest('table') : null;
+
+        if (table && (table.id === 'myTable' || table.id === 'servidoresTable' ||
+            table.id === 'aplicativosTable' || table.id === 'dispositivosTable' ||
+            table.id === 'planosTable' || table.id === 'formasPgtoTable')) {
+
+            // Remove backdrop existente
+            const existingBackdrop = document.querySelector('.dropdown-backdrop-mobile');
+            if (existingBackdrop) {
+                existingBackdrop.remove();
+            }
+
+            // Cria novo backdrop
+            const backdrop = document.createElement('div');
+            backdrop.className = 'dropdown-backdrop-mobile';
+            document.body.appendChild(backdrop);
+
+            // Fecha dropdown ao clicar no backdrop
+            backdrop.addEventListener('click', function() {
+                const openDropdown = document.querySelector('.dropdown-menu.show');
+                if (openDropdown) {
+                    const bsDropdown = bootstrap.Dropdown.getInstance(openDropdown.previousElementSibling) ||
+                                       bootstrap.Dropdown.getOrCreateInstance(openDropdown.previousElementSibling);
+                    if (bsDropdown) {
+                        bsDropdown.hide();
+                    }
+                }
+                backdrop.remove();
+            });
+        }
+    }
+});
+
+// Remove backdrop quando dropdown fecha
+document.addEventListener('hide.bs.dropdown', function(event) {
+    const backdrop = document.querySelector('.dropdown-backdrop-mobile');
+    if (backdrop) {
+        backdrop.remove();
+    }
+});
+
+// Remove backdrop ao redimensionar para desktop
+window.addEventListener('resize', function() {
+    if (!isMobileDevice()) {
+        const backdrop = document.querySelector('.dropdown-backdrop-mobile');
+        if (backdrop) {
+            backdrop.remove();
+        }
+    }
+});
+
+// ----------------------
 // EXPORTAÇÕES GLOBAIS
 // ----------------------
 // Exporta funções para o escopo global para que possam ser chamadas via onclick no HTML

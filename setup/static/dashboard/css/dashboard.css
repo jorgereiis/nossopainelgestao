@@ -1878,3 +1878,397 @@ button.dropdown-item.dropdown-action-delete:focus i {
 .btn-lg.btn-loading-ready {
     min-height: 48px;
 }
+
+/* ========================================================================== */
+/* DROPDOWN MOBILE - ESTILO ACTION SHEET                                      */
+/* ========================================================================== */
+
+@media (max-width: 991.98px) {
+    /* Dropdown fixo na parte inferior da tela em mobile */
+    #myTable .dropdown-menu,
+    #myTable .dropdown-menu.show,
+    #servidoresTable .dropdown-menu,
+    #servidoresTable .dropdown-menu.show,
+    #aplicativosTable .dropdown-menu,
+    #aplicativosTable .dropdown-menu.show,
+    #dispositivosTable .dropdown-menu,
+    #dispositivosTable .dropdown-menu.show,
+    #planosTable .dropdown-menu,
+    #planosTable .dropdown-menu.show,
+    #formasPgtoTable .dropdown-menu,
+    #formasPgtoTable .dropdown-menu.show {
+        position: fixed !important;
+        top: auto !important;
+        left: 50% !important;
+        right: auto !important;
+        bottom: 20px !important;
+        transform: translateX(-50%) !important;
+        width: calc(100% - 40px) !important;
+        max-width: 320px;
+        z-index: 1080;
+        box-shadow: 0 -4px 25px rgba(0,0,0,0.2);
+        border-radius: 16px;
+        animation: mobileDropdownSlideUp 0.25s ease !important;
+        padding: 0.75rem 0;
+    }
+
+    @keyframes mobileDropdownSlideUp {
+        from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    }
+
+    /* Itens maiores para facilitar o toque */
+    #myTable .dropdown-menu .dropdown-item,
+    #servidoresTable .dropdown-menu .dropdown-item,
+    #aplicativosTable .dropdown-menu .dropdown-item,
+    #dispositivosTable .dropdown-menu .dropdown-item,
+    #planosTable .dropdown-menu .dropdown-item,
+    #formasPgtoTable .dropdown-menu .dropdown-item {
+        padding: 1rem 1.25rem !important;
+        font-size: 1rem !important;
+    }
+
+    #myTable .dropdown-menu .dropdown-item i,
+    #servidoresTable .dropdown-menu .dropdown-item i,
+    #aplicativosTable .dropdown-menu .dropdown-item i,
+    #dispositivosTable .dropdown-menu .dropdown-item i,
+    #planosTable .dropdown-menu .dropdown-item i,
+    #formasPgtoTable .dropdown-menu .dropdown-item i {
+        width: 20px;
+        height: 20px;
+    }
+
+    #myTable .dropdown-menu .dropdown-divider,
+    #servidoresTable .dropdown-menu .dropdown-divider,
+    #aplicativosTable .dropdown-menu .dropdown-divider,
+    #dispositivosTable .dropdown-menu .dropdown-divider,
+    #planosTable .dropdown-menu .dropdown-divider,
+    #formasPgtoTable .dropdown-menu .dropdown-divider {
+        margin: 0.75rem 0;
+    }
+
+    /* Overlay escuro atrás do dropdown */
+    .dropdown-backdrop-mobile {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 1079;
+        animation: backdropFadeIn 0.2s ease;
+    }
+
+    @keyframes backdropFadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+}
+
+/* ===== RESPONSIVIDADE MODAL INFO CLIENTE ===== */
+
+/* Tabelas do modal info cliente em mobile */
+@media (max-width: 576px) {
+    /* Tabelas compactas */
+    .table-info-cliente {
+        font-size: 0.8rem;
+    }
+
+    .table-info-cliente th,
+    .table-info-cliente td {
+        padding: 0.5rem 0.35rem !important;
+    }
+
+    .table-info-cliente .pill-invoice,
+    .table-info-cliente .pill-invoice-small {
+        font-size: 0.6rem;
+        padding: 0.15rem 0.35rem;
+    }
+
+    /* Oculta coluna ID na tabela de cobrancas */
+    #table-invoice th:first-child,
+    #table-invoice td:first-child {
+        display: none;
+    }
+
+    /* Tabelas com scroll horizontal suave */
+    #info-cliente-modal .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Manter texto em linha unica nas tabelas */
+    .table-info-cliente th,
+    .table-info-cliente td {
+        white-space: nowrap !important;
+    }
+
+    /* Cards de resumo compactos */
+    .charge-summary .card {
+        padding: 0.6rem 0.75rem !important;
+    }
+
+    .num-resumo {
+        font-size: 1.5rem !important;
+    }
+
+    .charge-summary .badge {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.4rem;
+    }
+
+    /* Header do modal */
+    #info-cliente-modal .modal-content {
+        padding: 0.75rem !important;
+    }
+
+    #info-cliente-modal .modal-header h1,
+    #info-cliente-modal #info-cliente-label {
+        font-size: 1.15rem !important;
+    }
+
+    #modal-info-body-1 h4,
+    #info-cliente-modal h4 {
+        font-size: 1rem !important;
+        margin-top: 1rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+
+    /* Scroll horizontal nas tabelas */
+    .custom-table-scroll {
+        max-height: 220px;
+        overflow-x: auto;
+        position: relative;
+    }
+
+    /* Labels dos dados do cliente */
+    #modal-info-body-1 .fs-9 {
+        font-size: 0.7rem !important;
+    }
+
+    #modal-info-body-1 .fs-8 {
+        font-size: 0.85rem !important;
+    }
+
+    /* Espacamento interno do body */
+    #modal-info-body-1 {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+
+    /* Card desconto progressivo */
+    #card-desconto-progressivo .row {
+        gap: 0.5rem;
+    }
+
+    #card-desconto-progressivo .col-md-4 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+/* ===== RESPONSIVIDADE MODAL EDITAR CLIENTE ===== */
+
+@media (max-width: 767px) {
+    /* Header compacto */
+    #edit-cliente-modal .modal-header {
+        padding: 0.75rem 1rem;
+    }
+
+    #edit-cliente-modal .modal-header h4 {
+        font-size: 1.1rem;
+    }
+
+    /* Body com menos padding */
+    #edit-cliente-modal .modal-body {
+        padding: 0.75rem;
+    }
+
+    /* Cards internos compactos */
+    #edit-cliente-modal .card {
+        margin-bottom: 1rem !important;
+    }
+
+    #edit-cliente-modal .card-header {
+        padding: 0.75rem 1rem;
+    }
+
+    #edit-cliente-modal .card-header h5 {
+        font-size: 0.95rem;
+    }
+
+    #edit-cliente-modal .card-header small {
+        font-size: 0.7rem;
+    }
+
+    #edit-cliente-modal .card-body {
+        padding: 0.75rem 1rem;
+    }
+
+    /* Inputs e selects menores */
+    #edit-cliente-modal .form-control-lg,
+    #edit-cliente-modal .form-select-lg {
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    /* Labels compactos */
+    #edit-cliente-modal .form-label {
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+    }
+
+    #edit-cliente-modal .form-label .badge {
+        font-size: 0.6rem;
+        padding: 0.15rem 0.35rem;
+    }
+
+    /* Textos de ajuda menores */
+    #edit-cliente-modal small.text-muted {
+        font-size: 0.7rem;
+    }
+
+    /* Toggle switch ajustado */
+    #edit-cliente-modal .form-check-label {
+        font-size: 0.85rem;
+    }
+
+    #edit-cliente-modal .form-switch .form-check-input {
+        width: 2.5rem !important;
+        height: 1.25rem !important;
+    }
+
+    /* Texto do toggle sem margem excessiva */
+    #edit-cliente-modal .form-check + small,
+    #edit-cliente-modal .form-switch + small {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+        display: block;
+        margin-top: 0.25rem;
+    }
+
+    /* Footer com botoes empilhados */
+    #edit-cliente-modal .modal-footer {
+        padding: 0.75rem 1rem;
+        flex-direction: column-reverse;
+        gap: 0.5rem;
+    }
+
+    #edit-cliente-modal .modal-footer .btn {
+        width: 100%;
+        margin: 0 !important;
+    }
+
+    /* Badge de contagem de contas */
+    #edit-contas-count-badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Icones menores nos labels */
+    #edit-cliente-modal .form-label i,
+    #edit-cliente-modal .card-header i {
+        font-size: 0.9rem;
+    }
+
+    /* Espacamento entre rows */
+    #edit-cliente-modal .row {
+        --bs-gutter-x: 0.75rem;
+    }
+
+    #edit-cliente-modal .mb-3 {
+        margin-bottom: 0.75rem !important;
+    }
+
+    /* Header com bordas arredondadas no topo em fullscreen */
+    #edit-cliente-modal .modal-header {
+        border-top-left-radius: 0.5rem !important;
+        border-top-right-radius: 0.5rem !important;
+    }
+
+    /* Selects - evita overflow do dropdown */
+    #edit-cliente-modal .form-select {
+        max-width: 100%;
+    }
+
+    #edit-cliente-modal select option {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Campo telefone - ajusta padding para bandeira */
+    #edit-cliente-modal .iti {
+        width: 100%;
+    }
+
+    #edit-cliente-modal .iti input {
+        padding-left: 52px !important;
+    }
+
+    #edit-cliente-modal .iti__flag-container {
+        left: 0;
+    }
+
+    /* Cards de contas - header responsivo empilhado */
+    #edit-cliente-modal #edit-contas-apps-container .card-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.5rem;
+    }
+
+    #edit-cliente-modal #edit-contas-apps-container .card-header > div:first-child {
+        width: 100%;
+    }
+
+    #edit-cliente-modal #edit-contas-apps-container .card-header h6 {
+        font-size: 0.9rem;
+        word-break: break-word;
+    }
+
+    /* Toggle conta principal - abaixo do titulo */
+    #edit-cliente-modal #edit-contas-apps-container .form-switch {
+        display: flex;
+        align-items: center;
+        padding-left: 0;
+        margin: 0;
+        order: 2;
+    }
+
+    #edit-cliente-modal #edit-contas-apps-container .form-switch .form-check-input {
+        margin-left: 0;
+        margin-right: 0.5rem;
+        float: none;
+        width: 2rem !important;
+        height: 1rem !important;
+    }
+
+    #edit-cliente-modal #edit-contas-apps-container .form-switch .form-check-label {
+        font-size: 0.8rem;
+        margin-left: 0 !important;
+    }
+
+    /* Oculta texto "(obrigatório - conta única)" em mobile */
+    #edit-cliente-modal #edit-contas-apps-container .form-switch .form-check-label .text-muted {
+        display: none !important;
+    }
+
+    /* Evita scroll horizontal no modal */
+    #edit-cliente-modal .modal-body {
+        overflow-x: hidden !important;
+    }
+
+    #edit-cliente-modal .card-body {
+        overflow-x: hidden;
+    }
+}

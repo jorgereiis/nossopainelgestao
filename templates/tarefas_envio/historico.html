@@ -3,86 +3,528 @@
 
 {% block title %}Historico - {{ tarefa.nome }} | Nosso Painel{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* ============================================
+       PREMIUM CARDS - Estilo Dashboard
+       ============================================ */
+    .stat-card {
+        background: #fff;
+        border-radius: 1rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: none;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: linear-gradient(180deg, var(--card-accent-start, #754ffe) 0%, var(--card-accent-end, #5a3fd6) 100%);
+    }
+    .stat-card.card-success::before {
+        --card-accent-start: #198754;
+        --card-accent-end: #157347;
+    }
+    .stat-card.card-warning::before {
+        --card-accent-start: #ffc107;
+        --card-accent-end: #e0a800;
+    }
+    .stat-card.card-info::before {
+        --card-accent-start: #0dcaf0;
+        --card-accent-end: #0aa2c0;
+    }
+    .stat-card .card-body {
+        padding: 1.25rem;
+    }
+    .stat-card .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    .stat-card .stat-icon.icon-primary {
+        background: linear-gradient(135deg, #f0ebff 0%, #e8e0ff 100%);
+        color: #754ffe;
+    }
+    .stat-card .stat-icon.icon-success {
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        color: #198754;
+    }
+    .stat-card .stat-icon.icon-warning {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        color: #d97706;
+    }
+    .stat-card .stat-icon.icon-info {
+        background: linear-gradient(135deg, #e0f7ff 0%, #cceeff 100%);
+        color: #0891b2;
+    }
+    .stat-card .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.25rem;
+    }
+    .stat-card .stat-label {
+        font-size: 0.8125rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* ============================================
+       PREMIUM CARD GERAL
+       ============================================ */
+    .premium-card {
+        background: #fff;
+        border-radius: 1rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: none;
+        overflow: hidden;
+    }
+    .premium-card .card-header {
+        background: transparent;
+        border-bottom: 1px solid #f1f5f9;
+        padding: 1rem 1.25rem;
+    }
+    .premium-card .card-header h5 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* ============================================
+       GRAFICO CONTAINER
+       ============================================ */
+    .chart-container {
+        position: relative;
+        height: 200px;
+        padding: 1rem;
+    }
+
+    /* ============================================
+       FILTROS
+       ============================================ */
+    .filtros-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .filtros-container .form-select,
+    .filtros-container .form-control {
+        border-radius: 0.5rem;
+        border-color: #e2e8f0;
+        font-size: 0.875rem;
+    }
+    .filtros-container .form-select:focus,
+    .filtros-container .form-control:focus {
+        border-color: #754ffe;
+        box-shadow: 0 0 0 3px rgba(117, 79, 254, 0.1);
+    }
+    .filtro-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .filtro-label {
+        font-size: 0.8125rem;
+        color: #64748b;
+        white-space: nowrap;
+    }
+
+    /* ============================================
+       TABELA PREMIUM
+       ============================================ */
+    .table-premium {
+        margin-bottom: 0;
+    }
+    .table-premium thead th {
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+        font-weight: 600;
+        font-size: 0.8125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        padding: 0.875rem 1rem;
+    }
+    .table-premium tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .table-premium tbody tr:hover {
+        background: #f8fafc;
+    }
+    .table-premium tbody tr.row-error {
+        background: #fef2f2;
+    }
+    .table-premium tbody tr.row-error:hover {
+        background: #fee2e2;
+    }
+
+    /* ============================================
+       STATUS BADGES
+       ============================================ */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 2rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+    }
+    .status-badge.status-sucesso {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    .status-badge.status-parcial {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    .status-badge.status-erro {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    /* ============================================
+       CARD INFO TAREFA
+       ============================================ */
+    .tarefa-info-card {
+        background: linear-gradient(135deg, #f8f5ff 0%, #f0ebff 100%);
+        border-radius: 1rem;
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .tarefa-info-card .tarefa-imagem {
+        width: 80px;
+        height: 80px;
+        border-radius: 0.75rem;
+        object-fit: cover;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .tarefa-info-card .tarefa-placeholder {
+        width: 80px;
+        height: 80px;
+        border-radius: 0.75rem;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .tarefa-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    /* ============================================
+       MODAL ESTRUTURADO
+       ============================================ */
+    .modal-detalhes .nav-tabs {
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .modal-detalhes .nav-tabs .nav-link {
+        border: none;
+        color: #64748b;
+        font-weight: 500;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0;
+        position: relative;
+    }
+    .modal-detalhes .nav-tabs .nav-link:hover {
+        color: #754ffe;
+    }
+    .modal-detalhes .nav-tabs .nav-link.active {
+        color: #754ffe;
+        background: transparent;
+    }
+    .modal-detalhes .nav-tabs .nav-link.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #754ffe;
+    }
+    .modal-detalhes .tab-content {
+        padding: 1.5rem 0;
+    }
+    .detalhes-card {
+        background: #f8fafc;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+    }
+    .detalhes-card .detalhes-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        text-transform: uppercase;
+        margin-bottom: 0.25rem;
+    }
+    .detalhes-card .detalhes-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    .erro-item {
+        background: #fef2f2;
+        border-left: 3px solid #ef4444;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        border-radius: 0 0.5rem 0.5rem 0;
+    }
+    .erro-item .erro-telefone {
+        font-weight: 600;
+        color: #991b1b;
+    }
+    .erro-item .erro-motivo {
+        font-size: 0.875rem;
+        color: #7f1d1d;
+    }
+    .json-viewer {
+        background: #1e293b;
+        color: #e2e8f0;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        font-family: 'Fira Code', monospace;
+        font-size: 0.8125rem;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    /* ============================================
+       PAGINACAO PREMIUM
+       ============================================ */
+    .pagination-premium {
+        display: flex;
+        justify-content: center;
+        gap: 0.25rem;
+        padding: 1rem;
+    }
+    .pagination-premium .page-link {
+        border: none;
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.875rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+    .pagination-premium .page-link:hover {
+        background: #f1f5f9;
+        color: #754ffe;
+    }
+    .pagination-premium .page-item.active .page-link {
+        background: #754ffe;
+        color: #fff;
+    }
+
+    /* ============================================
+       BOTAO COPIAR
+       ============================================ */
+    .btn-copiar {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    /* ============================================
+       RESPONSIVIDADE MOBILE
+       ============================================ */
+    @media (max-width: 767px) {
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .stats-grid .stat-card .stat-value {
+            font-size: 1.5rem;
+        }
+        .stats-grid .stat-card .stat-icon {
+            width: 44px;
+            height: 44px;
+            font-size: 1.25rem;
+        }
+        .filtros-container {
+            flex-direction: column;
+        }
+        .filtro-group {
+            width: 100%;
+        }
+        .filtro-group .form-select,
+        .filtro-group .form-control {
+            flex: 1;
+        }
+        .col-duracao {
+            display: none;
+        }
+        .tarefa-info-card {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+
+    /* ============================================
+       EMPTY STATE
+       ============================================ */
+    .empty-state {
+        padding: 4rem 2rem;
+        text-align: center;
+    }
+    .empty-state .empty-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1.5rem;
+        background: #f1f5f9;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: #94a3b8;
+    }
+    .empty-state h5 {
+        color: #64748b;
+        margin-bottom: 0.5rem;
+    }
+    .empty-state p {
+        color: #94a3b8;
+        font-size: 0.875rem;
+    }
+
+    /* ============================================
+       LOADING STATE
+       ============================================ */
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        border-radius: inherit;
+    }
+    .table-container {
+        position: relative;
+        min-height: 200px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid p-6">
+<div class="container-fluid p-4 p-lg-6">
     <!-- Page header -->
-    <div class="row">
-        <div class="col-lg-12 col-md-12 col-12">
-            <div class="border-bottom pb-4 mb-4 d-flex justify-content-between align-items-center">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{% url 'tarefas-envio-lista' %}">Tarefas de Envio</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'tarefas-envio-lista' %}" class="text-decoration-none">Tarefas de Envio</a></li>
                             <li class="breadcrumb-item active">Historico</li>
                         </ol>
                     </nav>
                     <h3 class="mb-0 fw-bold">Historico de Execucoes</h3>
-                    <p class="mb-0 text-muted">Tarefa: <strong>{{ tarefa.nome }}</strong></p>
                 </div>
-                <a href="{% url 'tarefas-envio-lista' %}" class="btn btn-outline-secondary">
-                    <i data-feather="arrow-left" class="icon-xs me-1"></i> Voltar
-                </a>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-success" id="btn-exportar-csv" title="Exportar CSV">
+                        <i class="bi bi-download me-1"></i> Exportar
+                    </button>
+                    <a href="{% url 'tarefas-envio-lista' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Voltar
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Cards de estatisticas -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-4 mb-xl-0">
-            <div class="card shadow-sm border-0 h-100">
+    <div class="row mb-4 stats-grid">
+        <div class="col-xl-3 col-lg-3 col-md-6 col-6 mb-4 mb-xl-0">
+            <div class="stat-card h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-2">Total Execucoes</h6>
-                            <h2 class="mb-0 fw-bold">{{ total_execucoes }}</h2>
+                            <div class="stat-value" id="stat-total">{{ total_execucoes }}</div>
+                            <div class="stat-label">Execucoes</div>
                         </div>
-                        <div class="icon-shape icon-lg bg-light-primary rounded-circle text-primary">
-                            <i data-feather="activity" class="icon-sm"></i>
+                        <div class="stat-icon icon-primary">
+                            <i class="bi bi-activity"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-4 mb-xl-0">
-            <div class="card shadow-sm border-0 h-100">
+        <div class="col-xl-3 col-lg-3 col-md-6 col-6 mb-4 mb-xl-0">
+            <div class="stat-card card-success h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-2">Sucesso</h6>
-                            <h2 class="mb-0 fw-bold text-success">{{ total_sucesso }}</h2>
+                            <div class="stat-value text-success" id="stat-sucesso">{{ total_sucesso }}</div>
+                            <div class="stat-label">Sucesso</div>
                         </div>
-                        <div class="icon-shape icon-lg bg-light-success rounded-circle text-success">
-                            <i data-feather="check-circle" class="icon-sm"></i>
+                        <div class="stat-icon icon-success">
+                            <i class="bi bi-check-circle"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-4 mb-xl-0">
-            <div class="card shadow-sm border-0 h-100">
+        <div class="col-xl-3 col-lg-3 col-md-6 col-6 mb-4 mb-xl-0">
+            <div class="stat-card card-warning h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-2">Parcial/Erro</h6>
-                            <h2 class="mb-0 fw-bold text-warning">{{ total_parcial|add:total_erro }}</h2>
+                            <div class="stat-value text-warning" id="stat-parcial-erro">{{ total_parcial|add:total_erro }}</div>
+                            <div class="stat-label">Parcial/Erro</div>
                         </div>
-                        <div class="icon-shape icon-lg bg-light-warning rounded-circle text-warning">
-                            <i data-feather="alert-triangle" class="icon-sm"></i>
+                        <div class="stat-icon icon-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-3 col-md-6 col-12">
-            <div class="card shadow-sm border-0 h-100">
+        <div class="col-xl-3 col-lg-3 col-md-6 col-6">
+            <div class="stat-card card-info h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-2">Taxa Sucesso</h6>
-                            <h2 class="mb-0 fw-bold text-info">{{ taxa_sucesso }}%</h2>
+                            <div class="stat-value text-info" id="stat-taxa">{{ taxa_sucesso }}%</div>
+                            <div class="stat-label">Taxa Sucesso</div>
                         </div>
-                        <div class="icon-shape icon-lg bg-light-info rounded-circle text-info">
-                            <i data-feather="percent" class="icon-sm"></i>
+                        <div class="stat-icon icon-info">
+                            <i class="bi bi-percent"></i>
                         </div>
                     </div>
                 </div>
@@ -90,51 +532,59 @@
         </div>
     </div>
 
-    <!-- Info da tarefa -->
     <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-body py-3">
-                    <div class="row align-items-center">
-                        <div class="col-auto">
-                            {% if tarefa.imagem %}
-                            <img src="{{ tarefa.imagem.url }}" class="rounded" width="50" height="50" style="object-fit: cover;">
-                            {% else %}
-                            <div class="icon-shape icon-lg bg-light rounded">
-                                <i data-feather="send" class="icon-sm text-muted"></i>
-                            </div>
-                            {% endif %}
+        <!-- Info da tarefa -->
+        <div class="col-lg-5 mb-4 mb-lg-0">
+            <div class="premium-card h-100">
+                <div class="card-header">
+                    <h5><i class="bi bi-info-circle text-primary"></i> Informacoes da Tarefa</h5>
+                </div>
+                <div class="card-body">
+                    <div class="tarefa-info-card">
+                        {% if tarefa.imagem %}
+                        <img src="{{ tarefa.imagem.url }}" class="tarefa-imagem" alt="{{ tarefa.nome }}">
+                        {% else %}
+                        <div class="tarefa-placeholder">
+                            <i class="bi bi-send text-muted fs-3"></i>
                         </div>
-                        <div class="col">
-                            <h5 class="mb-1">{{ tarefa.nome }}</h5>
-                            <div class="d-flex flex-wrap gap-2">
+                        {% endif %}
+                        <div class="flex-grow-1">
+                            <h5 class="mb-1 fw-bold">{{ tarefa.nome }}</h5>
+                            <div class="tarefa-badges">
                                 {% if tarefa.tipo_envio == 'ativos' %}
-                                <span class="badge bg-success-soft text-success">Clientes Ativos</span>
+                                <span class="badge bg-success">Clientes Ativos</span>
                                 {% elif tarefa.tipo_envio == 'cancelados' %}
-                                <span class="badge bg-danger-soft text-danger">Cancelados</span>
+                                <span class="badge bg-danger">Cancelados</span>
                                 {% else %}
-                                <span class="badge bg-info-soft text-info">Leads</span>
+                                <span class="badge bg-info">Leads</span>
                                 {% endif %}
-
                                 <span class="badge bg-light text-dark">
-                                    <i data-feather="clock" class="icon-xxs me-1"></i>{{ tarefa.horario|time:"H:i" }}
+                                    <i class="bi bi-clock me-1"></i>{{ tarefa.horario|time:"H:i" }}
                                 </span>
-
                                 {% for dia in tarefa.get_dias_semana_abrev %}
                                 <span class="badge bg-light text-dark">{{ dia }}</span>
                                 {% endfor %}
-
                                 <span class="badge {% if tarefa.ativo %}bg-success{% else %}bg-secondary{% endif %}">
                                     {% if tarefa.ativo %}Ativa{% else %}Inativa{% endif %}
                                 </span>
                             </div>
                         </div>
-                        <div class="col-auto">
-                            <a href="{% url 'tarefas-envio-editar' tarefa.id %}" class="btn btn-sm btn-outline-primary">
-                                <i data-feather="edit-2" class="icon-xs me-1"></i> Editar
-                            </a>
-                        </div>
+                        <a href="{% url 'tarefas-envio-editar' tarefa.id %}" class="btn btn-sm btn-primary">
+                            <i class="bi bi-pencil me-1"></i> Editar
+                        </a>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grafico de tendencia -->
+        <div class="col-lg-7">
+            <div class="premium-card h-100">
+                <div class="card-header">
+                    <h5><i class="bi bi-graph-up text-success"></i> Tendencia de Envios</h5>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chart-tendencia"></canvas>
                 </div>
             </div>
         </div>
@@ -143,125 +593,213 @@
     <!-- Tabela de historico -->
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white py-3">
-                    <h5 class="mb-0 fw-bold">Historico de Execucoes</h5>
+            <div class="premium-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="bi bi-clock-history text-primary"></i> Historico de Execucoes</h5>
+                    <span class="badge bg-light text-dark" id="total-registros">{{ total_execucoes }} registro(s)</span>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="fw-bold">Data/Hora</th>
-                                <th class="fw-bold">Status</th>
-                                <th class="fw-bold text-center">Enviados</th>
-                                <th class="fw-bold text-center">Erros</th>
-                                <th class="fw-bold">Duracao</th>
-                                <th class="fw-bold">Detalhes</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for historico in historicos %}
-                            <tr>
-                                <td>
-                                    <span class="fw-semibold">{{ historico.data_execucao|date:"d/m/Y" }}</span>
-                                    <br>
-                                    <small class="text-muted">{{ historico.data_execucao|time:"H:i:s" }}</small>
-                                </td>
-                                <td>
-                                    {% if historico.status == 'sucesso' %}
-                                    <span class="badge bg-success">
-                                        <i data-feather="check" class="icon-xxs me-1"></i> Sucesso
-                                    </span>
-                                    {% elif historico.status == 'parcial' %}
-                                    <span class="badge bg-warning">
-                                        <i data-feather="alert-triangle" class="icon-xxs me-1"></i> Parcial
-                                    </span>
-                                    {% else %}
-                                    <span class="badge bg-danger">
-                                        <i data-feather="x-circle" class="icon-xxs me-1"></i> Erro
-                                    </span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-center">
-                                    <span class="badge bg-primary rounded-pill">{{ historico.quantidade_enviada }}</span>
-                                </td>
-                                <td class="text-center">
-                                    {% if historico.quantidade_erros > 0 %}
-                                    <span class="badge bg-danger rounded-pill">{{ historico.quantidade_erros }}</span>
-                                    {% else %}
-                                    <span class="text-muted">0</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="text-muted">{{ historico.get_duracao_formatada }}</span>
-                                </td>
-                                <td>
-                                    {% if historico.detalhes %}
-                                    <button class="btn btn-sm btn-light btn-ver-detalhes" data-detalhes="{{ historico.detalhes }}">
-                                        <i data-feather="eye" class="icon-xs"></i>
-                                    </button>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="text-center py-5">
-                                    <div class="py-4">
-                                        <i data-feather="inbox" style="width: 48px; height: 48px;" class="text-muted mb-3"></i>
-                                        <h5 class="text-muted">Nenhuma execucao registrada</h5>
-                                        <p class="text-muted">O historico aparecera aqui apos a primeira execucao da tarefa</p>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+
+                <!-- Filtros -->
+                <div class="filtros-container">
+                    <div class="filtro-group">
+                        <span class="filtro-label">Status:</span>
+                        <select class="form-select form-select-sm" id="filtro-status" style="width: 150px;">
+                            <option value="">Todos</option>
+                            <option value="sucesso">Sucesso</option>
+                            <option value="parcial">Parcial</option>
+                            <option value="erro">Erro</option>
+                        </select>
+                    </div>
+                    <div class="filtro-group">
+                        <span class="filtro-label">De:</span>
+                        <input type="date" class="form-control form-control-sm" id="filtro-data-inicio" style="width: 150px;">
+                    </div>
+                    <div class="filtro-group">
+                        <span class="filtro-label">Ate:</span>
+                        <input type="date" class="form-control form-control-sm" id="filtro-data-fim" style="width: 150px;">
+                    </div>
+                    <button class="btn btn-sm btn-primary" id="btn-filtrar">
+                        <i class="bi bi-funnel me-1"></i> Filtrar
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="btn-limpar">
+                        <i class="bi bi-x-lg me-1"></i> Limpar
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <div class="loading-overlay d-none" id="loading-overlay">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-premium" id="tabela-historico">
+                            <thead>
+                                <tr>
+                                    <th><i class="bi bi-calendar3 me-1"></i> Data/Hora</th>
+                                    <th><i class="bi bi-flag me-1"></i> Status</th>
+                                    <th class="text-center"><i class="bi bi-send me-1"></i> Enviados</th>
+                                    <th class="text-center"><i class="bi bi-x-circle me-1"></i> Erros</th>
+                                    <th class="col-duracao"><i class="bi bi-stopwatch me-1"></i> Duracao</th>
+                                    <th><i class="bi bi-eye me-1"></i> Detalhes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-historico">
+                                {% for historico in historicos %}
+                                <tr class="{% if historico.status == 'erro' %}row-error{% endif %}">
+                                    <td>
+                                        <span class="fw-semibold">{{ historico.data_execucao|date:"d/m/Y" }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ historico.data_execucao|time:"H:i:s" }}</small>
+                                    </td>
+                                    <td>
+                                        {% if historico.status == 'sucesso' %}
+                                        <span class="status-badge status-sucesso">
+                                            <i class="bi bi-check-circle"></i> Sucesso
+                                        </span>
+                                        {% elif historico.status == 'parcial' %}
+                                        <span class="status-badge status-parcial">
+                                            <i class="bi bi-exclamation-triangle"></i> Parcial
+                                        </span>
+                                        {% else %}
+                                        <span class="status-badge status-erro">
+                                            <i class="bi bi-x-circle"></i> Erro
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary rounded-pill fs-6">{{ historico.quantidade_enviada }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if historico.quantidade_erros > 0 %}
+                                        <span class="badge bg-danger rounded-pill fs-6">{{ historico.quantidade_erros }}</span>
+                                        {% else %}
+                                        <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="col-duracao">
+                                        <span class="text-muted">{{ historico.get_duracao_formatada }}</span>
+                                    </td>
+                                    <td>
+                                        {% if historico.detalhes %}
+                                        <button class="btn btn-sm btn-light btn-ver-detalhes"
+                                                data-detalhes="{{ historico.detalhes|escapejs }}"
+                                                data-enviados="{{ historico.quantidade_enviada }}"
+                                                data-erros="{{ historico.quantidade_erros }}"
+                                                data-duracao="{{ historico.get_duracao_formatada }}"
+                                                data-status="{{ historico.status }}">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6">
+                                        <div class="empty-state">
+                                            <div class="empty-icon">
+                                                <i class="bi bi-inbox"></i>
+                                            </div>
+                                            <h5>Nenhuma execucao registrada</h5>
+                                            <p>O historico aparecera aqui apos a primeira execucao da tarefa</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 {% if is_paginated %}
-                <div class="card-footer bg-white">
-                    <nav aria-label="Navegacao de paginas">
-                        <ul class="pagination justify-content-center mb-0">
-                            {% if page_obj.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
-                            </li>
-                            {% endif %}
+                <nav class="pagination-premium" id="paginacao-container">
+                    <ul class="pagination mb-0">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="#" data-page="{{ page_obj.previous_page_number }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
 
-                            {% for num in page_obj.paginator.page_range %}
-                            {% if page_obj.number == num %}
-                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
-                            {% endif %}
-                            {% endfor %}
+                        {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="#" data-page="{{ num }}">{{ num }}</a></li>
+                        {% endif %}
+                        {% endfor %}
 
-                            {% if page_obj.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Proximo</a>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                </div>
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="#" data-page="{{ page_obj.next_page_number }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal de detalhes -->
-<div class="modal fade" id="modal-detalhes" tabindex="-1">
+<!-- Modal de detalhes estruturado -->
+<div class="modal fade modal-detalhes" id="modal-detalhes" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Detalhes da Execucao</h5>
+                <h5 class="modal-title"><i class="bi bi-file-text me-2"></i>Detalhes da Execucao</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <pre id="detalhes-content" class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"></pre>
+                <!-- Tabs -->
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tab-resumo-btn" data-bs-toggle="tab" data-bs-target="#tab-resumo" type="button">
+                            <i class="bi bi-grid me-1"></i> Resumo
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-erros-btn" data-bs-toggle="tab" data-bs-target="#tab-erros" type="button">
+                            <i class="bi bi-exclamation-circle me-1"></i> Erros
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-json-btn" data-bs-toggle="tab" data-bs-target="#tab-json" type="button">
+                            <i class="bi bi-code-slash me-1"></i> JSON
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- Tab Resumo -->
+                    <div class="tab-pane fade show active" id="tab-resumo" role="tabpanel">
+                        <div class="row" id="resumo-content">
+                            <!-- Preenchido via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Tab Erros -->
+                    <div class="tab-pane fade" id="tab-erros" role="tabpanel">
+                        <div id="erros-content">
+                            <!-- Preenchido via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Tab JSON -->
+                    <div class="tab-pane fade" id="tab-json" role="tabpanel">
+                        <div class="position-relative">
+                            <button class="btn btn-sm btn-outline-light btn-copiar" id="btn-copiar-json">
+                                <i class="bi bi-clipboard me-1"></i> Copiar
+                            </button>
+                            <pre class="json-viewer" id="json-content"></pre>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
@@ -272,21 +810,414 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Ver detalhes
-    $('.btn-ver-detalhes').on('click', function() {
-        const detalhes = $(this).data('detalhes');
-        try {
-            const json = JSON.parse(detalhes);
-            $('#detalhes-content').text(JSON.stringify(json, null, 2));
-        } catch (e) {
-            $('#detalhes-content').text(detalhes);
+    // ============================================
+    // VARIAVEIS GLOBAIS
+    // ============================================
+    const tarefaId = {{ tarefa.id }};
+    const apiUrl = '{% url "tarefas-envio-historico-api" tarefa.id %}';
+    let historicoData = [];
+    let chartInstance = null;
+
+    // ============================================
+    // INICIALIZA GRAFICO
+    // ============================================
+    function inicializarGrafico(data) {
+        const ctx = document.getElementById('chart-tendencia').getContext('2d');
+
+        if (chartInstance) {
+            chartInstance.destroy();
         }
+
+        const labels = data.map(d => d.data);
+        const valores = data.map(d => d.enviados);
+        const cores = data.map(d => {
+            if (d.status === 'sucesso') return '#198754';
+            if (d.status === 'parcial') return '#ffc107';
+            return '#dc3545';
+        });
+
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Mensagens Enviadas',
+                    data: valores,
+                    borderColor: '#754ffe',
+                    backgroundColor: 'rgba(117, 79, 254, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: cores,
+                    pointBorderColor: cores,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.y + ' enviados';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f1f5f9' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // Dados iniciais do grafico
+    const graficoInicial = [
+        {% for historico in historicos|slice:":10" reversed %}
+        {
+            data: '{{ historico.data_execucao|date:"d/m" }}',
+            enviados: {{ historico.quantidade_enviada }},
+            status: '{{ historico.status }}'
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    if (graficoInicial.length > 0) {
+        inicializarGrafico(graficoInicial);
+    }
+
+    // ============================================
+    // FILTROS
+    // ============================================
+    function carregarHistorico(page = 1) {
+        const status = $('#filtro-status').val();
+        const dataInicio = $('#filtro-data-inicio').val();
+        const dataFim = $('#filtro-data-fim').val();
+
+        $('#loading-overlay').removeClass('d-none');
+
+        $.ajax({
+            url: apiUrl,
+            method: 'GET',
+            data: {
+                status: status,
+                data_inicio: dataInicio,
+                data_fim: dataFim,
+                page: page
+            },
+            success: function(response) {
+                if (response.success) {
+                    historicoData = response.historicos;
+                    renderizarTabela(response.historicos);
+                    atualizarEstatisticas(response.stats);
+                    atualizarPaginacao(response.pagination);
+
+                    if (response.grafico && response.grafico.length > 0) {
+                        inicializarGrafico(response.grafico);
+                    }
+
+                    $('#total-registros').text(response.pagination.total_items + ' registro(s)');
+                }
+            },
+            error: function() {
+                Swal.fire('Erro', 'Erro ao carregar historico', 'error');
+            },
+            complete: function() {
+                $('#loading-overlay').addClass('d-none');
+            }
+        });
+    }
+
+    function renderizarTabela(historicos) {
+        const tbody = $('#tbody-historico');
+        tbody.empty();
+
+        if (historicos.length === 0) {
+            tbody.html(`
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state">
+                            <div class="empty-icon"><i class="bi bi-search"></i></div>
+                            <h5>Nenhum resultado encontrado</h5>
+                            <p>Tente ajustar os filtros</p>
+                        </div>
+                    </td>
+                </tr>
+            `);
+            return;
+        }
+
+        historicos.forEach(function(h) {
+            let statusBadge = '';
+            if (h.status === 'sucesso') {
+                statusBadge = '<span class="status-badge status-sucesso"><i class="bi bi-check-circle"></i> Sucesso</span>';
+            } else if (h.status === 'parcial') {
+                statusBadge = '<span class="status-badge status-parcial"><i class="bi bi-exclamation-triangle"></i> Parcial</span>';
+            } else {
+                statusBadge = '<span class="status-badge status-erro"><i class="bi bi-x-circle"></i> Erro</span>';
+            }
+
+            const errosBadge = h.quantidade_erros > 0
+                ? `<span class="badge bg-danger rounded-pill fs-6">${h.quantidade_erros}</span>`
+                : '<span class="text-muted">0</span>';
+
+            const detalhesBtn = h.detalhes
+                ? `<button class="btn btn-sm btn-light btn-ver-detalhes"
+                           data-detalhes="${encodeURIComponent(h.detalhes)}"
+                           data-enviados="${h.quantidade_enviada}"
+                           data-erros="${h.quantidade_erros}"
+                           data-duracao="${h.duracao}"
+                           data-status="${h.status}">
+                       <i class="bi bi-eye"></i>
+                   </button>`
+                : '<span class="text-muted">-</span>';
+
+            tbody.append(`
+                <tr class="${h.status === 'erro' ? 'row-error' : ''}">
+                    <td>
+                        <span class="fw-semibold">${h.data_execucao}</span><br>
+                        <small class="text-muted">${h.hora_execucao}</small>
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td class="text-center">
+                        <span class="badge bg-primary rounded-pill fs-6">${h.quantidade_enviada}</span>
+                    </td>
+                    <td class="text-center">${errosBadge}</td>
+                    <td class="col-duracao"><span class="text-muted">${h.duracao}</span></td>
+                    <td>${detalhesBtn}</td>
+                </tr>
+            `);
+        });
+    }
+
+    function atualizarEstatisticas(stats) {
+        $('#stat-total').text(stats.total);
+        $('#stat-sucesso').text(stats.sucesso);
+        $('#stat-parcial-erro').text(stats.parcial + stats.erro);
+        $('#stat-taxa').text(stats.taxa_sucesso + '%');
+    }
+
+    function atualizarPaginacao(pagination) {
+        const container = $('#paginacao-container ul');
+        container.empty();
+
+        if (pagination.total_pages <= 1) {
+            $('#paginacao-container').hide();
+            return;
+        }
+
+        $('#paginacao-container').show();
+
+        if (pagination.has_previous) {
+            container.append(`
+                <li class="page-item">
+                    <a class="page-link" href="#" data-page="${pagination.previous_page}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+            `);
+        }
+
+        for (let i = Math.max(1, pagination.current_page - 2); i <= Math.min(pagination.total_pages, pagination.current_page + 2); i++) {
+            if (i === pagination.current_page) {
+                container.append(`<li class="page-item active"><span class="page-link">${i}</span></li>`);
+            } else {
+                container.append(`<li class="page-item"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`);
+            }
+        }
+
+        if (pagination.has_next) {
+            container.append(`
+                <li class="page-item">
+                    <a class="page-link" href="#" data-page="${pagination.next_page}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+            `);
+        }
+    }
+
+    // Event listeners para filtros
+    $('#btn-filtrar').on('click', function() {
+        carregarHistorico(1);
+    });
+
+    $('#btn-limpar').on('click', function() {
+        $('#filtro-status').val('');
+        $('#filtro-data-inicio').val('');
+        $('#filtro-data-fim').val('');
+        carregarHistorico(1);
+    });
+
+    // Paginacao
+    $(document).on('click', '#paginacao-container a.page-link', function(e) {
+        e.preventDefault();
+        const page = $(this).data('page');
+        if (page) {
+            carregarHistorico(page);
+        }
+    });
+
+    // ============================================
+    // MODAL DE DETALHES
+    // ============================================
+    $(document).on('click', '.btn-ver-detalhes', function() {
+        let detalhesRaw = $(this).data('detalhes');
+
+        // Decodifica se necessario
+        if (typeof detalhesRaw === 'string' && detalhesRaw.includes('%')) {
+            try {
+                detalhesRaw = decodeURIComponent(detalhesRaw);
+            } catch (e) {}
+        }
+
+        const enviados = $(this).data('enviados');
+        const erros = $(this).data('erros');
+        const duracao = $(this).data('duracao');
+        const status = $(this).data('status');
+
+        let detalhes = {};
+        try {
+            detalhes = typeof detalhesRaw === 'object' ? detalhesRaw : JSON.parse(detalhesRaw);
+        } catch (e) {
+            detalhes = { raw: detalhesRaw };
+        }
+
+        // Tab Resumo
+        let statusClass = status === 'sucesso' ? 'text-success' : (status === 'parcial' ? 'text-warning' : 'text-danger');
+        let statusText = status.charAt(0).toUpperCase() + status.slice(1);
+
+        $('#resumo-content').html(`
+            <div class="col-6 col-md-3">
+                <div class="detalhes-card">
+                    <div class="detalhes-label">Status</div>
+                    <div class="detalhes-value ${statusClass}">${statusText}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="detalhes-card">
+                    <div class="detalhes-label">Enviados</div>
+                    <div class="detalhes-value text-primary">${enviados}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="detalhes-card">
+                    <div class="detalhes-label">Erros</div>
+                    <div class="detalhes-value ${erros > 0 ? 'text-danger' : ''}">${erros}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="detalhes-card">
+                    <div class="detalhes-label">Duracao</div>
+                    <div class="detalhes-value">${duracao}</div>
+                </div>
+            </div>
+        `);
+
+        // Tab Erros
+        const errosArray = detalhes.erros || detalhes.falhas || [];
+        if (errosArray.length > 0) {
+            let errosHtml = '';
+            errosArray.forEach(function(erro) {
+                const telefone = erro.telefone || erro.numero || 'Desconhecido';
+                const motivo = erro.motivo || erro.erro || erro.message || 'Erro desconhecido';
+                errosHtml += `
+                    <div class="erro-item">
+                        <div class="erro-telefone"><i class="bi bi-telephone me-1"></i>${telefone}</div>
+                        <div class="erro-motivo">${motivo}</div>
+                    </div>
+                `;
+            });
+            $('#erros-content').html(errosHtml);
+            $('#tab-erros-btn').removeClass('d-none');
+        } else {
+            $('#erros-content').html('<p class="text-muted text-center py-4">Nenhum erro registrado</p>');
+        }
+
+        // Tab JSON
+        $('#json-content').text(JSON.stringify(detalhes, null, 2));
+
+        // Abre modal
         $('#modal-detalhes').modal('show');
     });
 
-    // Re-inicializa feather icons
+    // Copiar JSON
+    $('#btn-copiar-json').on('click', function() {
+        const texto = $('#json-content').text();
+        navigator.clipboard.writeText(texto).then(function() {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'JSON copiado!',
+                showConfirmButton: false,
+                timer: 1500
+            });
+        });
+    });
+
+    // ============================================
+    // EXPORTAR CSV
+    // ============================================
+    $('#btn-exportar-csv').on('click', function() {
+        const status = $('#filtro-status').val();
+        const dataInicio = $('#filtro-data-inicio').val();
+        const dataFim = $('#filtro-data-fim').val();
+
+        // Carrega todos os dados para exportar
+        $.ajax({
+            url: apiUrl,
+            method: 'GET',
+            data: {
+                status: status,
+                data_inicio: dataInicio,
+                data_fim: dataFim,
+                page: 1
+            },
+            success: function(response) {
+                if (response.success && response.historicos.length > 0) {
+                    // Gera CSV
+                    let csv = 'Data,Hora,Status,Enviados,Erros,Duracao\n';
+                    response.historicos.forEach(function(h) {
+                        csv += `${h.data_execucao},${h.hora_execucao},${h.status},${h.quantidade_enviada},${h.quantidade_erros},"${h.duracao}"\n`;
+                    });
+
+                    // Download
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'historico-execucoes-{{ tarefa.nome|slugify }}.csv';
+                    link.click();
+
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'CSV exportado!',
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                } else {
+                    Swal.fire('Atencao', 'Nenhum dado para exportar', 'warning');
+                }
+            }
+        });
+    });
+
+    // ============================================
+    // FEATHER ICONS
+    // ============================================
     if (typeof feather !== 'undefined') {
         feather.replace();
     }

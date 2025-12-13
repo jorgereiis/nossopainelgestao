@@ -9,21 +9,193 @@
     .table-responsive {
         overflow: visible !important;
     }
+    .table-card {
+        overflow: visible !important;
+    }
+    .table-card .card-body,
+    .table-card .table-responsive {
+        overflow: visible !important;
+    }
+    .dropdown {
+        position: static;
+    }
     .dropdown-menu {
-        z-index: 1050;
+        z-index: 1060;
+        position: absolute !important;
     }
-    /* Centralizar títulos das colunas */
-    thead th {
-        text-align: center;
+    /* Garante que as linhas da tabela não cortem o dropdown */
+    tbody tr {
+        position: relative;
     }
-    /* Exceção para Nome que fica à esquerda */
-    thead th:nth-child(2) {
-        text-align: left;
+    tbody td:last-child {
+        overflow: visible !important;
     }
+
+    /* ===== DROPDOWN PREMIUM (Estilo Dashboard) ===== */
+    .table-modern .dropdown-menu {
+        min-width: 220px;
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        padding: 0.5rem 0;
+        margin-top: 4px;
+        overflow: hidden;
+        /* Desabilita animações/transforms do Bootstrap */
+        animation: none !important;
+        transform: none !important;
+        transition: none !important;
+    }
+
+    .table-modern .dropdown-menu.show {
+        z-index: 10000 !important;
+        animation: none !important;
+        transform: none !important;
+        transition: none !important;
+    }
+
+    /* Botão de ações */
+    .table-modern .dropdown .btn-action {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+    .table-modern .dropdown .btn-action:hover {
+        background-color: #f1f5f9;
+        transform: scale(1.05);
+    }
+
+    /* Base para todos os itens do dropdown */
+    .table-modern .dropdown-item {
+        padding: 0.75rem 1.25rem;
+        display: flex;
+        align-items: center;
+        position: relative;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #475569;
+        transition: background-color 0.2s ease, color 0.2s ease;
+        border: none;
+        background: transparent;
+    }
+    .table-modern .dropdown-item i,
+    .table-modern .dropdown-item svg {
+        width: 16px;
+        height: 16px;
+        margin-right: 0.75rem;
+        transition: color 0.2s ease, opacity 0.2s ease;
+        opacity: 0.7;
+    }
+
+    /* Barra lateral animada */
+    .table-modern .dropdown-item::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: #754ffe;
+        transform: scaleY(0);
+        transition: transform 0.2s ease;
+    }
+
+    /* Hover padrão (roxo) */
+    .table-modern .dropdown-item:hover,
+    .table-modern .dropdown-item:focus {
+        background-color: #f8fafc;
+        color: #754ffe;
+    }
+    .table-modern .dropdown-item:hover::before,
+    .table-modern .dropdown-item:focus::before {
+        transform: scaleY(1);
+    }
+    .table-modern .dropdown-item:hover i,
+    .table-modern .dropdown-item:hover svg,
+    .table-modern .dropdown-item:focus i,
+    .table-modern .dropdown-item:focus svg {
+        opacity: 1;
+        color: #754ffe;
+    }
+
+    /* Ação: Histórico (Azul) */
+    .table-modern .dropdown-action-history::before {
+        background: #0ea5e9;
+    }
+    .table-modern .dropdown-action-history:hover,
+    .table-modern .dropdown-action-history:focus {
+        color: #0ea5e9;
+    }
+    .table-modern .dropdown-action-history:hover i,
+    .table-modern .dropdown-action-history:hover svg {
+        color: #0ea5e9;
+    }
+
+    /* Ação: Editar (Roxo) */
+    .table-modern .dropdown-action-edit::before {
+        background: #754ffe;
+    }
+    .table-modern .dropdown-action-edit:hover,
+    .table-modern .dropdown-action-edit:focus {
+        color: #754ffe;
+    }
+    .table-modern .dropdown-action-edit:hover i,
+    .table-modern .dropdown-action-edit:hover svg {
+        color: #754ffe;
+    }
+
+    /* Ação: Duplicar (Verde) */
+    .table-modern .dropdown-action-duplicate::before {
+        background: #16a34a;
+    }
+    .table-modern .dropdown-action-duplicate:hover,
+    .table-modern .dropdown-action-duplicate:focus {
+        color: #16a34a;
+    }
+    .table-modern .dropdown-action-duplicate:hover i,
+    .table-modern .dropdown-action-duplicate:hover svg {
+        color: #16a34a;
+    }
+
+    /* Ação: Excluir (Vermelho) */
+    .table-modern .dropdown-action-delete {
+        color: #dc3545;
+    }
+    .table-modern .dropdown-action-delete i,
+    .table-modern .dropdown-action-delete svg {
+        color: #dc3545;
+        opacity: 0.8;
+    }
+    .table-modern .dropdown-action-delete::before {
+        background: #dc3545;
+    }
+    .table-modern .dropdown-action-delete:hover,
+    .table-modern .dropdown-action-delete:focus {
+        background-color: #fff5f5;
+        color: #b91c1c;
+    }
+    .table-modern .dropdown-action-delete:hover i,
+    .table-modern .dropdown-action-delete:hover svg {
+        color: #b91c1c;
+        opacity: 1;
+    }
+
+    /* Divider */
+    .table-modern .dropdown-divider {
+        margin: 0.5rem 0;
+        border-color: #e2e8f0;
+    }
+
     /* Cursor pointer no toggle */
     .toggle-tarefa {
         cursor: pointer;
     }
+
     /* Placeholder de imagem */
     .img-placeholder {
         width: 40px;
@@ -34,17 +206,126 @@
         align-items: center;
         justify-content: center;
     }
+
+    /* ===== CARDS COM DESIGN MODERNO ===== */
+    .stat-card {
+        border-radius: 1rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+    }
+    .stat-card.card-success::before { background: linear-gradient(180deg, #10b981, #34d399); }
+    .stat-card.card-secondary::before { background: linear-gradient(180deg, #6b7280, #9ca3af); }
+    .stat-card.card-warning::before { background: linear-gradient(180deg, #f59e0b, #fbbf24); }
+    .stat-card.card-primary::before { background: linear-gradient(180deg, #754ffe, #9f7aea); }
+    .stat-card.card-info::before { background: linear-gradient(180deg, #06b6d4, #22d3ee); }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+    }
+
+    /* Animacao de atualizacao */
+    .stat-card.updating {
+        animation: pulse-update 0.6s ease;
+    }
+    @keyframes pulse-update {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+        100% { transform: scale(1); }
+    }
+
+    /* Badge de tempo real */
+    .live-badge {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 1rem;
+        animation: pulse-live 2s infinite;
+    }
+    @keyframes pulse-live {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+
+    /* Icones dos cards */
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+    .stat-icon.icon-success { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+    .stat-icon.icon-secondary { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+    .stat-icon.icon-warning { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+    .stat-icon.icon-primary { background: rgba(117, 79, 254, 0.15); color: #754ffe; }
+    .stat-icon.icon-info { background: rgba(6, 182, 212, 0.15); color: #06b6d4; }
+
+    /* Valor do card com contador animado */
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        line-height: 1;
+        transition: all 0.3s ease;
+    }
+    .stat-value.changed {
+        color: #754ffe;
+    }
+
+    /* ===== TABELA MODERNA ===== */
+    .table-modern {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .table-modern thead th {
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+        padding: 1rem 0.75rem;
+    }
+    .table-modern tbody td {
+        vertical-align: middle;
+        padding: 1rem 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .table-modern tbody tr {
+        transition: all 0.2s ease;
+    }
+    .table-modern tbody tr:hover {
+        background: #f8fafc;
+    }
+
     /* Calendario */
     .calendario-dia {
         border: 1px solid #e0e6ed;
-        border-radius: 0.5rem;
+        border-radius: 0.75rem;
         min-height: 150px;
         padding: 0.75rem;
         background: #fff;
+        transition: all 0.2s ease;
+    }
+    .calendario-dia:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
     .calendario-dia.hoje {
         border-color: #754ffe;
-        background: #f8f5ff;
+        background: linear-gradient(135deg, #f8f5ff 0%, #fff 100%);
+        box-shadow: 0 4px 12px rgba(117, 79, 254, 0.15);
     }
     .calendario-dia-header {
         font-weight: 600;
@@ -58,27 +339,435 @@
     }
     .calendario-tarefa {
         font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
-        margin-bottom: 0.25rem;
+        padding: 0.35rem 0.5rem;
+        border-radius: 0.375rem;
+        margin-bottom: 0.35rem;
         display: flex;
         align-items: center;
         gap: 0.25rem;
+        transition: all 0.2s ease;
+    }
+    .calendario-tarefa:hover {
+        transform: translateX(2px);
     }
     .calendario-tarefa.ativos {
-        background: #d1fae5;
+        background: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%);
         color: #065f46;
     }
     .calendario-tarefa.cancelados {
-        background: #fee2e2;
+        background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
         color: #991b1b;
     }
     .calendario-tarefa.avulso {
-        background: #dbeafe;
+        background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
         color: #1e40af;
     }
     .calendario-tarefa .horario {
         font-weight: 600;
+    }
+
+    /* Toggle moderno */
+    .form-switch .form-check-input {
+        width: 2.5rem;
+        height: 1.25rem;
+        cursor: pointer;
+    }
+    .form-switch .form-check-input:checked {
+        background-color: #10b981;
+        border-color: #10b981;
+    }
+
+    /* ===== INDICADOR DE EXECUÇÃO ===== */
+    .exec-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.35rem 0.75rem;
+        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+        border: 1px solid #86efac;
+        border-radius: 2rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #166534;
+        animation: exec-pulse 2s ease-in-out infinite;
+    }
+    @keyframes exec-pulse {
+        0%, 100% {
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+        }
+        50% {
+            box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+        }
+    }
+    .exec-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid #86efac;
+        border-top-color: #16a34a;
+        border-radius: 50%;
+        animation: exec-spin 0.8s linear infinite;
+    }
+    @keyframes exec-spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Linha da tabela quando em execução */
+    tr.em-execucao {
+        background: linear-gradient(90deg, rgba(34, 197, 94, 0.08) 0%, rgba(255,255,255,0) 100%) !important;
+    }
+    tr.em-execucao td:first-child {
+        border-left: 3px solid #22c55e;
+    }
+
+    /* Tooltip personalizado para tarefas do calendario */
+    .calendario-tarefa {
+        position: relative;
+        cursor: pointer;
+    }
+    .tarefa-tooltip {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        color: #fff;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        z-index: 1070;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        min-width: 180px;
+        text-align: left;
+    }
+    .tarefa-tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-top-color: #1e293b;
+    }
+    .calendario-tarefa:hover .tarefa-tooltip {
+        opacity: 1;
+        visibility: visible;
+    }
+    .tarefa-tooltip-title {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+    .tarefa-tooltip-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.25rem;
+    }
+    .tarefa-tooltip-label {
+        color: #94a3b8;
+    }
+    .tarefa-tooltip-value {
+        font-weight: 500;
+    }
+
+    /* Card do dia atual destacado */
+    .calendario-dia.hoje {
+        transform: scale(1.02);
+        border-width: 2px;
+    }
+
+    /* Dias passados com opacidade reduzida */
+    .calendario-dia.passado {
+        opacity: 0.6;
+    }
+    .calendario-dia.passado:hover {
+        opacity: 0.9;
+    }
+
+    /* Badges modernos */
+    .badge-dia {
+        font-weight: 500;
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    /* Header da pagina */
+    .page-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Botoes de visualizacao */
+    .view-toggle .btn {
+        border-radius: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    .view-toggle .btn-primary {
+        box-shadow: 0 4px 12px rgba(117, 79, 254, 0.3);
+    }
+
+    /* Card da tabela */
+    .table-card {
+        border-radius: 1rem;
+    }
+    .table-card .card-header {
+        border-bottom: none;
+        padding: 1.25rem 1.5rem;
+    }
+
+    /* ===== RESPONSIVO MOBILE ===== */
+    @media (max-width: 991.98px) {
+        /* Permite scroll horizontal na tabela */
+        .table-responsive,
+        .table-card .table-responsive,
+        #tarefas-table-container {
+            overflow-x: auto !important;
+            overflow-y: visible !important;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Tabela com largura minima para scroll */
+        .table-modern {
+            min-width: 800px;
+        }
+
+        /* Dropdown fixo em mobile para nao ser cortado pelo scroll */
+        .table-modern .dropdown-menu,
+        .table-modern .dropdown-menu.show {
+            position: fixed !important;
+            top: auto !important;
+            left: 50% !important;
+            right: auto !important;
+            bottom: 20px !important;
+            transform: translateX(-50%) !important;
+            width: calc(100% - 40px) !important;
+            max-width: 320px;
+            z-index: 1080;
+            box-shadow: 0 -4px 25px rgba(0,0,0,0.2);
+            border-radius: 16px;
+            animation: mobileSlideUp 0.25s ease !important;
+            padding: 0.75rem 0;
+        }
+
+        @keyframes mobileSlideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        /* Estilo do dropdown em mobile - itens maiores para touch */
+        .table-modern .dropdown-menu .dropdown-item {
+            padding: 1rem 1.25rem;
+            font-size: 1rem;
+        }
+        .table-modern .dropdown-menu .dropdown-item i,
+        .table-modern .dropdown-menu .dropdown-item svg {
+            width: 20px;
+            height: 20px;
+        }
+        .table-modern .dropdown-menu .dropdown-divider {
+            margin: 0.75rem 0;
+        }
+
+        /* Barra lateral maior em mobile */
+        .table-modern .dropdown-item::before {
+            width: 4px;
+        }
+
+        /* Overlay escuro atras do dropdown */
+        .dropdown-backdrop-mobile {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 1079;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        /* Header da pagina */
+        .page-header {
+            padding: 1rem;
+            text-align: center;
+        }
+        .page-header .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .page-header h3 {
+            font-size: 1.25rem;
+        }
+
+        /* Cards menores */
+        .stat-card .card-body {
+            padding: 0.75rem !important;
+        }
+        .stat-value {
+            font-size: 1.35rem;
+        }
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+        }
+        .stat-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Badge tempo real */
+        .live-badge {
+            display: none;
+        }
+
+        /* Tabela */
+        .table-modern thead th {
+            padding: 0.75rem 0.5rem;
+            font-size: 0.65rem;
+        }
+        .table-modern tbody td {
+            padding: 0.75rem 0.5rem;
+        }
+
+        /* Esconde colunas menos importantes em mobile */
+        .table-modern th.col-dias,
+        .table-modern td.col-dias,
+        .table-modern th.col-ultimo-envio,
+        .table-modern td.col-ultimo-envio {
+            display: none;
+        }
+
+        /* Nome da tarefa mais compacto */
+        .table-modern .tarefa-nome-cell h6 {
+            font-size: 0.85rem;
+            max-width: 120px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .table-modern .tarefa-nome-cell small {
+            font-size: 0.7rem;
+        }
+        .table-modern .tarefa-nome-cell img,
+        .table-modern .tarefa-nome-cell .img-placeholder {
+            width: 32px !important;
+            height: 32px !important;
+        }
+
+        /* Toggle menor */
+        .form-switch .form-check-input {
+            width: 2rem;
+            height: 1rem;
+        }
+
+        /* Indicador de execucao compacto */
+        .exec-indicator {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.65rem;
+        }
+        .exec-indicator span {
+            display: none;
+        }
+        .exec-spinner {
+            width: 12px;
+            height: 12px;
+        }
+
+        /* Badge de envios */
+        .badge.rounded-pill {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        /* Dropdown de acoes */
+        .dropdown .btn-sm {
+            padding: 0.25rem 0.5rem;
+        }
+
+        /* View toggle */
+        .view-toggle .btn {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        /* Calendario - scroll horizontal */
+        #calendario-semana {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 0.5rem;
+        }
+        #calendario-semana .col {
+            flex: 0 0 140px;
+            min-width: 140px;
+        }
+        .calendario-dia {
+            min-height: 120px;
+        }
+        .calendario-dia.hoje {
+            transform: none;
+        }
+
+        /* Card header da tabela */
+        .table-card .card-header {
+            padding: 1rem;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .table-card .card-header h5 {
+            font-size: 1rem;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        /* Container com menos padding */
+        .container-fluid.p-6 {
+            padding: 1rem !important;
+        }
+
+        /* Cards em 2 colunas */
+        .stat-card .card-body {
+            padding: 0.6rem !important;
+        }
+        .stat-value {
+            font-size: 1.15rem;
+        }
+        .stat-icon {
+            width: 36px;
+            height: 36px;
+        }
+        h6.text-uppercase {
+            font-size: 0.6rem !important;
+        }
+
+        /* Nome ainda mais compacto */
+        .table-modern .tarefa-nome-cell h6 {
+            max-width: 100px;
+        }
+
+        /* Esconde mais colunas */
+        .table-modern th.col-tipo,
+        .table-modern td.col-tipo {
+            display: none;
+        }
     }
 </style>
 {% endblock %}
@@ -88,12 +777,17 @@
     <!-- Page header -->
     <div class="row">
         <div class="col-lg-12 col-md-12 col-12">
-            <div class="border-bottom pb-4 mb-4 d-flex justify-content-between align-items-center">
+            <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h3 class="mb-0 fw-bold">Tarefas de Envio WhatsApp</h3>
-                    <p class="mb-0 text-muted">Gerencie as tarefas de envio automatizado de mensagens</p>
+                    <h3 class="mb-1 fw-bold">Tarefas de Envio WhatsApp</h3>
+                    <p class="mb-0 text-muted">
+                        Gerencie as tarefas de envio automatizado de mensagens
+                        <span class="live-badge bg-success text-white ms-2">
+                            <i data-feather="radio" class="icon-xxs me-1"></i>Tempo Real
+                        </span>
+                    </p>
                 </div>
-                <a href="{% url 'tarefas-envio-criar' %}" class="btn btn-primary">
+                <a href="{% url 'tarefas-envio-criar' %}" class="btn btn-primary px-4">
                     <i data-feather="plus" class="icon-xs me-1"></i> Nova Tarefa
                 </a>
             </div>
@@ -103,60 +797,60 @@
     <!-- Cards de resumo - Linha 1 -->
     <div class="row mb-3">
         <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-3 mb-xl-0">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 stat-card card-success" id="card-ativas">
                 <div class="card-body py-3">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-1 small">Tarefas Ativas</h6>
-                            <h3 class="mb-0 fw-bold text-success">{{ total_ativas }}</h3>
+                            <h6 class="text-uppercase text-muted mb-2 small fw-semibold">Tarefas Ativas</h6>
+                            <div class="stat-value text-success" id="stat-ativas">{{ total_ativas }}</div>
                         </div>
-                        <div class="icon-shape icon-md bg-light-success rounded-circle text-success">
-                            <i data-feather="check-circle" class="icon-xs"></i>
+                        <div class="stat-icon icon-success">
+                            <i data-feather="check-circle"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-3 mb-xl-0">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 stat-card card-secondary" id="card-inativas">
                 <div class="card-body py-3">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-1 small">Inativas</h6>
-                            <h3 class="mb-0 fw-bold text-secondary">{{ total_inativas }}</h3>
+                            <h6 class="text-uppercase text-muted mb-2 small fw-semibold">Inativas</h6>
+                            <div class="stat-value text-secondary" id="stat-inativas">{{ total_inativas }}</div>
                         </div>
-                        <div class="icon-shape icon-md bg-light-secondary rounded-circle text-secondary">
-                            <i data-feather="x-circle" class="icon-xs"></i>
+                        <div class="stat-icon icon-secondary">
+                            <i data-feather="x-circle"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-3 col-md-6 col-12 mb-3 mb-xl-0">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 stat-card card-warning" id="card-pausadas">
                 <div class="card-body py-3">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-1 small">Pausadas</h6>
-                            <h3 class="mb-0 fw-bold text-warning">{{ total_pausadas }}</h3>
+                            <h6 class="text-uppercase text-muted mb-2 small fw-semibold">Pausadas</h6>
+                            <div class="stat-value text-warning" id="stat-pausadas">{{ total_pausadas }}</div>
                         </div>
-                        <div class="icon-shape icon-md bg-light-warning rounded-circle text-warning">
-                            <i data-feather="pause-circle" class="icon-xs"></i>
+                        <div class="stat-icon icon-warning">
+                            <i data-feather="pause-circle"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-3 col-md-6 col-12">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 stat-card card-primary" id="card-envios">
                 <div class="card-body py-3">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-1 small">Total Envios</h6>
-                            <h3 class="mb-0 fw-bold text-primary">{{ total_envios|default:0 }}</h3>
+                            <h6 class="text-uppercase text-muted mb-2 small fw-semibold">Total Envios</h6>
+                            <div class="stat-value text-primary" id="stat-envios">{{ total_envios|default:0 }}</div>
                         </div>
-                        <div class="icon-shape icon-md bg-light-primary rounded-circle text-primary">
-                            <i data-feather="send" class="icon-xs"></i>
+                        <div class="stat-icon icon-primary">
+                            <i data-feather="send"></i>
                         </div>
                     </div>
                 </div>
@@ -167,56 +861,60 @@
     <!-- Cards de resumo - Linha 2 (Metricas) -->
     <div class="row mb-4">
         <div class="col-xl-4 col-lg-4 col-md-6 col-12 mb-3 mb-xl-0">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 stat-card card-info" id="card-taxa">
                 <div class="card-body py-3">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-1 small">Taxa Sucesso (30d)</h6>
-                            {% if taxa_sucesso is not None %}
-                            <h3 class="mb-0 fw-bold {% if taxa_sucesso >= 90 %}text-success{% elif taxa_sucesso >= 70 %}text-warning{% else %}text-danger{% endif %}">
-                                {{ taxa_sucesso }}%
-                            </h3>
-                            {% else %}
-                            <h3 class="mb-0 fw-bold text-muted">--</h3>
-                            {% endif %}
+                            <h6 class="text-uppercase text-muted mb-2 small fw-semibold">Taxa Sucesso (30d)</h6>
+                            <div class="stat-value" id="stat-taxa">
+                                {% if taxa_sucesso is not None %}
+                                <span class="{% if taxa_sucesso >= 90 %}text-success{% elif taxa_sucesso >= 70 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ taxa_sucesso }}%
+                                </span>
+                                {% else %}
+                                <span class="text-muted">--</span>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="icon-shape icon-md bg-light-info rounded-circle text-info">
-                            <i data-feather="bar-chart-2" class="icon-xs"></i>
+                        <div class="stat-icon icon-info">
+                            <i data-feather="bar-chart-2"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-xl-4 col-lg-4 col-md-6 col-12 mb-3 mb-xl-0">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 stat-card card-info" id="card-media">
                 <div class="card-body py-3">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-1 small">Media por Execucao</h6>
-                            <h3 class="mb-0 fw-bold text-info">{{ media_envios_execucao|default:0 }}</h3>
+                            <h6 class="text-uppercase text-muted mb-2 small fw-semibold">Media por Execucao</h6>
+                            <div class="stat-value text-info" id="stat-media">{{ media_envios_execucao|default:0 }}</div>
                         </div>
-                        <div class="icon-shape icon-md bg-light-info rounded-circle text-info">
-                            <i data-feather="trending-up" class="icon-xs"></i>
+                        <div class="stat-icon icon-info">
+                            <i data-feather="trending-up"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-xl-4 col-lg-4 col-md-6 col-12">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 stat-card card-success" id="card-proxima">
                 <div class="card-body py-3">
                     <div class="d-flex align-items-center">
-                        <div class="icon-shape icon-md bg-light-success rounded-circle text-success me-3">
-                            <i data-feather="clock" class="icon-xs"></i>
+                        <div class="stat-icon icon-success me-3">
+                            <i data-feather="clock"></i>
                         </div>
                         <div>
-                            <h6 class="text-uppercase text-muted mb-1 small">Proxima Execucao</h6>
-                            {% if proxima_tarefa %}
-                            <span class="fw-bold text-success">{{ proxima_tarefa.horario|time:"H:i" }}</span>
-                            <small class="text-muted d-block">{{ proxima_tarefa.nome|truncatechars:25 }}</small>
-                            {% else %}
-                            <span class="text-muted">Nenhuma hoje</span>
-                            {% endif %}
+                            <h6 class="text-uppercase text-muted mb-1 small fw-semibold">Proxima Execucao</h6>
+                            <div id="stat-proxima">
+                                {% if proxima_tarefa %}
+                                <span class="fw-bold text-success" id="proxima-horario">{{ proxima_tarefa.horario|time:"H:i" }}</span>
+                                <small class="text-muted d-block" id="proxima-nome">{{ proxima_tarefa.nome|truncatechars:25 }}</small>
+                                {% else %}
+                                <span class="text-muted">Nenhuma hoje</span>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -227,7 +925,7 @@
     <!-- Toggle de Visualizacao -->
     <div class="row mb-3">
         <div class="col-12">
-            <div class="btn-group" role="group">
+            <div class="btn-group view-toggle" role="group">
                 <button type="button" class="btn btn-primary active" id="btn-view-lista" data-view="lista">
                     <i data-feather="list" class="icon-xs me-1"></i> Lista
                 </button>
@@ -241,10 +939,10 @@
     <!-- Visualizacao Calendario -->
     <div class="row mb-4 d-none" id="view-calendario">
         <div class="col-12">
-            <div class="card shadow-sm border-0">
+            <div class="card shadow-sm border-0 table-card">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold">Calendario de Tarefas - Semana Atual</h5>
-                    <small class="text-muted">Tarefas ativas programadas para esta semana</small>
+                    <h5 class="mb-0 fw-bold">Calendario de Tarefas</h5>
+                    <small class="text-muted">Visualizacao de 7 dias centrada em hoje</small>
                 </div>
                 <div class="card-body">
                     <div class="row" id="calendario-semana">
@@ -271,45 +969,55 @@
     <!-- Tabela de tarefas -->
     <div class="row" id="view-lista">
         <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white py-3">
+            <div class="card shadow-sm border-0 table-card">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">Lista de Tarefas</h5>
+                    <small class="text-muted" id="ultima-atualizacao"></small>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
+                <div id="tarefas-table-container" class="table-responsive">
+                    <table class="table table-modern align-middle mb-0">
+                        <thead>
                             <tr>
-                                <th class="fw-bold" style="width: 60px;">Status</th>
-                                <th class="fw-bold">Nome</th>
-                                <th class="fw-bold">Tipo</th>
-                                <th class="fw-bold">Dias</th>
-                                <th class="fw-bold">Horario</th>
-                                <th class="fw-bold">Ultimo Envio</th>
-                                <th class="fw-bold">Envios</th>
-                                <th class="fw-bold text-center" style="width: 120px;">Acoes</th>
+                                <th style="width: 70px;">Status</th>
+                                <th style="text-align: left !important;">Nome</th>
+                                <th class="col-tipo">Tipo</th>
+                                <th class="col-dias">Dias</th>
+                                <th>Horario</th>
+                                <th class="col-ultimo-envio">Ultimo Envio</th>
+                                <th>Envios</th>
+                                <th style="width: 100px;">Acoes</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tarefas-tbody">
                             {% for tarefa in tarefas %}
-                            <tr>
-                                <td>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input toggle-tarefa" type="checkbox"
-                                               data-id="{{ tarefa.id }}"
-                                               {% if tarefa.ativo %}checked{% endif %}>
+                            <tr data-tarefa-id="{{ tarefa.id }}" {% if tarefa.em_execucao %}class="em-execucao"{% endif %}>
+                                <td class="text-center">
+                                    <div class="status-cell">
+                                        {% if tarefa.em_execucao %}
+                                        <div class="exec-indicator" title="Enviando mensagens...">
+                                            <div class="exec-spinner"></div>
+                                            <span>Enviando</span>
+                                        </div>
+                                        {% else %}
+                                        <div class="form-check form-switch d-flex justify-content-center">
+                                            <input class="form-check-input toggle-tarefa" type="checkbox"
+                                                   data-id="{{ tarefa.id }}"
+                                                   {% if tarefa.ativo %}checked{% endif %}>
+                                        </div>
+                                        {% endif %}
                                     </div>
                                 </td>
-                                <td>
+                                <td class="tarefa-nome-cell">
                                     <div class="d-flex align-items-center">
                                         {% if tarefa.imagem %}
-                                        <img src="{{ tarefa.imagem.url }}" class="rounded me-2" width="40" height="40" style="object-fit: cover;">
+                                        <img src="{{ tarefa.imagem.url }}" class="rounded me-2 me-md-3" width="44" height="44" style="object-fit: cover;">
                                         {% else %}
-                                        <div class="img-placeholder me-2">
+                                        <div class="img-placeholder me-2 me-md-3">
                                             <i data-feather="image" class="text-muted" style="width: 20px; height: 20px;"></i>
                                         </div>
                                         {% endif %}
                                         <div>
-                                            <h6 class="mb-0">
+                                            <h6 class="mb-0 fw-semibold">
                                                 {{ tarefa.nome }}
                                                 {% if tarefa.esta_pausada %}
                                                 <span class="badge bg-warning-soft text-warning ms-1" title="Pausada ate {{ tarefa.get_pausado_ate_display }}">
@@ -324,7 +1032,7 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td>
+                                <td class="text-center col-tipo">
                                     {% if tarefa.tipo_envio == 'ativos' %}
                                     <span class="badge bg-success-soft text-success">Clientes Ativos</span>
                                     {% elif tarefa.tipo_envio == 'cancelados' %}
@@ -333,53 +1041,53 @@
                                     <span class="badge bg-info-soft text-info">Leads</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td class="text-center col-dias">
                                     {% for dia in tarefa.get_dias_semana_abrev %}
-                                    <span class="badge bg-light text-dark rounded-pill me-1">{{ dia }}</span>
+                                    <span class="badge-dia me-1">{{ dia }}</span>
                                     {% empty %}
                                     <span class="text-muted">-</span>
                                     {% endfor %}
                                 </td>
-                                <td>
+                                <td class="text-center">
                                     <span class="fw-semibold">{{ tarefa.horario|time:"H:i" }}</span>
                                 </td>
-                                <td>
+                                <td class="text-center col-ultimo-envio">
                                     {% if tarefa.ultimo_envio %}
                                     <span title="{{ tarefa.ultimo_envio }}">{{ tarefa.ultimo_envio|date:"d/m/Y H:i" }}</span>
                                     {% else %}
                                     <span class="text-muted">Nunca</span>
                                     {% endif %}
                                 </td>
-                                <td>
-                                    <span class="badge bg-primary rounded-pill">{{ tarefa.total_envios }}</span>
+                                <td class="text-center">
+                                    <span class="badge bg-primary rounded-pill px-3">{{ tarefa.total_envios }}</span>
                                 </td>
                                 <td class="text-center">
                                     <div class="dropdown">
-                                        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">
-                                            <i data-feather="more-vertical" class="icon-xs"></i>
+                                        <button class="btn btn-light btn-action" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i data-feather="more-vertical"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end">
                                             <li>
-                                                <a class="dropdown-item" href="{% url 'tarefas-envio-historico' tarefa.id %}">
-                                                    <i data-feather="clock" class="icon-xs me-2"></i> Historico
+                                                <a class="dropdown-item dropdown-action-history" href="{% url 'tarefas-envio-historico' tarefa.id %}">
+                                                    <i data-feather="clock"></i> Historico
                                                 </a>
                                             </li>
                                             <li>
-                                                <a class="dropdown-item" href="{% url 'tarefas-envio-editar' tarefa.id %}">
-                                                    <i data-feather="edit-2" class="icon-xs me-2"></i> Editar
+                                                <a class="dropdown-item dropdown-action-edit" href="{% url 'tarefas-envio-editar' tarefa.id %}">
+                                                    <i data-feather="edit-2"></i> Editar
                                                 </a>
                                             </li>
                                             <li>
-                                                <button class="dropdown-item btn-duplicar-tarefa"
+                                                <button class="dropdown-item dropdown-action-duplicate btn-duplicar-tarefa"
                                                         data-id="{{ tarefa.id }}" data-nome="{{ tarefa.nome }}">
-                                                    <i data-feather="copy" class="icon-xs me-2"></i> Duplicar
+                                                    <i data-feather="copy"></i> Duplicar
                                                 </button>
                                             </li>
                                             <li><hr class="dropdown-divider"></li>
                                             <li>
-                                                <button class="dropdown-item text-danger btn-excluir-tarefa"
+                                                <button class="dropdown-item dropdown-action-delete btn-excluir-tarefa"
                                                         data-id="{{ tarefa.id }}" data-nome="{{ tarefa.nome }}">
-                                                    <i data-feather="trash-2" class="icon-xs me-2"></i> Excluir
+                                                    <i data-feather="trash-2"></i> Excluir
                                                 </button>
                                             </li>
                                         </ul>
@@ -390,10 +1098,12 @@
                             <tr>
                                 <td colspan="8" class="text-center py-5">
                                     <div class="py-4">
-                                        <i data-feather="inbox" style="width: 48px; height: 48px;" class="text-muted mb-3"></i>
-                                        <h5 class="text-muted">Nenhuma tarefa cadastrada</h5>
-                                        <p class="text-muted mb-3">Crie sua primeira tarefa de envio automatizado</p>
-                                        <a href="{% url 'tarefas-envio-criar' %}" class="btn btn-primary">
+                                        <div class="mb-3">
+                                            <i data-feather="inbox" style="width: 56px; height: 56px;" class="text-muted"></i>
+                                        </div>
+                                        <h5 class="text-muted mb-2">Nenhuma tarefa cadastrada</h5>
+                                        <p class="text-muted mb-4">Crie sua primeira tarefa de envio automatizado</p>
+                                        <a href="{% url 'tarefas-envio-criar' %}" class="btn btn-primary px-4">
                                             <i data-feather="plus" class="icon-xs me-1"></i> Nova Tarefa
                                         </a>
                                     </div>
@@ -405,12 +1115,14 @@
                 </div>
 
                 {% if is_paginated %}
-                <div class="card-footer bg-white">
+                <div class="card-footer bg-white border-top">
                     <nav aria-label="Navegacao de paginas">
                         <ul class="pagination justify-content-center mb-0">
                             {% if page_obj.has_previous %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                    <i data-feather="chevron-left" class="icon-xs"></i>
+                                </a>
                             </li>
                             {% endif %}
 
@@ -424,7 +1136,9 @@
 
                             {% if page_obj.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Proximo</a>
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                    <i data-feather="chevron-right" class="icon-xs"></i>
+                                </a>
                             </li>
                             {% endif %}
                         </ul>
@@ -440,10 +1154,187 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // Toggle ativo/inativo
-    $('.toggle-tarefa').on('change', function() {
+    // ===== ATUALIZACAO EM TEMPO REAL =====
+    let ultimosStats = {
+        total_ativas: {{ total_ativas }},
+        total_inativas: {{ total_inativas }},
+        total_pausadas: {{ total_pausadas }},
+        total_envios: {{ total_envios|default:0 }},
+        taxa_sucesso: {% if taxa_sucesso is not None %}{{ taxa_sucesso }}{% else %}null{% endif %},
+        media_envios_execucao: {{ media_envios_execucao|default:0 }}
+    };
+
+    function atualizarStats() {
+        $.ajax({
+            url: '{% url "tarefas-envio-stats-api" %}',
+            method: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    const stats = response.stats;
+
+                    // Atualiza valores com animacao se mudaram
+                    atualizarValor('#stat-ativas', '#card-ativas', stats.total_ativas, ultimosStats.total_ativas);
+                    atualizarValor('#stat-inativas', '#card-inativas', stats.total_inativas, ultimosStats.total_inativas);
+                    atualizarValor('#stat-pausadas', '#card-pausadas', stats.total_pausadas, ultimosStats.total_pausadas);
+                    atualizarValor('#stat-envios', '#card-envios', stats.total_envios, ultimosStats.total_envios);
+                    atualizarValor('#stat-media', '#card-media', stats.media_envios_execucao, ultimosStats.media_envios_execucao);
+
+                    // Taxa de sucesso (com formatacao especial)
+                    if (stats.taxa_sucesso !== ultimosStats.taxa_sucesso) {
+                        const $taxa = $('#stat-taxa');
+                        $('#card-taxa').addClass('updating');
+                        if (stats.taxa_sucesso !== null) {
+                            let corClasse = 'text-danger';
+                            if (stats.taxa_sucesso >= 90) corClasse = 'text-success';
+                            else if (stats.taxa_sucesso >= 70) corClasse = 'text-warning';
+                            $taxa.html(`<span class="${corClasse}">${stats.taxa_sucesso}%</span>`);
+                        } else {
+                            $taxa.html('<span class="text-muted">--</span>');
+                        }
+                        setTimeout(() => $('#card-taxa').removeClass('updating'), 600);
+                    }
+
+                    // Proxima execucao
+                    if (stats.proxima_tarefa) {
+                        $('#stat-proxima').html(`
+                            <span class="fw-bold text-success">${stats.proxima_tarefa.horario}</span>
+                            <small class="text-muted d-block">${stats.proxima_tarefa.nome}</small>
+                        `);
+                    } else {
+                        $('#stat-proxima').html('<span class="text-muted">Nenhuma hoje</span>');
+                    }
+
+                    // Atualiza indicadores de execução em tempo real
+                    atualizarIndicadoresExecucao(response.tarefas_em_execucao || []);
+
+                    // Atualiza timestamp
+                    const agora = new Date();
+                    $('#ultima-atualizacao').text('Atualizado: ' + agora.toLocaleTimeString('pt-BR'));
+
+                    // Salva valores anteriores
+                    ultimosStats = stats;
+                }
+            },
+            error: function() {
+                console.error('Erro ao buscar estatisticas');
+            }
+        });
+    }
+
+    function atualizarValor(seletor, cardSeletor, novoValor, valorAntigo) {
+        if (novoValor !== valorAntigo) {
+            const $elem = $(seletor);
+            const $card = $(cardSeletor);
+
+            $card.addClass('updating');
+            $elem.addClass('changed');
+            $elem.text(novoValor);
+
+            setTimeout(() => {
+                $card.removeClass('updating');
+                $elem.removeClass('changed');
+            }, 600);
+        }
+    }
+
+    // Inicia polling a cada 30 segundos
+    setInterval(atualizarStats, 30000);
+
+    // Primeira atualizacao apos 5 segundos
+    setTimeout(atualizarStats, 5000);
+
+    // Toggle ativo/inativo - usa event delegation para elementos dinamicos
+    $(document).on('change', '.toggle-tarefa', handleToggleTarefa);
+
+    // Atualiza valor instantaneamente com animacao
+    function atualizarValorInstantaneo(seletor, cardSeletor, novoValor) {
+        const $elem = $(seletor);
+        const $card = $(cardSeletor);
+
+        $card.addClass('updating');
+        $elem.addClass('changed');
+        $elem.text(novoValor);
+
+        setTimeout(() => {
+            $card.removeClass('updating');
+            $elem.removeClass('changed');
+        }, 600);
+    }
+
+    // Reverte atualizacao local em caso de erro
+    function reverterAtualizacaoLocal(estadoAnterior) {
+        if (estadoAnterior) {
+            // Estava ativando, reverte: decrementa ativas, incrementa inativas
+            const ativas = parseInt($('#stat-ativas').text()) - 1;
+            const inativas = parseInt($('#stat-inativas').text()) + 1;
+            atualizarValorInstantaneo('#stat-ativas', '#card-ativas', Math.max(0, ativas));
+            atualizarValorInstantaneo('#stat-inativas', '#card-inativas', inativas);
+        } else {
+            // Estava desativando, reverte: incrementa ativas, decrementa inativas
+            const ativas = parseInt($('#stat-ativas').text()) + 1;
+            const inativas = parseInt($('#stat-inativas').text()) - 1;
+            atualizarValorInstantaneo('#stat-ativas', '#card-ativas', ativas);
+            atualizarValorInstantaneo('#stat-inativas', '#card-inativas', Math.max(0, inativas));
+        }
+    }
+
+    // Atualiza indicadores de execução em tempo real
+    function atualizarIndicadoresExecucao(tarefasEmExecucao) {
+        // Processa cada linha da tabela
+        $('#tarefas-tbody tr[data-tarefa-id]').each(function() {
+            const $row = $(this);
+            const tarefaId = parseInt($row.data('tarefa-id'));
+            const $statusCell = $row.find('.status-cell');
+            const estaEmExecucao = tarefasEmExecucao.includes(tarefaId);
+            const tinhaIndicador = $statusCell.find('.exec-indicator').length > 0;
+
+            if (estaEmExecucao && !tinhaIndicador) {
+                // Adiciona indicador de execução
+                $row.addClass('em-execucao');
+                const isChecked = $statusCell.find('.toggle-tarefa').prop('checked');
+                $statusCell.html(`
+                    <div class="exec-indicator" title="Enviando mensagens...">
+                        <div class="exec-spinner"></div>
+                        <span>Enviando</span>
+                    </div>
+                `);
+                // Guarda estado do toggle para restaurar depois
+                $statusCell.data('was-checked', isChecked);
+            } else if (!estaEmExecucao && tinhaIndicador) {
+                // Remove indicador e restaura toggle
+                $row.removeClass('em-execucao');
+                const wasChecked = $statusCell.data('was-checked') !== false;
+                $statusCell.html(`
+                    <div class="form-check form-switch d-flex justify-content-center">
+                        <input class="form-check-input toggle-tarefa" type="checkbox"
+                               data-id="${tarefaId}"
+                               ${wasChecked ? 'checked' : ''}>
+                    </div>
+                `);
+                // Re-attach event handler
+                $statusCell.find('.toggle-tarefa').on('change', handleToggleTarefa);
+            }
+        });
+    }
+
+    // Handler separado para toggle (para poder re-anexar)
+    function handleToggleTarefa() {
         const $toggle = $(this);
         const tarefaId = $toggle.data('id');
+        const novoEstado = $toggle.prop('checked');
+
+        // Atualiza os cards localmente de forma instantânea (otimistic update)
+        if (novoEstado) {
+            const ativas = parseInt($('#stat-ativas').text()) + 1;
+            const inativas = parseInt($('#stat-inativas').text()) - 1;
+            atualizarValorInstantaneo('#stat-ativas', '#card-ativas', ativas);
+            atualizarValorInstantaneo('#stat-inativas', '#card-inativas', Math.max(0, inativas));
+        } else {
+            const ativas = parseInt($('#stat-ativas').text()) - 1;
+            const inativas = parseInt($('#stat-inativas').text()) + 1;
+            atualizarValorInstantaneo('#stat-ativas', '#card-ativas', Math.max(0, ativas));
+            atualizarValorInstantaneo('#stat-inativas', '#card-inativas', inativas);
+        }
 
         $.ajax({
             url: `/tarefas-envio/${tarefaId}/toggle/`,
@@ -454,20 +1345,23 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     toastManager.success(response.message);
+                    atualizarStats();
                 } else {
-                    $toggle.prop('checked', !$toggle.prop('checked'));
+                    $toggle.prop('checked', !novoEstado);
+                    reverterAtualizacaoLocal(novoEstado);
                     toastManager.error(response.error || 'Erro ao alterar status');
                 }
             },
             error: function() {
-                $toggle.prop('checked', !$toggle.prop('checked'));
+                $toggle.prop('checked', !novoEstado);
+                reverterAtualizacaoLocal(novoEstado);
                 toastManager.error('Erro ao alterar status da tarefa');
             }
         });
-    });
+    }
 
-    // Duplicar tarefa
-    $('.btn-duplicar-tarefa').on('click', function() {
+    // Duplicar tarefa - usa event delegation
+    $(document).on('click', '.btn-duplicar-tarefa', function() {
         const tarefaId = $(this).data('id');
         const tarefaNome = $(this).data('nome');
 
@@ -491,8 +1385,24 @@ $(document).ready(function() {
                     },
                     success: function(response) {
                         if (response.success) {
-                            toastManager.success(response.message);
-                            setTimeout(() => location.reload(), 1000);
+                            // Pergunta se quer editar a nova tarefa
+                            Swal.fire({
+                                title: 'Tarefa duplicada!',
+                                html: `A tarefa <strong>"${response.message.split(': ')[1] || 'Nova tarefa'}"</strong> foi criada com sucesso.<br><br>Deseja editar agora?`,
+                                icon: 'success',
+                                showCancelButton: true,
+                                confirmButtonColor: '#754ffe',
+                                cancelButtonColor: '#6c757d',
+                                confirmButtonText: 'Editar tarefa',
+                                cancelButtonText: 'Ficar aqui'
+                            }).then((editResult) => {
+                                if (editResult.isConfirmed) {
+                                    window.location.href = `/tarefas-envio/${response.id}/editar/`;
+                                } else {
+                                    // Recarrega tabela via AJAX
+                                    recarregarTabela();
+                                }
+                            });
                         } else {
                             toastManager.error(response.error || 'Erro ao duplicar tarefa');
                         }
@@ -505,10 +1415,11 @@ $(document).ready(function() {
         });
     });
 
-    // Excluir tarefa
-    $('.btn-excluir-tarefa').on('click', function() {
-        const tarefaId = $(this).data('id');
-        const tarefaNome = $(this).data('nome');
+    // Excluir tarefa - usa event delegation
+    $(document).on('click', '.btn-excluir-tarefa', function() {
+        const $btn = $(this);
+        const tarefaId = $btn.data('id');
+        const tarefaNome = $btn.data('nome');
 
         Swal.fire({
             title: 'Excluir tarefa?',
@@ -522,27 +1433,67 @@ $(document).ready(function() {
         }).then((result) => {
             if (result.isConfirmed) {
                 $.ajax({
-                    url: `/tarefas-envio/${tarefaId}/deletar/`,
+                    url: `/tarefas-envio/${tarefaId}/excluir-ajax/`,
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': '{{ csrf_token }}',
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'X-CSRFToken': '{{ csrf_token }}'
                     },
                     success: function(response) {
                         if (response.success) {
-                            toastManager.success(response.message);
-                            setTimeout(() => location.reload(), 1000);
+                            // Mostra confirmacao e recarrega (mesmo padrao do duplicar)
+                            Swal.fire({
+                                title: 'Excluído!',
+                                text: response.message,
+                                icon: 'success',
+                                confirmButtonColor: '#754ffe',
+                                confirmButtonText: 'Ok'
+                            }).then(() => {
+                                recarregarTabela();
+                            });
                         } else {
                             toastManager.error(response.error || 'Erro ao excluir tarefa');
                         }
                     },
-                    error: function() {
+                    error: function(xhr, status, error) {
+                        console.error('Erro AJAX excluir:', status, error);
                         toastManager.error('Erro ao excluir tarefa');
                     }
                 });
             }
         });
     });
+
+    // Funcao para recarregar a tabela via fetch (padrao do dashboard)
+    function recarregarTabela() {
+        fetch(window.location.href, { cache: 'no-store' })
+            .then(function(response) {
+                return response.text();
+            })
+            .then(function(html) {
+                // Usa DOMParser para extrair o container da tabela
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const novoContainer = doc.querySelector('#tarefas-table-container');
+
+                if (novoContainer) {
+                    // Substitui o conteudo do container
+                    document.querySelector('#tarefas-table-container').innerHTML = novoContainer.innerHTML;
+
+                    // Re-inicializa feather icons
+                    if (typeof feather !== 'undefined') {
+                        feather.replace();
+                    }
+
+                    // Atualiza os cards
+                    atualizarStats();
+                }
+            })
+            .catch(function(error) {
+                console.error('Erro ao recarregar tabela:', error);
+                // Em caso de erro, faz reload tradicional
+                location.reload();
+            });
+    }
 
     // Toggle de visualizacao (Lista/Calendario)
     $('#btn-view-lista, #btn-view-calendario').on('click', function() {
@@ -573,7 +1524,7 @@ $(document).ready(function() {
         const diasSemana = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado'];
         const diasAbrev = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
         const hoje = new Date();
-        const diaAtual = hoje.getDay();
+        hoje.setHours(0, 0, 0, 0);
 
         // Dados das tarefas (passados do Django)
         const tarefas = [
@@ -582,8 +1533,11 @@ $(document).ready(function() {
                 id: {{ tarefa.id }},
                 nome: "{{ tarefa.nome|escapejs }}",
                 tipo: "{{ tarefa.tipo_envio }}",
+                tipoDisplay: "{{ tarefa.get_tipo_envio_display|escapejs }}",
                 dias: {{ tarefa.dias_semana|safe }},
                 horario: "{{ tarefa.horario|time:'H:i' }}",
+                periodo: "{{ tarefa.get_periodo_mes_display|escapejs }}",
+                totalEnvios: {{ tarefa.total_envios }},
                 ativo: {{ tarefa.ativo|yesno:"true,false" }},
                 pausada: {{ tarefa.esta_pausada|yesno:"true,false" }}
             }{% if not forloop.last %},{% endif %}
@@ -593,23 +1547,41 @@ $(document).ready(function() {
         let html = '';
 
         // Mapeia dias Python (0=seg) para JS (0=dom)
-        const pyToJs = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 0};
-        const jsToPy = {1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6};
+        const jsToPy = {0: 6, 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5};
 
-        for (let i = 0; i < 7; i++) {
-            const isHoje = i === diaAtual;
-            const diaPy = jsToPy[i]; // Converte para indice Python
+        // Gera array de 7 dias centrado em hoje (3 anteriores + hoje + 3 proximos)
+        const diasParaMostrar = [];
+        for (let offset = -3; offset <= 3; offset++) {
+            const data = new Date(hoje);
+            data.setDate(hoje.getDate() + offset);
+            diasParaMostrar.push({
+                data: data,
+                diaJS: data.getDay(),
+                diaPy: jsToPy[data.getDay()],
+                isHoje: offset === 0,
+                isPassado: offset < 0,
+                diaMes: data.getDate(),
+                mes: data.toLocaleDateString('pt-BR', { month: 'short' })
+            });
+        }
 
+        diasParaMostrar.forEach((dia, index) => {
             // Filtra tarefas para este dia
             const tarefasDoDia = tarefas.filter(t =>
-                t.ativo && !t.pausada && t.dias.includes(diaPy)
+                t.ativo && !t.pausada && t.dias.includes(dia.diaPy)
             ).sort((a, b) => a.horario.localeCompare(b.horario));
 
+            let classeExtra = '';
+            if (dia.isHoje) classeExtra = 'hoje';
+            else if (dia.isPassado) classeExtra = 'passado';
+
             html += `
-                <div class="col-md mb-3">
-                    <div class="calendario-dia ${isHoje ? 'hoje' : ''}">
-                        <div class="calendario-dia-header">
-                            ${diasAbrev[i]}${isHoje ? ' <span class="badge bg-primary">Hoje</span>' : ''}
+                <div class="col mb-3">
+                    <div class="calendario-dia ${classeExtra}">
+                        <div class="calendario-dia-header d-flex justify-content-between align-items-center">
+                            <span>${diasAbrev[dia.diaJS]}</span>
+                            <span class="text-muted small">${dia.diaMes}/${dia.mes.replace('.', '')}</span>
+                            ${dia.isHoje ? '<span class="badge bg-primary ms-1">Hoje</span>' : ''}
                         </div>
                         <div class="calendario-tarefas">
             `;
@@ -618,10 +1590,34 @@ $(document).ready(function() {
                 html += '<small class="text-muted">Sem tarefas</small>';
             } else {
                 tarefasDoDia.forEach(t => {
+                    // Tooltip com detalhes
+                    const tooltipHtml = `
+                        <div class="tarefa-tooltip">
+                            <div class="tarefa-tooltip-title">${t.nome}</div>
+                            <div class="tarefa-tooltip-row">
+                                <span class="tarefa-tooltip-label">Tipo:</span>
+                                <span class="tarefa-tooltip-value">${t.tipoDisplay}</span>
+                            </div>
+                            <div class="tarefa-tooltip-row">
+                                <span class="tarefa-tooltip-label">Horario:</span>
+                                <span class="tarefa-tooltip-value">${t.horario}</span>
+                            </div>
+                            <div class="tarefa-tooltip-row">
+                                <span class="tarefa-tooltip-label">Periodo:</span>
+                                <span class="tarefa-tooltip-value">${t.periodo}</span>
+                            </div>
+                            <div class="tarefa-tooltip-row">
+                                <span class="tarefa-tooltip-label">Envios:</span>
+                                <span class="tarefa-tooltip-value">${t.totalEnvios}</span>
+                            </div>
+                        </div>
+                    `;
+
                     html += `
-                        <div class="calendario-tarefa ${t.tipo}" title="${t.nome}">
+                        <div class="calendario-tarefa ${t.tipo}">
+                            ${tooltipHtml}
                             <span class="horario">${t.horario}</span>
-                            <span class="nome text-truncate">${t.nome.substring(0, 15)}${t.nome.length > 15 ? '...' : ''}</span>
+                            <span class="nome text-truncate">${t.nome.substring(0, 12)}${t.nome.length > 12 ? '...' : ''}</span>
                         </div>
                     `;
                 });
@@ -632,7 +1628,7 @@ $(document).ready(function() {
                     </div>
                 </div>
             `;
-        }
+        });
 
         $('#calendario-semana').html(html);
     }
@@ -641,6 +1637,39 @@ $(document).ready(function() {
     if (typeof feather !== 'undefined') {
         feather.replace();
     }
+
+    // ===== DROPDOWN MOBILE COM BACKDROP =====
+    function isMobile() {
+        return window.innerWidth <= 991;
+    }
+
+    // Adiciona backdrop quando dropdown abre em mobile
+    $(document).on('show.bs.dropdown', '.table-modern .dropdown', function() {
+        if (isMobile()) {
+            // Remove backdrop existente
+            $('.dropdown-backdrop-mobile').remove();
+            // Cria novo backdrop
+            $('body').append('<div class="dropdown-backdrop-mobile"></div>');
+        }
+    });
+
+    // Remove backdrop quando dropdown fecha
+    $(document).on('hide.bs.dropdown', '.table-modern .dropdown', function() {
+        $('.dropdown-backdrop-mobile').remove();
+    });
+
+    // Fecha dropdown ao clicar no backdrop
+    $(document).on('click', '.dropdown-backdrop-mobile', function() {
+        $('.table-modern .dropdown-menu.show').dropdown('hide');
+        $(this).remove();
+    });
+
+    // Remove backdrop ao redimensionar para desktop
+    $(window).on('resize', function() {
+        if (!isMobile()) {
+            $('.dropdown-backdrop-mobile').remove();
+        }
+    });
 });
 </script>
 {% endblock %}
