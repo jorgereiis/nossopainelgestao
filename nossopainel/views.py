@@ -8446,7 +8446,7 @@ def get_debug_status(request):
 
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
-from .models import TarefaEnvio, HistoricoExecucaoTarefa
+from .models import TarefaEnvio, HistoricoExecucaoTarefa, TemplateMensagem
 from .forms import TarefaEnvioForm
 
 
@@ -8666,6 +8666,26 @@ class TarefaEnvioDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView)
 
 @login_required
 @require_POST
+def tarefa_envio_excluir_ajax(request, pk):
+    """Exclui uma tarefa de envio via AJAX."""
+    if not request.user.is_superuser:
+        return JsonResponse({
+            'success': False,
+            'error': 'Permissão negada'
+        }, status=403)
+
+    tarefa = get_object_or_404(TarefaEnvio, pk=pk, usuario=request.user)
+    nome = tarefa.nome
+    tarefa.delete()
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Tarefa "{nome}" excluída com sucesso'
+    })
+
+
+@login_required
+@require_POST
 def tarefa_envio_toggle(request, pk):
     """Alterna o status ativo/inativo de uma tarefa via AJAX."""
     if not request.user.is_superuser:
@@ -8851,3 +8871,467 @@ class TarefaEnvioHistoricoView(LoginRequiredMixin, UserPassesTestMixin, ListView
         context['page'] = 'tarefas-envio'
         context['page_group'] = 'admin'
         return context
+
+
+@login_required
+@require_GET
+def tarefas_envio_stats_api(request):
+    """Retorna estatísticas das tarefas de envio em JSON para atualização em tempo real."""
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Não autorizado'}, status=403)
+
+    from django.db.models import Avg
+    from django.utils import timezone
+
+    qs = TarefaEnvio.objects.filter(usuario=request.user)
+    agora = timezone.localtime()
+
+    # Estatísticas básicas
+    total_ativas = qs.filter(ativo=True).count()
+    total_inativas = qs.filter(ativo=False).count()
+    total_pausadas = qs.filter(pausado_ate__gt=agora).count()
+    total_envios = qs.aggregate(total=Sum('total_envios'))['total'] or 0
+
+    # Taxa de sucesso dos últimos 30 dias
+    data_30_dias = agora - timezone.timedelta(days=30)
+    historico_recente = HistoricoExecucaoTarefa.objects.filter(
+        tarefa__usuario=request.user,
+        data_execucao__gte=data_30_dias
+    )
+    total_execucoes = historico_recente.count()
+    if total_execucoes > 0:
+        sucesso_count = historico_recente.filter(status='sucesso').count()
+        taxa_sucesso = round((sucesso_count / total_execucoes) * 100, 1)
+    else:
+        taxa_sucesso = None
+
+    # Média de envios por execução
+    media_envios = historico_recente.aggregate(media=Avg('quantidade_enviada'))['media']
+    media_envios_execucao = round(media_envios, 1) if media_envios else 0
+
+    # Próxima tarefa a executar
+    tarefas_ativas = qs.filter(ativo=True, pausado_ate__isnull=True) | qs.filter(ativo=True, pausado_ate__lte=agora)
+    proxima_tarefa = None
+    proxima_nome = None
+    proxima_horario = None
+    for tarefa in tarefas_ativas.order_by('horario'):
+        if tarefa.deve_executar_hoje() and tarefa.horario > agora.time():
+            proxima_tarefa = tarefa
+            proxima_nome = tarefa.nome[:25] + '...' if len(tarefa.nome) > 25 else tarefa.nome
+            proxima_horario = tarefa.horario.strftime('%H:%M')
+            break
+
+    # Tarefas em execução
+    tarefas_em_execucao = list(
+        qs.filter(em_execucao=True).values_list('id', flat=True)
+    )
+
+    return JsonResponse({
+        'success': True,
+        'stats': {
+            'total_ativas': total_ativas,
+            'total_inativas': total_inativas,
+            'total_pausadas': total_pausadas,
+            'total_envios': total_envios,
+            'taxa_sucesso': taxa_sucesso,
+            'media_envios_execucao': media_envios_execucao,
+            'proxima_tarefa': {
+                'nome': proxima_nome,
+                'horario': proxima_horario
+            } if proxima_tarefa else None
+        },
+        'tarefas_em_execucao': tarefas_em_execucao,
+        'timestamp': agora.isoformat()
+    })
+
+
+# ============================================================================
+# TAREFAS ENVIO - VIEWS AJAX PARA FORMULÁRIO
+# ============================================================================
+
+@login_required
+@require_GET
+def tarefa_envio_preview_alcance(request):
+    """
+    Retorna preview da quantidade de clientes que serão atingidos.
+
+    Parâmetros GET:
+    - tipo_envio: 'ativos' ou 'cancelados'
+    - filtro_estados[]: lista de UFs (opcional)
+
+    Retorna JSON com contagem de clientes.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
+
+    tipo_envio = request.GET.get('tipo_envio', '')
+    filtro_estados = request.GET.getlist('filtro_estados[]', [])
+
+    # Base query
+    qs = Cliente.objects.filter(usuario=request.user, nao_enviar_msgs=False)
+
+    if tipo_envio == 'ativos':
+        qs = qs.filter(cancelado=False)
+    elif tipo_envio == 'cancelados':
+        data_limite = timezone.now() - timedelta(days=7)
+        qs = qs.filter(cancelado=True, data_cancelamento__lte=data_limite)
+    else:
+        return JsonResponse({
+            'success': False,
+            'error': 'Tipo de envio inválido'
+        }, status=400)
+
+    # Aplicar filtro de estados se fornecido
+    if filtro_estados:
+        qs = qs.filter(uf__in=filtro_estados)
+
+    total = qs.count()
+
+    # Estatísticas extras por estado (top 5)
+    from django.db.models import Count
+    stats_estados = list(
+        qs.values('uf').annotate(total=Count('id')).order_by('-total')[:5]
+    )
+
+    return JsonResponse({
+        'success': True,
+        'total': total,
+        'tipo_envio': tipo_envio,
+        'filtro_estados': filtro_estados,
+        'stats_estados': stats_estados
+    })
+
+
+@login_required
+@require_GET
+def tarefa_envio_verificar_conflito(request):
+    """
+    Verifica se há tarefas com mesmo horário nos mesmos dias.
+
+    Parâmetros GET:
+    - horario: HH:MM
+    - dias_semana[]: lista de dias (0-6)
+    - tarefa_id: ID da tarefa atual (para excluir da verificação em edição)
+
+    Retorna lista de tarefas conflitantes.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
+
+    horario_str = request.GET.get('horario', '')
+    dias_semana = request.GET.getlist('dias_semana[]', [])
+    tarefa_id = request.GET.get('tarefa_id', '')
+
+    if not horario_str or not dias_semana:
+        return JsonResponse({
+            'success': True,
+            'conflitos': [],
+            'tem_conflito': False
+        })
+
+    try:
+        from datetime import datetime as dt
+        horario = dt.strptime(horario_str, '%H:%M').time()
+    except ValueError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Formato de horário inválido'
+        }, status=400)
+
+    # Converte dias para inteiros
+    try:
+        dias_semana_int = [int(d) for d in dias_semana]
+    except ValueError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Dias da semana inválidos'
+        }, status=400)
+
+    # Busca tarefas ativas com mesmo horário
+    qs = TarefaEnvio.objects.filter(
+        usuario=request.user,
+        ativo=True,
+        horario=horario
+    )
+
+    # Exclui a tarefa atual se em modo de edição
+    if tarefa_id:
+        try:
+            qs = qs.exclude(pk=int(tarefa_id))
+        except ValueError:
+            pass
+
+    conflitos = []
+    for tarefa in qs:
+        # Verifica se há interseção de dias
+        dias_tarefa = set(tarefa.dias_semana or [])
+        dias_novos = set(dias_semana_int)
+        dias_conflito = dias_tarefa & dias_novos
+
+        if dias_conflito:
+            DIAS_NOMES = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+            dias_conflito_nomes = [DIAS_NOMES[d] for d in sorted(dias_conflito)]
+            conflitos.append({
+                'id': tarefa.id,
+                'nome': tarefa.nome,
+                'tipo_envio': tarefa.get_tipo_envio_display(),
+                'dias_conflito': dias_conflito_nomes
+            })
+
+    return JsonResponse({
+        'success': True,
+        'conflitos': conflitos,
+        'tem_conflito': len(conflitos) > 0
+    })
+
+
+@login_required
+@require_GET
+def tarefa_envio_listar_templates(request):
+    """
+    Lista templates de mensagem do usuário.
+
+    Parâmetros GET:
+    - categoria: filtro opcional por categoria
+
+    Retorna lista de templates agrupados por categoria.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
+
+    categoria = request.GET.get('categoria', '')
+
+    qs = TemplateMensagem.objects.filter(usuario=request.user, ativo=True)
+
+    if categoria:
+        qs = qs.filter(categoria=categoria)
+
+    templates = []
+    for t in qs.order_by('categoria', 'nome'):
+        templates.append({
+            'id': t.id,
+            'nome': t.nome,
+            'descricao': t.descricao,
+            'categoria': t.categoria,
+            'categoria_display': t.get_categoria_display(),
+            'mensagem_html': t.mensagem_html,
+            'tem_imagem': bool(t.imagem),
+            'imagem_url': t.imagem.url if t.imagem else None
+        })
+
+    # Agrupa por categoria
+    categorias = {}
+    for t in templates:
+        cat = t['categoria']
+        if cat not in categorias:
+            categorias[cat] = {
+                'nome': t['categoria_display'],
+                'templates': []
+            }
+        categorias[cat]['templates'].append(t)
+
+    return JsonResponse({
+        'success': True,
+        'templates': templates,
+        'categorias': categorias,
+        'total': len(templates)
+    })
+
+
+@login_required
+@require_POST
+def tarefa_envio_salvar_template(request):
+    """
+    Salva uma nova mensagem como template.
+
+    Parâmetros POST (JSON):
+    - nome: nome do template
+    - categoria: categoria (promocao, lembrete, boas_vindas, cobranca, geral)
+    - mensagem: conteúdo HTML da mensagem
+    - descricao: descrição opcional
+
+    Retorna o template criado.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
+
+    try:
+        import json
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'JSON inválido'
+        }, status=400)
+
+    nome = data.get('nome', '').strip()
+    categoria = data.get('categoria', 'geral')
+    mensagem = data.get('mensagem', '').strip()
+    descricao = data.get('descricao', '').strip()
+
+    # Validações
+    if not nome:
+        return JsonResponse({
+            'success': False,
+            'error': 'Nome do template é obrigatório'
+        }, status=400)
+
+    if len(nome) > 100:
+        return JsonResponse({
+            'success': False,
+            'error': 'Nome muito longo (máximo 100 caracteres)'
+        }, status=400)
+
+    if not mensagem:
+        return JsonResponse({
+            'success': False,
+            'error': 'Mensagem é obrigatória'
+        }, status=400)
+
+    # Verifica se categoria é válida
+    categorias_validas = ['promocao', 'lembrete', 'boas_vindas', 'cobranca', 'geral']
+    if categoria not in categorias_validas:
+        categoria = 'geral'
+
+    # Verifica duplicidade de nome
+    if TemplateMensagem.objects.filter(usuario=request.user, nome=nome).exists():
+        return JsonResponse({
+            'success': False,
+            'error': f'Já existe um template com o nome "{nome}"'
+        }, status=400)
+
+    # Cria o template
+    template = TemplateMensagem.objects.create(
+        usuario=request.user,
+        nome=nome,
+        categoria=categoria,
+        mensagem_html=mensagem,
+        descricao=descricao
+    )
+
+    return JsonResponse({
+        'success': True,
+        'template': {
+            'id': template.id,
+            'nome': template.nome,
+            'categoria': template.categoria,
+            'categoria_display': template.get_categoria_display(),
+            'mensagem_html': template.mensagem_html,
+            'descricao': template.descricao
+        },
+        'message': f'Template "{nome}" salvo com sucesso!'
+    })
+
+
+@login_required
+@require_GET
+def tarefa_envio_historico_api(request, pk):
+    """
+    Retorna historico filtrado via AJAX para a pagina de historico.
+
+    Parametros GET:
+    - status: 'sucesso', 'parcial', 'erro' ou '' (todos)
+    - data_inicio: YYYY-MM-DD
+    - data_fim: YYYY-MM-DD
+    - page: numero da pagina (default: 1)
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Permissao negada'}, status=403)
+
+    # Valida que a tarefa pertence ao usuario
+    tarefa = get_object_or_404(TarefaEnvio, pk=pk, usuario=request.user)
+
+    # Parametros de filtro
+    status_filtro = request.GET.get('status', '')
+    data_inicio = request.GET.get('data_inicio', '')
+    data_fim = request.GET.get('data_fim', '')
+    page = request.GET.get('page', 1)
+
+    # Query base
+    qs = HistoricoExecucaoTarefa.objects.filter(tarefa=tarefa).order_by('-data_execucao')
+
+    # Aplica filtros
+    if status_filtro in ['sucesso', 'parcial', 'erro']:
+        qs = qs.filter(status=status_filtro)
+
+    if data_inicio:
+        try:
+            from datetime import datetime as dt
+            data_inicio_parsed = dt.strptime(data_inicio, '%Y-%m-%d')
+            qs = qs.filter(data_execucao__date__gte=data_inicio_parsed.date())
+        except ValueError:
+            pass
+
+    if data_fim:
+        try:
+            from datetime import datetime as dt
+            data_fim_parsed = dt.strptime(data_fim, '%Y-%m-%d')
+            qs = qs.filter(data_execucao__date__lte=data_fim_parsed.date())
+        except ValueError:
+            pass
+
+    # Paginacao
+    from django.core.paginator import Paginator, EmptyPage
+    paginator = Paginator(qs, 20)
+
+    try:
+        page_obj = paginator.page(page)
+    except EmptyPage:
+        page_obj = paginator.page(1)
+
+    # Serializa historicos
+    historicos = []
+    for h in page_obj:
+        historicos.append({
+            'id': h.id,
+            'data_execucao': h.data_execucao.strftime('%d/%m/%Y'),
+            'hora_execucao': h.data_execucao.strftime('%H:%M:%S'),
+            'data_iso': h.data_execucao.isoformat(),
+            'status': h.status,
+            'quantidade_enviada': h.quantidade_enviada,
+            'quantidade_erros': h.quantidade_erros,
+            'duracao': h.get_duracao_formatada(),
+            'detalhes': h.detalhes or ''
+        })
+
+    # Estatisticas filtradas
+    total_filtrado = qs.count()
+    sucesso_filtrado = qs.filter(status='sucesso').count()
+    parcial_filtrado = qs.filter(status='parcial').count()
+    erro_filtrado = qs.filter(status='erro').count()
+
+    taxa_sucesso = 0
+    if total_filtrado > 0:
+        taxa_sucesso = round((sucesso_filtrado / total_filtrado) * 100, 1)
+
+    # Dados para grafico (ultimas 10 execucoes da query original sem paginacao)
+    ultimas_10 = list(qs[:10].values('data_execucao', 'quantidade_enviada', 'status'))
+    grafico_data = []
+    for item in reversed(ultimas_10):
+        grafico_data.append({
+            'data': item['data_execucao'].strftime('%d/%m'),
+            'enviados': item['quantidade_enviada'],
+            'status': item['status']
+        })
+
+    return JsonResponse({
+        'success': True,
+        'historicos': historicos,
+        'pagination': {
+            'current_page': page_obj.number,
+            'total_pages': paginator.num_pages,
+            'total_items': paginator.count,
+            'has_previous': page_obj.has_previous(),
+            'has_next': page_obj.has_next(),
+            'previous_page': page_obj.previous_page_number() if page_obj.has_previous() else None,
+            'next_page': page_obj.next_page_number() if page_obj.has_next() else None
+        },
+        'stats': {
+            'total': total_filtrado,
+            'sucesso': sucesso_filtrado,
+            'parcial': parcial_filtrado,
+            'erro': erro_filtrado,
+            'taxa_sucesso': taxa_sucesso
+        },
+        'grafico': grafico_data
+    })

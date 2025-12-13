@@ -224,14 +224,39 @@ class TarefaEnvioForm(forms.ModelForm):
         help_text='Opcional: data/hora para reativar a tarefa automaticamente'
     )
 
+    tipo_agendamento = forms.ChoiceField(
+        choices=[
+            ('recorrente', 'Recorrente'),
+            ('unico', 'Envio Único'),
+        ],
+        initial='recorrente',
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-check-input'
+        }),
+        label='Tipo de Agendamento',
+        help_text='Recorrente repete nos dias selecionados. Único executa apenas uma vez.'
+    )
+
+    data_envio_unico = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control form-control-lg',
+            'type': 'date'
+        }),
+        label='Data do Envio',
+        help_text='Selecione a data específica para envio único'
+    )
+
     class Meta:
         from .models import TarefaEnvio
         model = TarefaEnvio
         fields = [
             'nome',
             'tipo_envio',
+            'tipo_agendamento',
             'dias_semana',
             'periodo_mes',
+            'data_envio_unico',
             'horario',
             'imagem',
             'mensagem',
@@ -331,11 +356,28 @@ class TarefaEnvioForm(forms.ModelForm):
     def clean(self):
         """Validação global com logging para debug."""
         import logging
+        from django.utils import timezone
         logger = logging.getLogger(__name__)
 
         cleaned_data = super().clean()
         logger.info(f"TarefaEnvioForm clean - cleaned_data keys: {list(cleaned_data.keys())}")
         logger.info(f"TarefaEnvioForm clean - imagem: {cleaned_data.get('imagem')}")
         logger.info(f"TarefaEnvioForm clean - form errors: {self.errors}")
+
+        # Validação do tipo de agendamento
+        tipo_agendamento = cleaned_data.get('tipo_agendamento')
+        data_envio_unico = cleaned_data.get('data_envio_unico')
+        dias_semana = cleaned_data.get('dias_semana', [])
+
+        if tipo_agendamento == 'unico':
+            # Para envio único, a data é obrigatória
+            if not data_envio_unico:
+                self.add_error('data_envio_unico', 'Para envio único, selecione uma data.')
+            elif data_envio_unico < timezone.now().date():
+                self.add_error('data_envio_unico', 'A data de envio não pode ser no passado.')
+        elif tipo_agendamento == 'recorrente':
+            # Para envio recorrente, dias da semana são obrigatórios
+            if not dias_semana:
+                self.add_error('dias_semana', 'Selecione pelo menos um dia da semana.')
 
         return cleaned_data

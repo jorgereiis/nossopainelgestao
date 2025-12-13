@@ -101,11 +101,16 @@
                     <i class="bi bi-whatsapp me-2 nav-icon icon-xs"></i> WhatsApp
                 </a>
 
-                <div id="navWhatsapp" class="collapse {% if page_group == 'whatsapp' %} show {% endif %}"
+                <div id="navWhatsapp" class="collapse {% if page_group == 'whatsapp' or page == 'tarefas-envio' %} show {% endif %}"
                     data-bs-parent="#sideNavbar">
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link {% if page == 'whatsapp' %}active{% endif %}" style="cursor: pointer;" onclick="modalEnviosWhatsapp()">Envios</a>
+                        </li>
+                    </ul>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'tarefas-envio' %}active{% endif %}" href="{% url 'tarefas-envio-lista' %}">Tarefas de Envio</a>
                         </li>
                     </ul>
                     <ul class="nav flex-column">
@@ -191,13 +196,6 @@
             <li class="nav-item">
                 <a class="nav-link {% if page == 'chat-whatsapp' %}active{% endif %}" href="{% url 'chat-whatsapp' %}">
                     <i data-feather="message-circle" class="nav-icon icon-xs me-2"></i> Chat WhatsApp
-                </a>
-            </li>
-
-            <!-- Nav item - Tarefas de Envio -->
-            <li class="nav-item">
-                <a class="nav-link {% if page == 'tarefas-envio' %}active{% endif %}" href="{% url 'tarefas-envio-lista' %}">
-                    <i data-feather="send" class="nav-icon icon-xs me-2"></i> Tarefas de Envio
                 </a>
             </li>
 
