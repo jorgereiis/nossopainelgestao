@@ -1885,6 +1885,7 @@ button.dropdown-item.dropdown-action-delete:focus i {
 
 @media (max-width: 991.98px) {
     /* Dropdown fixo na parte inferior da tela em mobile */
+    /* Corrigido: removido transform para compatibilidade com mobile real */
     #myTable .dropdown-menu,
     #myTable .dropdown-menu.show,
     #servidoresTable .dropdown-menu,
@@ -1899,27 +1900,29 @@ button.dropdown-item.dropdown-action-delete:focus i {
     #formasPgtoTable .dropdown-menu.show {
         position: fixed !important;
         top: auto !important;
-        left: 50% !important;
-        right: auto !important;
+        left: 20px !important;
+        right: 20px !important;
         bottom: 20px !important;
-        transform: translateX(-50%) !important;
-        width: calc(100% - 40px) !important;
-        max-width: 320px;
+        bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+        transform: none !important;
+        width: auto !important;
+        max-width: 100%;
+        margin: 0 auto;
         z-index: 1080;
         box-shadow: 0 -4px 25px rgba(0,0,0,0.2);
         border-radius: 16px;
-        animation: mobileDropdownSlideUp 0.25s ease !important;
+        animation: mobileDropdownSlideUp 0.25s ease-out forwards !important;
         padding: 0.75rem 0;
     }
 
     @keyframes mobileDropdownSlideUp {
-        from {
+        0% {
             opacity: 0;
-            transform: translateX(-50%) translateY(30px);
+            margin-bottom: -30px;
         }
-        to {
+        100% {
             opacity: 1;
-            transform: translateX(-50%) translateY(0);
+            margin-bottom: 0;
         }
     }
 
