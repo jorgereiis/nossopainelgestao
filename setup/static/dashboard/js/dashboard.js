@@ -1549,7 +1549,8 @@ function isMobileDevice() {
 function isTargetTable(table) {
     return table && (table.id === 'myTable' || table.id === 'servidoresTable' ||
         table.id === 'aplicativosTable' || table.id === 'dispositivosTable' ||
-        table.id === 'planosTable' || table.id === 'formasPgtoTable');
+        table.id === 'planosTable' || table.id === 'formasPgtoTable' ||
+        table.id === 'tarefasEnvioTable');
 }
 
 // Adiciona backdrop e move dropdown para body quando abre em mobile
