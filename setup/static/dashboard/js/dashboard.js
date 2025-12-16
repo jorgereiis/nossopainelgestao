@@ -1539,22 +1539,27 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ----------------------
-// DROPDOWN MOBILE COM BACKDROP
+// DROPDOWN MOBILE COM BACKDROP (Portal Pattern)
 // ----------------------
 function isMobileDevice() {
     return window.innerWidth <= 991;
 }
 
-// Adiciona backdrop quando dropdown abre em mobile
+// Lista de tabelas que usam o dropdown mobile
+function isTargetTable(table) {
+    return table && (table.id === 'myTable' || table.id === 'servidoresTable' ||
+        table.id === 'aplicativosTable' || table.id === 'dispositivosTable' ||
+        table.id === 'planosTable' || table.id === 'formasPgtoTable');
+}
+
+// Adiciona backdrop e move dropdown para body quando abre em mobile
 document.addEventListener('show.bs.dropdown', function(event) {
     if (isMobileDevice()) {
-        // Verifica se é um dropdown de tabela
         const dropdown = event.target.closest('.dropdown');
         const table = dropdown ? dropdown.closest('table') : null;
 
-        if (table && (table.id === 'myTable' || table.id === 'servidoresTable' ||
-            table.id === 'aplicativosTable' || table.id === 'dispositivosTable' ||
-            table.id === 'planosTable' || table.id === 'formasPgtoTable')) {
+        if (isTargetTable(table)) {
+            const dropdownMenu = dropdown.querySelector('.dropdown-menu');
 
             // Remove backdrop existente
             const existingBackdrop = document.querySelector('.dropdown-backdrop-mobile');
@@ -1562,29 +1567,55 @@ document.addEventListener('show.bs.dropdown', function(event) {
                 existingBackdrop.remove();
             }
 
-            // Cria novo backdrop
+            // Salva referência do pai original para restaurar depois
+            dropdownMenu._originalParent = dropdownMenu.parentElement;
+            dropdownMenu._originalNextSibling = dropdownMenu.nextElementSibling;
+
+            // Move dropdown para o body (escapa do stacking context da tabela)
+            document.body.appendChild(dropdownMenu);
+
+            // Adiciona classe para estilização mobile
+            dropdownMenu.classList.add('dropdown-menu-mobile-portal');
+
+            // Cria backdrop
             const backdrop = document.createElement('div');
             backdrop.className = 'dropdown-backdrop-mobile';
             document.body.appendChild(backdrop);
 
             // Fecha dropdown ao clicar no backdrop
             backdrop.addEventListener('click', function() {
-                const openDropdown = document.querySelector('.dropdown-menu.show');
-                if (openDropdown) {
-                    const bsDropdown = bootstrap.Dropdown.getInstance(openDropdown.previousElementSibling) ||
-                                       bootstrap.Dropdown.getOrCreateInstance(openDropdown.previousElementSibling);
-                    if (bsDropdown) {
-                        bsDropdown.hide();
-                    }
+                const bsDropdown = bootstrap.Dropdown.getInstance(event.target) ||
+                                   bootstrap.Dropdown.getOrCreateInstance(event.target);
+                if (bsDropdown) {
+                    bsDropdown.hide();
                 }
-                backdrop.remove();
             });
         }
     }
 });
 
-// Remove backdrop quando dropdown fecha
+// Remove backdrop e retorna dropdown ao local original quando fecha
 document.addEventListener('hide.bs.dropdown', function(event) {
+    const dropdownMenu = document.querySelector('.dropdown-menu-mobile-portal');
+
+    if (dropdownMenu && dropdownMenu._originalParent) {
+        // Remove classe mobile
+        dropdownMenu.classList.remove('dropdown-menu-mobile-portal');
+        dropdownMenu.classList.remove('show');
+
+        // Retorna ao pai original
+        if (dropdownMenu._originalNextSibling) {
+            dropdownMenu._originalParent.insertBefore(dropdownMenu, dropdownMenu._originalNextSibling);
+        } else {
+            dropdownMenu._originalParent.appendChild(dropdownMenu);
+        }
+
+        // Limpa referências
+        delete dropdownMenu._originalParent;
+        delete dropdownMenu._originalNextSibling;
+    }
+
+    // Remove backdrop
     const backdrop = document.querySelector('.dropdown-backdrop-mobile');
     if (backdrop) {
         backdrop.remove();
@@ -1594,9 +1625,26 @@ document.addEventListener('hide.bs.dropdown', function(event) {
 // Remove backdrop ao redimensionar para desktop
 window.addEventListener('resize', function() {
     if (!isMobileDevice()) {
+        // Remove backdrop
         const backdrop = document.querySelector('.dropdown-backdrop-mobile');
         if (backdrop) {
             backdrop.remove();
+        }
+
+        // Retorna dropdown ao local original se estiver no body
+        const dropdownMenu = document.querySelector('.dropdown-menu-mobile-portal');
+        if (dropdownMenu && dropdownMenu._originalParent) {
+            dropdownMenu.classList.remove('dropdown-menu-mobile-portal');
+            dropdownMenu.classList.remove('show');
+
+            if (dropdownMenu._originalNextSibling) {
+                dropdownMenu._originalParent.insertBefore(dropdownMenu, dropdownMenu._originalNextSibling);
+            } else {
+                dropdownMenu._originalParent.appendChild(dropdownMenu);
+            }
+
+            delete dropdownMenu._originalParent;
+            delete dropdownMenu._originalNextSibling;
         }
     }
 });
