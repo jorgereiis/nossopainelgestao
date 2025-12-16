@@ -1065,15 +1065,29 @@ def envia_mensagem_personalizada(
                         usuario,
                         DIR_LOGS_AGENDADOS
                     )
-                    # Usa get_or_create para evitar IntegrityError em caso de race condition
-                    registro_envio, created = MensagemEnviadaWpp.objects.get_or_create(
-                        usuario=usuario,
-                        telefone=telefone,
-                        data_envio=localtime().date()
-                    )
+                    # Registra envio - usa try/except para tratar IntegrityError em race condition
+                    # (campo data_envio usa auto_now_add=True, então get_or_create não funciona bem)
+                    try:
+                        registro_envio = MensagemEnviadaWpp.objects.create(
+                            usuario=usuario,
+                            telefone=telefone
+                        )
+                        registro_criado = True
+                    except IntegrityError:
+                        # Registro já existe (criado por outra instância paralela)
+                        registro_envio = MensagemEnviadaWpp.objects.filter(
+                            usuario=usuario,
+                            telefone=telefone,
+                            data_envio=localtime().date()
+                        ).first()
+                        registro_criado = False
+                        logger.debug(
+                            "Registro MensagemEnviadaWpp já existia (race condition tratada) | telefone=%s",
+                            telefone
+                        )
                     registrar_log_auditoria({
                         "funcao": "envia_mensagem_personalizada",
-                        "status": "sucesso" if created else "sucesso_registro_existente",
+                        "status": "sucesso" if registro_criado else "sucesso_registro_existente",
                         "usuario": usuario.username,
                         "tipo_envio": tipo_envio,
                         "telefone": telefone,
@@ -1084,8 +1098,8 @@ def envia_mensagem_personalizada(
                         "mensagem": message,
                         "payload": audit_payload,
                         "response": response_payload,
-                        "registro_envio_id": registro_envio.id,
-                        "registro_criado": created,
+                        "registro_envio_id": registro_envio.id if registro_envio else None,
+                        "registro_criado": registro_criado,
                     })
                     total_enviados += 1
                     resultado['enviados'] += 1
@@ -1138,7 +1152,7 @@ def envia_mensagem_personalizada(
             # Se saiu do loop sem sucesso (todas tentativas falharam)
             resultado['erros'] += 1
 
-        time.sleep(random.uniform(40, 180))
+        time.sleep(random.uniform(30, 180))
 
     # Retorna resultado para uso em TarefaEnvio
     return resultado
@@ -1327,6 +1341,8 @@ def run_scheduled_tasks_from_db():
                             tarefa.em_execucao = False
                             tarefa.execucao_iniciada_em = None
                             tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
+                            # Pula esta rodada - execução limpa será na próxima rodada do scheduler
+                            continue
                         else:
                             logger.debug(
                                 "TarefaEnvio já em execução | tarefa_id=%d nome=%s iniciada_em=%s",
