@@ -192,7 +192,7 @@ def get_label_contact(telefone, token, user):
     }
 
     try:
-        response = requests.get(url, headers=headers, json=body)
+        response = requests.get(url, headers=headers, json=body, timeout=REQUEST_TIMEOUT)
 
         if response.status_code in [200, 201]:
             response_data = response.json()
@@ -205,6 +205,9 @@ def get_label_contact(telefone, token, user):
             response.status_code,
             response.text,
         )
+        return []
+    except requests.Timeout:
+        logger.error("[get_label_contact] %s | Timeout ao obter labels", user)
         return []
     except requests.RequestException as exc:
         logger.exception("[get_label_contact] %s | Falha na requisição: %s", user, exc)
@@ -317,7 +320,7 @@ def get_all_labels(token, user):
     }
 
     try:
-        response = requests.get(url, headers=headers, json=body)
+        response = requests.get(url, headers=headers, json=body, timeout=REQUEST_TIMEOUT)
 
         if response.status_code in [200, 201]:
             response_data = response.json()
@@ -331,6 +334,9 @@ def get_all_labels(token, user):
             response.status_code,
             response.text,
         )
+        return []
+    except requests.Timeout:
+        logger.error("[get_all_labels] %s | Timeout ao obter labels", user)
         return []
     except requests.RequestException as exc:
         logger.exception("[get_all_labels] %s | Falha na requisição: %s", user, exc)
@@ -366,8 +372,11 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
         ]
     }
   
+    # Timeout maior para operações de label (podem ser lentas no WhatsApp)
+    LABEL_TIMEOUT = 60
+
     try:
-        response = requests.post(url, headers=headers, json=body)
+        response = requests.post(url, headers=headers, json=body, timeout=LABEL_TIMEOUT)
         logger.info(
             "[add_or_remove_label_contact] %s | status=%s body=%s",
             user,
@@ -397,6 +406,9 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
             response_data = response.text
 
         return response.status_code, response_data
+    except requests.Timeout:
+        logger.error("[add_or_remove_label_contact] %s | Timeout ao aplicar label em %s", user, telefone)
+        return 504, {"status": "error", "message": "Timeout na operação de label"}
     except requests.RequestException as exc:
         logger.exception("[add_or_remove_label_contact] %s | Erro de requisição: %s", user, exc)
         return 500, {"status": "error", "message": str(exc)}
@@ -422,8 +434,11 @@ def remover_todas_labels_contato(telefone, labels, token, user):
         "options": [{"labelId": label, "type": "remove"} for label in labels if label]
     }
 
+    # Timeout maior para operações de label
+    LABEL_TIMEOUT = 60
+
     try:
-        response = requests.post(url, headers=headers, json=body)
+        response = requests.post(url, headers=headers, json=body, timeout=LABEL_TIMEOUT)
         logger.info(
             "[remover_todas_labels_contato] %s | telefone=%s status=%s",
             user,
@@ -437,6 +452,9 @@ def remover_todas_labels_contato(telefone, labels, token, user):
             response_data = response.text
 
         return response.status_code, response_data
+    except requests.Timeout:
+        logger.error("[remover_todas_labels_contato] %s | Timeout ao remover labels de %s", user, telefone)
+        return 504, {"status": "error", "message": "Timeout na remoção de labels"}
     except requests.RequestException as exc:
         logger.exception("[remover_todas_labels_contato] %s | Erro: %s", user, exc)
         return 500, {"status": "error", "message": str(exc)}
@@ -469,7 +487,10 @@ def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
             logger.error("[criar_label_se_nao_existir] %s | Cor inválida '%s'.", user, hex_color)
 
     try:
-        response = requests.post(url, headers=headers, json=body)
+        response = requests.post(url, headers=headers, json=body, timeout=REQUEST_TIMEOUT)
+    except requests.Timeout:
+        logger.error("[criar_label_se_nao_existir] %s | Timeout ao criar label '%s'", user, nome_label)
+        return None
     except requests.RequestException as exc:
         logger.exception("[criar_label_se_nao_existir] %s | Erro na requisição: %s", user, exc)
         return None
@@ -510,7 +531,7 @@ def get_all_groups(token, user):
     }
 
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
 
         if response.status_code in [200, 201]:
             response_data = response.json()
@@ -523,6 +544,9 @@ def get_all_groups(token, user):
             response.status_code,
             response.text,
         )
+        return []
+    except requests.Timeout:
+        logger.error("[get_all_groups] %s | Timeout ao obter grupos", user)
         return []
     except requests.RequestException as exc:
         logger.exception("[get_all_groups] %s | Falha na requisição: %s", user, exc)
