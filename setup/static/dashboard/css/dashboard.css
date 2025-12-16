@@ -1880,101 +1880,74 @@ button.dropdown-item.dropdown-action-delete:focus i {
 }
 
 /* ========================================================================== */
-/* DROPDOWN MOBILE - ESTILO ACTION SHEET                                      */
+/* DROPDOWN MOBILE - PORTAL PATTERN                                           */
+/* Dropdown é movido para body via JS para escapar do stacking context        */
 /* ========================================================================== */
 
-@media (max-width: 991.98px) {
-    /* Dropdown fixo na parte inferior da tela em mobile */
-    /* Corrigido: removido transform para compatibilidade com mobile real */
-    #myTable .dropdown-menu,
-    #myTable .dropdown-menu.show,
-    #servidoresTable .dropdown-menu,
-    #servidoresTable .dropdown-menu.show,
-    #aplicativosTable .dropdown-menu,
-    #aplicativosTable .dropdown-menu.show,
-    #dispositivosTable .dropdown-menu,
-    #dispositivosTable .dropdown-menu.show,
-    #planosTable .dropdown-menu,
-    #planosTable .dropdown-menu.show,
-    #formasPgtoTable .dropdown-menu,
-    #formasPgtoTable .dropdown-menu.show {
-        position: fixed !important;
-        top: auto !important;
-        left: 20px !important;
-        right: 20px !important;
-        bottom: 20px !important;
-        bottom: calc(20px + env(safe-area-inset-bottom)) !important;
-        transform: none !important;
-        width: auto !important;
-        max-width: 100%;
-        margin: 0 auto;
-        z-index: 1080;
-        box-shadow: 0 -4px 25px rgba(0,0,0,0.2);
-        border-radius: 16px;
-        animation: mobileDropdownSlideUp 0.25s ease-out forwards !important;
-        padding: 0.75rem 0;
-    }
+/* Dropdown quando movido para body (portal) */
+.dropdown-menu-mobile-portal {
+    position: fixed !important;
+    top: auto !important;
+    left: 20px !important;
+    right: 20px !important;
+    bottom: 20px !important;
+    bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: 100%;
+    z-index: 1090 !important;
+    display: block !important;
+    box-shadow: 0 -4px 25px rgba(0,0,0,0.25);
+    border-radius: 16px;
+    padding: 0.75rem 0;
+    animation: mobileDropdownSlideUp 0.25s ease-out forwards;
+    background: #fff;
+}
 
-    @keyframes mobileDropdownSlideUp {
-        0% {
-            opacity: 0;
-            margin-bottom: -30px;
-        }
-        100% {
-            opacity: 1;
-            margin-bottom: 0;
-        }
-    }
+/* Itens maiores para facilitar o toque no mobile */
+.dropdown-menu-mobile-portal .dropdown-item {
+    padding: 1rem 1.25rem !important;
+    font-size: 1rem !important;
+}
 
-    /* Itens maiores para facilitar o toque */
-    #myTable .dropdown-menu .dropdown-item,
-    #servidoresTable .dropdown-menu .dropdown-item,
-    #aplicativosTable .dropdown-menu .dropdown-item,
-    #dispositivosTable .dropdown-menu .dropdown-item,
-    #planosTable .dropdown-menu .dropdown-item,
-    #formasPgtoTable .dropdown-menu .dropdown-item {
-        padding: 1rem 1.25rem !important;
-        font-size: 1rem !important;
-    }
+.dropdown-menu-mobile-portal .dropdown-item i {
+    width: 20px;
+    height: 20px;
+}
 
-    #myTable .dropdown-menu .dropdown-item i,
-    #servidoresTable .dropdown-menu .dropdown-item i,
-    #aplicativosTable .dropdown-menu .dropdown-item i,
-    #dispositivosTable .dropdown-menu .dropdown-item i,
-    #planosTable .dropdown-menu .dropdown-item i,
-    #formasPgtoTable .dropdown-menu .dropdown-item i {
-        width: 20px;
-        height: 20px;
-    }
+.dropdown-menu-mobile-portal .dropdown-divider {
+    margin: 0.75rem 0;
+}
 
-    #myTable .dropdown-menu .dropdown-divider,
-    #servidoresTable .dropdown-menu .dropdown-divider,
-    #aplicativosTable .dropdown-menu .dropdown-divider,
-    #dispositivosTable .dropdown-menu .dropdown-divider,
-    #planosTable .dropdown-menu .dropdown-divider,
-    #formasPgtoTable .dropdown-menu .dropdown-divider {
-        margin: 0.75rem 0;
+@keyframes mobileDropdownSlideUp {
+    0% {
+        opacity: 0;
+        bottom: -30px;
     }
-
-    /* Overlay escuro atrás do dropdown */
-    .dropdown-backdrop-mobile {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.4);
-        z-index: 1079;
-        animation: backdropFadeIn 0.2s ease;
+    100% {
+        opacity: 1;
+        bottom: calc(20px + env(safe-area-inset-bottom));
     }
+}
 
-    @keyframes backdropFadeIn {
-        from {
-            opacity: 0;
-        }
-        to {
-            opacity: 1;
-        }
+/* Overlay escuro atrás do dropdown */
+.dropdown-backdrop-mobile {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1080;
+    animation: backdropFadeIn 0.2s ease;
+}
+
+@keyframes backdropFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
     }
 }
 
