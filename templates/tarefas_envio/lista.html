@@ -542,32 +542,34 @@
             min-width: 800px;
         }
 
-        /* Dropdown fixo em mobile para nao ser cortado pelo scroll */
-        .table-modern .dropdown-menu,
-        .table-modern .dropdown-menu.show {
+        /* Dropdown quando movido para body (Portal Pattern) */
+        .dropdown-menu-mobile-portal {
             position: fixed !important;
             top: auto !important;
-            left: 50% !important;
-            right: auto !important;
+            left: 20px !important;
+            right: 20px !important;
             bottom: 20px !important;
-            transform: translateX(-50%) !important;
-            width: calc(100% - 40px) !important;
-            max-width: 320px;
-            z-index: 1080;
-            box-shadow: 0 -4px 25px rgba(0,0,0,0.2);
+            bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+            transform: none !important;
+            width: auto !important;
+            max-width: 100%;
+            z-index: 1090 !important;
+            display: block !important;
+            box-shadow: 0 -4px 25px rgba(0,0,0,0.25);
             border-radius: 16px;
-            animation: mobileSlideUp 0.25s ease !important;
             padding: 0.75rem 0;
+            background: #fff;
+            animation: mobileSlideUp 0.25s ease-out forwards;
         }
 
         @keyframes mobileSlideUp {
             from {
                 opacity: 0;
-                transform: translateX(-50%) translateY(30px);
+                transform: translateY(30px);
             }
             to {
                 opacity: 1;
-                transform: translateX(-50%) translateY(0);
+                transform: translateY(0);
             }
         }
 
@@ -597,8 +599,14 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.3);
-            z-index: 1079;
+            background: rgba(0,0,0,0.4);
+            z-index: 1080;
+            animation: backdropFadeIn 0.2s ease;
+        }
+
+        @keyframes backdropFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
     }
 
@@ -1638,36 +1646,80 @@ $(document).ready(function() {
         feather.replace();
     }
 
-    // ===== DROPDOWN MOBILE COM BACKDROP =====
+    // ===== DROPDOWN MOBILE COM PORTAL PATTERN =====
     function isMobile() {
         return window.innerWidth <= 991;
     }
 
-    // Adiciona backdrop quando dropdown abre em mobile
-    $(document).on('show.bs.dropdown', '.table-modern .dropdown', function() {
+    // Move dropdown para body quando abre em mobile (Portal Pattern)
+    document.addEventListener('show.bs.dropdown', function(event) {
         if (isMobile()) {
-            // Remove backdrop existente
-            $('.dropdown-backdrop-mobile').remove();
-            // Cria novo backdrop
-            $('body').append('<div class="dropdown-backdrop-mobile"></div>');
+            const dropdown = event.target.closest('.dropdown');
+            const table = dropdown ? dropdown.closest('table') : null;
+
+            if (table && table.id === 'tarefasEnvioTable') {
+                const dropdownMenu = dropdown.querySelector('.dropdown-menu');
+
+                // Remove backdrop existente
+                const existingBackdrop = document.querySelector('.dropdown-backdrop-mobile');
+                if (existingBackdrop) existingBackdrop.remove();
+
+                // Salva referência do pai original para restaurar depois
+                dropdownMenu._originalParent = dropdownMenu.parentElement;
+                dropdownMenu._originalNextSibling = dropdownMenu.nextElementSibling;
+
+                // Move dropdown para o body (escapa do stacking context da tabela)
+                document.body.appendChild(dropdownMenu);
+
+                // Adiciona classe para estilização mobile
+                dropdownMenu.classList.add('dropdown-menu-mobile-portal');
+
+                // Cria backdrop
+                const backdrop = document.createElement('div');
+                backdrop.className = 'dropdown-backdrop-mobile';
+                document.body.appendChild(backdrop);
+
+                backdrop.addEventListener('click', function() {
+                    const bsDropdown = bootstrap.Dropdown.getInstance(event.target) ||
+                                       bootstrap.Dropdown.getOrCreateInstance(event.target);
+                    if (bsDropdown) {
+                        bsDropdown.hide();
+                    }
+                });
+            }
         }
     });
 
-    // Remove backdrop quando dropdown fecha
-    $(document).on('hide.bs.dropdown', '.table-modern .dropdown', function() {
-        $('.dropdown-backdrop-mobile').remove();
-    });
+    // Retorna dropdown ao local original quando fecha
+    document.addEventListener('hide.bs.dropdown', function(event) {
+        const dropdownMenu = document.querySelector('.dropdown-menu-mobile-portal');
 
-    // Fecha dropdown ao clicar no backdrop
-    $(document).on('click', '.dropdown-backdrop-mobile', function() {
-        $('.table-modern .dropdown-menu.show').dropdown('hide');
-        $(this).remove();
+        if (dropdownMenu && dropdownMenu._originalParent) {
+            // Remove classe
+            dropdownMenu.classList.remove('dropdown-menu-mobile-portal');
+
+            // Retorna ao pai original
+            if (dropdownMenu._originalNextSibling) {
+                dropdownMenu._originalParent.insertBefore(dropdownMenu, dropdownMenu._originalNextSibling);
+            } else {
+                dropdownMenu._originalParent.appendChild(dropdownMenu);
+            }
+
+            // Limpa referências
+            delete dropdownMenu._originalParent;
+            delete dropdownMenu._originalNextSibling;
+        }
+
+        // Remove backdrop
+        const backdrop = document.querySelector('.dropdown-backdrop-mobile');
+        if (backdrop) backdrop.remove();
     });
 
     // Remove backdrop ao redimensionar para desktop
-    $(window).on('resize', function() {
+    window.addEventListener('resize', function() {
         if (!isMobile()) {
-            $('.dropdown-backdrop-mobile').remove();
+            const backdrop = document.querySelector('.dropdown-backdrop-mobile');
+            if (backdrop) backdrop.remove();
         }
     });
 });
