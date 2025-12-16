@@ -16,7 +16,6 @@ from mensagem_gp_wpp import (
 from mensagens_wpp import (
     obter_mensalidades_canceladas,
     executar_envios_agendados_com_lock,
-    run_scheduled_tasks,
     run_scheduled_tasks_from_db,
     backup_db_sh,
 )
@@ -175,7 +174,6 @@ def run_threaded_async(async_coro_func, *args, **kwargs):
 # Jobs diários em horários fixos:
 schedule.every().day.at("08:00").do(run_threaded_sync, chamada_funcao_gp_futebol).tag("gp_futebol")
 schedule.every().day.at("10:00").do(run_threaded_sync, chamada_funcao_gp_vendas).tag("gp_vendas_manha")
-#schedule.every().day.at("12:00").do(run_threaded_sync, run_scheduled_tasks).tag("run_scheduled_tasks")
 schedule.every().day.at("17:00").do(run_threaded_sync, obter_mensalidades_canceladas).tag("mensalidades_canceladas")
 schedule.every().day.at("20:00").do(run_threaded_sync, chamada_funcao_gp_vendas).tag("gp_vendas_noite")
 

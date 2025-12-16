@@ -1065,10 +1065,15 @@ def envia_mensagem_personalizada(
                         usuario,
                         DIR_LOGS_AGENDADOS
                     )
-                    registro_envio = MensagemEnviadaWpp.objects.create(usuario=usuario, telefone=telefone)
+                    # Usa get_or_create para evitar IntegrityError em caso de race condition
+                    registro_envio, created = MensagemEnviadaWpp.objects.get_or_create(
+                        usuario=usuario,
+                        telefone=telefone,
+                        data_envio=localtime().date()
+                    )
                     registrar_log_auditoria({
                         "funcao": "envia_mensagem_personalizada",
-                        "status": "sucesso",
+                        "status": "sucesso" if created else "sucesso_registro_existente",
                         "usuario": usuario.username,
                         "tipo_envio": tipo_envio,
                         "telefone": telefone,
@@ -1080,6 +1085,7 @@ def envia_mensagem_personalizada(
                         "payload": audit_payload,
                         "response": response_payload,
                         "registro_envio_id": registro_envio.id,
+                        "registro_criado": created,
                     })
                     total_enviados += 1
                     resultado['enviados'] += 1
@@ -1132,7 +1138,7 @@ def envia_mensagem_personalizada(
             # Se saiu do loop sem sucesso (todas tentativas falharam)
             resultado['erros'] += 1
 
-        time.sleep(random.uniform(30, 180))
+        time.sleep(random.uniform(40, 180))
 
     # Retorna resultado para uso em TarefaEnvio
     return resultado
@@ -1242,96 +1248,6 @@ def obter_mensagem_personalizada(nome: str, tipo: str, usuario: User = None) -> 
 #### FIM #####
 
 
-##########################################################################
-##### FUNÇÃO PARA EXECUTAR TAREFAS AGENDADAS PARA ENVIO DE MENSAGENS #####
-##########################################################################
-
-def run_scheduled_tasks():
-    """
-    Executa tarefas agendadas de envio de mensagens com base no dia da semana e dia do mês:
-    - Sábado: clientes ativos (2º e último sábado).
-    - Quarta e domingo: clientes avulsos (3 intervalos de dias).
-    - Segunda: clientes cancelados (3 intervalos de dias).
-    """
-    try:
-        now = datetime.now()
-        dia = now.day
-        dia_semana = now.strftime('%A')
-        ano = now.year
-        mes = now.month
-
-        def get_second_saturday(year, month):
-            first_day = datetime(year, month, 1)
-            first_saturday = first_day + timedelta(days=(5 - first_day.weekday()) % 7)
-            return (first_saturday + timedelta(days=7)).day
-
-        def get_last_saturday(year, month):
-            last_day = datetime(year, month, calendar.monthrange(year, month)[1])
-            return (last_day - timedelta(days=(last_day.weekday() - 5) % 7)).day
-
-        second_saturday = get_second_saturday(ano, mes)
-        last_saturday = get_last_saturday(ano, mes)
-
-        # Inicializa parâmetros
-        tipo = None
-        imagem = None
-        nome_msg = None
-
-        if dia_semana in ["Monday", "Wednesday"]:
-            tipo = "ativos"
-            imagem = "img1.png"
-            if dia <= 14:
-                nome_msg = "msg1"
-            elif dia >= 15:
-                nome_msg = "msg2"
-
-        elif dia_semana in ["Tuesday", "Thursday", "Saturday"]:
-            tipo = "avulso"
-            if 1 <= dia <= 10:
-                imagem, nome_msg = "img2-1.png", "msg2-1"
-            elif 11 <= dia <= 20:
-                imagem, nome_msg = "img2-2.png", "msg2-2"
-            elif dia >= 21:
-                imagem, nome_msg = "img2-3.png", "msg2-3"
-            else:
-                nome_msg = None
-
-        elif dia_semana in ["Friday", "Sunday"]:
-            tipo = "cancelados"
-            if 1 <= dia <= 10:
-                imagem, nome_msg = "img3-1.png", "msg3-1"
-            elif 11 <= dia <= 20:
-                imagem, nome_msg = "img3-2.png", "msg3-2"
-            elif dia >= 21:
-                imagem, nome_msg = "img3-3.png", "msg3-3"
-            else:
-                nome_msg = None
-
-        # Execução final do envio
-        if tipo and imagem and nome_msg:
-            logger.info(
-                "Executando envio programado | tipo=%s imagem=%s msg=%s",
-                tipo.upper(),
-                imagem,
-                nome_msg
-            )
-            envia_mensagem_personalizada(tipo_envio=tipo, image_name=imagem, nome_msg=nome_msg)
-        else:
-            logger.debug(
-                "Nenhum envio agendado para hoje | dia_semana=%s dia=%d",
-                dia_semana,
-                dia
-            )
-
-    except Exception as e:
-        logger.error(
-            "Erro em run_scheduled_tasks | erro=%s",
-            str(e),
-            exc_info=True
-        )
-##### FIM #####
-
-
 ###########################################################
 ##### FUNÇÃO PARA EXECUTAR TAREFAS DE ENVIO DO BANCO  #####
 ###########################################################
@@ -1389,6 +1305,43 @@ def run_scheduled_tasks_from_db():
                         tarefa.nome
                     )
                     continue
+
+                # ============================================================
+                # PROTEÇÃO CONTRA EXECUÇÃO PARALELA
+                # ============================================================
+                # Recarrega a tarefa do banco para obter estado atualizado
+                tarefa.refresh_from_db()
+
+                # Verifica se já está em execução
+                if tarefa.em_execucao:
+                    # Verifica se está travada (execução > 2 horas)
+                    if tarefa.execucao_iniciada_em:
+                        tempo_execucao = agora - tarefa.execucao_iniciada_em
+                        if tempo_execucao.total_seconds() > 7200:  # 2 horas
+                            logger.warning(
+                                "TarefaEnvio travada detectada (>2h) - resetando | tarefa_id=%d nome=%s tempo=%s",
+                                tarefa.id,
+                                tarefa.nome,
+                                str(tempo_execucao)
+                            )
+                            tarefa.em_execucao = False
+                            tarefa.execucao_iniciada_em = None
+                            tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
+                        else:
+                            logger.debug(
+                                "TarefaEnvio já em execução | tarefa_id=%d nome=%s iniciada_em=%s",
+                                tarefa.id,
+                                tarefa.nome,
+                                tarefa.execucao_iniciada_em
+                            )
+                            continue
+                    else:
+                        logger.debug(
+                            "TarefaEnvio já em execução (sem timestamp) | tarefa_id=%d nome=%s",
+                            tarefa.id,
+                            tarefa.nome
+                        )
+                        continue
 
                 logger.info(
                     "Iniciando execução de TarefaEnvio | tarefa_id=%d nome=%s tipo=%s usuario=%s",
