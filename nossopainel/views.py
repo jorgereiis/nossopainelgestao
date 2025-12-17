@@ -97,6 +97,12 @@ from .utils import (
     get_client_ip,
     extrair_dominio_de_url,
     calcular_valor_mensalidade,
+    normalizar_dispositivo,
+    normalizar_aplicativo,
+    normalizar_servidor,
+    get_or_create_dispositivo,
+    get_or_create_aplicativo,
+    get_or_create_servidor,
 )
 from .wpp_views import (
     cancelar_sessao_wpp,
@@ -5154,6 +5160,7 @@ def import_customers(request):
         return "" if pd.isnull(valor) or valor is None else str(valor).strip()
 
     if request.method == "POST" and 'importar' in request.POST:
+        logger.info("[IMPORT] [%s] Iniciando importação de clientes", usuario)
         arquivo = request.FILES.get('arquivo')
         if not arquivo:
             error_message = "Nenhum arquivo enviado."
@@ -5216,10 +5223,11 @@ def import_customers(request):
             # 1º loop: salva todos os clientes sem indicado_por
             for idx, row in enumerate(registros, 1):
                 try:
-                    print(f"[{timestamp}] [{func_name}] [{usuario}] [IMPORT] Processando linha {idx} - dados: {row}")
-                    servidor_nome = clean_cell(row, 'servidor')
-                    dispositivo_nome = clean_cell(row, 'dispositivo')
-                    sistema_nome = clean_cell(row, 'sistema')
+                    logger.debug("[%s] [%s] [%s] [IMPORT] Processando linha %d - dados: %s", timestamp, func_name, usuario, idx, row)
+                    # Normaliza nomes de servidor, dispositivo e sistema
+                    servidor_nome = normalizar_servidor(clean_cell(row, 'servidor'))
+                    dispositivo_nome = normalizar_dispositivo(clean_cell(row, 'dispositivo'))
+                    sistema_nome = normalizar_aplicativo(clean_cell(row, 'sistema'))
                     device_id = clean_cell(row, 'device_id')
                     email = clean_cell(row, 'email')
                     senha = clean_cell(row, 'device_key')
@@ -5257,6 +5265,8 @@ def import_customers(request):
 
                     # Valida se o plano informado é um dos permitidos
                     planos_validos = [plano[0] for plano in Plano.CHOICES]
+                    # Normaliza o nome do plano (ex: "mensal" -> "Mensal", "MENSAL" -> "Mensal")
+                    plano_nome = plano_nome.strip().title()
                     if plano_nome not in planos_validos:
                         fail += 1
                         erros_importacao.append(f"Linha {idx}: plano '{plano_nome}' inválido. Deve ser um dos: {', '.join(planos_validos)}.")
@@ -5305,15 +5315,23 @@ def import_customers(request):
                         if email:
                             validate_email(email)
                     except ValidationError:
+                        fail += 1
                         erros_importacao.append(f"Linha {idx}: E-mail inválido.")
                         continue
 
-                    # Objetos relacionados
-                    plano, _ = Plano.objects.get_or_create(nome=plano_nome, telas=plano_telas, valor=plano_valor, usuario=usuario)
-                    sistema, _ = Aplicativo.objects.get_or_create(nome=sistema_nome, usuario=usuario)
-                    servidor, _ = Servidor.objects.get_or_create(nome=servidor_nome, usuario=usuario)
-                    forma_pgto, _ = Tipos_pgto.objects.get_or_create(nome=forma_pgto_nome, usuario=usuario)
-                    dispositivo, _ = Dispositivo.objects.get_or_create(nome=dispositivo_nome, usuario=usuario)
+                    # Objetos relacionados - usar filter().first() para evitar MultipleObjectsReturned
+                    plano = Plano.objects.filter(nome=plano_nome, telas=plano_telas, valor=plano_valor, usuario=usuario).first()
+                    if not plano:
+                        plano = Plano.objects.create(nome=plano_nome, telas=plano_telas, valor=plano_valor, usuario=usuario)
+
+                    # Usa funções helper com busca case-insensitive e normalização
+                    sistema, _ = get_or_create_aplicativo(sistema_nome, usuario)
+                    servidor, _ = get_or_create_servidor(servidor_nome, usuario)
+                    dispositivo, _ = get_or_create_dispositivo(dispositivo_nome, usuario)
+
+                    forma_pgto = Tipos_pgto.objects.filter(nome__iexact=forma_pgto_nome, usuario=usuario).first()
+                    if not forma_pgto:
+                        forma_pgto = Tipos_pgto.objects.create(nome=forma_pgto_nome, usuario=usuario)
 
                     # Salva cliente sem indicado_por
                     cliente = Cliente(
@@ -5332,9 +5350,10 @@ def import_customers(request):
                     clientes_criados[telefone] = cliente
 
                     # Conta do App se aplicável
+                    conta_criada = False
                     if device_id or email:
                         device_id = re.sub(r'[^A-Fa-f0-9]', '', device_id or '')
-                        if all(device_id):
+                        if device_id:
                             ContaDoAplicativo.objects.create(
                                 device_id=device_id,
                                 email=email,
@@ -5343,37 +5362,71 @@ def import_customers(request):
                                 cliente=cliente,
                                 usuario=usuario,
                             )
+                            conta_criada = True
 
+                    # Atualiza contador de dispositivos na AssinaturaCliente
+                    if conta_criada:
+                        try:
+                            assinatura = cliente.assinatura
+                            assinatura.dispositivos_usados = 1
+                            assinatura.save(update_fields=['dispositivos_usados'])
+                        except Exception as e:
+                            logger.warning("[IMPORT] [%s] Erro ao atualizar contador de dispositivos para cliente %s: %s", usuario, nome, e)
+
+                    # Cria mensalidade com marcação de dados importados
                     try:
                         Mensalidade.objects.create(
                             cliente=cliente,
                             valor=plano_valor,
-                            dt_vencimento = data_vencimento,
-                            usuario=usuario
+                            dt_vencimento=data_vencimento,
+                            usuario=usuario,
+                            dados_historicos_verificados=False,
+                            valor_base_plano=plano_valor,
                         )
                     except Exception as e:
-                        logger.error(f"Erro ao criar mensalidade: {e}", exc_info=True)
+                        logger.error("[IMPORT] [%s] Erro ao criar mensalidade para cliente %s: %s", usuario, nome, e, exc_info=True)
+
+                    # Cria histórico de plano para rastreabilidade
+                    try:
+                        historico_iniciar(cliente, plano=plano, inicio=data_adesao, motivo='create')
+                    except Exception as e:
+                        logger.warning("[IMPORT] [%s] Erro ao criar histórico de plano para cliente %s: %s", usuario, nome, e)
 
                     success += 1
+                    logger.info("[IMPORT] [%s] Cliente importado com sucesso: %s (%s)", usuario, nome, telefone)
                 except Exception as e:
                     fail += 1
-                    logger.error(f"Falha ao importar linha {idx}: {e}", exc_info=True)
+                    logger.error("[IMPORT] [%s] Falha ao importar linha %d: %s", usuario, idx, e, exc_info=True)
                     erros_importacao.append(f"Linha {idx}: {e}")
 
             # 2º loop: associa indicador
             for idx, row in enumerate(registros, 1):
-                telefone = clean_cell(row, 'telefone')
+                telefone_raw = clean_cell(row, 'telefone')
                 indicador_raw = clean_cell(row, 'indicado_por')
                 try:
                     if indicador_raw:
-                        indicador = clientes_criados.get(indicador_raw) or Cliente.objects.filter(telefone='+' + indicador_raw, usuario=usuario).first()
+                        # Formata telefone do indicador para busca (com ou sem +)
+                        indicador_formatado = indicador_raw if indicador_raw.startswith('+') else f'+{indicador_raw}'
+                        # Busca primeiro nos clientes recém-criados, depois no banco
+                        indicador = clientes_criados.get(indicador_formatado) or Cliente.objects.filter(telefone=indicador_formatado, usuario=usuario).first()
                         if indicador:
-                            Cliente.objects.filter(telefone='+' + telefone, usuario=usuario).update(indicado_por=indicador)
+                            # Busca o cliente pelo telefone já formatado no dicionário
+                            telefone_formatado = telefone_raw if telefone_raw.startswith('+') else f'+{telefone_raw}'
+                            cliente = clientes_criados.get(telefone_formatado)
+                            if cliente:
+                                cliente.indicado_por = indicador
+                                cliente.save(update_fields=['indicado_por'])
+                            else:
+                                Cliente.objects.filter(telefone=telefone_formatado, usuario=usuario).update(indicado_por=indicador)
                 except Exception as e:
                     fail += 1
-                    erros_importacao.append(f"Linha {idx}: Não foi possível fazer associado do Indicador ({telefone}) com o Cliente ({indicador_raw}).")
+                    erros_importacao.append(f"Linha {idx}: Não foi possível associar o Indicador ({indicador_raw}) ao Cliente ({telefone_raw}).")
                     continue
-                
+
+        logger.info(
+            "[IMPORT] [%s] Importação concluída - Sucesso: %d | Falhas: %d | Existentes: %d | WhatsApp inválido: %d",
+            usuario, success, fail, len(clientes_existentes), len(clientes_invalidos_whatsapp)
+        )
         log_user_action(
             request=request,
             action=UserActionLog.ACTION_IMPORT,
@@ -5445,7 +5498,7 @@ def create_customer(request):
         telefone = post.get('telefone', '').strip()
         notas = post.get('notas', '').strip()
         indicador_nome = post.get('indicador_list', '').strip()
-        servidor_nome = post.get('servidor', '').strip()
+        servidor_nome = normalizar_servidor(post.get('servidor', '').strip())
         forma_pgto_nome = post.get('forma_pgto', '').strip()
         plano_info = post.get('plano', '').replace(' ', '').split('-')
 
@@ -5533,8 +5586,8 @@ def create_customer(request):
         # Coleta dados de múltiplos dispositivos/apps/contas baseado na quantidade de telas
         telas_data = []
         for i in range(plano_telas):
-            dispositivo_nome = post.get(f'dispositivo_{i}', '').strip()
-            sistema_nome = post.get(f'sistema_{i}', '').strip()
+            dispositivo_nome = normalizar_dispositivo(post.get(f'dispositivo_{i}', '').strip())
+            sistema_nome = normalizar_aplicativo(post.get(f'sistema_{i}', '').strip())
             device_id = post.get(f'device_id_{i}', '').strip()
             email = post.get(f'email_{i}', '').strip()
             senha = post.get(f'senha_{i}', '').strip()
@@ -5552,9 +5605,9 @@ def create_customer(request):
                     'page': page,
                 })
 
-            # Get or create dispositivo e sistema
-            dispositivo, _ = Dispositivo.objects.get_or_create(nome=dispositivo_nome, usuario=usuario)
-            sistema, _ = Aplicativo.objects.get_or_create(nome=sistema_nome, usuario=usuario)
+            # Get or create dispositivo e sistema (com busca case-insensitive e normalização)
+            dispositivo, _ = get_or_create_dispositivo(dispositivo_nome, usuario)
+            sistema, _ = get_or_create_aplicativo(sistema_nome, usuario)
 
             # Valida se conta é obrigatória
             if sistema.device_has_mac and not device_id and not email:
@@ -6484,8 +6537,8 @@ def create_device(request):
         if nome:
 
             try:
-                # Consultando o objeto requisitado. Caso não exista, será criado.
-                dispositivo, created = Dispositivo.objects.get_or_create(nome=nome, usuario=usuario)
+                # Consultando o objeto requisitado (case-insensitive). Caso não exista, será criado com nome normalizado.
+                dispositivo, created = get_or_create_dispositivo(nome, usuario)
 
                 if created:
                     log_user_action(
@@ -6553,8 +6606,8 @@ def create_app(request):
                 have_mac = False
 
             try:
-                # Consultando o objeto requisitado. Caso não exista, será criado.
-                aplicativo, created = Aplicativo.objects.get_or_create(nome=nome, device_has_mac=have_mac , usuario=usuario)
+                # Consultando o objeto requisitado (case-insensitive). Caso não exista, será criado com nome normalizado.
+                aplicativo, created = get_or_create_aplicativo(nome, usuario, device_has_mac=have_mac)
 
                 if created:
                     log_user_action(

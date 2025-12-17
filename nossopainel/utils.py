@@ -12,12 +12,15 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.timezone import localtime, now
 from .models import (
+    Aplicativo,
     Cliente,
     ClientePlanoHistorico,
     DescontoProgressivoIndicacao,
+    Dispositivo,
     Mensalidade,
     Plano,
     PlanoIndicacao,
+    Servidor,
     SessaoWpp,
     UserActionLog,
 )
@@ -41,6 +44,463 @@ DIR_LOGS_INDICACOES = os.getenv("DIR_LOGS_INDICACOES")
 TEMPLATE_LOG_MSG_SUCESSO = os.getenv("TEMPLATE_LOG_MSG_SUCESSO")
 TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
 TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
+
+
+# =============================================================================
+# NORMALIZAÇÃO DE NOMES (Dispositivos, Aplicativos, Servidores)
+# =============================================================================
+
+DISPOSITIVOS_MAP = {
+    # =========================================================================
+    # MARCAS DE TV (adiciona prefixo "TV " quando necessário)
+    # =========================================================================
+    # LG
+    'lg': 'TV LG',
+    'tv lg': 'TV LG',
+    # Samsung
+    'samsung': 'TV Samsung',
+    'tv samsung': 'TV Samsung',
+    # Philips
+    'philips': 'TV Philips',
+    'tv philips': 'TV Philips',
+    # Philco
+    'philco': 'TV Philco',
+    'tv philco': 'TV Philco',
+    # TCL
+    'tcl': 'TV TCL',
+    'tv tcl': 'TV TCL',
+    'tcl android': 'TV TCL Android',
+    'tv tcl android': 'TV TCL Android',
+    # Roku
+    'roku': 'TV Roku',
+    'tv roku': 'TV Roku',
+    'stick roku': 'Stick Roku',
+    'roku stick': 'Stick Roku',
+    # AOC
+    'aoc': 'TV AOC',
+    'tv aoc': 'TV AOC',
+    # Sony
+    'sony': 'TV Sony',
+    'tv sony': 'TV Sony',
+    # Panasonic
+    'panasonic': 'TV Panasonic',
+    'tv panasonic': 'TV Panasonic',
+    # Hisense
+    'hisense': 'TV Hisense',
+    'tv hisense': 'TV Hisense',
+    # Semp / Semp Toshiba
+    'semp': 'TV Semp',
+    'tv semp': 'TV Semp',
+    'semp toshiba': 'TV Semp Toshiba',
+    'tv semp toshiba': 'TV Semp Toshiba',
+    # Toshiba
+    'toshiba': 'TV Toshiba',
+    'tv toshiba': 'TV Toshiba',
+    # Audisat
+    'audisat': 'TV Audisat',
+    'tv audisat': 'TV Audisat',
+    # HQ
+    'hq': 'TV HQ',
+    'tv hq': 'TV HQ',
+    # Multilaser
+    'multilaser': 'TV Multilaser',
+    'tv multilaser': 'TV Multilaser',
+    # VIDAA (sistema operacional Hisense)
+    'vidaa': 'TV VIDAA',
+    'tv vidaa': 'TV VIDAA',
+    # Britânia
+    'britania': 'TV Britânia',
+    'britânia': 'TV Britânia',
+    'tv britania': 'TV Britânia',
+    'tv britânia': 'TV Britânia',
+    # Aiwa
+    'aiwa': 'TV Aiwa',
+    'tv aiwa': 'TV Aiwa',
+    # Sharp
+    'sharp': 'TV Sharp',
+    'tv sharp': 'TV Sharp',
+    # JVC
+    'jvc': 'TV JVC',
+    'tv jvc': 'TV JVC',
+    # CCE
+    'cce': 'TV CCE',
+    'tv cce': 'TV CCE',
+    # Positivo
+    'positivo': 'TV Positivo',
+    'tv positivo': 'TV Positivo',
+    # Vizio
+    'vizio': 'TV Vizio',
+    'tv vizio': 'TV Vizio',
+    # Xiaomi
+    'xiaomi': 'TV Xiaomi',
+    'tv xiaomi': 'TV Xiaomi',
+    'mi tv': 'TV Xiaomi',
+    # Android (genérico)
+    'android': 'TV Android',
+    'tv android': 'TV Android',
+
+    # =========================================================================
+    # DISPOSITIVOS ESPECIAIS (sem prefixo TV)
+    # =========================================================================
+    # Fire Stick / Amazon
+    'firestick': 'Fire Stick',
+    'fire stick': 'Fire Stick',
+    'amazon fire stick': 'Fire Stick',
+    'fire tv stick': 'Fire Stick',
+    'amazon fire tv': 'Fire Stick',
+    # Chromecast
+    'chromecast': 'Chromecast',
+    'google chromecast': 'Chromecast',
+    # Apple TV
+    'apple tv': 'Apple TV',
+    'appletv': 'Apple TV',
+    # Xbox
+    'xbox': 'Xbox',
+    'xbox one': 'Xbox One',
+    'xbox series': 'Xbox Series',
+    # PlayStation
+    'playstation': 'PlayStation',
+    'ps4': 'PlayStation 4',
+    'ps5': 'PlayStation 5',
+    # TV Box
+    'tvbox': 'TV Box',
+    'tv box': 'TV Box',
+    # Notebook/PC
+    'notebook': 'Notebook',
+    'pc': 'PC',
+    'computador': 'Computador',
+    'desktop': 'Desktop',
+    # Tablets
+    'tablet': 'Tablet',
+    'tablet ios': 'Tablet iOS',
+    'tablet android': 'Tablet Android',
+    'ipad': 'iPad',
+    # Celular/Smartphone
+    'celular': 'Celular',
+    'smartphone': 'Smartphone',
+    'iphone': 'iPhone',
+    # Projetor
+    'projetor': 'Projetor',
+    'projetor android': 'Projetor Android',
+}
+
+APLICATIVOS_MAP = {
+    # =========================================================================
+    # APLICATIVOS IPTV - Mapeamento de nomes normalizados
+    # =========================================================================
+    # 7Flix
+    '7flix': '7Flix',
+    '7 flix': '7Flix',
+    # CAP Player
+    'cap player': 'CAP Player',
+    'capplayer': 'CAP Player',
+    'cap': 'CAP Player',
+    # CLite
+    'clite': 'CLite',
+    'c lite': 'CLite',
+    # Clouddy
+    'clouddy': 'Clouddy',
+    # Club Smart
+    'club smart': 'Club Smart',
+    'clubsmart': 'Club Smart',
+    # CPlayer Smart
+    'cplayer smart': 'CPlayer Smart',
+    'cplayer': 'CPlayer Smart',
+    'c player smart': 'CPlayer Smart',
+    # DNS Browser
+    'dns browser': 'DNS Browser',
+    'dnsbrowser': 'DNS Browser',
+    # Dream TV
+    'dream': 'Dream TV',
+    'dream tv': 'Dream TV',
+    'dreamtv': 'Dream TV',
+    # Duplecast
+    'duplecast': 'Duplecast',
+    'duple cast': 'Duplecast',
+    # DuplexPlay
+    'duplexplay': 'DuplexPlay',
+    'duplex play': 'DuplexPlay',
+    'duplex': 'DuplexPlay',
+    # DuplexTV
+    'duplextv': 'DuplexTV',
+    'duplex tv': 'DuplexTV',
+    # Flix IPTV
+    'flix iptv': 'Flix IPTV',
+    'flixiptv': 'Flix IPTV',
+    # IBO Player
+    'ibo player': 'IBO Player',
+    'iboplayer': 'IBO Player',
+    'ibo': 'IBO Player',
+    # ImPlayer
+    'implayer': 'ImPlayer',
+    'im player': 'ImPlayer',
+    # Lazer Play
+    'lazer play': 'Lazer Play',
+    'lazerplay': 'Lazer Play',
+    # Maximus
+    'maximus': 'Maximus',
+    # MetaPlayer
+    'metaplayer': 'MetaPlayer',
+    'meta player': 'MetaPlayer',
+    # OTT Navigator
+    'ottnavigator': 'OTT Navigator',
+    'ott navigator': 'OTT Navigator',
+    'ott': 'OTT Navigator',
+    # Perfect Player
+    'perfect player': 'Perfect Player',
+    'perfectplayer': 'Perfect Player',
+    # Prime IPTV
+    'prime iptv': 'Prime IPTV',
+    'primeiptv': 'Prime IPTV',
+    # QuickPlayer
+    'quickplayer': 'QuickPlayer',
+    'quick player': 'QuickPlayer',
+    # Smart STB
+    'smartstb': 'Smart STB',
+    'smart stb': 'Smart STB',
+    'stb': 'Smart STB',
+    # SmartOne
+    'smartone': 'SmartOne',
+    'smart one': 'SmartOne',
+    # Smarters Player
+    'smarters player': 'Smarters Player',
+    'smartersplayer': 'Smarters Player',
+    'smarters': 'Smarters Player',
+    'iptv smarters': 'Smarters Player',
+    'iptv smarters pro': 'Smarters Player',
+    # Smarters Player Lite
+    'smarters player lite': 'Smarters Player Lite',
+    'smarters lite': 'Smarters Player Lite',
+    'smarters player light': 'Smarters Player Lite',
+    # Sparkle TV
+    'sparkle': 'Sparkle TV',
+    'sparkle tv': 'Sparkle TV',
+    # SS IPTV
+    'ssiptv': 'SS IPTV',
+    'ss iptv': 'SS IPTV',
+    # TiviMate
+    'tivimate': 'TiviMate',
+    'tivi mate': 'TiviMate',
+    # Ultra Player
+    'ultra player': 'Ultra Player',
+    'ultraplayer': 'Ultra Player',
+    # Vizzion Play
+    'vizzion play': 'Vizzion Play',
+    'vizzionplay': 'Vizzion Play',
+    'vizzion': 'Vizzion Play',
+    # Vu IPTV Player
+    'vu iptv player': 'Vu IPTV Player',
+    'vu iptv': 'Vu IPTV Player',
+    'vuiptv': 'Vu IPTV Player',
+    # Vu Player Pro
+    'vu player pro': 'Vu Player Pro',
+    'vuplayerpro': 'Vu Player Pro',
+    'vu player': 'Vu Player Pro',
+    # Warez TV
+    'warez tv': 'Warez TV',
+    'wareztv': 'Warez TV',
+    'warez': 'Warez TV',
+    # Web Cast Video
+    'web cast video': 'Web Cast Video',
+    'webcastvideo': 'Web Cast Video',
+    'webcast video': 'Web Cast Video',
+    # Web Player
+    'web player': 'Web Player',
+    'webplayer': 'Web Player',
+    # XCIPTV
+    'xciptv': 'XCIPTV',
+    'xc iptv': 'XCIPTV',
+    'xc': 'XCIPTV',
+    # XCloud Mobile
+    'xcloud mobile': 'XCloud Mobile',
+    'xcloudmobile': 'XCloud Mobile',
+    # XCloud TV
+    'xcloud tv': 'XCloud TV',
+    'xcloudtv': 'XCloud TV',
+    'xcloud': 'XCloud TV',
+    # XP IPTV
+    'xp iptv': 'XP IPTV',
+    'xpiptv': 'XP IPTV',
+    # Xtream Player
+    'xtream player': 'Xtream Player',
+    'xtreamplayer': 'Xtream Player',
+    'xtream': 'Xtream Player',
+}
+
+
+def normalizar_dispositivo(nome: str) -> str:
+    """
+    Normaliza nome do dispositivo.
+
+    Exemplos:
+        'lg' -> 'TV LG'
+        'SAMSUNG' -> 'TV Samsung'
+        'firestick' -> 'Fire Stick'
+        'novo dispositivo' -> 'Novo Dispositivo' (fallback)
+    """
+    if not nome:
+        return nome
+    nome_lower = nome.strip().lower()
+    # 1. Busca no mapeamento
+    if nome_lower in DISPOSITIVOS_MAP:
+        return DISPOSITIVOS_MAP[nome_lower]
+    # 2. Fallback: Title Case
+    return nome.strip().title()
+
+
+def normalizar_aplicativo(nome: str) -> str:
+    """
+    Normaliza nome do aplicativo/sistema.
+
+    Exemplos:
+        'duplexplay' -> 'DuplexPlay'
+        'XCIPTV' -> 'XCIPTV'
+        'dream tv' -> 'Dream TV'
+        'novo app' -> 'Novo App' (fallback)
+    """
+    if not nome:
+        return nome
+    nome_lower = nome.strip().lower()
+    # 1. Busca no mapeamento
+    if nome_lower in APLICATIVOS_MAP:
+        return APLICATIVOS_MAP[nome_lower]
+    # 2. Fallback: Title Case
+    return nome.strip().title()
+
+
+def normalizar_servidor(nome: str) -> str:
+    """
+    Normaliza nome do servidor (geralmente siglas em MAIÚSCULO).
+
+    Exemplos:
+        'club' -> 'CLUB'
+        'play' -> 'PLAY'
+        'alpha' -> 'ALPHA'
+    """
+    if not nome:
+        return nome
+    # Servidores são siglas, sempre em maiúsculo
+    return nome.strip().upper()
+
+
+# =============================================================================
+# FUNÇÕES GET_OR_CREATE COM PREVENÇÃO DE DUPLICATAS
+# =============================================================================
+
+def get_or_create_dispositivo(nome: str, usuario):
+    """
+    Busca ou cria um Dispositivo com prevenção de duplicatas.
+
+    1. Normaliza o nome recebido
+    2. Busca por nome normalizado (case-insensitive)
+    3. Se encontrar, retorna o existente
+    4. Se não encontrar, cria com o nome normalizado
+
+    Args:
+        nome: Nome do dispositivo (será normalizado)
+        usuario: Usuário proprietário
+
+    Returns:
+        tuple: (dispositivo, created) - objeto e flag se foi criado
+    """
+    if not nome:
+        return None, False
+
+    nome_normalizado = normalizar_dispositivo(nome)
+
+    # Busca case-insensitive pelo nome normalizado
+    dispositivo = Dispositivo.objects.filter(
+        nome__iexact=nome_normalizado,
+        usuario=usuario
+    ).first()
+
+    if dispositivo:
+        return dispositivo, False
+
+    # Cria novo com nome normalizado
+    dispositivo = Dispositivo.objects.create(
+        nome=nome_normalizado,
+        usuario=usuario
+    )
+    return dispositivo, True
+
+
+def get_or_create_aplicativo(nome: str, usuario, device_has_mac: bool = False):
+    """
+    Busca ou cria um Aplicativo com prevenção de duplicatas.
+
+    1. Normaliza o nome recebido
+    2. Busca por nome normalizado (case-insensitive)
+    3. Se encontrar, retorna o existente (ignora device_has_mac na busca)
+    4. Se não encontrar, cria com o nome normalizado
+
+    Args:
+        nome: Nome do aplicativo (será normalizado)
+        usuario: Usuário proprietário
+        device_has_mac: Se o app requer MAC/device_id (usado apenas na criação)
+
+    Returns:
+        tuple: (aplicativo, created) - objeto e flag se foi criado
+    """
+    if not nome:
+        return None, False
+
+    nome_normalizado = normalizar_aplicativo(nome)
+
+    # Busca case-insensitive pelo nome normalizado
+    aplicativo = Aplicativo.objects.filter(
+        nome__iexact=nome_normalizado,
+        usuario=usuario
+    ).first()
+
+    if aplicativo:
+        return aplicativo, False
+
+    # Cria novo com nome normalizado
+    aplicativo = Aplicativo.objects.create(
+        nome=nome_normalizado,
+        device_has_mac=device_has_mac,
+        usuario=usuario
+    )
+    return aplicativo, True
+
+
+def get_or_create_servidor(nome: str, usuario):
+    """
+    Busca ou cria um Servidor com prevenção de duplicatas.
+
+    1. Normaliza o nome recebido (UPPERCASE)
+    2. Busca por nome normalizado (case-insensitive)
+    3. Se encontrar, retorna o existente
+    4. Se não encontrar, cria com o nome normalizado
+
+    Args:
+        nome: Nome do servidor (será normalizado para UPPERCASE)
+        usuario: Usuário proprietário
+
+    Returns:
+        tuple: (servidor, created) - objeto e flag se foi criado
+    """
+    if not nome:
+        return None, False
+
+    nome_normalizado = normalizar_servidor(nome)
+
+    # Busca case-insensitive pelo nome normalizado
+    servidor = Servidor.objects.filter(
+        nome__iexact=nome_normalizado,
+        usuario=usuario
+    ).first()
+
+    if servidor:
+        return servidor, False
+
+    # Cria novo com nome normalizado
+    servidor = Servidor.objects.create(
+        nome=nome_normalizado,
+        usuario=usuario
+    )
+    return servidor, True
 
 
 def get_client_ip(request):

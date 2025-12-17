@@ -32,6 +32,7 @@
                                 <form method="post" enctype="multipart/form-data" id="form-importar">
                                     <div class="dropzone mb-3 border-dashed">
                                         {% csrf_token %}
+                                        <input type="hidden" name="importar" value="1">
                                         <div class="fallback">
                                             <input name="arquivo" type="file" class="w-100" id="input-arquivo" accept=".xlsx" capture=".xlsx">
                                         </div>
@@ -209,6 +210,61 @@
                 {% include 'partials/footer.html' %}
                 {% include 'partials/scripts.html' %}
 
+                <!-- Scripts da página de importação -->
+                <script>
+                    // Função carregar - modal de loading durante processamento
+                    function carregar() {
+                        Swal.fire({
+                            title: 'Carregando',
+                            html: 'Por favor, aguarde...',
+                            timerProgressBar: true,
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            didOpen: () => {
+                                Swal.showLoading()
+                            }
+                        })
+                    }
+                </script>
+
+                <script>
+                    // Controle do input de arquivo e botão importar
+                    var inputArquivo = document.getElementById('input-arquivo');
+                    var btnImportar = document.getElementById('btn-importar');
+                    var formImportar = document.getElementById('form-importar');
+
+                    inputArquivo.addEventListener('change', function() {
+                        if (inputArquivo.files.length > 0) {
+                            btnImportar.disabled = false;
+                        } else {
+                            btnImportar.disabled = true;
+                        }
+                    });
+
+                    formImportar.addEventListener('submit', function(e) {
+                        if (inputArquivo.files.length === 0) {
+                            e.preventDefault();
+                        }
+                    });
+                </script>
+
+                <script>
+                    // Loading do botão ao submeter
+                    document.getElementById('form-importar').addEventListener('submit', function(e) {
+                        var btn = document.getElementById('btn-importar');
+                        if (btn.disabled) return;
+                        setButtonLoading(btn, true);
+                    });
+
+                    // Restaurar ao voltar (bfcache)
+                    window.addEventListener('pageshow', function(e) {
+                        if (e.persisted) {
+                            var btn = document.getElementById('btn-importar');
+                            setButtonLoading(btn, false, 'Importar');
+                        }
+                    });
+                </script>
+
                 <!-- Alert success -->
                 {% if success_message %}
                 <script>
@@ -239,8 +295,10 @@
                         });
                     });
                 </script>
+                {% endif %}
+
                 <!-- Alert error -->
-                {% elif error_message %}
+                {% if error_message %}
                 <script>
                     $(document).ready(function () {
                         Swal.fire({
@@ -255,57 +313,6 @@
                     });
                 </script>
                 {% endif %}
-</body>
 
+    </body>
 </html>
-
-<script>
-    function carregar() {
-        Swal.fire({
-            title: 'Carregando',
-            html: 'Por favor, aguarde...',
-            timerProgressBar: true,
-            onBeforeOpen: () => {
-                Swal.showLoading()
-            },
-            onClose: () => {
-                Swal.hideLoading()
-            }
-        })
-    }
-</script>
-
-<script>
-    var inputArquivo = document.getElementById('input-arquivo');
-    var btnImportar = document.getElementById('btn-importar');
-    var formImportar = document.getElementById('form-importar');
-
-    inputArquivo.addEventListener('change', function() {
-        if (inputArquivo.files.length > 0) {
-            btnImportar.disabled = false;
-        } else {
-            btnImportar.disabled = true;
-        }
-    });
-
-    formImportar.addEventListener('submit', function(e) {
-        if (inputArquivo.files.length === 0) {
-            e.preventDefault();
-        }
-    });
-</script>
-<script>
-    document.getElementById('form-importar').addEventListener('submit', function(e) {
-      var btn = document.getElementById('btn-importar');
-      if (btn.disabled) return;
-      setButtonLoading(btn, true);
-    });
-
-    // Restaurar ao voltar (bfcache)
-    window.addEventListener('pageshow', function(e) {
-      if (e.persisted) {
-        var btn = document.getElementById('btn-importar');
-        setButtonLoading(btn, false, 'Importar');
-      }
-    });
-  </script>
