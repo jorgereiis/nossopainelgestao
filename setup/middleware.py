@@ -40,6 +40,8 @@ class CSPMiddleware:
         csp_settings = {
             'CSP_DEFAULT_SRC': 'default-src',
             'CSP_SCRIPT_SRC': 'script-src',
+            'CSP_SCRIPT_SRC_ATTR': 'script-src-attr',  # Para handlers inline (onclick, etc)
+            'CSP_SCRIPT_SRC_ELEM': 'script-src-elem',  # Para elementos <script>
             'CSP_STYLE_SRC': 'style-src',
             'CSP_FONT_SRC': 'font-src',
             'CSP_IMG_SRC': 'img-src',
