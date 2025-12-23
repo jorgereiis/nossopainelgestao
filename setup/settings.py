@@ -29,6 +29,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 BASE_LOG_DIR = BASE_DIR / "logs"
 BASE_LOG_DIR.mkdir(exist_ok=True)
 
+# Diretório específico para logs do FastDePix
+FASTDEPIX_LOG_DIR = BASE_LOG_DIR / "FastDePix"
+FASTDEPIX_LOG_DIR.mkdir(exist_ok=True)
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -333,6 +337,14 @@ LOGGING = {
             'formatter': 'verbose',
             'encoding': 'utf-8',
         },
+        'fastdepix_webhook': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(FASTDEPIX_LOG_DIR / 'webhook.log'),
+            'maxBytes': 10 * 1024 * 1024,  # 10MB por arquivo
+            'backupCount': 10,  # Mantém 10 arquivos de backup para histórico maior
+            'formatter': 'verbose',
+            'encoding': 'utf-8',
+        },
     },
     'formatters': {
         'verbose': {
@@ -374,6 +386,11 @@ LOGGING = {
         'security': {
             'handlers': ['security_file'],
             'level': 'INFO',
+            'propagate': False,
+        },
+        'fastdepix.webhook': {
+            'handlers': ['fastdepix_webhook', 'console'],
+            'level': 'DEBUG',
             'propagate': False,
         },
     },

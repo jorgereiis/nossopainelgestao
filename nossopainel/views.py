@@ -7652,54 +7652,120 @@ def webhook_pagamento_pix(request):
         - X-Webhook-Signature: Assinatura HMAC-SHA256 (FastDePix)
         - X-Integration: Identificador da integração (opcional)
     """
+    import logging
     from nossopainel.services.payment_integrations import (
         FastDePixIntegration, PaymentStatus
     )
 
+    # Logger específico para webhook FastDePix
+    fdpx_logger = logging.getLogger('fastdepix.webhook')
+
+    # ========== LOG INICIAL: Request recebido ==========
+    fdpx_logger.info("=" * 80)
+    fdpx_logger.info("WEBHOOK RECEBIDO - INÍCIO DO PROCESSAMENTO")
+    fdpx_logger.info("=" * 80)
+
+    # Log de informações da requisição
+    fdpx_logger.info(f"Timestamp: {timezone.now().isoformat()}")
+    fdpx_logger.info(f"IP Origem: {request.META.get('REMOTE_ADDR', 'N/A')}")
+    fdpx_logger.info(f"X-Forwarded-For: {request.META.get('HTTP_X_FORWARDED_FOR', 'N/A')}")
+    fdpx_logger.info(f"User-Agent: {request.META.get('HTTP_USER_AGENT', 'N/A')}")
+    fdpx_logger.info(f"Content-Type: {request.META.get('CONTENT_TYPE', 'N/A')}")
+    fdpx_logger.info(f"Content-Length: {request.META.get('CONTENT_LENGTH', 'N/A')}")
+
+    # Log de todos os headers relevantes
+    fdpx_logger.info("-" * 40)
+    fdpx_logger.info("HEADERS:")
+    for key, value in request.headers.items():
+        fdpx_logger.info(f"  {key}: {value}")
+
     try:
-        # Parse do body
+        # ========== PARSE DO BODY ==========
+        fdpx_logger.info("-" * 40)
+        fdpx_logger.info("BODY (raw):")
+        raw_body = request.body.decode('utf-8', errors='replace')
+        fdpx_logger.info(raw_body)
+
         try:
             payload = json.loads(request.body)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            fdpx_logger.error(f"ERRO: JSON inválido - {e}")
+            fdpx_logger.info("=" * 80)
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-        logger.info(f'[Webhook PIX] Recebido: {json.dumps(payload)[:500]}')
+        fdpx_logger.info("-" * 40)
+        fdpx_logger.info("PAYLOAD (parsed JSON):")
+        fdpx_logger.info(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
 
-        # Extrair transaction_id do payload
+        # ========== EXTRAIR DADOS DO PAYLOAD ==========
         data = payload.get('data', payload)
         transaction_id = str(data.get('id', data.get('transaction_id', '')))
-
-        if not transaction_id:
-            logger.warning('[Webhook PIX] transaction_id não encontrado no payload')
-            return JsonResponse({'error': 'Transaction ID not found'}, status=400)
-
-        # Buscar cobrança pelo transaction_id
-        try:
-            cobranca = CobrancaPix.objects.select_related(
-                'conta_bancaria', 'conta_bancaria__instituicao', 'mensalidade'
-            ).get(transaction_id=transaction_id)
-        except CobrancaPix.DoesNotExist:
-            logger.warning(f'[Webhook PIX] Cobrança não encontrada: {transaction_id}')
-            # Retornar 200 para não reenviar webhook
-            return JsonResponse({'status': 'ignored', 'reason': 'Charge not found'})
-
-        # Validar assinatura (se configurada)
-        signature = request.headers.get('X-Webhook-Signature', '')
-        if cobranca.integracao == 'fastdepix' and cobranca.conta_bancaria.api_key:
-            # Para FastDePix, validar HMAC se webhook_secret estiver configurado
-            # Por enquanto, apenas logamos
-            logger.info(f'[Webhook PIX] Assinatura recebida: {signature[:20]}...' if signature else '[Webhook PIX] Sem assinatura')
-
-        # Processar evento
         event_type = payload.get('event', '')
         status_str = data.get('status', '').lower()
 
+        fdpx_logger.info("-" * 40)
+        fdpx_logger.info("DADOS EXTRAÍDOS:")
+        fdpx_logger.info(f"  Transaction ID: {transaction_id}")
+        fdpx_logger.info(f"  Event Type: {event_type}")
+        fdpx_logger.info(f"  Status: {status_str}")
+
+        if not transaction_id:
+            fdpx_logger.warning("ERRO: transaction_id não encontrado no payload")
+            fdpx_logger.info("=" * 80)
+            return JsonResponse({'error': 'Transaction ID not found'}, status=400)
+
+        # ========== BUSCAR COBRANÇA ==========
+        fdpx_logger.info("-" * 40)
+        fdpx_logger.info(f"Buscando CobrancaPix com transaction_id: {transaction_id}")
+
+        try:
+            cobranca = CobrancaPix.objects.select_related(
+                'conta_bancaria', 'conta_bancaria__instituicao', 'mensalidade', 'cliente'
+            ).get(transaction_id=transaction_id)
+
+            fdpx_logger.info("COBRANÇA ENCONTRADA:")
+            fdpx_logger.info(f"  ID: {cobranca.id}")
+            fdpx_logger.info(f"  Status atual: {cobranca.status}")
+            fdpx_logger.info(f"  Valor: R$ {cobranca.valor}")
+            fdpx_logger.info(f"  Criada em: {cobranca.criado_em}")
+            fdpx_logger.info(f"  Expira em: {cobranca.expira_em}")
+            fdpx_logger.info(f"  Integração: {cobranca.integracao}")
+            if cobranca.mensalidade:
+                fdpx_logger.info(f"  Mensalidade ID: {cobranca.mensalidade.id}")
+                fdpx_logger.info(f"  Mensalidade Vencimento: {cobranca.mensalidade.dt_vencimento}")
+            if cobranca.cliente:
+                fdpx_logger.info(f"  Cliente: {cobranca.cliente.nome} (ID: {cobranca.cliente.id})")
+            if cobranca.conta_bancaria:
+                fdpx_logger.info(f"  Conta Bancária: {cobranca.conta_bancaria.nome}")
+
+        except CobrancaPix.DoesNotExist:
+            fdpx_logger.warning(f"COBRANÇA NÃO ENCONTRADA: {transaction_id}")
+            fdpx_logger.info("Retornando 200 OK (para não reenviar webhook)")
+            fdpx_logger.info("=" * 80)
+            return JsonResponse({'status': 'ignored', 'reason': 'Charge not found'})
+
+        # ========== VALIDAR ASSINATURA ==========
+        signature = request.headers.get('X-Webhook-Signature', '')
+        fdpx_logger.info("-" * 40)
+        fdpx_logger.info("VALIDAÇÃO DE ASSINATURA:")
+        fdpx_logger.info(f"  Assinatura recebida: {signature if signature else '(nenhuma)'}")
+        fdpx_logger.info(f"  Webhook Secret configurado: {'Sim' if cobranca.conta_bancaria.webhook_secret else 'Não'}")
+
+        # ========== PROCESSAR EVENTO ==========
+        fdpx_logger.info("-" * 40)
+        fdpx_logger.info("PROCESSAMENTO DO EVENTO:")
+
         if event_type == 'transaction.paid' or status_str == 'paid':
+            fdpx_logger.info(f"  Tipo: PAGAMENTO CONFIRMADO")
+
             if cobranca.status != 'paid':
                 # Extrair dados do pagador
                 payer = data.get('payer', {})
                 payer_name = payer.get('name') if isinstance(payer, dict) else None
                 payer_doc = payer.get('cpf_cnpj') if isinstance(payer, dict) else None
+
+                fdpx_logger.info(f"  Pagador Nome: {payer_name}")
+                fdpx_logger.info(f"  Pagador Documento: {payer_doc}")
 
                 # Extrair data de pagamento
                 paid_at = None
@@ -7708,12 +7774,24 @@ def webhook_pagamento_pix(request):
                         paid_at = timezone.datetime.fromisoformat(
                             data['paid_at'].replace('Z', '+00:00')
                         )
+                        fdpx_logger.info(f"  Data Pagamento (API): {paid_at}")
                     except (ValueError, AttributeError):
                         paid_at = timezone.now()
+                        fdpx_logger.info(f"  Data Pagamento (fallback now): {paid_at}")
                 else:
                     paid_at = timezone.now()
+                    fdpx_logger.info(f"  Data Pagamento (now): {paid_at}")
+
+                # Extrair valores financeiros
+                amount = data.get('amount')
+                amount_received = data.get('amount_received') or data.get('net_amount')
+                fee = data.get('fee') or data.get('tax')
+                fdpx_logger.info(f"  Valor Cobrado: {amount}")
+                fdpx_logger.info(f"  Valor Recebido: {amount_received}")
+                fdpx_logger.info(f"  Taxa: {fee}")
 
                 # Marcar como pago
+                fdpx_logger.info("  Executando mark_as_paid()...")
                 cobranca.mark_as_paid(
                     paid_at=paid_at,
                     payer_name=payer_name,
@@ -7721,24 +7799,45 @@ def webhook_pagamento_pix(request):
                     webhook_data=payload,
                 )
 
-                logger.info(f'[Webhook PIX] Cobrança {transaction_id} marcada como PAGA')
+                fdpx_logger.info(f"  ✓ Cobrança {transaction_id} marcada como PAGA")
+                if cobranca.mensalidade:
+                    fdpx_logger.info(f"  ✓ Mensalidade atualizada: pgto={cobranca.mensalidade.pgto}")
+            else:
+                fdpx_logger.info(f"  Cobrança já estava paga, ignorando")
 
         elif event_type == 'transaction.expired' or status_str == 'expired':
+            fdpx_logger.info(f"  Tipo: EXPIRAÇÃO")
             cobranca.mark_as_expired()
-            logger.info(f'[Webhook PIX] Cobrança {transaction_id} marcada como EXPIRADA')
+            fdpx_logger.info(f"  ✓ Cobrança {transaction_id} marcada como EXPIRADA")
 
         elif event_type == 'transaction.cancelled' or status_str in ['cancelled', 'canceled']:
+            fdpx_logger.info(f"  Tipo: CANCELAMENTO")
             cobranca.mark_as_cancelled()
-            logger.info(f'[Webhook PIX] Cobrança {transaction_id} marcada como CANCELADA')
+            fdpx_logger.info(f"  ✓ Cobrança {transaction_id} marcada como CANCELADA")
 
-        return JsonResponse({
+        else:
+            fdpx_logger.info(f"  Tipo: EVENTO DESCONHECIDO (event={event_type}, status={status_str})")
+
+        # ========== RESPOSTA ==========
+        response_data = {
             'status': 'processed',
             'cobranca_id': str(cobranca.id),
             'new_status': cobranca.status,
-        })
+        }
+
+        fdpx_logger.info("-" * 40)
+        fdpx_logger.info("RESPOSTA:")
+        fdpx_logger.info(json.dumps(response_data, indent=2))
+        fdpx_logger.info("=" * 80)
+        fdpx_logger.info("")
+
+        return JsonResponse(response_data)
 
     except Exception as e:
-        logger.error(f'[Webhook PIX] Erro: {e}', exc_info=True)
+        fdpx_logger.error("-" * 40)
+        fdpx_logger.error(f"ERRO CRÍTICO: {e}")
+        fdpx_logger.error("Traceback:", exc_info=True)
+        fdpx_logger.info("=" * 80)
         return JsonResponse({'error': 'Internal error'}, status=500)
 
 
@@ -11048,7 +11147,7 @@ def api_forma_pagamento_antiga_atualizar(request, pk):
         # Se algum campo de dados bancarios foi preenchido, criar/atualizar DadosBancarios
         if any([beneficiario, instituicao, tipo_chave, chave]):
             if forma_pgto.dados_bancarios:
-                # Atualizar existente
+                # Atualizar existente (já vinculado à forma de pagamento)
                 dados_bancarios = forma_pgto.dados_bancarios
                 dados_bancarios.beneficiario = beneficiario or dados_bancarios.beneficiario
                 dados_bancarios.instituicao = instituicao or dados_bancarios.instituicao
@@ -11056,14 +11155,29 @@ def api_forma_pagamento_antiga_atualizar(request, pk):
                 dados_bancarios.chave = chave or dados_bancarios.chave
                 dados_bancarios.save()
             else:
-                # Criar novo DadosBancarios
-                dados_bancarios = DadosBancarios.objects.create(
-                    usuario=request.user,
-                    beneficiario=beneficiario,
-                    instituicao=instituicao,
-                    tipo_chave=tipo_chave,
-                    chave=chave,
-                )
+                # Verificar se já existe DadosBancarios para o usuário (dados antigos do Perfil)
+                dados_bancarios_existente = DadosBancarios.objects.filter(
+                    usuario=request.user
+                ).first()
+
+                if dados_bancarios_existente:
+                    # Reutilizar registro existente e vincular à forma de pagamento
+                    dados_bancarios = dados_bancarios_existente
+                    dados_bancarios.beneficiario = beneficiario or dados_bancarios.beneficiario
+                    dados_bancarios.instituicao = instituicao or dados_bancarios.instituicao
+                    dados_bancarios.tipo_chave = tipo_chave or dados_bancarios.tipo_chave
+                    dados_bancarios.chave = chave or dados_bancarios.chave
+                    dados_bancarios.save()
+                else:
+                    # Criar novo apenas se não existir nenhum para o usuário
+                    dados_bancarios = DadosBancarios.objects.create(
+                        usuario=request.user,
+                        beneficiario=beneficiario,
+                        instituicao=instituicao,
+                        tipo_chave=tipo_chave,
+                        chave=chave,
+                    )
+
                 forma_pgto.dados_bancarios = dados_bancarios
                 forma_pgto.save(update_fields=['dados_bancarios'])
 

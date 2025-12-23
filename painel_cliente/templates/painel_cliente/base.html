@@ -235,9 +235,13 @@
   <!-- Loading Screen Controller -->
   <script>
     (function() {
+      // Configuração do tempo de carregamento (em milissegundos)
+      var LOADING_DURATION = 3000; // 3 segundos
+
       var LoadingScreen = {
         element: null,
         hideTimeout: null,
+        isNavigating: false,
 
         init: function() {
           this.element = document.getElementById('loading-screen');
@@ -245,16 +249,19 @@
 
           var self = this;
 
-          // Esconde loading após página carregar completamente
-          window.addEventListener('load', function() {
+          // Garante que o loading esteja visível no início
+          this.element.classList.remove('hidden');
+
+          // Esconde loading após duração de 3 segundos
+          this.hideTimeout = setTimeout(function() {
             self.hide();
-          });
+          }, LOADING_DURATION);
 
           // Mostra loading ao navegar para outra página (links internos)
           document.addEventListener('click', function(e) {
             var link = e.target.closest('a[href]');
             if (link && self.isInternalLink(link)) {
-              self.show();
+              self.showForNavigation();
             }
           });
 
@@ -262,14 +269,31 @@
           document.addEventListener('submit', function(e) {
             var form = e.target;
             if (form && !form.hasAttribute('data-ajax')) {
-              self.show();
+              self.showForNavigation();
             }
           });
 
-          // Fallback: esconde após timeout caso algo dê errado
-          this.hideTimeout = setTimeout(function() {
-            self.hide();
-          }, 5000);
+          // Mostra loading quando a página está sendo descarregada (F5, navegação, etc)
+          window.addEventListener('beforeunload', function() {
+            self.showForNavigation();
+          });
+
+          // Garante loading em navegação via histórico (botões voltar/avançar)
+          window.addEventListener('pagehide', function() {
+            self.showForNavigation();
+          });
+
+          // Para navegação via bfcache (back-forward cache)
+          window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+              // Página restaurada do cache - mostra loading por 3 segundos
+              self.isNavigating = false;
+              self.show();
+              setTimeout(function() {
+                self.hide();
+              }, LOADING_DURATION);
+            }
+          });
         },
 
         isInternalLink: function(link) {
@@ -289,24 +313,36 @@
           }
         },
 
+        showForNavigation: function() {
+          this.isNavigating = true;
+          this.show();
+        },
+
         hide: function() {
-          if (this.element) {
+          if (this.element && !this.isNavigating) {
             this.element.classList.add('hidden');
           }
           if (this.hideTimeout) {
             clearTimeout(this.hideTimeout);
           }
+        },
+
+        // Método para forçar o loading por 3 segundos (pode ser chamado externamente)
+        forceShow: function() {
+          var self = this;
+          this.isNavigating = false;
+          this.show();
+          if (this.hideTimeout) {
+            clearTimeout(this.hideTimeout);
+          }
+          this.hideTimeout = setTimeout(function() {
+            self.hide();
+          }, LOADING_DURATION);
         }
       };
 
-      // Inicializa quando DOM estiver pronto
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-          LoadingScreen.init();
-        });
-      } else {
-        LoadingScreen.init();
-      }
+      // Inicializa imediatamente para garantir que o loading apareça
+      LoadingScreen.init();
 
       // Expõe globalmente para páginas específicas
       window.LoadingScreen = LoadingScreen;
