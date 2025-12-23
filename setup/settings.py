@@ -190,6 +190,18 @@ CSP_CONNECT_SRC = (
     "'self'",
     "https://www.google.com",
 )
+# Diretivas adicionais para compatibilidade com handlers inline (onclick, etc)
+CSP_SCRIPT_SRC_ATTR = (
+    "'unsafe-inline'",  # Permite onclick, onload, etc em atributos HTML
+)
+CSP_SCRIPT_SRC_ELEM = (
+    "'self'",
+    "'unsafe-inline'",
+    "'unsafe-eval'",
+    "https://www.google.com",
+    "https://www.gstatic.com",
+    "https://cdn.jsdelivr.net",
+)
 # Desabilita CSP em modo debug para facilitar desenvolvimento
 if DEBUG:
     CSP_REPORT_ONLY = True  # Apenas reporta violacoes, nao bloqueia
