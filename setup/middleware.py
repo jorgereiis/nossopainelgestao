@@ -215,7 +215,7 @@ class CheckUserLoggedInMiddleware:
         if self._public_prefixes is not None:
             return self._public_prefixes
 
-        prefixes = {"/static/", "/media/", "/favicon.ico", "/api/internal/", "/webhook/"}
+        prefixes = {"/static/", "/media/", "/favicon.ico", "/api/internal/", "/webhook/", "/api/pix/webhook/"}
         static_url = getattr(settings, "STATIC_URL", None)
         if static_url:
             prefixes.add(static_url if static_url.endswith("/") else f"{static_url}/")

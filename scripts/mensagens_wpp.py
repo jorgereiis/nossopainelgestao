@@ -266,7 +266,7 @@ def validar_forma_pagamento_cliente(cliente):
                 })
             return (False, "pix_dados_incompletos", None)
 
-        # Tentar via dados_bancarios (formas antigas/legadas)
+        # Tentar via dados_bancarios FK (formas antigas/legadas)
         if forma_pgto.dados_bancarios:
             db = forma_pgto.dados_bancarios
             if all([db.instituicao, db.beneficiario, db.tipo_chave, db.chave]):
@@ -277,6 +277,22 @@ def validar_forma_pagamento_cliente(cliente):
                     "chave": db.chave
                 })
             return (False, "pix_dados_incompletos", None)
+
+        # Fallback: buscar DadosBancarios diretamente pelo usuário do cliente
+        # (para formas de pagamento antigas que ainda não foram editadas na nova interface)
+        dados_bancarios_usuario = DadosBancarios.objects.filter(
+            usuario=cliente.usuario
+        ).first()
+        if dados_bancarios_usuario:
+            db = dados_bancarios_usuario
+            if all([db.instituicao, db.beneficiario, db.tipo_chave, db.chave]):
+                return (True, "pix_manual_fallback", {
+                    "instituicao": db.instituicao,
+                    "beneficiario": db.beneficiario,
+                    "tipo_chave": db.tipo_chave,
+                    "chave": db.chave
+                })
+            return (False, "pix_dados_incompletos_fallback", None)
 
         return (False, "pix_sem_dados", None)
 
