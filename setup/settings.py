@@ -173,6 +173,7 @@ CSP_STYLE_SRC = (
 CSP_FONT_SRC = (
     "'self'",
     "https://fonts.gstatic.com",
+    "https://cdn.jsdelivr.net",  # Bootstrap Icons e outras fontes
     "data:",
 )
 CSP_IMG_SRC = (
