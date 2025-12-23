@@ -728,7 +728,7 @@ class PushSubscriptionAdmin(admin.ModelAdmin):
 class CobrancaPixAdmin(admin.ModelAdmin):
     """Admin para cobranças PIX."""
     list_display = (
-        "id", "cliente", "valor", "status", "integracao",
+        "id", "cliente", "valor", "valor_taxa", "valor_recebido", "status", "integracao",
         "conta_bancaria", "criado_em", "expira_em", "pago_em"
     )
     list_filter = ("status", "integracao", "conta_bancaria", "criado_em")
