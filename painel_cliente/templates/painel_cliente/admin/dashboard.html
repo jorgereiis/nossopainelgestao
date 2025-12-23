@@ -1,0 +1,346 @@
+{% extends 'painel_cliente/admin/base_admin.html' %}
+
+{% block title %}Dashboard{% endblock %}
+{% block breadcrumb %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in-up">
+  <!-- Page Header -->
+  <div class="page-header-admin">
+    <h1>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+      Dashboard
+    </h1>
+  </div>
+
+  {% if is_admin_superior %}
+  <!-- Admin Superior Dashboard -->
+  <div class="stat-cards">
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.1s;">
+      <div class="stat-card-icon primary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value">{{ total_subdominios }}</div>
+        <div class="stat-card-label">Subdomínios</div>
+        <div class="stat-card-change positive">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+          </svg>
+          {{ subdominios_ativos }} ativos
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.15s;">
+      <div class="stat-card-icon success">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value">{{ total_clientes }}</div>
+        <div class="stat-card-label">Total de Clientes</div>
+        <div class="stat-card-change">Em todos os subdomínios</div>
+      </div>
+    </div>
+
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.2s;">
+      <div class="stat-card-icon info">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value">Ações Rápidas</div>
+        <a href="{% url 'painel_cliente:admin_subdominio_criar' %}" class="btn btn-primary btn-sm" style="margin-top: var(--space-2);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="16"></line>
+            <line x1="8" y1="12" x2="16" y2="12"></line>
+          </svg>
+          Novo Subdomínio
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Subdominios -->
+  <div class="admin-card animate-fade-in-up" style="animation-delay: 0.25s;">
+    <div class="admin-card-header">
+      <h2 class="admin-card-title">Subdomínios Recentes</h2>
+      <a href="{% url 'painel_cliente:admin_subdominios' %}" class="btn btn-ghost btn-sm">
+        Ver todos
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </a>
+    </div>
+    <div class="admin-card-body-flush">
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Subdomínio</th>
+              <th>Admin Responsável</th>
+              <th>Status</th>
+              <th>Criado em</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sub in subdominios|slice:":5" %}
+            <tr>
+              <td>
+                <a href="https://{{ sub.dominio_completo }}" target="_blank" class="link-primary" style="display: inline-flex; align-items: center; gap: var(--space-1);">
+                  {{ sub.subdominio }}.pagar.cc
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                </a>
+              </td>
+              <td>{{ sub.admin_responsavel.username }}</td>
+              <td>
+                {% if sub.ativo %}
+                <span class="badge badge-success">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Ativo
+                </span>
+                {% else %}
+                <span class="badge badge-neutral">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                  Inativo
+                </span>
+                {% endif %}
+              </td>
+              <td>{{ sub.criado_em|date:"d/m/Y" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4">
+                <div class="admin-empty">
+                  <div class="admin-empty-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="2" y1="12" x2="22" y2="12"></line>
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                  </div>
+                  <h3 class="admin-empty-title">Nenhum subdomínio cadastrado</h3>
+                  <p class="admin-empty-text">Crie seu primeiro subdomínio para começar</p>
+                  <a href="{% url 'painel_cliente:admin_subdominio_criar' %}" class="btn btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="16"></line>
+                      <line x1="8" y1="12" x2="16" y2="12"></line>
+                    </svg>
+                    Criar Subdomínio
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- Admin Comum Dashboard -->
+  <div class="stat-cards">
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.1s;">
+      <div class="stat-card-icon primary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value">{{ total_clientes }}</div>
+        <div class="stat-card-label">Clientes</div>
+        <div class="stat-card-change">Total cadastrados</div>
+      </div>
+    </div>
+
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.15s;">
+      <div class="stat-card-icon success">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value">{{ clientes_ativos }}</div>
+        <div class="stat-card-label">Clientes Ativos</div>
+        <div class="stat-card-change positive">Perfil atualizado</div>
+      </div>
+    </div>
+
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.2s;">
+      <div class="stat-card-icon info">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value">{{ acessos_recentes }}</div>
+        <div class="stat-card-label">Acessos (30 dias)</div>
+        <div class="stat-card-change">Sessões iniciadas</div>
+      </div>
+    </div>
+
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.25s;">
+      <div class="stat-card-icon warning">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value">{{ mensalidades_abertas }}</div>
+        <div class="stat-card-label">Em Aberto</div>
+        <div class="stat-card-change">Mensalidades pendentes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="admin-card animate-fade-in-up" style="animation-delay: 0.3s;">
+    <div class="admin-card-header">
+      <h2 class="admin-card-title">Ações Rápidas</h2>
+    </div>
+    <div class="admin-card-body">
+      <div class="quick-actions-grid">
+        <a href="{% url 'painel_cliente:admin_personalizacao' %}" class="quick-action-card">
+          <div class="quick-action-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </div>
+          <div class="quick-action-content">
+            <span class="quick-action-title">Personalizar Painel</span>
+            <span class="quick-action-desc">Cores, logo e textos</span>
+          </div>
+        </a>
+
+        <a href="{% url 'painel_cliente:admin_estatisticas' %}" class="quick-action-card">
+          <div class="quick-action-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+          </div>
+          <div class="quick-action-content">
+            <span class="quick-action-title">Ver Estatísticas</span>
+            <span class="quick-action-desc">Relatórios e métricas</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .quick-action-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-xl);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+  }
+
+  .quick-action-card:hover {
+    background: var(--color-background);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+  }
+
+  .quick-action-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-lg);
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .quick-action-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .quick-action-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .quick-action-title {
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-primary);
+  }
+
+  .quick-action-desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .link-primary {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  .link-primary:hover {
+    text-decoration: underline;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+</style>
+{% endblock %}

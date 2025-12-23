@@ -1,0 +1,145 @@
+<!-- Modal de Alertas FastDePix -->
+{% if alertas_fastdepix.tem_alertas %}
+<div class="modal fade" id="modalAlertasFastDePix" tabindex="-1" aria-labelledby="modalAlertasFastDePixLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-warning bg-opacity-10 border-bottom-0">
+        <h5 class="modal-title text-warning" id="modalAlertasFastDePixLabel">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          Alertas de Configuracao FastDePix
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        {% if alertas_fastdepix.planos_sem_link %}
+        <div class="alert alert-danger mb-3">
+          <h6 class="alert-heading">
+            <i class="bi bi-x-circle me-2"></i>
+            Planos sem Link de Pagamento
+          </h6>
+          <p class="mb-2">Os seguintes planos nao possuem link FastDePix configurado. Sem o link, o sistema nao podera gerar cobrancas para clientes desses planos:</p>
+          <ul class="mb-0">
+            {% for item in alertas_fastdepix.planos_sem_link %}
+            <li>
+              <strong>{{ item.plano_nome }}</strong> - R$ {{ item.plano_valor|floatformat:2 }}
+              <small class="text-muted">(Conta: {{ item.conta_nome }})</small>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        {% if alertas_fastdepix.planos_valor_divergente %}
+        <div class="alert alert-warning mb-0">
+          <h6 class="alert-heading">
+            <i class="bi bi-arrow-left-right me-2"></i>
+            Planos com Valor Alterado
+          </h6>
+          <p class="mb-2">Os seguintes planos tiveram o valor alterado desde que o link foi configurado. Verifique se o link FastDePix esta com o valor correto para evitar cobrancas incorretas:</p>
+          <ul class="mb-0">
+            {% for item in alertas_fastdepix.planos_valor_divergente %}
+            <li>
+              <strong>{{ item.plano_nome }}</strong>:
+              <span class="text-decoration-line-through text-muted">R$ {{ item.valor_configurado|floatformat:2 }}</span>
+              <i class="bi bi-arrow-right mx-1"></i>
+              <span class="text-success fw-bold">R$ {{ item.valor_atual|floatformat:2 }}</span>
+              <small class="text-muted">(Conta: {{ item.conta_nome }})</small>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x me-1"></i>Fechar
+        </button>
+        <a href="{% url 'cadastro-forma-pagamento' %}" class="btn btn-primary">
+          <i class="bi bi-gear me-1"></i>Ir para Formas de Pagamento
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * Logica hibrida para exibicao do modal de alertas FastDePix:
+ * 1. Uma vez por dia (localStorage com timestamp)
+ * 2. Quando houver novos alertas (comparar assinatura)
+ * 3. A cada nova sessao do navegador (sessionStorage)
+ */
+document.addEventListener('DOMContentLoaded', function() {
+  const modalElement = document.getElementById('modalAlertasFastDePix');
+  if (!modalElement) return;
+
+  const userId = '{{ request.user.id }}';
+  const localKey = 'alertasFastDePix_' + userId;
+  const sessionKey = 'alertasFastDePixSessao_' + userId;
+
+  // Assinatura atual dos alertas (para detectar novos)
+  const alertasAtuais = {
+    planosSemLink: {{ alertas_fastdepix.planos_sem_link|length }},
+    planosValorDivergente: {{ alertas_fastdepix.planos_valor_divergente|length }},
+    // IDs dos planos para detectar mudancas especificas
+    idsSemLink: [{% for item in alertas_fastdepix.planos_sem_link %}{{ item.plano_id }}{% if not forloop.last %},{% endif %}{% endfor %}],
+    idsDivergente: [{% for item in alertas_fastdepix.planos_valor_divergente %}{{ item.plano_id }}{% if not forloop.last %},{% endif %}{% endfor %}]
+  };
+  const assinaturaAtual = JSON.stringify(alertasAtuais);
+
+  // Recuperar dados salvos
+  let dadosSalvos = null;
+  try {
+    dadosSalvos = JSON.parse(localStorage.getItem(localKey));
+  } catch (e) {
+    dadosSalvos = null;
+  }
+
+  const agora = Date.now();
+  const umDiaEmMs = 24 * 60 * 60 * 1000; // 24 horas em milissegundos
+  const novaSessao = !sessionStorage.getItem(sessionKey);
+
+  let deveExibir = false;
+  let motivo = '';
+
+  if (!dadosSalvos) {
+    // Primeira vez - exibir
+    deveExibir = true;
+    motivo = 'primeira_vez';
+  } else {
+    const passouUmDia = (agora - dadosSalvos.timestamp) > umDiaEmMs;
+    const novosAlertas = dadosSalvos.assinatura !== assinaturaAtual;
+
+    if (novosAlertas) {
+      // Novos alertas - sempre exibir
+      deveExibir = true;
+      motivo = 'novos_alertas';
+    } else if (novaSessao && passouUmDia) {
+      // Nova sessao e passou mais de 24h - exibir
+      deveExibir = true;
+      motivo = 'nova_sessao_apos_24h';
+    }
+  }
+
+  if (deveExibir) {
+    // Exibir modal
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+
+    // Salvar no localStorage (timestamp e assinatura)
+    localStorage.setItem(localKey, JSON.stringify({
+      timestamp: agora,
+      assinatura: assinaturaAtual
+    }));
+
+    // Marcar sessao
+    sessionStorage.setItem(sessionKey, 'true');
+
+    console.log('[AlertasFastDePix] Modal exibido. Motivo:', motivo);
+  } else {
+    // Marcar sessao mesmo sem exibir (para nao exibir novamente nesta sessao)
+    sessionStorage.setItem(sessionKey, 'true');
+  }
+});
+</script>
+{% endif %}

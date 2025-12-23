@@ -1,0 +1,348 @@
+/**
+ * Dark Mode - Painel do Cliente
+ *
+ * Este arquivo contém as variáveis e overrides para o tema escuro.
+ * O dark mode é ativado via:
+ * 1. Preferência do sistema (prefers-color-scheme: dark)
+ * 2. Atributo data-theme="dark" no elemento html
+ *
+ * A preferência manual tem prioridade sobre a do sistema.
+ */
+
+/* ========================================
+   DARK MODE VARIABLES
+   ======================================== */
+
+/* Automatic dark mode (system preference) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* Cores de fundo */
+    --color-background: #0F0D1A;
+    --color-surface: #1E1B2E;
+    --color-surface-elevated: #2D2A3E;
+
+    /* Cores de texto */
+    --color-text-primary: #F8FAFC;
+    --color-text-secondary: #94A3B8;
+    --color-text-muted: #64748B;
+    --color-text-inverse: #0F172A;
+
+    /* Bordas */
+    --color-border: #3D3A4E;
+    --color-border-light: #2D2A3E;
+
+    /* Cores primárias ajustadas para dark mode */
+    --color-primary-light: #C4B5FD;
+
+    /* Cores neutras */
+    --color-gray-50: #1E1B2E;
+    --color-gray-100: #2D2A3E;
+    --color-gray-200: #3D3A4E;
+    --color-gray-300: #4D4A5E;
+    --color-gray-400: #6D6A7E;
+    --color-gray-500: #8D8A9E;
+    --color-gray-600: #ADAABE;
+    --color-gray-700: #CDCADE;
+    --color-gray-800: #E5E2F0;
+    --color-gray-900: #F8F6FC;
+
+    /* Status colors (more vibrant for dark mode) */
+    --color-success-light: rgba(16, 185, 129, 0.2);
+    --color-warning-light: rgba(245, 158, 11, 0.2);
+    --color-danger-light: rgba(239, 68, 68, 0.2);
+    --color-info-light: rgba(59, 130, 246, 0.2);
+
+    /* Sombras */
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+    --shadow-glow: 0 0 40px rgba(139, 92, 246, 0.4);
+
+    /* Gradientes ajustados */
+    --gradient-surface: linear-gradient(180deg, #1E1B2E 0%, #15131F 100%);
+    --gradient-card-highlight: linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(236,72,153,0.15) 100%);
+  }
+}
+
+/* Manual dark mode (data-theme attribute) */
+[data-theme="dark"] {
+  /* Cores de fundo */
+  --color-background: #0F0D1A;
+  --color-surface: #1E1B2E;
+  --color-surface-elevated: #2D2A3E;
+
+  /* Cores de texto */
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #64748B;
+  --color-text-inverse: #0F172A;
+
+  /* Bordas */
+  --color-border: #3D3A4E;
+  --color-border-light: #2D2A3E;
+
+  /* Cores primárias ajustadas para dark mode */
+  --color-primary-light: #C4B5FD;
+
+  /* Cores neutras */
+  --color-gray-50: #1E1B2E;
+  --color-gray-100: #2D2A3E;
+  --color-gray-200: #3D3A4E;
+  --color-gray-300: #4D4A5E;
+  --color-gray-400: #6D6A7E;
+  --color-gray-500: #8D8A9E;
+  --color-gray-600: #ADAABE;
+  --color-gray-700: #CDCADE;
+  --color-gray-800: #E5E2F0;
+  --color-gray-900: #F8F6FC;
+
+  /* Status colors (more vibrant for dark mode) */
+  --color-success-light: rgba(16, 185, 129, 0.2);
+  --color-warning-light: rgba(245, 158, 11, 0.2);
+  --color-danger-light: rgba(239, 68, 68, 0.2);
+  --color-info-light: rgba(59, 130, 246, 0.2);
+
+  /* Sombras */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 40px rgba(139, 92, 246, 0.4);
+
+  /* Gradientes ajustados */
+  --gradient-surface: linear-gradient(180deg, #1E1B2E 0%, #15131F 100%);
+  --gradient-card-highlight: linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(236,72,153,0.15) 100%);
+}
+
+/* ========================================
+   COMPONENT OVERRIDES - DARK MODE
+   ======================================== */
+
+/* Scrollbar */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    scrollbar-color: var(--color-gray-400) var(--color-gray-100);
+  }
+
+  :root:not([data-theme="light"]) ::-webkit-scrollbar-track {
+    background: var(--color-gray-100);
+  }
+
+  :root:not([data-theme="light"]) ::-webkit-scrollbar-thumb {
+    background: var(--color-gray-400);
+  }
+
+  :root:not([data-theme="light"]) ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gray-500);
+  }
+}
+
+[data-theme="dark"] {
+  scrollbar-color: var(--color-gray-400) var(--color-gray-100);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--color-gray-100);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--color-gray-400);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gray-500);
+}
+
+/* Code blocks in dark mode */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) code {
+    background-color: var(--color-gray-100);
+    color: var(--color-primary-light);
+  }
+}
+
+[data-theme="dark"] code {
+  background-color: var(--color-gray-100);
+  color: var(--color-primary-light);
+}
+
+/* Input placeholders */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .form-input::placeholder {
+    color: var(--color-gray-500);
+  }
+}
+
+[data-theme="dark"] .form-input::placeholder {
+  color: var(--color-gray-500);
+}
+
+/* Disabled inputs */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .form-input:disabled {
+    background-color: var(--color-gray-100);
+  }
+}
+
+[data-theme="dark"] .form-input:disabled {
+  background-color: var(--color-gray-100);
+}
+
+/* Card footer */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .card-footer {
+    background-color: var(--color-gray-50);
+  }
+}
+
+[data-theme="dark"] .card-footer {
+  background-color: var(--color-gray-50);
+}
+
+/* Skeleton loading shimmer */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-gray-200) 25%,
+      var(--color-gray-100) 50%,
+      var(--color-gray-200) 75%
+    );
+    background-size: 200% 100%;
+  }
+}
+
+[data-theme="dark"] .skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-200) 25%,
+    var(--color-gray-100) 50%,
+    var(--color-gray-200) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* White button override for dark mode */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .btn-white {
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+  }
+}
+
+[data-theme="dark"] .btn-white {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+/* Ghost button override for dark mode */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .btn-ghost:hover {
+    background-color: var(--color-gray-100);
+  }
+}
+
+[data-theme="dark"] .btn-ghost:hover {
+  background-color: var(--color-gray-100);
+}
+
+/* Progress bar background */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .progress {
+    background-color: var(--color-gray-200);
+  }
+}
+
+[data-theme="dark"] .progress {
+  background-color: var(--color-gray-200);
+}
+
+/* ========================================
+   THEME TOGGLE BUTTON
+   ======================================== */
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-gray-100);
+  color: var(--color-text-secondary);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.theme-toggle:hover {
+  background-color: var(--color-gray-200);
+  color: var(--color-text-primary);
+}
+
+.theme-toggle-icon {
+  width: 20px;
+  height: 20px;
+  transition: transform var(--transition-normal);
+}
+
+/* Sun icon (for dark mode - click to go light) */
+.theme-toggle .icon-sun {
+  display: none;
+}
+
+/* Moon icon (for light mode - click to go dark) */
+.theme-toggle .icon-moon {
+  display: block;
+}
+
+/* Swap icons based on theme */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle .icon-sun {
+    display: block;
+  }
+
+  :root:not([data-theme="light"]) .theme-toggle .icon-moon {
+    display: none;
+  }
+}
+
+[data-theme="dark"] .theme-toggle .icon-sun {
+  display: block;
+}
+
+[data-theme="dark"] .theme-toggle .icon-moon {
+  display: none;
+}
+
+[data-theme="light"] .theme-toggle .icon-sun {
+  display: none;
+}
+
+[data-theme="light"] .theme-toggle .icon-moon {
+  display: block;
+}
+
+/* Animation on toggle */
+.theme-toggle:active .theme-toggle-icon {
+  transform: rotate(30deg);
+}
+
+/* ========================================
+   TRANSITION FOR THEME CHANGE
+   ======================================== */
+
+/* Smooth transition when changing themes */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    box-shadow 0.3s ease !important;
+}

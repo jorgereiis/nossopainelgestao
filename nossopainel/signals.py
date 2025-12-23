@@ -806,3 +806,220 @@ def sincronizar_conta_principal(sender, instance, **kwargs):
             f"[SINCRONIZAÇÃO] ❌ Erro ao sincronizar conta principal para cliente {instance.cliente.nome}: {str(e)}",
             exc_info=True
         )
+
+
+# ============================================================================
+# SIGNALS PARA CONTROLE DE LIMITE MEI - MUDANÇA DE PLANO
+# ============================================================================
+
+# Cache para detectar mudança de plano
+_clientes_plano_anterior = {}
+
+@receiver(pre_save, sender=Cliente)
+def registrar_plano_anterior(sender, instance, **kwargs):
+    """Captura o plano atual do cliente antes de salvar para detectar mudanças."""
+    if instance.pk:
+        try:
+            cliente_existente = Cliente.objects.get(pk=instance.pk)
+            _clientes_plano_anterior[instance.pk] = {
+                'plano_id': cliente_existente.plano_id,
+                'plano_nome': cliente_existente.plano.nome if cliente_existente.plano else None,
+                'plano_valor': cliente_existente.plano.valor if cliente_existente.plano else None,
+            }
+        except Cliente.DoesNotExist:
+            pass
+
+
+@receiver(post_save, sender=Cliente)
+def verificar_limite_apos_mudanca_plano(sender, instance, created, **kwargs):
+    """
+    Verifica se mudança de plano afeta limites MEI e cria notificação se necessário.
+
+    Dispara quando:
+    - Cliente muda de plano
+    - A mudança aumenta o valor anual projetado
+    - O novo total ultrapassa o limite configurado
+    """
+    from decimal import Decimal
+    from .models import (
+        ClienteContaBancaria, ConfiguracaoLimite,
+        NotificacaoSistema, Plano
+    )
+
+    func_name = verificar_limite_apos_mudanca_plano.__name__
+
+    # Ignorar clientes novos ou cancelados
+    if created or instance.cancelado:
+        if instance.pk in _clientes_plano_anterior:
+            _clientes_plano_anterior.pop(instance.pk, None)
+        return
+
+    # Verificar se houve mudança de plano
+    if instance.pk not in _clientes_plano_anterior:
+        return
+
+    plano_anterior_info = _clientes_plano_anterior.pop(instance.pk)
+    plano_anterior_id = plano_anterior_info.get('plano_id')
+    plano_atual_id = instance.plano_id
+
+    if plano_anterior_id == plano_atual_id:
+        return  # Plano não mudou
+
+    # Mapear pagamentos por ano
+    PAGAMENTOS_POR_ANO = {
+        'Mensal': 12,
+        'Bimestral': 6,
+        'Trimestral': 4,
+        'Semestral': 2,
+        'Anual': 1,
+    }
+
+    # Calcular valores anuais
+    plano_anterior_nome = plano_anterior_info.get('plano_nome', 'Mensal')
+    plano_anterior_valor = plano_anterior_info.get('plano_valor', Decimal('0'))
+    pagamentos_anterior = PAGAMENTOS_POR_ANO.get(plano_anterior_nome, 12)
+    valor_anual_anterior = float(plano_anterior_valor * pagamentos_anterior) if plano_anterior_valor else 0
+
+    plano_atual_nome = instance.plano.nome if instance.plano else 'Mensal'
+    plano_atual_valor = instance.plano.valor if instance.plano else Decimal('0')
+    pagamentos_atual = PAGAMENTOS_POR_ANO.get(plano_atual_nome, 12)
+    valor_anual_atual = float(plano_atual_valor * pagamentos_atual)
+
+    impacto_valor = valor_anual_atual - valor_anual_anterior
+
+    # Log da mudança
+    logger.info(
+        f"[LIMITE_MEI] Mudança de plano detectada: {instance.nome} - "
+        f"{plano_anterior_nome} (R$ {plano_anterior_valor}) → {plano_atual_nome} (R$ {plano_atual_valor}) - "
+        f"Impacto anual: R$ {impacto_valor:+.2f}"
+    )
+
+    # Criar notificação de mudança de plano
+    try:
+        NotificacaoSistema.criar_alerta_mudanca_plano(
+            usuario=instance.usuario,
+            cliente=instance,
+            plano_antigo=f"{plano_anterior_nome} (R$ {plano_anterior_valor})",
+            plano_novo=f"{plano_atual_nome} (R$ {plano_atual_valor})",
+            impacto_valor=impacto_valor
+        )
+    except Exception as e:
+        logger.error(f"[LIMITE_MEI] Erro ao criar notificação de mudança de plano: {e}")
+
+    # Se valor aumentou, verificar impacto nos limites das contas associadas
+    if impacto_valor > 0:
+        verificar_limites_contas_cliente(instance, impacto_valor)
+
+
+def verificar_limites_contas_cliente(cliente, impacto_valor):
+    """
+    Verifica se o aumento de valor do cliente ultrapassa limites das contas associadas.
+    """
+    from decimal import Decimal
+    from .models import (
+        ClienteContaBancaria, ContaBancaria, ConfiguracaoLimite,
+        NotificacaoSistema
+    )
+
+    # Mapeamento de pagamentos por ano
+    PAGAMENTOS_POR_ANO = {
+        'Mensal': 12,
+        'Bimestral': 6,
+        'Trimestral': 4,
+        'Semestral': 2,
+        'Anual': 1,
+    }
+
+    # Buscar contas bancárias às quais o cliente está associado
+    associacoes = ClienteContaBancaria.objects.filter(
+        cliente=cliente,
+        ativo=True
+    ).select_related('conta_bancaria')
+
+    if not associacoes.exists():
+        return  # Cliente não está associado a nenhuma conta
+
+    # Obter configuração de limite
+    config = ConfiguracaoLimite.get_config()
+    limite_global = float(config.valor_anual)
+    margem = config.margem_seguranca
+    percentual_alerta = 100 - margem  # Ex: 90% para margem de 10%
+
+    for assoc in associacoes:
+        conta = assoc.conta_bancaria
+
+        # Calcular total anual projetado de todos os clientes associados à conta
+        clientes_conta = ClienteContaBancaria.objects.filter(
+            conta_bancaria=conta,
+            ativo=True
+        ).select_related('cliente__plano')
+
+        total_anual = Decimal('0')
+        for cc in clientes_conta:
+            if cc.cliente.plano:
+                pagamentos = PAGAMENTOS_POR_ANO.get(cc.cliente.plano.nome, 12)
+                total_anual += cc.cliente.plano.valor * pagamentos
+
+        total_anual_float = float(total_anual)
+        percentual_atual = (total_anual_float / limite_global) * 100 if limite_global > 0 else 0
+
+        # Verificar se ultrapassou alerta ou limite
+        if percentual_atual >= 99:
+            # Limite crítico atingido
+            try:
+                # Verificar se já existe notificação recente (últimas 24h) para evitar spam
+                from django.utils import timezone
+                from datetime import timedelta
+
+                notif_recente = NotificacaoSistema.objects.filter(
+                    usuario=cliente.usuario,
+                    tipo='limite_atingido',
+                    dados_extras__conta_id=conta.id,
+                    criada_em__gte=timezone.now() - timedelta(hours=24)
+                ).exists()
+
+                if not notif_recente:
+                    NotificacaoSistema.objects.create(
+                        usuario=cliente.usuario,
+                        tipo='limite_atingido',
+                        prioridade='critica',
+                        titulo=f'⚠️ LIMITE CRÍTICO: {percentual_atual:.1f}%',
+                        mensagem=(
+                            f'A conta "{conta.beneficiario or conta.instituicao}" atingiu '
+                            f'{percentual_atual:.1f}% do limite MEI ({config.valor_anual:,.2f}). '
+                            f'Valor total projetado: R$ {total_anual_float:,.2f}. '
+                            f'Ação necessária: remova clientes ou aumente o limite.'
+                        ),
+                        dados_extras={
+                            'conta_id': conta.id,
+                            'conta_nome': conta.beneficiario or str(conta.instituicao),
+                            'percentual': percentual_atual,
+                            'valor_atual': total_anual_float,
+                            'valor_limite': limite_global,
+                            'cliente_causador': cliente.nome,
+                            'impacto_valor': impacto_valor,
+                        }
+                    )
+                    logger.warning(
+                        f"[LIMITE_MEI] Notificação CRÍTICA criada para conta {conta.id} - "
+                        f"{percentual_atual:.1f}% do limite"
+                    )
+            except Exception as e:
+                logger.error(f"[LIMITE_MEI] Erro ao criar notificação crítica: {e}")
+
+        elif percentual_atual >= percentual_alerta:
+            # Alerta de aproximação do limite
+            try:
+                NotificacaoSistema.criar_alerta_limite(
+                    usuario=cliente.usuario,
+                    conta_bancaria=conta,
+                    percentual_atual=percentual_atual,
+                    valor_atual=total_anual_float,
+                    valor_limite=limite_global
+                )
+                logger.info(
+                    f"[LIMITE_MEI] Notificação de alerta criada para conta {conta.id} - "
+                    f"{percentual_atual:.1f}% do limite"
+                )
+            except Exception as e:
+                logger.error(f"[LIMITE_MEI] Erro ao criar notificação de alerta: {e}")

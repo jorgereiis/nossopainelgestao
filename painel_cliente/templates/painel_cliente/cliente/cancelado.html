@@ -1,0 +1,70 @@
+{% extends 'painel_cliente/base.html' %}
+
+{% block title %}Assinatura Cancelada - {{ config.nome_exibicao }}{% endblock %}
+
+{% block header %}
+<!-- Pagina de cancelado nao tem header padrao -->
+{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center" style="margin-top: -56px;">
+    <div class="card shadow-lg text-center" style="max-width: 480px; width: 100%;">
+        <div class="card-body p-4 p-md-5">
+            <!-- Logo -->
+            <div class="mb-4">
+                {% if config.logo %}
+                <img src="{{ config.logo.url }}" alt="{{ config.nome_exibicao }}" style="max-height: 60px;">
+                {% else %}
+                <h4 class="text-primary mb-0">{{ config.nome_exibicao }}</h4>
+                {% endif %}
+            </div>
+
+            <!-- Icone de cancelamento -->
+            <div class="text-danger mb-4">
+                <i class="bi bi-x-circle-fill display-1"></i>
+            </div>
+
+            <h4 class="text-danger mb-3">Assinatura Cancelada</h4>
+
+            <p class="text-muted mb-1">Olá, <span data-fullname="{{ cliente.nome }}">{{ cliente.nome }}</span></p>
+
+            <p class="mb-4">
+                Sua assinatura foi cancelada
+                {% if cliente.data_cancelamento %}
+                em <strong>{{ cliente.data_cancelamento|date:"d/m/Y" }}</strong>.
+                {% else %}
+                .
+                {% endif %}
+            </p>
+
+            <p class="text-muted mb-4">
+                Para reativar seu acesso, entre em contato com nosso suporte.
+            </p>
+
+            {% if config.whatsapp_suporte %}
+            <a href="{{ config.get_whatsapp_url }}" target="_blank" class="btn btn-success btn-lg">
+                <i class="bi bi-whatsapp me-2"></i>
+                Falar com Suporte
+            </a>
+            {% else %}
+            <p class="text-muted">Entre em contato com o suporte para mais informações.</p>
+            {% endif %}
+
+            <hr class="my-4">
+
+            <a href="{% url 'painel_cliente:login' %}" class="text-muted small">
+                <i class="bi bi-arrow-left me-1"></i>
+                Voltar para login
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}

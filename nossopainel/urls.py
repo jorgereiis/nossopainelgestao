@@ -1,5 +1,6 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
+from django.views.generic import RedirectView
 from .views_webhook import webhook_wppconnect
 from .views_chat import (
     ChatPageView,
@@ -79,7 +80,6 @@ from .views import (
     delete_payment_plan,
     check_connection_wpp,
     delete_payment_method,
-    create_payment_method,
     MensalidadeDetailView,
     notifications_dropdown,
     NotificationsModalView,
@@ -135,8 +135,43 @@ from .views import (
     criar_instituicao_bancaria,
     toggle_instituicao_bancaria,
     excluir_instituicao_bancaria,
+    # Configuração de Limite MEI
+    api_config_limite,
+    api_config_limite_atualizar,
+    # Credenciais API
+    api_credenciais_por_tipo,
+    # Clientes para Associação
+    api_clientes_ativos_associacao,
+    # Planos de Adesão
+    api_planos,
+    # Notificações do Sistema
+    api_notificacoes_listar,
+    api_notificacao_marcar_lida,
+    api_notificacoes_marcar_todas_lidas,
+    # Cobrança PIX
+    gerar_cobranca_pix,
+    consultar_cobranca_pix,
+    webhook_pagamento_pix,
+    cancelar_cobranca_pix,
     # Admin - Testes
     create_payment_method_admin,
+    # API Forma de Pagamento
+    api_forma_pagamento_detalhes,
+    api_forma_pagamento_atualizar,
+    api_forma_pagamento_antiga_atualizar,
+    api_forma_pagamento_clientes_count,
+    # Integrações API
+    integracoes_api_index,
+    integracoes_fastdepix,
+    integracoes_fastdepix_testar,
+    integracoes_fastdepix_conta_dados,
+    integracoes_fastdepix_webhook_registrar,
+    integracoes_fastdepix_webhook_atualizar,
+    integracoes_fastdepix_webhook_remover,
+    integracoes_fastdepix_webhook_salvar_url,
+    integracoes_fastdepix_sincronizar,
+    # Configuração de Agendamentos
+    config_agendamentos,
 )
 
 urlpatterns = [
@@ -196,7 +231,7 @@ urlpatterns = [
     path("cadastro-dispositivo/", create_device, name="cadastro-dispositivo"),
     path("cadastro-app-conta/", create_app_account, name="cadastro-app-conta"),
     path("cadastro-plano-adesao/", create_payment_plan, name="cadastro-plano-adesao"),
-    path("cadastro-forma-pagamento/", create_payment_method, name="cadastro-forma-pagamento"),
+    path("cadastro-forma-pagamento/", create_payment_method_admin, name="cadastro-forma-pagamento"),
 
     ############ Edit ############
     path("editar-perfil/", edit_profile, name="editar-perfil"),
@@ -305,8 +340,53 @@ urlpatterns = [
     path("api/instituicoes-bancarias/<int:pk>/toggle/", toggle_instituicao_bancaria, name="api-toggle-instituicao"),
     path("api/instituicoes-bancarias/<int:pk>/excluir/", excluir_instituicao_bancaria, name="api-excluir-instituicao"),
 
-    ############ Admin - Paginas de Testes ###########
-    path("admin/forma-pagamento/", create_payment_method_admin, name="admin-forma-pagamento"),
+    ############ Configuração de Limite MEI ###########
+    path("api/config-limite/", api_config_limite, name="api-config-limite"),
+    path("api/config-limite/atualizar/", api_config_limite_atualizar, name="api-config-limite-atualizar"),
+
+    ############ Credenciais API ###########
+    path("api/credenciais/<str:tipo_integracao>/", api_credenciais_por_tipo, name="api-credenciais-por-tipo"),
+
+    ############ Clientes para Associação ###########
+    path("api/clientes-ativos-associacao/", api_clientes_ativos_associacao, name="api-clientes-ativos-associacao"),
+
+    ############ Planos de Adesão ###########
+    path("api/planos/", api_planos, name="api-planos"),
+
+    ############ Notificações do Sistema ###########
+    path("api/notificacoes/", api_notificacoes_listar, name="api-notificacoes-listar"),
+    path("api/notificacoes/<int:notificacao_id>/marcar-lida/", api_notificacao_marcar_lida, name="api-notificacao-marcar-lida"),
+    path("api/notificacoes/marcar-todas-lidas/", api_notificacoes_marcar_todas_lidas, name="api-notificacoes-marcar-todas-lidas"),
+
+    ############ Cobrança PIX ###########
+    path("api/pix/gerar/<int:mensalidade_id>/", gerar_cobranca_pix, name="api-pix-gerar"),
+    path("api/pix/status/<uuid:cobranca_id>/", consultar_cobranca_pix, name="api-pix-status"),
+    path("api/pix/cancelar/<uuid:cobranca_id>/", cancelar_cobranca_pix, name="api-pix-cancelar"),
+    path("api/pix/webhook/", webhook_pagamento_pix, name="api-pix-webhook"),
+
+    ############ Redirecionamentos (URLs legadas) ###########
+    path("admin/forma-pagamento/", RedirectView.as_view(pattern_name='cadastro-forma-pagamento', permanent=True), name="admin-forma-pagamento"),
+
+    ############ Configuração de Agendamentos (Admin) ###########
+    path("admin/agendamentos/", config_agendamentos, name="config-agendamentos"),
+
+    ############ Integrações API (Admin) ###########
+    path("admin/integracoes-api/", integracoes_api_index, name="integracoes-api"),
+    path("admin/integracoes-api/fastdepix/", integracoes_fastdepix, name="integracoes-fastdepix"),
+    path("admin/integracoes-api/fastdepix/testar/", integracoes_fastdepix_testar, name="integracoes-fastdepix-testar"),
+    path("admin/integracoes-api/fastdepix/webhook/registrar/", integracoes_fastdepix_webhook_registrar, name="integracoes-fastdepix-webhook-registrar"),
+    path("admin/integracoes-api/fastdepix/webhook/atualizar/", integracoes_fastdepix_webhook_atualizar, name="integracoes-fastdepix-webhook-atualizar"),
+    path("admin/integracoes-api/fastdepix/webhook/remover/", integracoes_fastdepix_webhook_remover, name="integracoes-fastdepix-webhook-remover"),
+    path("admin/integracoes-api/fastdepix/webhook/salvar-url/", integracoes_fastdepix_webhook_salvar_url, name="integracoes-fastdepix-webhook-salvar-url"),
+    path("admin/integracoes-api/fastdepix/sincronizar/", integracoes_fastdepix_sincronizar, name="integracoes-fastdepix-sincronizar"),
+    path("admin/integracoes-api/fastdepix/conta/", integracoes_fastdepix_conta_dados, name="integracoes-fastdepix-conta-dados"),
+    path("admin/integracoes-api/fastdepix/conta/<int:conta_id>/", integracoes_fastdepix_conta_dados, name="integracoes-fastdepix-conta-dados-id"),
+
+    ############ API Forma de Pagamento ###########
+    path("api/forma-pagamento/<int:pk>/", api_forma_pagamento_detalhes, name="api-forma-pagamento-detalhes"),
+    path("api/forma-pagamento/<int:pk>/atualizar/", api_forma_pagamento_atualizar, name="api-forma-pagamento-atualizar"),
+    path("api/forma-pagamento/<int:pk>/atualizar-antiga/", api_forma_pagamento_antiga_atualizar, name="api-forma-pagamento-antiga-atualizar"),
+    path("api/forma-pagamento/<int:pk>/clientes-count/", api_forma_pagamento_clientes_count, name="api-forma-pagamento-clientes-count"),
 
     ########### Tests ###########
     path("teste/", test, name="teste"),

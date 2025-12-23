@@ -30,7 +30,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models.functions import ExtractMonth, ExtractYear
 from django.views.decorators.http import require_http_methods, require_GET
 from plotly.colors import sample_colorscale, make_colorscale
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.decorators.vary import vary_on_cookie
 from django.views.decorators.http import require_POST
@@ -86,6 +86,11 @@ from .models import (
     InstituicaoBancaria,
     ContaBancaria,
     ClienteContaBancaria,
+    CobrancaPix,
+    CredencialAPI,
+    ConfiguracaoLimite,
+    NotificacaoSistema,
+    PlanoLinkPagamento,
 )
 from .utils import (
     envio_apos_novo_cadastro,
@@ -969,7 +974,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         # Variáveis para context do modal de edição do cadastro do cliente
         indicadores = Cliente.objects.filter(usuario=self.request.user).order_by('nome')
         servidores = Servidor.objects.filter(usuario=self.request.user).order_by('nome')
-        formas_pgtos = Tipos_pgto.objects.filter(usuario=self.request.user)
+        formas_pgtos = Tipos_pgto.objects.filter(usuario=self.request.user).select_related('conta_bancaria__instituicao')
         planos = Plano.objects.filter(usuario=self.request.user).order_by('nome', 'telas', 'valor')
         dispositivos = Dispositivo.objects.filter(usuario=self.request.user).order_by('nome')
         aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
@@ -1109,6 +1114,68 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 
         range_num = range(1,32)
 
+        # Contar clientes ativos sem forma de pagamento
+        clientes_sem_forma_pgto = Cliente.objects.filter(
+            usuario=self.request.user,
+            cancelado=False,
+            forma_pgto__isnull=True
+        ).count()
+
+        # ============================================================
+        # ALERTAS FASTDEPIX - Planos sem link ou com valor divergente
+        # ============================================================
+        alertas_fastdepix = {
+            'planos_sem_link': [],
+            'planos_valor_divergente': [],
+            'tem_alertas': False
+        }
+
+        # Verificar se usuário tem conta FastDePix com link_fastdepix
+        contas_fastdepix = ContaBancaria.objects.filter(
+            usuario=self.request.user,
+            instituicao__tipo_integracao='fastdepix',
+            tipo_cobranca_fastdepix='link_fastdepix',
+            ativo=True
+        ).select_related('instituicao')
+
+        if contas_fastdepix.exists():
+            planos_usuario = Plano.objects.filter(usuario=self.request.user)
+
+            for conta in contas_fastdepix:
+                # Buscar links existentes para esta conta
+                links_conta = PlanoLinkPagamento.objects.filter(
+                    conta_bancaria=conta
+                ).select_related('plano')
+                planos_com_link = {link.plano_id for link in links_conta}
+
+                # Planos sem link
+                for plano in planos_usuario:
+                    if plano.id not in planos_com_link:
+                        alertas_fastdepix['planos_sem_link'].append({
+                            'plano_id': plano.id,
+                            'plano_nome': f"{plano.nome} ({plano.telas} tela(s))",
+                            'plano_valor': float(plano.valor),
+                            'conta_id': conta.id,
+                            'conta_nome': conta.nome_identificacao
+                        })
+
+                # Planos com valor divergente
+                for link in links_conta:
+                    if link.valor_divergente:
+                        alertas_fastdepix['planos_valor_divergente'].append({
+                            'plano_id': link.plano.id,
+                            'plano_nome': f"{link.plano.nome} ({link.plano.telas} tela(s))",
+                            'valor_atual': float(link.plano.valor),
+                            'valor_configurado': float(link.valor_configurado),
+                            'conta_id': conta.id,
+                            'conta_nome': conta.nome_identificacao
+                        })
+
+            alertas_fastdepix['tem_alertas'] = (
+                len(alertas_fastdepix['planos_sem_link']) > 0 or
+                len(alertas_fastdepix['planos_valor_divergente']) > 0
+            )
+
         context.update(
             {
                 "hoje": hoje,
@@ -1125,8 +1192,11 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "valor_total_pago_qtd": total_pago_qtd,
                 "valor_total_receber_qtd": total_receber_qtd,
                 "clientes_cancelados_qtd": clientes_cancelados_qtd,
+                "clientes_sem_forma_pgto": clientes_sem_forma_pgto,
                 "total_telas_ativas": int(total_telas),
                 'planos_resumo': planos_resumo,
+                ## alertas FastDePix
+                "alertas_fastdepix": alertas_fastdepix,
                 ## context para modal de edição
                 "planos": planos,
                 "servidores": servidores,
@@ -2621,7 +2691,8 @@ def notifications_dropdown(request):
     hoje = timezone.localdate()
     tipos = [Tipos_pgto.CARTAO, Tipos_pgto.BOLETO]
 
-    queryset = (
+    # Mensalidades vencidas
+    mensalidades_vencidas = (
         Mensalidade.objects.select_related("cliente", "cliente__forma_pgto", "cliente__plano")
         .filter(
             usuario=request.user,
@@ -2640,10 +2711,17 @@ def notifications_dropdown(request):
         .order_by("dt_vencimento")
     )
 
-    itens = list(queryset[:20])
+    # Notificações do sistema (limite MEI, mudança de plano, etc.)
+    notificacoes_sistema = NotificacaoSistema.objects.filter(
+        usuario=request.user,
+        lida=False
+    ).order_by('-criada_em')[:10]
+
+    itens = list(mensalidades_vencidas[:15])
     context = {
         "notif_items": itens,
-        "notif_count": queryset.count(),
+        "notif_count": mensalidades_vencidas.count() + notificacoes_sistema.count(),
+        "notificacoes_sistema": notificacoes_sistema,
     }
     return render(request, "notificacoes/dropdown.html", context)
 
@@ -2668,9 +2746,15 @@ def notifications_mark_all_read(request):
     ]
     NotificationRead.objects.bulk_create(objetos, ignore_conflicts=True)
 
+    # Marcar também notificações do sistema como lidas
+    notif_sistema_marcadas = NotificacaoSistema.objects.filter(
+        usuario=request.user,
+        lida=False
+    ).update(lida=True, data_leitura=timezone.now())
+
     request.session.pop("notif_read_ids", None)
 
-    return JsonResponse({"ok": True, "cleared": len(ids)})
+    return JsonResponse({"ok": True, "cleared": len(ids), "sistema_cleared": notif_sistema_marcadas})
 
 class NotificationsModalView(LoginRequiredMixin, ListView):
     model = Mensalidade
@@ -2710,7 +2794,8 @@ def notifications_count(request):
     hoje = timezone.localdate()
     tipos = [Tipos_pgto.CARTAO, Tipos_pgto.BOLETO]
 
-    count = (
+    # Contagem de mensalidades vencidas
+    count_mensalidades = (
         Mensalidade.objects
         .filter(
             usuario=request.user,
@@ -2722,7 +2807,14 @@ def notifications_count(request):
         .exclude(notifications_read__usuario=request.user)
         .count()
     )
-    return JsonResponse({"count": count})
+
+    # Contagem de notificações do sistema
+    count_sistema = NotificacaoSistema.objects.filter(
+        usuario=request.user,
+        lida=False
+    ).count()
+
+    return JsonResponse({"count": count_mensalidades + count_sistema})
 
 class MensalidadeDetailView(LoginRequiredMixin, DetailView):
     model = Mensalidade
@@ -3237,10 +3329,12 @@ def edit_customer(request, cliente_id):
         if cliente.servidor != servidor:
             cliente.servidor = servidor
 
-        # Forma de pagamento
-        forma_pgto = Tipos_pgto.objects.filter(nome=post.get("forma_pgto"), usuario=user).first()
-        if forma_pgto and cliente.forma_pgto != forma_pgto:
-            cliente.forma_pgto = forma_pgto
+        # Forma de pagamento (agora usando ID ao invés de nome)
+        forma_pgto_id = post.get("forma_pgto", "")
+        if forma_pgto_id and forma_pgto_id.isdigit():
+            forma_pgto = Tipos_pgto.objects.filter(pk=int(forma_pgto_id), usuario=user).first()
+            if forma_pgto and cliente.forma_pgto != forma_pgto:
+                cliente.forma_pgto = forma_pgto
 
         # Plano (agora usando ID ao invés de string formatada)
         plano_id = post.get("plano", "")
@@ -5466,7 +5560,7 @@ def create_customer(request):
 
     # Querysets para preencher os selects do formulário
     plano_queryset = Plano.objects.filter(usuario=usuario).order_by('nome', 'telas', 'valor')
-    forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=usuario)
+    forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=usuario).select_related('conta_bancaria__instituicao')
     servidor_queryset = Servidor.objects.filter(usuario=usuario).order_by('nome')
     sistema_queryset = Aplicativo.objects.filter(usuario=usuario).order_by('nome')
     indicador_por_queryset = Cliente.objects.filter(usuario=usuario, cancelado=False).order_by('nome')
@@ -5499,7 +5593,7 @@ def create_customer(request):
         notas = post.get('notas', '').strip()
         indicador_nome = post.get('indicador_list', '').strip()
         servidor_nome = normalizar_servidor(post.get('servidor', '').strip())
-        forma_pgto_nome = post.get('forma_pgto', '').strip()
+        forma_pgto_input = post.get('forma_pgto', '').strip()  # Pode ser ID ou nome
         plano_info = post.get('plano', '').replace(' ', '').split('-')
 
         if not telefone:
@@ -5581,7 +5675,14 @@ def create_customer(request):
 
         # Trata relacionados
         servidor, _ = Servidor.objects.get_or_create(nome=servidor_nome, usuario=usuario)
-        forma_pgto, _ = Tipos_pgto.objects.get_or_create(nome=forma_pgto_nome, usuario=usuario)
+
+        # Forma de pagamento: primeiro tenta por ID, depois por nome (compatibilidade)
+        forma_pgto = None
+        if forma_pgto_input.isdigit():
+            forma_pgto = Tipos_pgto.objects.filter(pk=int(forma_pgto_input), usuario=usuario).first()
+        if not forma_pgto:
+            # Fallback: buscar por nome (compatibilidade com importações e casos antigos)
+            forma_pgto, _ = Tipos_pgto.objects.get_or_create(nome=forma_pgto_input, usuario=usuario)
 
         # Coleta dados de múltiplos dispositivos/apps/contas baseado na quantidade de telas
         telas_data = []
@@ -6028,126 +6129,323 @@ def create_payment_method(request):
     )
 
 
-# ACAO PARA CRIAR NOVO OBJETO FORMA DE PAGAMENTO - Versao ADMIN com integracao bancaria
+# ACAO PARA CRIAR NOVO OBJETO FORMA DE PAGAMENTO - Versao com integracao bancaria
 @login_required
 def create_payment_method_admin(request):
     """
-    View de testes para admins com integracao bancaria completa.
-    Permite cadastrar formas de pagamento com contas bancarias e credenciais API.
+    View para cadastro de formas de pagamento com integracao bancaria.
+    Nova estrutura: Instituicao como objeto principal.
+    Suporta FastDePix, Mercado Pago, Efi Bank e instituicoes manuais.
     """
-    # Verificar se e admin
-    if not request.user.is_superuser:
-        from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("Acesso restrito a administradores.")
-
-    formas_pgto = Tipos_pgto.objects.filter(usuario=request.user).order_by('nome').select_related('conta_bancaria', 'conta_bancaria__instituicao')
     usuario = request.user
-    page_group = "admin"
-    page = "admin-forma-pgto"
-    instituicoes = InstituicaoBancaria.objects.all().order_by('nome')
-    contas_bancarias = ContaBancaria.objects.filter(usuario=request.user, ativo=True).select_related('instituicao')
+    page_group = "nossopainel"
+    page = "forma_pgto"
 
     def get_context(extra=None):
+        from django.conf import settings as django_settings
+        # Recarregar dados atualizados
+        formas_pgto = Tipos_pgto.objects.filter(usuario=usuario).order_by('nome').select_related('conta_bancaria', 'conta_bancaria__instituicao')
+        instituicoes = InstituicaoBancaria.objects.filter(ativo=True).order_by('nome')  # Para cards de seleção
+        todas_instituicoes = InstituicaoBancaria.objects.all().order_by('nome')  # Para modal de gerenciamento
+        contas_bancarias = ContaBancaria.objects.filter(usuario=usuario, ativo=True).select_related('instituicao')
+
+        # Contar clientes ativos sem forma de pagamento
+        clientes_sem_forma_pgto = Cliente.objects.filter(
+            usuario=usuario,
+            cancelado=False,
+            forma_pgto__isnull=True
+        ).count()
+
+        # ============================================================
+        # ALERTAS FASTDEPIX - Planos sem link ou com valor divergente
+        # ============================================================
+        alertas_fastdepix = {
+            'planos_sem_link': [],
+            'planos_valor_divergente': [],
+            'tem_alertas': False
+        }
+
+        # Verificar se usuário tem conta FastDePix com link_fastdepix
+        contas_fastdepix_alerta = ContaBancaria.objects.filter(
+            usuario=usuario,
+            instituicao__tipo_integracao='fastdepix',
+            tipo_cobranca_fastdepix='link_fastdepix',
+            ativo=True
+        ).select_related('instituicao')
+
+        if contas_fastdepix_alerta.exists():
+            planos_usuario = Plano.objects.filter(usuario=usuario)
+
+            for conta in contas_fastdepix_alerta:
+                # Buscar links existentes para esta conta
+                links_conta = PlanoLinkPagamento.objects.filter(
+                    conta_bancaria=conta
+                ).select_related('plano')
+                planos_com_link = {link.plano_id for link in links_conta}
+
+                # Planos sem link
+                for plano in planos_usuario:
+                    if plano.id not in planos_com_link:
+                        alertas_fastdepix['planos_sem_link'].append({
+                            'plano_id': plano.id,
+                            'plano_nome': f"{plano.nome} ({plano.telas} tela(s))",
+                            'plano_valor': float(plano.valor),
+                            'conta_id': conta.id,
+                            'conta_nome': conta.nome_identificacao
+                        })
+
+                # Planos com valor divergente
+                for link in links_conta:
+                    if link.valor_divergente:
+                        alertas_fastdepix['planos_valor_divergente'].append({
+                            'plano_id': link.plano.id,
+                            'plano_nome': f"{link.plano.nome} ({link.plano.telas} tela(s))",
+                            'valor_atual': float(link.plano.valor),
+                            'valor_configurado': float(link.valor_configurado),
+                            'conta_id': conta.id,
+                            'conta_nome': conta.nome_identificacao
+                        })
+
+            alertas_fastdepix['tem_alertas'] = (
+                len(alertas_fastdepix['planos_sem_link']) > 0 or
+                len(alertas_fastdepix['planos_valor_divergente']) > 0
+            )
+
         ctx = {
             'formas_pgto': formas_pgto,
-            'instituicoes': instituicoes,
+            'instituicoes': instituicoes,  # Apenas ativas (para cards de seleção)
+            'todas_instituicoes': todas_instituicoes,  # Todas (para modal de gerenciamento)
             'contas_bancarias': contas_bancarias,
+            'clientes_sem_forma_pgto': clientes_sem_forma_pgto,
+            'alertas_fastdepix': alertas_fastdepix,
             "page_group": page_group,
-            "page": page
+            "page": page,
+            "debug": django_settings.DEBUG,  # Para controlar visibilidade do sandbox
         }
         if extra:
             ctx.update(extra)
         return ctx
 
     if request.method == "POST":
-        nome = request.POST.get("nome")
+        # Dados do formulario
+        nome = request.POST.get("nome")  # Tipo de pagamento: PIX, Cartao de Credito, Boleto
+        tipo_integracao = request.POST.get("tipo_integracao")  # fastdepix, mercado_pago, efi_bank, manual
+        instituicao_id = request.POST.get("instituicao")
+        nome_identificacao = request.POST.get("nome_identificacao")
+        beneficiario = request.POST.get("beneficiario")
+        tipo_conta = request.POST.get("tipo_conta", "pf")
+        limite_mensal = request.POST.get("limite_mensal")
+
+        # Campos PIX
+        tipo_chave_pix = request.POST.get("tipo_chave_pix")
+        chave_pix = request.POST.get("chave_pix")
+
+        # Campo para instituicao manual
+        instituicao_nome_manual = request.POST.get("instituicao_nome_manual")
 
         if nome:
             try:
                 conta_bancaria = None
+                instituicao = None
 
-                # Se for PIX, processar conta bancaria
-                if nome == "PIX":
-                    conta_bancaria_id = request.POST.get("conta_bancaria")
+                # ============================================================
+                # PROCESSAR INSTITUICAO
+                # ============================================================
 
-                    if conta_bancaria_id:
-                        # Usar conta existente
-                        try:
-                            conta_bancaria = ContaBancaria.objects.get(
-                                id=conta_bancaria_id,
-                                usuario=usuario,
-                                ativo=True
-                            )
-                        except ContaBancaria.DoesNotExist:
-                            return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html',
-                                get_context({"error_message": "Conta bancaria selecionada nao encontrada."}))
-                    else:
-                        # Criar nova conta bancaria
-                        instituicao_id = request.POST.get("instituicao")
-                        nome_identificacao = request.POST.get("nome_identificacao")
-                        tipo_conta = request.POST.get("tipo_conta", "pf")
-                        beneficiario = request.POST.get("beneficiario")
-                        tipo_chave_pix = request.POST.get("tipo_chave_pix")
-                        chave_pix = request.POST.get("chave_pix")
-                        limite_mensal = request.POST.get("limite_mensal")
-
-                        # Validar campos obrigatorios
-                        if not all([instituicao_id, nome_identificacao, beneficiario, tipo_chave_pix, chave_pix]):
-                            return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html',
-                                get_context({"error_message": "Preencha todos os campos obrigatorios da conta bancaria."}))
-
-                        try:
-                            instituicao = InstituicaoBancaria.objects.get(id=instituicao_id, ativo=True)
-                        except InstituicaoBancaria.DoesNotExist:
-                            return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html',
-                                get_context({"error_message": "Instituicao bancaria selecionada nao encontrada."}))
-
-                        # Verificar se ja existe conta com essa chave PIX
-                        if ContaBancaria.objects.filter(usuario=usuario, chave_pix=chave_pix).exists():
-                            return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html',
-                                get_context({"error_message": "Ja existe uma conta bancaria com essa chave PIX."}))
-
-                        # Criar conta bancaria
-                        conta_bancaria = ContaBancaria(
-                            usuario=usuario,
-                            instituicao=instituicao,
-                            nome_identificacao=nome_identificacao,
-                            tipo_conta=tipo_conta,
-                            beneficiario=beneficiario,
-                            tipo_chave_pix=tipo_chave_pix,
-                            chave_pix=chave_pix,
-                        )
-
-                        # Campos opcionais
-                        if limite_mensal:
-                            conta_bancaria.limite_mensal = limite_mensal
-
-                        # Credenciais API (se instituicao tiver API)
-                        if instituicao.tem_api:
-                            conta_bancaria.api_client_id = request.POST.get("api_client_id", "")
-                            conta_bancaria.api_client_secret = request.POST.get("api_client_secret", "")
-                            conta_bancaria.ambiente_sandbox = request.POST.get("ambiente_sandbox") == "on"
-
-                            if instituicao.tipo_integracao == 'mercado_pago':
-                                conta_bancaria.api_access_token = request.POST.get("api_access_token", "")
-
-                            # Certificado Efi Bank
-                            if instituicao.tipo_integracao == 'efi_bank' and 'api_certificado' in request.FILES:
-                                conta_bancaria.api_certificado = request.FILES['api_certificado']
-
-                        conta_bancaria.save()
-
+                # Se for manual e informou nome de instituicao, criar nova
+                if tipo_integracao == 'manual' and instituicao_nome_manual:
+                    instituicao, created = InstituicaoBancaria.objects.get_or_create(
+                        nome=instituicao_nome_manual,
+                        defaults={
+                            'tipo_integracao': 'manual',
+                            'ativo': True,
+                        }
+                    )
+                    if created:
                         log_user_action(
                             request=request,
                             action=UserActionLog.ACTION_CREATE,
-                            instance=conta_bancaria,
-                            message="Conta bancaria criada (Admin).",
-                            extra={"nome": conta_bancaria.nome_identificacao, "instituicao": instituicao.nome},
+                            instance=instituicao,
+                            message="Instituicao bancaria criada (manual).",
+                            extra={"nome": instituicao.nome},
                         )
+                elif instituicao_id:
+                    try:
+                        instituicao = InstituicaoBancaria.objects.get(id=instituicao_id, ativo=True)
+                    except InstituicaoBancaria.DoesNotExist:
+                        # Tentar buscar pelo tipo de integracao
+                        try:
+                            instituicao = InstituicaoBancaria.objects.get(tipo_integracao=tipo_integracao, ativo=True)
+                        except InstituicaoBancaria.DoesNotExist:
+                            return render(request, 'pages/cadastro-forma-pagamento.html',
+                                get_context({"error_message": "Instituicao bancaria nao encontrada."}))
+                else:
+                    # Buscar pelo tipo de integracao
+                    try:
+                        instituicao = InstituicaoBancaria.objects.get(tipo_integracao=tipo_integracao, ativo=True)
+                    except InstituicaoBancaria.DoesNotExist:
+                        return render(request, 'pages/cadastro-forma-pagamento.html',
+                            get_context({"error_message": f"Instituicao do tipo '{tipo_integracao}' nao encontrada."}))
+
+                # ============================================================
+                # VALIDAR CAMPOS OBRIGATORIOS
+                # ============================================================
+
+                # Nome de identificacao e sempre obrigatorio
+                if not nome_identificacao:
+                    return render(request, 'pages/cadastro-forma-pagamento.html',
+                        get_context({"error_message": "Nome de identificacao e obrigatorio."}))
+
+                # Instituicoes com API nao precisam de beneficiario/chave PIX manual
+                instituicoes_com_api = ['fastdepix', 'mercado_pago', 'efi_bank']
+
+                if tipo_integracao not in instituicoes_com_api:
+                    # Instituicao manual: validar beneficiario
+                    if not beneficiario:
+                        return render(request, 'pages/cadastro-forma-pagamento.html',
+                            get_context({"error_message": "Beneficiario e obrigatorio para instituicoes manuais."}))
+
+                    # Para PIX manual, validar chave PIX
+                    if nome == "PIX":
+                        if not all([tipo_chave_pix, chave_pix]):
+                            return render(request, 'pages/cadastro-forma-pagamento.html',
+                                get_context({"error_message": "Para PIX, informe o tipo e a chave PIX."}))
+
+                        # Verificar se ja existe conta com essa chave PIX
+                        if ContaBancaria.objects.filter(usuario=usuario, chave_pix=chave_pix).exists():
+                            return render(request, 'pages/cadastro-forma-pagamento.html',
+                                get_context({"error_message": "Ja existe uma conta bancaria com essa chave PIX."}))
+
+                # ============================================================
+                # CRIAR CONTA BANCARIA
+                # ============================================================
+
+                # Para instituicoes com API, beneficiario e PIX nao sao necessarios
+                # (a API gerencia os dados de recebimento)
+                # Usar None para campos vazios para evitar conflito de UNIQUE constraint
+                conta_bancaria = ContaBancaria(
+                    usuario=usuario,
+                    instituicao=instituicao,
+                    nome_identificacao=nome_identificacao,
+                    tipo_conta=tipo_conta,
+                    beneficiario=beneficiario if beneficiario else None,
+                    tipo_chave_pix=tipo_chave_pix if tipo_chave_pix else None,
+                    chave_pix=chave_pix if chave_pix else None,
+                )
+
+                # Limite MEI
+                if limite_mensal:
+                    conta_bancaria.limite_mensal = limite_mensal
+
+                # ============================================================
+                # CREDENCIAIS API POR INSTITUICAO
+                # ============================================================
+
+                # Inicializar variável para links de planos (FastDePix)
+                links_planos_para_salvar = {}
+
+                if tipo_integracao == 'fastdepix':
+                    # FastDePix: apenas API Key
+                    api_key = request.POST.get("api_key", "")
+                    if not api_key:
+                        return render(request, 'pages/cadastro-forma-pagamento.html',
+                            get_context({"error_message": "API Key e obrigatoria para FastDePix."}))
+                    conta_bancaria.api_key = api_key
+                    conta_bancaria.ambiente_sandbox = request.POST.get("ambiente_sandbox") == "on"
+
+                    # Configuração de Cobranças FastDePix
+                    tipo_cobranca = request.POST.get("tipoCobrancaFastDePix", "painel_cliente")
+                    conta_bancaria.tipo_cobranca_fastdepix = tipo_cobranca
+
+                    # Coletar links por plano para salvar após conta_bancaria.save()
+                    links_planos_para_salvar = {}
+                    if tipo_cobranca == 'link_fastdepix':
+                        for key, value in request.POST.items():
+                            if key.startswith('link_plano_') and value:
+                                plano_id = key.replace('link_plano_', '')
+                                links_planos_para_salvar[plano_id] = value
+
+                        # Validar se todos os planos têm link
+                        planos_usuario = Plano.objects.filter(usuario=usuario)
+                        if planos_usuario.exists():
+                            planos_sem_link = []
+                            for plano in planos_usuario:
+                                if str(plano.id) not in links_planos_para_salvar:
+                                    planos_sem_link.append(f"{plano.nome} ({plano.telas} tela(s))")
+
+                            if planos_sem_link:
+                                return render(request, 'pages/cadastro-forma-pagamento.html',
+                                    get_context({"error_message": f"Informe o link FastDePix para os planos: {', '.join(planos_sem_link)}"}))
+
+                elif tipo_integracao == 'mercado_pago':
+                    # Mercado Pago: Client ID, Client Secret, Access Token
+                    api_client_id = request.POST.get("api_client_id_mp", "")
+                    api_client_secret = request.POST.get("api_client_secret_mp", "")
+                    api_access_token = request.POST.get("api_access_token", "")
+
+                    if not all([api_client_id, api_client_secret, api_access_token]):
+                        return render(request, 'pages/cadastro-forma-pagamento.html',
+                            get_context({"error_message": "Preencha todas as credenciais do Mercado Pago."}))
+
+                    conta_bancaria.api_client_id = api_client_id
+                    conta_bancaria.api_client_secret = api_client_secret
+                    conta_bancaria.api_access_token = api_access_token
+                    conta_bancaria.ambiente_sandbox = request.POST.get("ambiente_sandbox_mp") == "on"
+
+                elif tipo_integracao == 'efi_bank':
+                    # Efi Bank: Client ID, Client Secret, Certificado
+                    api_client_id = request.POST.get("api_client_id_efi", "")
+                    api_client_secret = request.POST.get("api_client_secret_efi", "")
+
+                    if not all([api_client_id, api_client_secret]):
+                        return render(request, 'pages/cadastro-forma-pagamento.html',
+                            get_context({"error_message": "Preencha todas as credenciais do Efi Bank."}))
+
+                    if 'api_certificado' not in request.FILES:
+                        return render(request, 'pages/cadastro-forma-pagamento.html',
+                            get_context({"error_message": "Certificado (.p12) e obrigatorio para Efi Bank."}))
+
+                    conta_bancaria.api_client_id = api_client_id
+                    conta_bancaria.api_client_secret = api_client_secret
+                    conta_bancaria.api_certificado = request.FILES['api_certificado']
+                    conta_bancaria.ambiente_sandbox = request.POST.get("ambiente_sandbox_efi") == "on"
+
+                # Salvar conta bancaria
+                conta_bancaria.save()
+
+                # Salvar links de planos FastDePix (se aplicável)
+                if tipo_integracao == 'fastdepix' and links_planos_para_salvar:
+                    for plano_id_str, url in links_planos_para_salvar.items():
+                        try:
+                            plano = Plano.objects.get(id=int(plano_id_str), usuario=usuario)
+                            PlanoLinkPagamento.objects.create(
+                                plano=plano,
+                                conta_bancaria=conta_bancaria,
+                                url=url,
+                                valor_configurado=plano.valor
+                            )
+                        except Plano.DoesNotExist:
+                            pass  # Plano não encontrado, ignorar
+
+                log_user_action(
+                    request=request,
+                    action=UserActionLog.ACTION_CREATE,
+                    instance=conta_bancaria,
+                    message="Conta bancaria criada.",
+                    extra={
+                        "nome": conta_bancaria.nome_identificacao,
+                        "instituicao": instituicao.nome,
+                        "tipo_integracao": tipo_integracao,
+                    },
+                )
+
+                # ============================================================
+                # CRIAR FORMA DE PAGAMENTO
+                # ============================================================
 
                 # Verificar se ja existe forma de pagamento com esse nome E mesma conta bancaria
                 if Tipos_pgto.objects.filter(usuario=usuario, nome=nome, conta_bancaria=conta_bancaria).exists():
-                    return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html',
+                    return render(request, 'pages/cadastro-forma-pagamento.html',
                         get_context({"error_message": "Ja existe uma Forma de Pagamento com este nome e esta conta bancaria!"}))
 
                 # Criar forma de pagamento
@@ -6161,32 +6459,98 @@ def create_payment_method_admin(request):
                     request=request,
                     action=UserActionLog.ACTION_CREATE,
                     instance=formapgto,
-                    message="Forma de pagamento criada (Admin).",
+                    message="Forma de pagamento criada.",
                     extra={
                         "nome": formapgto.nome,
-                        "conta_bancaria": conta_bancaria.nome_identificacao if conta_bancaria else None,
+                        "instituicao": instituicao.nome,
+                        "conta_bancaria": conta_bancaria.nome_identificacao,
                     },
                 )
 
-                # Recarregar lista atualizada
-                formas_pgto = Tipos_pgto.objects.filter(usuario=request.user).order_by('nome').select_related('conta_bancaria', 'conta_bancaria__instituicao')
-                contas_bancarias = ContaBancaria.objects.filter(usuario=request.user, ativo=True).select_related('instituicao')
+                # ============================================================
+                # ASSOCIAR CLIENTES A CONTA BANCARIA
+                # ============================================================
 
-                return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html', {
-                    'formas_pgto': formas_pgto,
-                    'instituicoes': instituicoes,
-                    'contas_bancarias': contas_bancarias,
-                    "page_group": page_group,
-                    "page": page,
-                    "success_message": "Nova Forma de Pagamento cadastrada com sucesso!",
-                })
+                clientes_associados_str = request.POST.get('clientes_associados', '')
+                clientes_para_transferir_str = request.POST.get('clientes_para_transferir', '')
+
+                clientes_associados_ids = [int(x) for x in clientes_associados_str.split(',') if x.strip()]
+                clientes_para_transferir_ids = [int(x) for x in clientes_para_transferir_str.split(',') if x.strip()]
+
+                # Validar mínimo de 1 cliente
+                todos_clientes_ids = set(clientes_associados_ids + clientes_para_transferir_ids)
+                if not todos_clientes_ids:
+                    return render(request, 'pages/cadastro-forma-pagamento.html',
+                        get_context({"error_message": "É obrigatório associar ao menos um cliente à forma de pagamento."}))
+
+                # Processar clientes a serem transferidos primeiro
+                for cliente_id in clientes_para_transferir_ids:
+                    try:
+                        cliente = Cliente.objects.get(id=cliente_id, usuario=usuario)
+                        ClienteContaBancaria.transferir_cliente(
+                            cliente=cliente,
+                            nova_conta=conta_bancaria,
+                            usuario=usuario
+                        )
+                        # Atualizar forma de pagamento do cliente
+                        cliente.forma_pgto = formapgto
+                        cliente.save(update_fields=['forma_pgto'])
+                        log_user_action(
+                            request=request,
+                            action=UserActionLog.ACTION_UPDATE,
+                            instance=cliente,
+                            message=f"Cliente transferido para nova conta bancaria e forma de pagamento atualizada.",
+                            extra={
+                                "cliente": cliente.nome,
+                                "nova_conta": conta_bancaria.nome_identificacao,
+                                "nova_forma_pgto": str(formapgto),
+                            },
+                        )
+                    except Cliente.DoesNotExist:
+                        continue
+                    except Exception as e:
+                        logger.warning(f"Erro ao transferir cliente {cliente_id}: {e}")
+
+                # Criar associacoes para clientes novos (nao transferidos)
+                clientes_novos_ids = set(clientes_associados_ids) - set(clientes_para_transferir_ids)
+                for cliente_id in clientes_novos_ids:
+                    try:
+                        cliente = Cliente.objects.get(id=cliente_id, usuario=usuario)
+                        # Verificar se cliente nao esta associado a outra conta
+                        if not ClienteContaBancaria.objects.filter(cliente=cliente, ativo=True).exists():
+                            ClienteContaBancaria.objects.create(
+                                cliente=cliente,
+                                conta_bancaria=conta_bancaria,
+                                ativo=True
+                            )
+                            # Atualizar forma de pagamento do cliente
+                            cliente.forma_pgto = formapgto
+                            cliente.save(update_fields=['forma_pgto'])
+                    except Cliente.DoesNotExist:
+                        continue
+                    except Exception as e:
+                        logger.warning(f"Erro ao associar cliente {cliente_id}: {e}")
+
+                total_associados = len(clientes_associados_ids)
+                total_transferidos = len(clientes_para_transferir_ids)
+
+                msg_sucesso = "Forma de Pagamento cadastrada com sucesso!"
+                if total_associados > 0:
+                    msg_sucesso += f" {total_associados} cliente(s) associado(s)"
+                    if total_transferidos > 0:
+                        msg_sucesso += f" ({total_transferidos} transferido(s))."
+                    else:
+                        msg_sucesso += "."
+
+                return render(request, 'pages/cadastro-forma-pagamento.html',
+                    get_context({"success_message": msg_sucesso}))
 
             except Exception as e:
                 logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
                 return render(request, "pages/admin/cadastro-forma-pagamento-admin.html",
-                    get_context({"error_message": f"Nao foi possivel cadastrar esta nova Forma de Pagamento. Erro: {str(e)}"}))
+                    get_context({"error_message": f"Erro ao cadastrar: {str(e)}"}))
 
-    return render(request, 'pages/admin/cadastro-forma-pagamento-admin.html', get_context())
+    return render(request, 'pages/cadastro-forma-pagamento.html', get_context())
 
 
 # ============================================================================
@@ -6523,6 +6887,913 @@ def excluir_instituicao_bancaria(request, pk):
         return JsonResponse({'success': False, 'error': 'Erro ao excluir instituição.'}, status=500)
 
 
+# ============================================================================
+# CONFIGURAÇÃO DE LIMITE MEI - VIEWS
+# ============================================================================
+
+@login_required
+@require_http_methods(["GET"])
+def api_config_limite(request):
+    """
+    Retorna a configuração atual de limite MEI.
+    GET /api/config-limite/
+    """
+    try:
+        config = ConfiguracaoLimite.get_config()
+        return JsonResponse({
+            'success': True,
+            'config': {
+                'valor_anual': float(config.valor_anual),
+                'margem_seguranca': config.margem_seguranca,
+                'valor_alerta': float(config.valor_alerta),
+                'valor_bloqueio': float(config.valor_bloqueio),
+            }
+        })
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao carregar configuração.'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_config_limite_atualizar(request):
+    """
+    Atualiza a configuração de limite MEI.
+    POST /api/config-limite/atualizar/
+
+    Corpo da requisição (JSON):
+    {
+        "valor_anual": 81000,
+        "margem_seguranca": 10
+    }
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'success': False, 'error': 'Acesso negado.'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        valor_anual = data.get('valor_anual')
+        margem_seguranca = data.get('margem_seguranca')
+
+        if valor_anual is None or valor_anual <= 0:
+            return JsonResponse({'success': False, 'error': 'Valor anual inválido.'}, status=400)
+
+        if margem_seguranca is None or margem_seguranca < 0 or margem_seguranca > 50:
+            return JsonResponse({'success': False, 'error': 'Margem de segurança deve ser entre 0 e 50%.'}, status=400)
+
+        config = ConfiguracaoLimite.get_config()
+        config.valor_anual = Decimal(str(valor_anual))
+        config.margem_seguranca = int(margem_seguranca)
+        config.atualizado_por = request.user
+        config.save()
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=config,
+            message=f"Configuração de limite MEI atualizada: R$ {valor_anual:,.2f}, margem {margem_seguranca}%",
+            extra={'valor_anual': float(valor_anual), 'margem_seguranca': margem_seguranca},
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Configuração atualizada com sucesso!',
+            'config': {
+                'valor_anual': float(config.valor_anual),
+                'margem_seguranca': config.margem_seguranca,
+                'valor_alerta': float(config.valor_alerta),
+                'valor_bloqueio': float(config.valor_bloqueio),
+            }
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Dados inválidos.'}, status=400)
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao atualizar configuração.'}, status=500)
+
+
+# ============================================================================
+# CREDENCIAIS API - VIEWS
+# ============================================================================
+
+@login_required
+@require_http_methods(["GET"])
+def api_credenciais_por_tipo(request, tipo_integracao):
+    """
+    Lista credenciais API do usuário por tipo de integração.
+    GET /api/credenciais/<tipo_integracao>/
+
+    Tipos válidos: fastdepix, mercado_pago, efi_bank
+
+    Para FastDePix, também lista contas bancárias com API Key configurada.
+    """
+    tipos_validos = ['fastdepix', 'mercado_pago', 'efi_bank']
+    if tipo_integracao not in tipos_validos:
+        return JsonResponse({
+            'success': False,
+            'error': f'Tipo de integração inválido. Use: {", ".join(tipos_validos)}'
+        }, status=400)
+
+    try:
+        lista = []
+
+        # 1. Buscar credenciais do modelo CredencialAPI
+        credenciais = CredencialAPI.objects.filter(
+            usuario=request.user,
+            tipo_integracao=tipo_integracao,
+            ativo=True
+        ).order_by('-criado_em')
+
+        for cred in credenciais:
+            lista.append({
+                'id': cred.id,
+                'nome_identificacao': cred.nome_identificacao,
+                'tipo_integracao': cred.tipo_integracao,
+                'is_configured': cred.is_configured,
+                'criado_em': cred.criado_em.strftime('%d/%m/%Y %H:%M'),
+                'fonte': 'credencial_api',
+            })
+
+        # 2. Para FastDePix, também buscar contas bancárias com API Key
+        if tipo_integracao == 'fastdepix':
+            contas_fastdepix = ContaBancaria.objects.filter(
+                usuario=request.user,
+                instituicao__tipo_integracao='fastdepix',
+                api_key__isnull=False
+            ).exclude(api_key='').order_by('-criado_em')
+
+            for conta in contas_fastdepix:
+                lista.append({
+                    'id': f'conta_{conta.id}',  # Prefixo para diferenciar
+                    'nome_identificacao': f'{conta.nome_identificacao} (Conta Bancária)',
+                    'tipo_integracao': 'fastdepix',
+                    'is_configured': True,
+                    'criado_em': conta.criado_em.strftime('%d/%m/%Y %H:%M'),
+                    'fonte': 'conta_bancaria',
+                    'conta_id': conta.id,
+                })
+
+        return JsonResponse({
+            'success': True,
+            'credenciais': lista,
+            'total': len(lista)
+        })
+
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao listar credenciais.'}, status=500)
+
+
+# ============================================================================
+# CLIENTES PARA ASSOCIAÇÃO - VIEWS
+# ============================================================================
+
+@login_required
+@require_http_methods(["GET"])
+def api_clientes_ativos_associacao(request):
+    """
+    Lista clientes ativos do usuário para associação com forma de pagamento.
+    Retorna valor anual PROJETADO baseado no tipo de plano (ano cheio).
+
+    Cálculo:
+    - Mensal: valor × 12 pagamentos/ano
+    - Bimestral: valor × 6 pagamentos/ano
+    - Trimestral: valor × 4 pagamentos/ano
+    - Semestral: valor × 2 pagamentos/ano
+    - Anual: valor × 1 pagamento/ano
+
+    Parâmetros:
+    - conta_id (opcional): ID da conta sendo editada. Clientes associados a esta conta
+                           serão marcados como 'ja_associado_esta_conta' em vez de bloqueados.
+    - forma_pgto_id (opcional): ID da forma de pagamento sendo editada.
+                                A conta bancária será buscada automaticamente.
+
+    GET /api/clientes-ativos-associacao/?conta_id=123
+    GET /api/clientes-ativos-associacao/?forma_pgto_id=456
+    """
+    try:
+        from django.db.models import Sum
+
+        # Mapeamento de tipo de plano para quantidade de pagamentos por ano
+        PAGAMENTOS_POR_ANO = {
+            'Mensal': 12,
+            'Bimestral': 6,
+            'Trimestral': 4,
+            'Semestral': 2,
+            'Anual': 1,
+        }
+
+        ano_atual = timezone.now().year
+        conta_id_editando = request.GET.get('conta_id')
+        forma_pgto_id = request.GET.get('forma_pgto_id')
+        forma_pgto_id_editando = None  # Para formas antigas (sem conta_bancaria)
+
+        # Se forma_pgto_id foi fornecido, buscar a conta bancária associada
+        if forma_pgto_id and not conta_id_editando:
+            try:
+                forma_pgto = Tipos_pgto.objects.get(id=forma_pgto_id, usuario=request.user)
+                if forma_pgto.conta_bancaria:
+                    conta_id_editando = str(forma_pgto.conta_bancaria.id)
+                else:
+                    # Forma antiga (sem conta_bancaria) - guardar ID para comparar diretamente
+                    forma_pgto_id_editando = forma_pgto.id
+            except Tipos_pgto.DoesNotExist:
+                pass
+
+        # Buscar todas as associações ativas de clientes com contas bancárias
+        associacoes_ativas = ClienteContaBancaria.objects.filter(
+            conta_bancaria__usuario=request.user,
+            ativo=True
+        ).select_related('conta_bancaria').values(
+            'cliente_id',
+            'conta_bancaria_id',
+            'conta_bancaria__nome_identificacao'
+        )
+
+        # Criar dicionário de associações: cliente_id -> {conta_id, conta_nome}
+        clientes_associados = {}
+        for assoc in associacoes_ativas:
+            clientes_associados[assoc['cliente_id']] = {
+                'conta_id': assoc['conta_bancaria_id'],
+                'conta_nome': assoc['conta_bancaria__nome_identificacao']
+            }
+
+        clientes = Cliente.objects.filter(
+            usuario=request.user,
+            cancelado=False
+        ).select_related('plano', 'forma_pgto', 'forma_pgto__conta_bancaria').order_by('nome')
+
+        resultado = []
+        for cliente in clientes:
+            if cliente.plano:
+                valor_plano = cliente.plano.valor
+                tipo_plano = cliente.plano.nome  # Mensal, Bimestral, etc.
+                pagamentos_ano = PAGAMENTOS_POR_ANO.get(tipo_plano, 12)  # Default: mensal
+            else:
+                valor_plano = Decimal('0')
+                tipo_plano = '-'
+                pagamentos_ano = 12
+
+            # Valor anual PROJETADO (ano cheio com plano atual)
+            valor_anual_projetado = float(valor_plano * pagamentos_ano)
+
+            # Valor já recebido este ano (para informação)
+            valor_recebido_ano = Mensalidade.objects.filter(
+                cliente=cliente,
+                pgto=True,
+                dt_pagamento__year=ano_atual
+            ).aggregate(total=Sum('valor'))['total'] or Decimal('0')
+
+            # Verificar se cliente já está associado a outra conta
+            associacao_info = clientes_associados.get(cliente.id)
+            ja_associado = associacao_info is not None
+            bloqueado = False
+            ja_associado_esta_conta = False
+            conta_associada = None
+
+            # Função auxiliar para formatar "Tipo (Identificação)"
+            def formatar_conta_associada(tipo_pgto, identificacao):
+                if identificacao:
+                    return f"{tipo_pgto} ({identificacao})"
+                return tipo_pgto
+
+            if ja_associado:
+                # Cliente tem associação via ClienteContaBancaria
+                tipo_pgto = cliente.forma_pgto.nome if cliente.forma_pgto else 'PIX'
+                conta_associada = formatar_conta_associada(tipo_pgto, associacao_info['conta_nome'])
+                # Se estamos editando uma conta específica
+                if conta_id_editando:
+                    # Cliente está associado à conta que estamos editando = não bloquear, marcar como selecionado
+                    if str(associacao_info['conta_id']) == str(conta_id_editando):
+                        ja_associado_esta_conta = True
+                        bloqueado = False
+                    else:
+                        # Cliente está associado a OUTRA conta = bloquear
+                        bloqueado = True
+                else:
+                    # Criando nova conta = bloquear clientes já associados
+                    bloqueado = True
+            else:
+                # Cliente NÃO tem associação via ClienteContaBancaria
+                # Verificar se tem forma de pagamento com conta bancária
+                if cliente.forma_pgto and cliente.forma_pgto.conta_bancaria:
+                    forma_pgto_conta_id = cliente.forma_pgto.conta_bancaria.id
+                    tipo_pgto = cliente.forma_pgto.nome
+                    identificacao = cliente.forma_pgto.conta_bancaria.nome_identificacao
+                    conta_associada_formatada = formatar_conta_associada(tipo_pgto, identificacao)
+
+                    if conta_id_editando:
+                        # Se estamos editando uma conta específica
+                        if str(forma_pgto_conta_id) == str(conta_id_editando):
+                            # Cliente usa forma de pagamento da conta que estamos editando
+                            ja_associado_esta_conta = True
+                            bloqueado = False
+                            conta_associada = conta_associada_formatada
+                        else:
+                            # Cliente usa forma de pagamento de OUTRA conta = bloquear
+                            bloqueado = True
+                            conta_associada = conta_associada_formatada
+                    else:
+                        # Criando nova conta = bloquear clientes com forma de pagamento já associada a outra conta
+                        bloqueado = True
+                        conta_associada = conta_associada_formatada
+                elif cliente.forma_pgto:
+                    # Cliente tem forma de pagamento ANTIGA (sem conta_bancaria)
+                    tipo_pgto = cliente.forma_pgto.nome
+                    identificacao = cliente.forma_pgto.nome_identificacao
+                    conta_associada_formatada = formatar_conta_associada(tipo_pgto, identificacao)
+
+                    if forma_pgto_id_editando:
+                        # Estamos editando uma forma antiga
+                        if cliente.forma_pgto_id == forma_pgto_id_editando:
+                            # Cliente está associado à forma que estamos editando
+                            ja_associado_esta_conta = True
+                            conta_associada = conta_associada_formatada
+                        else:
+                            # Cliente está associado a OUTRA forma antiga = bloquear
+                            bloqueado = True
+                            conta_associada = conta_associada_formatada
+                    else:
+                        # Criando nova forma = bloquear cliente com forma antiga
+                        bloqueado = True
+                        conta_associada = conta_associada_formatada
+
+            # Informações da forma de pagamento do cliente (campo direto)
+            forma_pgto_info = None
+            if cliente.forma_pgto:
+                # Para formas novas: usar nome_identificacao da conta_bancaria
+                # Para formas antigas: usar nome_identificacao do próprio Tipos_pgto
+                if cliente.forma_pgto.conta_bancaria:
+                    identificacao = cliente.forma_pgto.conta_bancaria.nome_identificacao
+                else:
+                    identificacao = cliente.forma_pgto.nome_identificacao
+
+                forma_pgto_info = {
+                    'id': cliente.forma_pgto.id,
+                    'nome': cliente.forma_pgto.nome,
+                    'identificacao': identificacao,
+                    'conta_bancaria_id': cliente.forma_pgto.conta_bancaria.id if cliente.forma_pgto.conta_bancaria else None,
+                }
+
+            resultado.append({
+                'id': cliente.id,
+                'nome': cliente.nome,
+                'telefone': cliente.telefone or '',
+                'plano': tipo_plano,
+                'valor_plano': float(valor_plano),
+                'pagamentos_ano': pagamentos_ano,
+                'valor_anual': valor_anual_projetado,
+                'valor_recebido_ano': float(valor_recebido_ano),
+                # Informações de associação (ClienteContaBancaria)
+                'ja_associado': ja_associado,
+                'bloqueado': bloqueado,
+                'ja_associado_esta_conta': ja_associado_esta_conta,
+                'conta_associada': conta_associada,
+                # Informações da forma de pagamento direta do cliente (Cliente.forma_pgto)
+                'forma_pgto': forma_pgto_info,
+            })
+
+        return JsonResponse({
+            'success': True,
+            'clientes': resultado,
+            'total': len(resultado)
+        })
+
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao listar clientes.'}, status=500)
+
+
+# ============================================================================
+# PLANOS DE ADESÃO - VIEWS
+# ============================================================================
+
+@login_required
+@require_http_methods(["GET"])
+def api_planos(request):
+    """
+    Lista planos de adesão do usuário para configuração de links FastDePix.
+    GET /api/planos/
+    GET /api/planos/?conta_bancaria_id=123 (retorna links existentes)
+    """
+    try:
+        conta_bancaria_id = request.GET.get('conta_bancaria_id')
+        planos = Plano.objects.filter(usuario=request.user).order_by('nome', 'telas', 'valor')
+
+        # Buscar links existentes se conta_bancaria_id foi fornecido
+        links_existentes = {}
+        if conta_bancaria_id:
+            links = PlanoLinkPagamento.objects.filter(
+                conta_bancaria_id=conta_bancaria_id,
+                conta_bancaria__usuario=request.user
+            ).select_related('plano')
+            links_existentes = {link.plano_id: link for link in links}
+
+        resultado = []
+        for plano in planos:
+            plano_data = {
+                'id': plano.id,
+                'nome': plano.nome,
+                'telas': plano.telas,
+                'valor': float(plano.valor)
+            }
+
+            # Adicionar link existente se houver
+            link = links_existentes.get(plano.id)
+            if link:
+                plano_data['link_url'] = link.url
+                plano_data['link_valor_configurado'] = float(link.valor_configurado)
+                plano_data['link_valor_divergente'] = plano.valor != link.valor_configurado
+
+            resultado.append(plano_data)
+
+        return JsonResponse({
+            'success': True,
+            'planos': resultado,
+            'total': len(resultado)
+        })
+
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao listar planos.'}, status=500)
+
+
+# ============================================================================
+# NOTIFICAÇÕES DO SISTEMA - VIEWS
+# ============================================================================
+
+@login_required
+@require_http_methods(["GET"])
+def api_notificacoes_listar(request):
+    """
+    Lista notificações do usuário (não lidas primeiro).
+    GET /api/notificacoes/
+    Parâmetros:
+      - apenas_nao_lidas: true/false (default: false)
+      - limit: número (default: 20)
+    """
+    try:
+        apenas_nao_lidas = request.GET.get('apenas_nao_lidas', 'false').lower() == 'true'
+        limit = int(request.GET.get('limit', 20))
+
+        queryset = NotificacaoSistema.objects.filter(usuario=request.user)
+
+        if apenas_nao_lidas:
+            queryset = queryset.filter(lida=False)
+
+        notificacoes = queryset.order_by('-criada_em')[:limit]
+
+        total_nao_lidas = NotificacaoSistema.objects.filter(
+            usuario=request.user,
+            lida=False
+        ).count()
+
+        resultado = []
+        for notif in notificacoes:
+            resultado.append({
+                'id': notif.id,
+                'tipo': notif.tipo,
+                'tipo_display': notif.get_tipo_display(),
+                'prioridade': notif.prioridade,
+                'titulo': notif.titulo,
+                'mensagem': notif.mensagem,
+                'dados_extras': notif.dados_extras,
+                'lida': notif.lida,
+                'criada_em': notif.criada_em.isoformat(),
+            })
+
+        return JsonResponse({
+            'success': True,
+            'notificacoes': resultado,
+            'total_nao_lidas': total_nao_lidas,
+        })
+
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao listar notificações.'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_notificacao_marcar_lida(request, notificacao_id):
+    """
+    Marca uma notificação como lida.
+    POST /api/notificacoes/<id>/marcar-lida/
+    """
+    try:
+        notificacao = NotificacaoSistema.objects.get(
+            id=notificacao_id,
+            usuario=request.user
+        )
+        notificacao.marcar_como_lida()
+
+        return JsonResponse({'success': True})
+
+    except NotificacaoSistema.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Notificação não encontrada.'}, status=404)
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao marcar notificação.'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_notificacoes_marcar_todas_lidas(request):
+    """
+    Marca todas as notificações do usuário como lidas.
+    POST /api/notificacoes/marcar-todas-lidas/
+    """
+    try:
+        atualizadas = NotificacaoSistema.objects.filter(
+            usuario=request.user,
+            lida=False
+        ).update(lida=True, data_leitura=timezone.now())
+
+        return JsonResponse({
+            'success': True,
+            'atualizadas': atualizadas
+        })
+
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao marcar notificações.'}, status=500)
+
+
+# ============================================================================
+# COBRANÇA PIX - VIEWS
+# ============================================================================
+
+@login_required
+@require_http_methods(["POST"])
+def gerar_cobranca_pix(request, mensalidade_id):
+    """
+    Gera uma cobrança PIX para uma mensalidade.
+
+    POST /api/pix/gerar/<mensalidade_id>/
+
+    Retorna:
+        - qr_code: Código para gerar QR Code
+        - qr_code_base64: Imagem do QR Code em base64 (se disponível)
+        - pix_copia_cola: Código copia e cola
+        - valor: Valor da cobrança
+        - expira_em: Data/hora de expiração
+        - cobranca_id: ID da cobrança no sistema
+    """
+    from nossopainel.services.payment_integrations import get_payment_integration, PaymentIntegrationError
+
+    try:
+        # Buscar mensalidade
+        mensalidade = Mensalidade.objects.select_related(
+            'cliente', 'cliente__forma_pgto', 'cliente__forma_pgto__conta_bancaria',
+            'cliente__forma_pgto__conta_bancaria__instituicao'
+        ).get(id=mensalidade_id, usuario=request.user)
+
+        # Verificar se já foi paga
+        if mensalidade.data_pagamento:
+            return JsonResponse({
+                'success': False,
+                'error': 'Esta mensalidade já foi paga.'
+            }, status=400)
+
+        # Verificar forma de pagamento do cliente
+        forma_pgto = mensalidade.cliente.forma_pgto
+        if not forma_pgto or forma_pgto.nome != 'PIX':
+            return JsonResponse({
+                'success': False,
+                'error': 'Cliente não possui forma de pagamento PIX configurada.'
+            }, status=400)
+
+        # Verificar conta bancária
+        conta_bancaria = forma_pgto.conta_bancaria
+        if not conta_bancaria:
+            return JsonResponse({
+                'success': False,
+                'error': 'Forma de pagamento PIX não possui conta bancária configurada.'
+            }, status=400)
+
+        # Verificar se conta tem integração API
+        if not conta_bancaria.tem_integracao_api:
+            return JsonResponse({
+                'success': False,
+                'error': 'Conta bancária não possui integração com API de pagamento.'
+            }, status=400)
+
+        # Obter integração de pagamento
+        integration = get_payment_integration(conta_bancaria)
+        if not integration:
+            return JsonResponse({
+                'success': False,
+                'error': 'Integração de pagamento não disponível para esta conta.'
+            }, status=400)
+
+        # Verificar se já existe cobrança pendente para esta mensalidade
+        cobranca_existente = CobrancaPix.objects.filter(
+            mensalidade=mensalidade,
+            status='pending'
+        ).first()
+
+        if cobranca_existente and not cobranca_existente.is_expired:
+            # Retornar cobrança existente
+            return JsonResponse({
+                'success': True,
+                'cobranca_id': str(cobranca_existente.id),
+                'transaction_id': cobranca_existente.transaction_id,
+                'qr_code': cobranca_existente.qr_code,
+                'qr_code_url': cobranca_existente.qr_code_url,
+                'qr_code_base64': cobranca_existente.qr_code_base64,
+                'pix_copia_cola': cobranca_existente.pix_copia_cola,
+                'valor': float(cobranca_existente.valor),
+                'expira_em': cobranca_existente.expira_em.isoformat(),
+                'mensagem': 'Cobrança já existente retornada.',
+            })
+
+        # Gerar descrição
+        descricao = f"Mensalidade {mensalidade.cliente.nome} - {mensalidade.mes_referencia}"
+
+        # Criar cobrança via API
+        pix_charge = integration.create_pix_charge(
+            amount=mensalidade.valor,
+            description=descricao,
+            external_id=str(mensalidade.id),
+            expiration_minutes=30,
+            payer_name=mensalidade.cliente.nome,
+            payer_document=mensalidade.cliente.cpf if hasattr(mensalidade.cliente, 'cpf') else None,
+        )
+
+        # Salvar cobrança no banco
+        cobranca = CobrancaPix.objects.create(
+            transaction_id=pix_charge.transaction_id,
+            usuario=request.user,
+            conta_bancaria=conta_bancaria,
+            mensalidade=mensalidade,
+            cliente=mensalidade.cliente,
+            valor=pix_charge.amount,
+            descricao=descricao,
+            status='pending',
+            qr_code=pix_charge.qr_code,
+            qr_code_url=pix_charge.qr_code_url or '',
+            qr_code_base64=pix_charge.qr_code_base64 or '',
+            pix_copia_cola=pix_charge.pix_copy_paste,
+            expira_em=pix_charge.expiration,
+            integracao=conta_bancaria.instituicao.tipo_integracao,
+            raw_response=pix_charge.raw_response or {},
+        )
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_CREATE,
+            instance=cobranca,
+            message="Cobrança PIX gerada.",
+            extra={
+                "mensalidade_id": str(mensalidade.id),
+                "cliente": mensalidade.cliente.nome,
+                "valor": float(cobranca.valor),
+                "integracao": cobranca.integracao,
+            },
+        )
+
+        return JsonResponse({
+            'success': True,
+            'cobranca_id': str(cobranca.id),
+            'transaction_id': cobranca.transaction_id,
+            'qr_code': cobranca.qr_code,
+            'qr_code_url': cobranca.qr_code_url,  # Link para visualizar QR Code
+            'qr_code_base64': cobranca.qr_code_base64,
+            'pix_copia_cola': cobranca.pix_copia_cola,
+            'valor': float(cobranca.valor),
+            'expira_em': cobranca.expira_em.isoformat(),
+            'mensagem': 'Cobrança PIX gerada com sucesso!',
+        })
+
+    except Mensalidade.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Mensalidade não encontrada.'
+        }, status=404)
+
+    except PaymentIntegrationError as e:
+        logger.error(f'[PIX] Erro ao gerar cobrança: {e.message}')
+        return JsonResponse({
+            'success': False,
+            'error': f'Erro na integração: {e.message}'
+        }, status=400)
+
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'Erro ao gerar cobrança PIX.'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def consultar_cobranca_pix(request, cobranca_id):
+    """
+    Consulta o status de uma cobrança PIX.
+
+    GET /api/pix/status/<cobranca_id>/
+    """
+    from nossopainel.services.payment_integrations import get_payment_integration
+
+    try:
+        cobranca = CobrancaPix.objects.select_related(
+            'conta_bancaria', 'conta_bancaria__instituicao'
+        ).get(id=cobranca_id, usuario=request.user)
+
+        # Se ainda está pendente, consultar na API
+        if cobranca.status == 'pending' and not cobranca.is_expired:
+            integration = get_payment_integration(cobranca.conta_bancaria)
+            if integration:
+                try:
+                    status = integration.get_charge_status(cobranca.transaction_id)
+                    if status.value != cobranca.status:
+                        cobranca.status = status.value
+                        if status.value == 'paid':
+                            cobranca.pago_em = timezone.now()
+                        cobranca.save()
+                except Exception as e:
+                    logger.warning(f'[PIX] Erro ao consultar status: {e}')
+
+        # Verificar expiração
+        if cobranca.status == 'pending' and cobranca.is_expired:
+            cobranca.mark_as_expired()
+
+        return JsonResponse({
+            'success': True,
+            'cobranca_id': str(cobranca.id),
+            'transaction_id': cobranca.transaction_id,
+            'status': cobranca.status,
+            'status_display': cobranca.get_status_display(),
+            'valor': float(cobranca.valor),
+            'is_paid': cobranca.is_paid,
+            'is_expired': cobranca.is_expired,
+            'pago_em': cobranca.pago_em.isoformat() if cobranca.pago_em else None,
+            'expira_em': cobranca.expira_em.isoformat() if cobranca.expira_em else None,
+        })
+
+    except CobrancaPix.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Cobrança não encontrada.'
+        }, status=404)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def webhook_pagamento_pix(request):
+    """
+    Recebe webhooks de pagamento das integrações PIX.
+
+    POST /api/pix/webhook/
+
+    Headers esperados:
+        - X-Webhook-Signature: Assinatura HMAC-SHA256 (FastDePix)
+        - X-Integration: Identificador da integração (opcional)
+    """
+    from nossopainel.services.payment_integrations import (
+        FastDePixIntegration, PaymentStatus
+    )
+
+    try:
+        # Parse do body
+        try:
+            payload = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+        logger.info(f'[Webhook PIX] Recebido: {json.dumps(payload)[:500]}')
+
+        # Extrair transaction_id do payload
+        data = payload.get('data', payload)
+        transaction_id = str(data.get('id', data.get('transaction_id', '')))
+
+        if not transaction_id:
+            logger.warning('[Webhook PIX] transaction_id não encontrado no payload')
+            return JsonResponse({'error': 'Transaction ID not found'}, status=400)
+
+        # Buscar cobrança pelo transaction_id
+        try:
+            cobranca = CobrancaPix.objects.select_related(
+                'conta_bancaria', 'conta_bancaria__instituicao', 'mensalidade'
+            ).get(transaction_id=transaction_id)
+        except CobrancaPix.DoesNotExist:
+            logger.warning(f'[Webhook PIX] Cobrança não encontrada: {transaction_id}')
+            # Retornar 200 para não reenviar webhook
+            return JsonResponse({'status': 'ignored', 'reason': 'Charge not found'})
+
+        # Validar assinatura (se configurada)
+        signature = request.headers.get('X-Webhook-Signature', '')
+        if cobranca.integracao == 'fastdepix' and cobranca.conta_bancaria.api_key:
+            # Para FastDePix, validar HMAC se webhook_secret estiver configurado
+            # Por enquanto, apenas logamos
+            logger.info(f'[Webhook PIX] Assinatura recebida: {signature[:20]}...' if signature else '[Webhook PIX] Sem assinatura')
+
+        # Processar evento
+        event_type = payload.get('event', '')
+        status_str = data.get('status', '').lower()
+
+        if event_type == 'transaction.paid' or status_str == 'paid':
+            if cobranca.status != 'paid':
+                # Extrair dados do pagador
+                payer = data.get('payer', {})
+                payer_name = payer.get('name') if isinstance(payer, dict) else None
+                payer_doc = payer.get('cpf_cnpj') if isinstance(payer, dict) else None
+
+                # Extrair data de pagamento
+                paid_at = None
+                if data.get('paid_at'):
+                    try:
+                        paid_at = timezone.datetime.fromisoformat(
+                            data['paid_at'].replace('Z', '+00:00')
+                        )
+                    except (ValueError, AttributeError):
+                        paid_at = timezone.now()
+                else:
+                    paid_at = timezone.now()
+
+                # Marcar como pago
+                cobranca.mark_as_paid(
+                    paid_at=paid_at,
+                    payer_name=payer_name,
+                    payer_document=payer_doc,
+                    webhook_data=payload,
+                )
+
+                logger.info(f'[Webhook PIX] Cobrança {transaction_id} marcada como PAGA')
+
+        elif event_type == 'transaction.expired' or status_str == 'expired':
+            cobranca.mark_as_expired()
+            logger.info(f'[Webhook PIX] Cobrança {transaction_id} marcada como EXPIRADA')
+
+        elif event_type == 'transaction.cancelled' or status_str in ['cancelled', 'canceled']:
+            cobranca.mark_as_cancelled()
+            logger.info(f'[Webhook PIX] Cobrança {transaction_id} marcada como CANCELADA')
+
+        return JsonResponse({
+            'status': 'processed',
+            'cobranca_id': str(cobranca.id),
+            'new_status': cobranca.status,
+        })
+
+    except Exception as e:
+        logger.error(f'[Webhook PIX] Erro: {e}', exc_info=True)
+        return JsonResponse({'error': 'Internal error'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def cancelar_cobranca_pix(request, cobranca_id):
+    """
+    Cancela uma cobrança PIX pendente.
+
+    POST /api/pix/cancelar/<cobranca_id>/
+    """
+    from nossopainel.services.payment_integrations import get_payment_integration
+
+    try:
+        cobranca = CobrancaPix.objects.select_related(
+            'conta_bancaria', 'conta_bancaria__instituicao'
+        ).get(id=cobranca_id, usuario=request.user)
+
+        if not cobranca.can_cancel:
+            return JsonResponse({
+                'success': False,
+                'error': 'Esta cobrança não pode ser cancelada.'
+            }, status=400)
+
+        # Tentar cancelar na API
+        integration = get_payment_integration(cobranca.conta_bancaria)
+        if integration:
+            try:
+                integration.cancel_charge(cobranca.transaction_id)
+            except Exception as e:
+                logger.warning(f'[PIX] Erro ao cancelar na API: {e}')
+
+        # Marcar como cancelada localmente
+        cobranca.mark_as_cancelled()
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=cobranca,
+            message="Cobrança PIX cancelada.",
+            extra={"transaction_id": cobranca.transaction_id},
+        )
+
+        return JsonResponse({
+            'success': True,
+            'mensagem': 'Cobrança cancelada com sucesso.'
+        })
+
+    except CobrancaPix.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Cobrança não encontrada.'
+        }, status=404)
+
+
 # AÇÃO PARA CRIAR NOVO OBJETO DISPOSITIVO
 @login_required
 def create_device(request):
@@ -6778,6 +8049,16 @@ def delete_device(request, pk):
 def delete_payment_method(request, pk):
     try:
         formapgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
+
+        # Verificar se existem clientes usando esta forma de pagamento
+        clientes_count = Cliente.objects.filter(forma_pgto=formapgto, usuario=request.user).count()
+        if clientes_count > 0:
+            error_msg = f'Esta Forma de Pagamento não pode ser excluída pois possui {clientes_count} cliente(s) associado(s). Transfira os clientes para outra forma de pagamento antes de excluir.'
+            return JsonResponse({'error_delete': error_msg}, status=400)
+
+        # Guardar referência à conta bancária antes de excluir
+        conta_bancaria = formapgto.conta_bancaria
+
         log_extra = {"id": formapgto.id, "nome": formapgto.nome}
         formapgto.delete()
         log_user_action(
@@ -6787,19 +8068,31 @@ def delete_payment_method(request, pk):
             message="Forma de pagamento removida.",
             extra=log_extra,
         )
-    except Tipos_pgto.DoesNotExist as erro1:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro1, exc_info=True)
-        return HttpResponseNotFound(
-            json.dumps({'error_delete': error_msg}), content_type='application/json'
-        )
-    except ProtectedError as erro2:
-        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', erro2, exc_info=True)
-        error_msg = 'Este Servidor não pode ser excluído porque está relacionado com algum cliente.'
-        return HttpResponseBadRequest(
-            json.dumps({'error_delete': error_msg}), content_type='application/json'
-        )
-    else:
-        return redirect('cadastro-forma-pagamento')
+
+        # Excluir a ContaBancaria se não houver outras formas de pagamento usando ela
+        if conta_bancaria:
+            outras_formas = Tipos_pgto.objects.filter(conta_bancaria=conta_bancaria).count()
+            if outras_formas == 0:
+                conta_nome = conta_bancaria.nome_identificacao
+                conta_bancaria.delete()
+                log_user_action(
+                    request=request,
+                    action=UserActionLog.ACTION_DELETE,
+                    instance=conta_bancaria,
+                    message="Conta bancária removida (última forma de pagamento excluída).",
+                    extra={"nome": conta_nome},
+                )
+
+        return JsonResponse({'success': True})
+
+    except Tipos_pgto.DoesNotExist:
+        error_msg = 'Forma de Pagamento não encontrada.'
+        return JsonResponse({'error_delete': error_msg}, status=404)
+    except Exception as e:
+        logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]',
+                     timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
+        error_msg = 'Erro ao excluir a Forma de Pagamento.'
+        return JsonResponse({'error_delete': error_msg}, status=500)
     
 
 @login_required
@@ -9388,3 +10681,1257 @@ def tarefa_envio_historico_api(request, pk):
         },
         'grafico': grafico_data
     })
+
+
+############################################ API FORMA DE PAGAMENTO ############################################
+
+@login_required
+@require_http_methods(["GET"])
+def api_forma_pagamento_detalhes(request, pk):
+    """
+    Retorna os detalhes de uma forma de pagamento.
+    Inclui dados da conta bancaria, instituicao e credenciais (mascaradas).
+    """
+    try:
+        forma_pgto = Tipos_pgto.objects.select_related(
+            'conta_bancaria',
+            'conta_bancaria__instituicao',
+            'dados_bancarios'
+        ).get(pk=pk, usuario=request.user)
+
+        conta = forma_pgto.conta_bancaria
+        instituicao = conta.instituicao if conta else None
+        dados_bancarios = forma_pgto.dados_bancarios
+
+        data = {
+            'success': True,
+            'forma_pgto': {
+                'id': forma_pgto.id,
+                'nome': forma_pgto.nome,
+                'nome_identificacao': forma_pgto.nome_identificacao,
+                'tipo_conta': forma_pgto.tipo_conta,
+            },
+            'conta_bancaria': None,
+            'instituicao': None,
+            'dados_bancarios': None,
+        }
+
+        if conta:
+            data['conta_bancaria'] = {
+                'id': conta.id,
+                'nome_identificacao': conta.nome_identificacao,
+                'beneficiario': conta.beneficiario,
+                'tipo_conta': conta.tipo_conta,
+                'tipo_conta_display': 'Pessoa Física' if conta.tipo_conta == 'pf' else 'MEI',
+                'limite_mensal': float(conta.limite_mensal) if conta.limite_mensal else None,
+                'tipo_chave_pix': conta.tipo_chave_pix,
+                'tipo_chave_pix_display': dict(ContaBancaria.TIPO_CHAVE_PIX).get(conta.tipo_chave_pix, conta.tipo_chave_pix),
+                'chave_pix': conta.chave_pix,
+                'ambiente_sandbox': conta.ambiente_sandbox,
+                'has_api_key': bool(conta.api_key),
+                'has_client_id': bool(conta.api_client_id),
+                'has_client_secret': bool(conta.api_client_secret),
+                'has_access_token': bool(conta.api_access_token),
+            }
+
+        if instituicao:
+            data['instituicao'] = {
+                'id': instituicao.id,
+                'nome': instituicao.nome,
+                'tipo_integracao': instituicao.tipo_integracao,
+            }
+
+        # Dados bancarios legados (para formas antigas sem conta bancaria)
+        if dados_bancarios:
+            data['dados_bancarios'] = {
+                'id': dados_bancarios.id,
+                'beneficiario': dados_bancarios.beneficiario,
+                'instituicao': dados_bancarios.instituicao,
+                'tipo_chave': dados_bancarios.tipo_chave,
+                'chave': dados_bancarios.chave,
+            }
+        elif not conta and 'PIX' in forma_pgto.nome.upper():
+            # Se nao tem dados_bancarios vinculado E é forma PIX antiga (sem conta_bancaria),
+            # buscar DadosBancarios do usuario para pre-preencher
+            dados_usuario = DadosBancarios.objects.filter(usuario=request.user).first()
+            if dados_usuario:
+                data['dados_bancarios'] = {
+                    'id': dados_usuario.id,
+                    'beneficiario': dados_usuario.beneficiario,
+                    'instituicao': dados_usuario.instituicao,
+                    'tipo_chave': dados_usuario.tipo_chave,
+                    'chave': dados_usuario.chave,
+                }
+
+        return JsonResponse(data)
+
+    except Tipos_pgto.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Forma de pagamento nao encontrada.'
+        }, status=404)
+    except Exception as e:
+        logger.error(f"Erro ao buscar detalhes da forma de pagamento: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Erro ao buscar detalhes.'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_forma_pagamento_clientes_count(request, pk):
+    """Retorna quantidade de clientes ATIVOS associados a uma forma de pagamento."""
+    try:
+        forma_pgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
+        count = Cliente.objects.filter(
+            forma_pgto=forma_pgto,
+            usuario=request.user,
+            cancelado=False  # Apenas clientes ativos
+        ).count()
+        return JsonResponse({'success': True, 'count': count})
+    except Tipos_pgto.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Forma de pagamento nao encontrada.'
+        }, status=404)
+
+
+@login_required
+@require_http_methods(["POST", "PUT"])
+def api_forma_pagamento_atualizar(request, pk):
+    """
+    Atualiza uma forma de pagamento existente.
+    Permite atualizar dados da conta bancaria e credenciais.
+    """
+    try:
+        forma_pgto = Tipos_pgto.objects.select_related(
+            'conta_bancaria',
+            'conta_bancaria__instituicao'
+        ).get(pk=pk, usuario=request.user)
+
+        conta = forma_pgto.conta_bancaria
+        if not conta:
+            return JsonResponse({
+                'success': False,
+                'error': 'Esta forma de pagamento nao possui conta bancaria associada.'
+            }, status=400)
+
+        # Parse dos dados
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+        else:
+            data = request.POST
+
+        # Atualizar campos basicos
+        if data.get('nome_identificacao'):
+            conta.nome_identificacao = data['nome_identificacao']
+
+        if data.get('beneficiario'):
+            conta.beneficiario = data['beneficiario']
+
+        if data.get('tipo_conta'):
+            conta.tipo_conta = data['tipo_conta']
+
+        if data.get('limite_mensal'):
+            try:
+                conta.limite_mensal = Decimal(str(data['limite_mensal']))
+            except (InvalidOperation, ValueError):
+                pass
+
+        # Dados PIX
+        if data.get('tipo_chave_pix'):
+            conta.tipo_chave_pix = data['tipo_chave_pix']
+
+        if data.get('chave_pix'):
+            # Verificar se ja existe outra conta com essa chave
+            if ContaBancaria.objects.filter(
+                usuario=request.user,
+                chave_pix=data['chave_pix']
+            ).exclude(id=conta.id).exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Ja existe outra conta bancaria com essa chave PIX.'
+                }, status=400)
+            conta.chave_pix = data['chave_pix']
+
+        # Ambiente sandbox
+        if 'ambiente_sandbox' in data:
+            conta.ambiente_sandbox = data['ambiente_sandbox'] in [True, 'true', 'on', '1', 1]
+
+        # Credenciais API (apenas atualizar se fornecidas)
+        if data.get('api_key'):
+            conta.api_key = data['api_key']
+
+        if data.get('api_client_id'):
+            conta.api_client_id = data['api_client_id']
+
+        if data.get('api_client_secret'):
+            conta.api_client_secret = data['api_client_secret']
+
+        if data.get('api_access_token'):
+            conta.api_access_token = data['api_access_token']
+
+        conta.save()
+
+        # Processar clientes associados (para instituições com API)
+        clientes_associados_str = data.get('clientes_associados', '')
+        clientes_transferir_str = data.get('clientes_para_transferir', '')
+
+        # Combinar clientes selecionados + clientes a transferir
+        todos_clientes_ids = set()
+        if clientes_associados_str:
+            try:
+                ids = [int(x) for x in clientes_associados_str.split(',') if x.strip()]
+                todos_clientes_ids.update(ids)
+            except (ValueError, TypeError):
+                pass
+
+        if clientes_transferir_str:
+            try:
+                ids = [int(x) for x in clientes_transferir_str.split(',') if x.strip()]
+                todos_clientes_ids.update(ids)
+            except (ValueError, TypeError):
+                pass
+
+        # Validar mínimo de 1 cliente
+        if not todos_clientes_ids:
+            return JsonResponse({
+                'success': False,
+                'error': 'É obrigatório manter ao menos um cliente associado à forma de pagamento.'
+            }, status=400)
+
+        # Identificar clientes que estavam associados ANTES (para limpar forma_pgto dos desmarcados)
+        # Via ClienteContaBancaria
+        clientes_associados_antes = set(
+            ClienteContaBancaria.objects.filter(
+                conta_bancaria=conta,
+                ativo=True
+            ).values_list('cliente_id', flat=True)
+        )
+        # Via Cliente.forma_pgto direto (formas antigas)
+        clientes_forma_pgto_antiga = set(
+            Cliente.objects.filter(
+                usuario=request.user,
+                forma_pgto=forma_pgto,
+                cancelado=False
+            ).values_list('id', flat=True)
+        )
+        # Todos os clientes que estavam associados de alguma forma
+        clientes_antes = clientes_associados_antes | clientes_forma_pgto_antiga
+
+        try:
+            clientes_ids = list(todos_clientes_ids)
+
+            # Desativar associações antigas desta conta
+            ClienteContaBancaria.objects.filter(
+                conta_bancaria=conta,
+                ativo=True
+            ).update(ativo=False)
+
+            # Criar/reativar novas associações para clientes selecionados
+            for cliente_id in clientes_ids:
+                try:
+                    cliente = Cliente.objects.get(id=cliente_id, usuario=request.user)
+
+                    # Desativar associações deste cliente com outras contas
+                    ClienteContaBancaria.objects.filter(
+                        cliente=cliente,
+                        ativo=True
+                    ).exclude(conta_bancaria=conta).update(ativo=False)
+
+                    # Criar ou atualizar associação
+                    assoc, created = ClienteContaBancaria.objects.update_or_create(
+                        cliente=cliente,
+                        conta_bancaria=conta,
+                        defaults={'ativo': True}
+                    )
+
+                    # Atualizar forma de pagamento do cliente
+                    cliente.forma_pgto = forma_pgto
+                    cliente.save(update_fields=['forma_pgto'])
+
+                except Cliente.DoesNotExist:
+                    continue
+
+            # Limpar forma_pgto dos clientes DESMARCADOS (estavam antes mas não estão mais)
+            clientes_desmarcados = clientes_antes - todos_clientes_ids
+            if clientes_desmarcados:
+                Cliente.objects.filter(
+                    id__in=clientes_desmarcados,
+                    usuario=request.user,
+                    forma_pgto=forma_pgto  # Só limpa se ainda aponta para esta forma
+                ).update(forma_pgto=None)
+
+        except Exception:
+            pass
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=conta,
+            message="Conta bancaria atualizada via API.",
+            extra={
+                "forma_pgto_id": forma_pgto.id,
+                "nome_identificacao": conta.nome_identificacao,
+            },
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Forma de pagamento atualizada com sucesso!'
+        })
+
+    except Tipos_pgto.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Forma de pagamento nao encontrada.'
+        }, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Dados invalidos.'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Erro ao atualizar forma de pagamento: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Erro ao atualizar forma de pagamento.'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST", "PUT"])
+def api_forma_pagamento_antiga_atualizar(request, pk):
+    """
+    Atualiza clientes associados a uma forma de pagamento antiga (sem conta bancaria).
+    Usado para formas PIX, Cartao, Boleto criadas antes do novo sistema.
+    Tambem permite editar dados bancarios (modelo DadosBancarios).
+    """
+    try:
+        forma_pgto = Tipos_pgto.objects.select_related('dados_bancarios').get(pk=pk, usuario=request.user)
+
+        # Parse dos dados
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+        else:
+            data = request.POST
+
+        # ===== PROCESSAR DADOS BASICOS =====
+        nome_identificacao = (data.get('nome_identificacao') or '').strip()
+        tipo_conta = (data.get('tipo_conta') or '').strip()
+        tipo_pagamento = (data.get('tipo_pagamento') or '').strip()
+        beneficiario = (data.get('beneficiario') or '').strip()
+        instituicao = (data.get('instituicao') or '').strip()
+        tipo_chave = (data.get('tipo_chave') or '').strip()
+        chave = (data.get('chave') or '').strip()
+
+        # Atualizar campos básicos da forma de pagamento
+        campos_atualizados = []
+
+        if nome_identificacao:
+            forma_pgto.nome_identificacao = nome_identificacao
+            campos_atualizados.append('nome_identificacao')
+
+        if tipo_conta in ['pf', 'mei']:
+            forma_pgto.tipo_conta = tipo_conta
+            campos_atualizados.append('tipo_conta')
+
+        # Atualizar nome da forma de pagamento se fornecido
+        if tipo_pagamento and tipo_pagamento in ['PIX', 'Cartao de Credito', 'Boleto']:
+            forma_pgto.nome = tipo_pagamento
+            campos_atualizados.append('nome')
+
+        if campos_atualizados:
+            forma_pgto.save(update_fields=campos_atualizados)
+
+        # Se algum campo de dados bancarios foi preenchido, criar/atualizar DadosBancarios
+        if any([beneficiario, instituicao, tipo_chave, chave]):
+            if forma_pgto.dados_bancarios:
+                # Atualizar existente
+                dados_bancarios = forma_pgto.dados_bancarios
+                dados_bancarios.beneficiario = beneficiario or dados_bancarios.beneficiario
+                dados_bancarios.instituicao = instituicao or dados_bancarios.instituicao
+                dados_bancarios.tipo_chave = tipo_chave or dados_bancarios.tipo_chave
+                dados_bancarios.chave = chave or dados_bancarios.chave
+                dados_bancarios.save()
+            else:
+                # Criar novo DadosBancarios
+                dados_bancarios = DadosBancarios.objects.create(
+                    usuario=request.user,
+                    beneficiario=beneficiario,
+                    instituicao=instituicao,
+                    tipo_chave=tipo_chave,
+                    chave=chave,
+                )
+                forma_pgto.dados_bancarios = dados_bancarios
+                forma_pgto.save(update_fields=['dados_bancarios'])
+
+        # ===== PROCESSAR CLIENTES ASSOCIADOS =====
+        # Processar clientes associados
+        clientes_associados_str = data.get('clientes_associados') or ''
+        clientes_transferir_str = data.get('clientes_para_transferir') or ''
+
+        # Combinar clientes selecionados + clientes a transferir
+        todos_clientes_ids = set()
+        if clientes_associados_str:
+            try:
+                ids = [int(x) for x in clientes_associados_str.split(',') if x.strip()]
+                todos_clientes_ids.update(ids)
+            except (ValueError, TypeError):
+                pass
+
+        if clientes_transferir_str:
+            try:
+                ids = [int(x) for x in clientes_transferir_str.split(',') if x.strip()]
+                todos_clientes_ids.update(ids)
+            except (ValueError, TypeError):
+                pass
+
+        # Validar mínimo de 1 cliente
+        if not todos_clientes_ids:
+            return JsonResponse({
+                'success': False,
+                'error': 'É obrigatório manter ao menos um cliente associado à forma de pagamento.'
+            }, status=400)
+
+        # Identificar clientes que estavam associados ANTES
+        clientes_antes = set(
+            Cliente.objects.filter(
+                usuario=request.user,
+                forma_pgto=forma_pgto,
+                cancelado=False
+            ).values_list('id', flat=True)
+        )
+
+        # Atualizar clientes selecionados para usar esta forma de pagamento
+        for cliente_id in todos_clientes_ids:
+            try:
+                cliente = Cliente.objects.get(id=cliente_id, usuario=request.user)
+                cliente.forma_pgto = forma_pgto
+                cliente.save(update_fields=['forma_pgto'])
+            except Cliente.DoesNotExist:
+                continue
+
+        # Limpar forma_pgto dos clientes DESMARCADOS
+        clientes_desmarcados = clientes_antes - todos_clientes_ids
+        if clientes_desmarcados:
+            Cliente.objects.filter(
+                id__in=clientes_desmarcados,
+                usuario=request.user,
+                forma_pgto=forma_pgto
+            ).update(forma_pgto=None)
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=forma_pgto,
+            message="Forma de pagamento antiga atualizada.",
+            extra={
+                "forma_pgto_id": forma_pgto.id,
+                "forma_pgto_nome": forma_pgto.nome,
+                "clientes_associados": len(todos_clientes_ids),
+                "clientes_removidos": len(clientes_desmarcados),
+                "dados_bancarios_atualizados": any([beneficiario, instituicao, tipo_chave, chave]),
+            },
+        )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Forma de pagamento atualizada com sucesso!'
+        })
+
+    except Tipos_pgto.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Forma de pagamento nao encontrada.'
+        }, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Dados invalidos.'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Erro ao atualizar clientes da forma de pagamento antiga: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Erro ao atualizar clientes.'
+        }, status=500)
+
+
+# =============================================================================
+# VIEWS DE INTEGRACOES API
+# =============================================================================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def integracoes_api_index(request):
+    """
+    Pagina inicial das integracoes API.
+    Lista todas as integracoes disponiveis com status.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+
+    # Calcular estatisticas FastDePix
+    contas_fastdepix = ContaBancaria.objects.filter(
+        instituicao__tipo_integracao='fastdepix'
+    )
+
+    fastdepix_contas = contas_fastdepix.count()
+    fastdepix_status = 'not_configured'
+
+    if fastdepix_contas > 0:
+        # Verifica se alguma conta tem api_key configurada
+        contas_com_api = contas_fastdepix.filter(api_key__isnull=False).exclude(api_key='')
+        if contas_com_api.exists():
+            # Verifica se tem webhook configurado
+            contas_com_webhook = contas_com_api.filter(webhook_id__isnull=False).exclude(webhook_id='')
+            if contas_com_webhook.exists():
+                fastdepix_status = 'connected'
+            else:
+                fastdepix_status = 'partial'
+
+    # Cobrancas dos ultimos 30 dias
+    desde = timezone.now() - timedelta(days=30)
+    fastdepix_cobrancas = CobrancaPix.objects.filter(
+        criado_em__gte=desde
+    ).count()
+
+    context = {
+        'page': 'integracoes-api',
+        'page_group': 'admin',
+        'fastdepix_status': fastdepix_status,
+        'fastdepix_contas': fastdepix_contas,
+        'fastdepix_cobrancas': fastdepix_cobrancas,
+    }
+
+    return render(request, 'pages/admin/integracoes/index.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def integracoes_fastdepix(request):
+    """
+    Pagina de configuracao do FastDePix.
+    Suporta seleção de conta específica via query param ?conta=ID
+    """
+    from django.utils import timezone
+    from django.conf import settings
+    from datetime import timedelta
+    from django.db.models import Count
+    from nossopainel.services.payment_integrations import get_payment_integration
+
+    # Buscar contas FastDePix com contagem de cobranças
+    contas_fastdepix = ContaBancaria.objects.filter(
+        instituicao__tipo_integracao='fastdepix'
+    ).select_related('usuario', 'instituicao').annotate(
+        total_cobrancas=Count('cobrancas_pix')
+    )
+
+    # Não há conta selecionada por padrão - seleção é feita via JavaScript
+    conta_selecionada = None
+    conta_ativa = None
+
+    # Status da API
+    api_status = 'not_configured'
+    api_key_masked = None
+    webhook_status = 'not_configured'
+
+    if conta_ativa:
+        # Mascarar API Key
+        if conta_ativa.api_key:
+            key = conta_ativa.api_key
+            api_key_masked = f"{key[:8]}...{key[-4:]}" if len(key) > 12 else "****"
+            api_status = 'connected'  # API Key configurada = conectado
+        else:
+            api_status = 'no_api_key'
+
+        # Status do webhook
+        if conta_ativa.webhook_id:
+            webhook_status = 'configured'
+
+    # URL do webhook do sistema
+    # Em produção, usa o domínio principal do ALLOWED_HOSTS
+    # Em desenvolvimento (DEBUG=True), permite URL customizada
+    is_development = getattr(settings, 'DEBUG', False)
+
+    # Determinar URL base para webhook
+    if is_development:
+        webhook_url_default = request.build_absolute_uri('/api/pix/webhook/')
+    else:
+        # Em produção, usar domínio configurado
+        allowed_hosts = getattr(settings, 'ALLOWED_HOSTS', [])
+        # Pegar primeiro domínio que não seja localhost ou *
+        production_domain = None
+        for host in allowed_hosts:
+            if host not in ['localhost', '127.0.0.1', '*', '']:
+                production_domain = host
+                break
+
+        if production_domain:
+            # Usar HTTPS em produção
+            webhook_url_default = f"https://{production_domain}/api/pix/webhook/"
+        else:
+            webhook_url_default = request.build_absolute_uri('/api/pix/webhook/')
+
+    # Webhook URL customizada salva na sessao (para desenvolvimento)
+    webhook_url_custom = ''
+    if is_development:
+        webhook_url_custom = request.session.get('fastdepix_webhook_url_custom', '')
+
+    # Estatisticas dos ultimos 30 dias
+    desde = timezone.now() - timedelta(days=30)
+
+    # Base queryset: cobranças via FastDePix
+    # Se há conta selecionada, filtrar por ela; senão, mostrar todas do usuário
+    cobrancas_base = CobrancaPix.objects.filter(
+        integracao='fastdepix',
+        criado_em__gte=desde
+    )
+
+    if conta_selecionada:
+        # Filtrar por conta selecionada
+        cobrancas_base = cobrancas_base.filter(conta_bancaria=conta_selecionada)
+    else:
+        # Mostrar todas as contas do usuário logado
+        cobrancas_base = cobrancas_base.filter(usuario=request.user)
+
+    cobrancas_pagas = cobrancas_base.filter(status='paid')
+
+    # Calcular valores agregados
+    valores_agregados = cobrancas_pagas.aggregate(
+        total_valor=Sum('valor'),
+        total_recebido=Sum('valor_recebido'),
+        total_taxa=Sum('valor_taxa')
+    )
+
+    valor_pago = valores_agregados['total_valor'] or 0
+    valor_recebido = valores_agregados['total_recebido'] or 0
+    valor_taxa = valores_agregados['total_taxa'] or 0
+
+    # Se não temos valor_taxa mas temos valor_pago e valor_recebido, calcular
+    if valor_taxa == 0 and valor_pago > 0 and valor_recebido > 0:
+        valor_taxa = valor_pago - valor_recebido
+
+    stats = {
+        'total_cobrancas': cobrancas_base.count(),
+        'total_pagas': cobrancas_pagas.count(),
+        'total_pendentes': cobrancas_base.filter(status='pending').count(),
+        'total_expiradas': cobrancas_base.filter(status='expired').count(),
+        'valor_pago': valor_pago,
+        'valor_recebido': valor_recebido,
+        'valor_taxa': valor_taxa,
+    }
+
+    context = {
+        'page': 'integracoes-fastdepix',
+        'page_group': 'admin',
+        'contas_fastdepix': contas_fastdepix,
+        'conta_ativa': conta_ativa,
+        'conta_selecionada': conta_selecionada,
+        'api_status': api_status,
+        'api_key_masked': api_key_masked,
+        'webhook_status': webhook_status,
+        'webhook_url': webhook_url_default,
+        'webhook_url_custom': webhook_url_custom,
+        'is_development': is_development,
+        'stats': stats,
+    }
+
+    return render(request, 'pages/admin/integracoes/fastdepix.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["GET"])
+def integracoes_fastdepix_conta_dados(request, conta_id=None):
+    """
+    Retorna dados de uma conta específica ou estatísticas gerais (JSON).
+    GET /admin/integracoes-api/fastdepix/conta/<conta_id>/
+    GET /admin/integracoes-api/fastdepix/conta/ (sem conta = todas)
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+
+    desde = timezone.now() - timedelta(days=30)
+
+    # Base queryset para estatísticas
+    cobrancas_base = CobrancaPix.objects.filter(
+        integracao='fastdepix',
+        criado_em__gte=desde
+    )
+
+    conta_data = None
+
+    if conta_id:
+        # Buscar conta específica
+        try:
+            conta = ContaBancaria.objects.select_related('usuario', 'instituicao').get(
+                id=conta_id,
+                instituicao__tipo_integracao='fastdepix'
+            )
+            cobrancas_base = cobrancas_base.filter(conta_bancaria=conta)
+
+            # Mascarar API Key
+            api_key_masked = None
+            if conta.api_key:
+                key = conta.api_key
+                api_key_masked = f"{key[:8]}...{key[-4:]}" if len(key) > 12 else "****"
+
+            conta_data = {
+                'id': conta.id,
+                'nome': conta.nome_identificacao or conta.beneficiario,
+                'usuario': conta.usuario.username,
+                'api_key_masked': api_key_masked,
+                'has_api_key': bool(conta.api_key),
+                'webhook_configured': bool(conta.webhook_id),
+                'api_status': 'connected' if conta.api_key else 'no_api_key',
+            }
+        except ContaBancaria.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Conta não encontrada'}, status=404)
+    else:
+        # Sem conta selecionada = todas do usuário
+        cobrancas_base = cobrancas_base.filter(usuario=request.user)
+
+    # Calcular estatísticas
+    cobrancas_pagas = cobrancas_base.filter(status='paid')
+    valores_agregados = cobrancas_pagas.aggregate(
+        total_valor=Sum('valor'),
+        total_recebido=Sum('valor_recebido'),
+        total_taxa=Sum('valor_taxa')
+    )
+
+    valor_pago = valores_agregados['total_valor'] or 0
+    valor_recebido = valores_agregados['total_recebido'] or 0
+    valor_taxa = valores_agregados['total_taxa'] or 0
+
+    if valor_taxa == 0 and valor_pago > 0 and valor_recebido > 0:
+        valor_taxa = valor_pago - valor_recebido
+
+    stats = {
+        'total_cobrancas': cobrancas_base.count(),
+        'total_pagas': cobrancas_pagas.count(),
+        'total_pendentes': cobrancas_base.filter(status='pending').count(),
+        'total_expiradas': cobrancas_base.filter(status='expired').count(),
+        'valor_pago': float(valor_pago),
+        'valor_recebido': float(valor_recebido),
+        'valor_taxa': float(valor_taxa),
+    }
+
+    return JsonResponse({
+        'success': True,
+        'conta': conta_data,
+        'stats': stats,
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def integracoes_fastdepix_testar(request):
+    """
+    Testa a conexao com a API FastDePix.
+    """
+    from nossopainel.services.payment_integrations import get_payment_integration
+
+    # Buscar conta ativa
+    conta_ativa = ContaBancaria.objects.filter(
+        instituicao__tipo_integracao='fastdepix',
+        api_key__isnull=False
+    ).exclude(api_key='').first()
+
+    if not conta_ativa:
+        return JsonResponse({
+            'success': False,
+            'message': 'Nenhuma conta FastDePix configurada com API Key.'
+        })
+
+    # Testar conexao
+    integration = get_payment_integration(conta_ativa)
+    if not integration:
+        return JsonResponse({
+            'success': False,
+            'message': 'Erro ao inicializar integracao.'
+        })
+
+    success, message = integration.test_connection()
+
+    return JsonResponse({
+        'success': success,
+        'message': message
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def integracoes_fastdepix_webhook_registrar(request):
+    """
+    Registra o webhook na API FastDePix.
+    Aceita URL customizada via POST JSON body (para desenvolvimento).
+    """
+    from django.conf import settings
+    from nossopainel.services.payment_integrations import get_payment_integration, PaymentIntegrationError
+
+    # Buscar conta ativa
+    conta_ativa = ContaBancaria.objects.filter(
+        instituicao__tipo_integracao='fastdepix',
+        api_key__isnull=False
+    ).exclude(api_key='').first()
+
+    if not conta_ativa:
+        return JsonResponse({
+            'success': False,
+            'message': 'Nenhuma conta FastDePix configurada com API Key.'
+        })
+
+    # URL do webhook - pode vir do body (desenvolvimento) ou usar padrao
+    webhook_path = '/api/pix/webhook/'
+    webhook_url = request.build_absolute_uri(webhook_path)
+
+    # Em desenvolvimento, permitir URL base customizada
+    if getattr(settings, 'DEBUG', False):
+        try:
+            body = json.loads(request.body) if request.body else {}
+            custom_base_url = body.get('url', '').strip()
+            if custom_base_url:
+                # Remove barra final se existir e adiciona o path correto
+                custom_base_url = custom_base_url.rstrip('/')
+                webhook_url = f"{custom_base_url}{webhook_path}"
+        except json.JSONDecodeError:
+            pass
+
+    # Registrar webhook
+    integration = get_payment_integration(conta_ativa)
+    if not integration:
+        return JsonResponse({
+            'success': False,
+            'message': 'Erro ao inicializar integracao.'
+        })
+
+    try:
+        result = integration.register_webhook(webhook_url)
+
+        # Salvar dados do webhook na conta
+        conta_ativa.webhook_id = str(result.get('id', ''))
+        conta_ativa.webhook_secret = result.get('secret', '')
+        conta_ativa.save(update_fields=['webhook_id', 'webhook_secret'])
+
+        logger.info(f'[Integracoes] Webhook registrado para conta {conta_ativa.id} - URL: {webhook_url}')
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Webhook registrado com sucesso!',
+            'webhook_id': conta_ativa.webhook_id,
+            'webhook_url': webhook_url
+        })
+
+    except PaymentIntegrationError as e:
+        logger.error(f'[Integracoes] Erro ao registrar webhook: {e}')
+        return JsonResponse({
+            'success': False,
+            'message': f'Erro ao registrar webhook: {e.message}'
+        })
+    except Exception as e:
+        logger.error(f'[Integracoes] Erro inesperado ao registrar webhook: {e}')
+        return JsonResponse({
+            'success': False,
+            'message': f'Erro inesperado: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def integracoes_fastdepix_webhook_salvar_url(request):
+    """
+    Salva URL customizada de webhook (apenas em desenvolvimento).
+    Armazena em cache/sessao para uso durante desenvolvimento.
+    """
+    from django.conf import settings
+
+    if not getattr(settings, 'DEBUG', False):
+        return JsonResponse({
+            'success': False,
+            'message': 'Funcionalidade disponivel apenas em desenvolvimento.'
+        })
+
+    try:
+        body = json.loads(request.body) if request.body else {}
+        url = body.get('url', '').strip()
+
+        # Salvar na sessao do usuario
+        request.session['fastdepix_webhook_url_custom'] = url
+
+        return JsonResponse({
+            'success': True,
+            'message': 'URL salva com sucesso.',
+            'url': url
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Dados invalidos.'
+        }, status=400)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def integracoes_fastdepix_webhook_atualizar(request):
+    """
+    Atualiza o webhook na API FastDePix.
+    """
+    from nossopainel.services.payment_integrations import get_payment_integration, PaymentIntegrationError
+
+    # Buscar conta ativa com webhook
+    conta_ativa = ContaBancaria.objects.filter(
+        instituicao__tipo_integracao='fastdepix',
+        api_key__isnull=False,
+        webhook_id__isnull=False
+    ).exclude(api_key='').exclude(webhook_id='').first()
+
+    if not conta_ativa:
+        return JsonResponse({
+            'success': False,
+            'message': 'Nenhum webhook configurado para atualizar.'
+        })
+
+    # URL do webhook
+    webhook_url = request.build_absolute_uri('/api/pix/webhook/')
+
+    # Atualizar webhook
+    integration = get_payment_integration(conta_ativa)
+    if not integration:
+        return JsonResponse({
+            'success': False,
+            'message': 'Erro ao inicializar integracao.'
+        })
+
+    try:
+        result = integration.update_webhook(conta_ativa.webhook_id, url=webhook_url)
+
+        logger.info(f'[Integracoes] Webhook atualizado para conta {conta_ativa.id}')
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Webhook atualizado com sucesso!'
+        })
+
+    except PaymentIntegrationError as e:
+        logger.error(f'[Integracoes] Erro ao atualizar webhook: {e}')
+        return JsonResponse({
+            'success': False,
+            'message': f'Erro ao atualizar webhook: {e.message}'
+        })
+    except Exception as e:
+        logger.error(f'[Integracoes] Erro inesperado ao atualizar webhook: {e}')
+        return JsonResponse({
+            'success': False,
+            'message': f'Erro inesperado: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def integracoes_fastdepix_webhook_remover(request):
+    """
+    Remove o webhook da API FastDePix.
+    """
+    from nossopainel.services.payment_integrations import get_payment_integration, PaymentIntegrationError
+
+    # Buscar conta ativa com webhook
+    conta_ativa = ContaBancaria.objects.filter(
+        instituicao__tipo_integracao='fastdepix',
+        api_key__isnull=False,
+        webhook_id__isnull=False
+    ).exclude(api_key='').exclude(webhook_id='').first()
+
+    if not conta_ativa:
+        return JsonResponse({
+            'success': False,
+            'message': 'Nenhum webhook configurado para remover.'
+        })
+
+    # Remover webhook
+    integration = get_payment_integration(conta_ativa)
+    if not integration:
+        return JsonResponse({
+            'success': False,
+            'message': 'Erro ao inicializar integracao.'
+        })
+
+    try:
+        integration.delete_webhook(conta_ativa.webhook_id)
+
+        # Limpar dados do webhook na conta
+        conta_ativa.webhook_id = ''
+        conta_ativa.webhook_secret = ''
+        conta_ativa.save(update_fields=['webhook_id', 'webhook_secret'])
+
+        logger.info(f'[Integracoes] Webhook removido da conta {conta_ativa.id}')
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Webhook removido com sucesso.'
+        })
+
+    except PaymentIntegrationError as e:
+        logger.error(f'[Integracoes] Erro ao remover webhook: {e}')
+        return JsonResponse({
+            'success': False,
+            'message': f'Erro ao remover webhook: {e.message}'
+        })
+    except Exception as e:
+        logger.error(f'[Integracoes] Erro inesperado ao remover webhook: {e}')
+        return JsonResponse({
+            'success': False,
+            'message': f'Erro inesperado: {str(e)}'
+        })
+
+
+# =============================================================================
+# SINCRONIZAÇÃO DE COBRANÇAS PIX
+# =============================================================================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def integracoes_fastdepix_sincronizar(request):
+    """
+    Sincroniza o status das cobranças pendentes com o FastDePix.
+
+    Consulta a API para cada cobrança pendente e atualiza o status local
+    se houver mudança (pago, expirado, cancelado).
+    """
+    from nossopainel.services.payment_integrations import get_payment_integration, PaymentStatus
+    from django.utils import timezone
+    from datetime import timedelta
+
+    # Buscar conta ativa FastDePix
+    conta_ativa = ContaBancaria.objects.filter(
+        instituicao__tipo_integracao='fastdepix',
+        api_key__isnull=False
+    ).exclude(api_key='').first()
+
+    if not conta_ativa:
+        return JsonResponse({
+            'success': False,
+            'message': 'Nenhuma conta FastDePix configurada.'
+        })
+
+    integration = get_payment_integration(conta_ativa)
+    if not integration:
+        return JsonResponse({
+            'success': False,
+            'message': 'Erro ao inicializar integração.'
+        })
+
+    # Buscar cobranças pendentes dos últimos 30 dias
+    desde = timezone.now() - timedelta(days=30)
+    cobrancas_pendentes = CobrancaPix.objects.filter(
+        usuario=request.user,
+        integracao='fastdepix',
+        status='pending',
+        criado_em__gte=desde
+    )
+
+    total = cobrancas_pendentes.count()
+    atualizadas = 0
+    erros = 0
+    detalhes = []
+
+    for cobranca in cobrancas_pendentes:
+        try:
+            # Consultar status na API
+            status_api = integration.get_charge_status(cobranca.transaction_id)
+
+            # Se status mudou, atualizar
+            if status_api == PaymentStatus.PAID and cobranca.status != 'paid':
+                # Buscar detalhes completos para obter data de pagamento e taxas
+                try:
+                    from decimal import Decimal
+                    details = integration.get_charge_details(cobranca.transaction_id)
+                    paid_at = None
+                    if details.get('paid_at'):
+                        try:
+                            paid_at = timezone.datetime.fromisoformat(
+                                details['paid_at'].replace('Z', '+00:00')
+                            )
+                        except (ValueError, AttributeError):
+                            paid_at = timezone.now()
+
+                    payer = details.get('payer', {})
+
+                    # Extrair valores financeiros
+                    valor_recebido = None
+                    valor_taxa = None
+
+                    # Tentar extrair valor recebido (líquido)
+                    for key in ['net_amount', 'amount_received', 'liquid_value', 'valor_liquido']:
+                        if key in details and details[key] is not None:
+                            try:
+                                valor_recebido = Decimal(str(details[key]))
+                            except (ValueError, TypeError):
+                                pass
+                            break
+
+                    # Tentar extrair taxa
+                    for key in ['fee', 'taxa', 'fee_amount', 'valor_taxa']:
+                        if key in details and details[key] is not None:
+                            try:
+                                valor_taxa = Decimal(str(details[key]))
+                            except (ValueError, TypeError):
+                                pass
+                            break
+
+                    cobranca.mark_as_paid(
+                        paid_at=paid_at,
+                        payer_name=payer.get('name') if isinstance(payer, dict) else None,
+                        payer_document=payer.get('cpf_cnpj') if isinstance(payer, dict) else None,
+                        webhook_data={'data': details},
+                        valor_recebido=valor_recebido,
+                        valor_taxa=valor_taxa,
+                    )
+                except Exception:
+                    # Se falhar ao buscar detalhes, marca como pago com data atual
+                    cobranca.mark_as_paid(paid_at=timezone.now())
+
+                atualizadas += 1
+                detalhes.append({
+                    'transaction_id': cobranca.transaction_id,
+                    'novo_status': 'paid',
+                    'mensagem': 'Marcada como PAGA'
+                })
+                logger.info(f'[Sync PIX] Cobrança {cobranca.transaction_id} marcada como PAGA')
+
+            elif status_api == PaymentStatus.EXPIRED and cobranca.status != 'expired':
+                cobranca.mark_as_expired()
+                atualizadas += 1
+                detalhes.append({
+                    'transaction_id': cobranca.transaction_id,
+                    'novo_status': 'expired',
+                    'mensagem': 'Marcada como EXPIRADA'
+                })
+                logger.info(f'[Sync PIX] Cobrança {cobranca.transaction_id} marcada como EXPIRADA')
+
+            elif status_api == PaymentStatus.CANCELLED and cobranca.status != 'cancelled':
+                cobranca.mark_as_cancelled()
+                atualizadas += 1
+                detalhes.append({
+                    'transaction_id': cobranca.transaction_id,
+                    'novo_status': 'cancelled',
+                    'mensagem': 'Marcada como CANCELADA'
+                })
+                logger.info(f'[Sync PIX] Cobrança {cobranca.transaction_id} marcada como CANCELADA')
+
+        except Exception as e:
+            erros += 1
+            logger.warning(f'[Sync PIX] Erro ao sincronizar cobrança {cobranca.transaction_id}: {e}')
+            detalhes.append({
+                'transaction_id': cobranca.transaction_id,
+                'erro': str(e)
+            })
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Sincronização concluída. {atualizadas} de {total} cobranças atualizadas.',
+        'total_verificadas': total,
+        'atualizadas': atualizadas,
+        'erros': erros,
+        'detalhes': detalhes
+    })
+
+
+# =============================================================================
+# CONFIGURAÇÃO DE AGENDAMENTOS
+# =============================================================================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def config_agendamentos(request):
+    """
+    Página de configuração dos agendamentos do sistema.
+    Permite visualizar, ativar/desativar e configurar templates de mensagem.
+    """
+    from .models import ConfiguracaoAgendamento
+
+    if request.method == 'POST':
+        # Atualizar configuração de um job
+        job_nome = request.POST.get('job_nome')
+        acao = request.POST.get('acao')
+
+        if not job_nome:
+            return JsonResponse({'success': False, 'message': 'Job não especificado.'})
+
+        try:
+            job = ConfiguracaoAgendamento.objects.get(nome=job_nome)
+
+            # Verificar se o job é editável
+            if job.bloqueado and acao != 'visualizar':
+                return JsonResponse({'success': False, 'message': 'Este job não pode ser editado.'})
+
+            if acao == 'toggle':
+                job.ativo = not job.ativo
+                job.save(update_fields=['ativo'])
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Job {"ativado" if job.ativo else "desativado"} com sucesso.',
+                    'ativo': job.ativo
+                })
+
+            elif acao == 'atualizar_template':
+                template_key = request.POST.get('template_key')
+                template_value = request.POST.get('template_value', '')
+
+                if not template_key:
+                    return JsonResponse({'success': False, 'message': 'Chave do template não especificada.'})
+
+                templates = job.templates_mensagem or {}
+                templates[template_key] = template_value
+                job.templates_mensagem = templates
+                job.save(update_fields=['templates_mensagem'])
+
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Template atualizado com sucesso.'
+                })
+
+            elif acao == 'atualizar_horario':
+                import re
+                horario = request.POST.get('horario', '')
+
+                # Validar formato HH:MM
+                if not re.match(r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$', horario):
+                    return JsonResponse({'success': False, 'message': 'Formato de horário inválido. Use HH:MM.'})
+
+                job.horario = horario
+                job.save(update_fields=['horario'])
+
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Horário atualizado para {horario}. Reinicie o scheduler para aplicar.'
+                })
+
+            else:
+                return JsonResponse({'success': False, 'message': 'Ação inválida.'})
+
+        except ConfiguracaoAgendamento.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Job não encontrado.'})
+        except Exception as e:
+            logger.error(f'[Agendamentos] Erro ao processar ação: {e}')
+            return JsonResponse({'success': False, 'message': f'Erro: {str(e)}'})
+
+    # GET - Exibir página (desbloqueados primeiro, depois bloqueados)
+    jobs = ConfiguracaoAgendamento.objects.all().order_by('bloqueado', 'ordem', 'nome')
+
+    context = {
+        'page': 'config-agendamentos',
+        'page_group': 'admin',
+        'jobs': jobs,
+    }
+
+    return render(request, 'pages/admin/agendamentos.html', context)

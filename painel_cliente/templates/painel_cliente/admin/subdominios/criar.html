@@ -1,0 +1,414 @@
+{% extends 'painel_cliente/admin/base_admin.html' %}
+
+{% block title %}Novo Subdominio{% endblock %}
+{% block breadcrumb %}Novo Subdominio{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in-up">
+  <!-- Page Header -->
+  <div class="page-header-admin">
+    <div class="page-header-back">
+      <a href="{% url 'painel_cliente:admin_subdominios' %}" class="btn btn-icon btn-ghost">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      </a>
+      <h1>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="16"></line>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+        </svg>
+        Novo Subdomínio
+      </h1>
+    </div>
+  </div>
+
+  <!-- Error Alert -->
+  {% if errors %}
+  <div class="admin-alert admin-alert-danger animate-shake">
+    <div class="admin-alert-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+      </svg>
+    </div>
+    <div class="admin-alert-content">
+      <strong>Corrija os erros abaixo:</strong>
+      <ul>
+        {% for error in errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Form Card -->
+  <div class="admin-card">
+    <div class="admin-card-body">
+      <form method="post" action="{% url 'painel_cliente:admin_subdominio_criar' %}" class="admin-form" id="form-criar">
+        {% csrf_token %}
+
+        <div class="form-grid">
+          <!-- Subdominio -->
+          <div class="form-group">
+            <label for="subdominio" class="form-label">
+              Subdomínio
+              <span class="form-required">*</span>
+            </label>
+            <div class="input-group">
+              <input
+                type="text"
+                class="form-input"
+                id="subdominio"
+                name="subdominio"
+                value="{{ form_data.subdominio|default:'' }}"
+                pattern="[a-z0-9]+"
+                minlength="3"
+                maxlength="63"
+                required
+                placeholder="meunegocio"
+                autocomplete="off"
+              >
+              <span class="input-group-text">.pagar.cc</span>
+            </div>
+            <p class="form-hint">Apenas letras minúsculas e números, sem espaços</p>
+          </div>
+
+          <!-- Nome de Exibicao -->
+          <div class="form-group">
+            <label for="nome_exibicao" class="form-label">
+              Nome de Exibição
+              <span class="form-required">*</span>
+            </label>
+            <input
+              type="text"
+              class="form-input"
+              id="nome_exibicao"
+              name="nome_exibicao"
+              value="{{ form_data.nome_exibicao|default:'' }}"
+              required
+              placeholder="Meu Negocio IPTV"
+            >
+            <p class="form-hint">Nome que aparecerá no painel do cliente</p>
+          </div>
+
+          <!-- Admin Responsavel -->
+          <div class="form-group">
+            <label for="admin_responsavel" class="form-label">
+              Admin Responsável
+              <span class="form-required">*</span>
+            </label>
+            <div class="select-wrapper">
+              <select class="form-select" id="admin_responsavel" name="admin_responsavel" required>
+                <option value="">Selecione um usuário...</option>
+                {% for usuario in usuarios %}
+                <option value="{{ usuario.id }}" {% if form_data.admin_responsavel == usuario.id|stringformat:"s" %}selected{% endif %}>
+                  {{ usuario.username }}{% if usuario.email %} ({{ usuario.email }}){% endif %}
+                </option>
+                {% endfor %}
+              </select>
+              <svg class="select-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+            <p class="form-hint">Usuário do NossoPainel que irá gerenciar este subdomínio</p>
+          </div>
+
+          <!-- Conta FastDePix -->
+          <div class="form-group">
+            <label for="conta_bancaria" class="form-label">Conta FastDePix</label>
+            <div class="select-wrapper">
+              <select class="form-select" id="conta_bancaria" name="conta_bancaria">
+                <option value="">Nenhuma (configurar depois)</option>
+                {% for conta in contas_fastdepix %}
+                <option value="{{ conta.id }}" {% if form_data.conta_bancaria == conta.id|stringformat:"s" %}selected{% endif %}>
+                  {{ conta.apelido|default:conta.beneficiario }}
+                </option>
+                {% endfor %}
+              </select>
+              <svg class="select-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+            <p class="form-hint">Conta usada para processar pagamentos PIX</p>
+          </div>
+        </div>
+
+        <!-- Status Toggle -->
+        <div class="form-group">
+          <label class="toggle-wrapper">
+            <input
+              type="checkbox"
+              id="ativo"
+              name="ativo"
+              class="toggle-input"
+              {% if form_data.ativo == 'on' or not form_data %}checked{% endif %}
+            >
+            <span class="toggle-switch"></span>
+            <span class="toggle-label">Subdomínio ativo</span>
+          </label>
+          <p class="form-hint" style="margin-left: 52px;">Subdomínios inativos não podem ser acessados</p>
+        </div>
+
+        <hr class="form-divider">
+
+        <!-- Actions -->
+        <div class="form-actions">
+          <a href="{% url 'painel_cliente:admin_subdominios' %}" class="btn btn-ghost">Cancelar</a>
+          <button type="submit" class="btn btn-primary" id="btn-criar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Criar Subdomínio
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-header-back {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .admin-alert {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-xl);
+    margin-bottom: var(--space-5);
+  }
+
+  .admin-alert-danger {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+
+  .admin-alert-danger .admin-alert-icon {
+    color: var(--color-danger);
+  }
+
+  .admin-alert-content {
+    flex: 1;
+  }
+
+  .admin-alert-content strong {
+    color: var(--color-text-primary);
+    display: block;
+    margin-bottom: var(--space-2);
+  }
+
+  .admin-alert-content ul {
+    margin: 0;
+    padding-left: var(--space-4);
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+  }
+
+  .admin-form {
+    max-width: 800px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-5);
+    margin-bottom: var(--space-5);
+  }
+
+  @media (max-width: 640px) {
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .form-label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .form-required {
+    color: var(--color-danger);
+  }
+
+  .form-input,
+  .form-select {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-fast);
+  }
+
+  .form-input:focus,
+  .form-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+  }
+
+  .form-input::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  .input-group {
+    display: flex;
+  }
+
+  .input-group .form-input {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .input-group-text {
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    border-left: none;
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  }
+
+  .select-wrapper {
+    position: relative;
+  }
+
+  .form-select {
+    appearance: none;
+    padding-right: var(--space-10);
+  }
+
+  .select-icon {
+    position: absolute;
+    right: var(--space-4);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+
+  .form-hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  /* Toggle */
+  .toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    cursor: pointer;
+  }
+
+  .toggle-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .toggle-switch {
+    width: 44px;
+    height: 24px;
+    background: var(--color-border);
+    border-radius: var(--radius-full);
+    position: relative;
+    transition: background var(--transition-fast);
+    flex-shrink: 0;
+  }
+
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-fast);
+  }
+
+  .toggle-input:checked + .toggle-switch {
+    background: var(--color-success);
+  }
+
+  .toggle-input:checked + .toggle-switch::after {
+    transform: translateX(20px);
+  }
+
+  .toggle-input:focus + .toggle-switch {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  }
+
+  .toggle-label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--color-text-primary);
+  }
+
+  .form-divider {
+    border: none;
+    border-top: 1px solid var(--color-border-light);
+    margin: var(--space-6) 0;
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+  }
+
+  [data-theme="dark"] .form-input,
+  [data-theme="dark"] .form-select {
+    background: var(--color-surface-elevated);
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const subdominioInput = document.getElementById('subdominio');
+    const form = document.getElementById('form-criar');
+    const btnCriar = document.getElementById('btn-criar');
+
+    // Normalize subdomain to lowercase and remove invalid chars
+    subdominioInput.addEventListener('input', function(e) {
+      e.target.value = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+    });
+
+    // Form submit loading state
+    form.addEventListener('submit', function() {
+      btnCriar.disabled = true;
+      btnCriar.innerHTML = '<span class="spinner spinner-sm"></span> Criando...';
+    });
+  });
+</script>
+{% endblock %}

@@ -22,6 +22,7 @@
     {% include 'partials/modal_create_app.html' %}
     {% include 'partials/modal_edit_cliente.html' %}
     {% include 'partials/modal_aviso_limite.html' %}
+    {% include 'partials/modal_alertas_fastdepix.html' %}
 {% endblock %}
 
 {% block content %}
@@ -260,8 +261,32 @@
                     </div>
                     </div>
 
+                    <!-- Alerta: Clientes sem Forma de Pagamento -->
+                    {% if clientes_sem_forma_pgto > 0 %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-danger d-flex align-items-start shadow-sm" role="alert">
+                                <i class="bi bi-exclamation-triangle-fill fs-4 me-3 mt-1"></i>
+                                <div class="flex-grow-1">
+                                    <h6 class="alert-heading mb-1 fw-bold">Atenção: Clientes sem Forma de Pagamento</h6>
+                                    <p class="mb-1">
+                                        <strong>{{ clientes_sem_forma_pgto }}</strong> cliente(s) ativo(s) não estão associados a nenhuma forma de pagamento.
+                                    </p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Esses clientes não receberão notificações automáticas sobre vencimentos e pagamentos.
+                                    </small>
+                                </div>
+                                <a href="{% url 'cadastro-forma-pagamento' %}" class="btn btn-outline-danger btn-sm ms-3 align-self-center">
+                                    <i class="bi bi-gear me-1"></i>Configurar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- row  -->
-                    <div class="row mt-6 g-4 align-items-stretch">
+                    <div class="row mt-2 g-4 align-items-stretch">
                         <div class="col-12">
                             <div class="card card-dashboard-tabs h-100">
                                 <div class="dashboard-tabs-surface">

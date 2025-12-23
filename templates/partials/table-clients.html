@@ -203,7 +203,7 @@
                                 data-telefone="{{cliente.telefone|formatar_telefone}}"
                                 data-indicado_por="{{cliente.indicado_por}}"
                                 data-servidor="{{cliente.servidor}}"
-                                data-forma_pgto="{{cliente.forma_pgto}}"
+                                data-forma_pgto="{% if cliente.forma_pgto %}{{cliente.forma_pgto.id}}{% endif %}"
                                 data-plano="{{cliente.plano.id}}"
                                 data-telas="{{cliente.telas}}"
                                 data-data_vencimento="{{cliente.data_vencimento|date:'Y-m-d'}}"

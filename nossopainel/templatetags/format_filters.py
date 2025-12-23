@@ -151,3 +151,17 @@ def format_valor_negocio(valor):
         return f"{resultado:,.1f} k".replace(',', 'X').replace('.', ',').replace('X', '.')
     else:
         return f"{valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+
+
+@register.filter
+def first_name(value):
+    """
+    Retorna apenas o primeiro nome de uma string.
+
+    Exemplo:
+        {{ cliente.nome|first_name }}
+        "João da Silva" -> "João"
+    """
+    if not value:
+        return ""
+    return str(value).split()[0] if value else ""
