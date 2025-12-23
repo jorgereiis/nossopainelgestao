@@ -168,6 +168,16 @@ def job_wrapper(job_nome, job_func, *args, **kwargs):
     job_func(*args, **kwargs)
 
 
+async def async_job_wrapper(job_nome, async_job_func, *args, **kwargs):
+    """
+    Wrapper async que verifica se o job está ativo antes de executar.
+    """
+    if not is_job_ativo(job_nome):
+        logger_fileonly.debug(f"Job async {job_nome} está INATIVO - pulando execução")
+        return
+    await async_job_func(*args, **kwargs)
+
+
 def log_jobs_state():
     """Loga o estado atual dos jobs agendados."""
     jobs = schedule.get_jobs()
@@ -244,7 +254,7 @@ schedule.every().day.at(horario_mensalidades_canceladas).do(
 
 # Jobs async com loop dedicado:
 schedule.every().day.at(horario_telegram_connection).do(
-    run_threaded_async, telegram_connection
+    run_threaded_async, async_job_wrapper, "telegram_connection", telegram_connection
 ).tag("telegram_connection")
 
 schedule.every().day.at(horario_upload_telegram).do(

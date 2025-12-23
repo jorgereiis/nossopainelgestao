@@ -63,6 +63,7 @@ from nossopainel.models import (
     Cliente, DadosBancarios, HorarioEnvios,
     MensagensLeads, TelefoneLeads, OfertaPromocionalEnviada,
     TarefaEnvio, HistoricoExecucaoTarefa,
+    ConfiguracaoAgendamento,
 )
 
 URL_API_WPP = os.getenv("URL_API_WPP")
@@ -341,6 +342,34 @@ def get_url_painel_cliente(usuario):
     return f"https://{config.dominio_completo}/"
 
 
+##########################################################################
+##### FUNÇÃO PARA OBTER TEMPLATE DE MENSAGEM DO BANCO DE DADOS #####
+##########################################################################
+
+def get_template_mensagem(nome_job: str, chave_template: str, texto_padrao: str) -> str:
+    """
+    Busca um template de mensagem configurado no banco de dados.
+
+    Args:
+        nome_job: Nome do job em ConfiguracaoAgendamento (ex: 'envios_vencimento')
+        chave_template: Chave do template no JSON (ex: 'observacao_fastdepix')
+        texto_padrao: Texto padrão caso não encontre no banco
+
+    Returns:
+        str: Template encontrado no banco ou texto_padrao como fallback
+    """
+    try:
+        config = ConfiguracaoAgendamento.objects.filter(nome=nome_job).first()
+        if config and config.templates_mensagem:
+            template = config.templates_mensagem.get(chave_template)
+            if template:
+                return template
+    except Exception as e:
+        logger.warning(f"Erro ao buscar template '{chave_template}' do job '{nome_job}': {e}")
+
+    return texto_padrao
+
+
 #####################################################################
 ##### FUNÇÃO PARA FILTRAR AS MENSALIDADES DOS CLIENTES A VENCER #####
 #####################################################################
@@ -572,11 +601,17 @@ def obter_mensalidades_a_vencer(usuario_query):
             if tipo_integracao == 'fastdepix' and tipo_mensagem == "à vencer 1 dias":
                 time.sleep(5)  # Aguarda 5 segundos antes de enviar a observação
 
-                mensagem_observacao = (
+                # Busca template do banco de dados, com fallback para texto padrão
+                texto_padrao_observacao = (
                     "OBSERVAÇÃO: Estamos mudando a forma como os clientes devem fazer seus pagamentos "
                     "e não aceitaremos mais pagamento enviados na chave pix anterior. Você precisa acessar "
                     "o link do nosso Painel do Cliente, acessar com seu número de telefone e realizar o "
                     "pagamento da mensalidade que estará em aberto na tela inicial."
+                )
+                mensagem_observacao = get_template_mensagem(
+                    nome_job='envios_vencimento',
+                    chave_template='observacao_fastdepix',
+                    texto_padrao=texto_padrao_observacao
                 )
 
                 enviar_mensagem_agendada(
@@ -795,14 +830,60 @@ def obter_mensalidades_canceladas():
 
     Cada cliente recebe no máximo 3 ofertas promocionais em toda a vida.
     A contagem de dias é sempre a partir da data_cancelamento atual.
+
+    Placeholders disponíveis nos templates: {saudacao}, {nome}
     """
     admin = User.objects.filter(is_superuser=True).order_by('id').first()
 
+    # Textos padrão (fallback)
+    texto_padrao_feedback = (
+        "*{saudacao}, {nome}* 🫡\n\n"
+        "Tudo bem? Espero que sim.\n\n"
+        "Faz um tempo que você deixou de ser nosso cliente ativo e ficamos preocupados. "
+        "Houve algo que não agradou em nosso sistema?\n\n"
+        "Pergunto, pois se algo não agradou, nos informe para fornecermos uma plataforma "
+        "melhor para você, tá bom?\n\n"
+        "Estamos à disposição! 🙏🏼"
+    )
+
+    texto_padrao_oferta_1 = (
+        "*Opa.. {saudacao}, {nome}!! Tudo bacana?*\n\n"
+        "Como você já foi nosso cliente, trago uma notícia que talvez você goste muuuiito!!\n\n"
+        "Você pode renovar a sua mensalidade conosco pagando *APENAS R$ 24.90* nos próximos "
+        "3 meses. Olha só que bacana?!?!\n\n"
+        "Esse tipo de desconto não oferecemos a qualquer um, viu? rsrs\n\n"
+        "Caso tenha interesse, avise aqui, pois iremos garantir essa oferta apenas essa semana. 👏🏼👏🏼"
+    )
+
+    texto_padrao_oferta_2 = (
+        "*{saudacao}, {nome}!* 😊\n\n"
+        "Sentimos muito a sua falta por aqui!\n\n"
+        "Que tal voltar para a nossa família com uma *SUPER OFERTA EXCLUSIVA*?\n\n"
+        "Estamos oferecendo *os próximos 3 meses por apenas R$ 24,90 cada* para você "
+        "que já foi nosso cliente! 🎉\n\n"
+        "Esta é uma oportunidade única de retornar com um preço especial. Não perca!\n\n"
+        "Tem interesse? É só responder aqui! 🙌"
+    )
+
+    texto_padrao_oferta_3 = (
+        "*{saudacao}, {nome}!* 🌟\n\n"
+        "Esta é a nossa *ÚLTIMA OFERTA ESPECIAL* para você!\n\n"
+        "Sabemos que você já foi parte da nossa família e queremos muito ter você de volta.\n\n"
+        "✨ *OFERTA FINAL: R$ 24,90 para os próximos 3 meses* ✨\n\n"
+        "Esta é realmente a última oportunidade de aproveitar este preço exclusivo.\n\n"
+        "O que acha? Vamos renovar essa parceria? 🤝"
+    )
+
+    # Busca templates do banco de dados com fallback para texto padrão
     # Mensagem de feedback (20 dias)
     feedback_config = {
         "dias": 20,
         "tipo": "feedback",
-        "mensagem": "*{}, {}* 🫡\n\nTudo bem? Espero que sim.\n\nFaz um tempo que você deixou de ser nosso cliente ativo e ficamos preocupados. Houve algo que não agradou em nosso sistema?\n\nPergunto, pois se algo não agradou, nos informe para fornecermos uma plataforma melhor para você, tá bom?\n\nEstamos à disposição! 🙏🏼"
+        "mensagem": get_template_mensagem(
+            nome_job='mensalidades_canceladas',
+            chave_template='feedback_20_dias',
+            texto_padrao=texto_padrao_feedback
+        )
     }
 
     # Ofertas promocionais progressivas
@@ -810,17 +891,29 @@ def obter_mensalidades_canceladas():
         {
             "dias": 60,
             "numero_oferta": 1,
-            "mensagem": "*Opa.. {}, {}!! Tudo bacana?*\n\nComo você já foi nosso cliente, trago uma notícia que talvez você goste muuuiito!!\n\nVocê pode renovar a sua mensalidade conosco pagando *APENAS R$ 24.90* nos próximos 3 meses. Olha só que bacana?!?!\n\nEsse tipo de desconto não oferecemos a qualquer um, viu? rsrs\n\nCaso tenha interesse, avise aqui, pois iremos garantir essa oferta apenas essa semana. 👏🏼👏🏼"
+            "mensagem": get_template_mensagem(
+                nome_job='mensalidades_canceladas',
+                chave_template='oferta_1_60_dias',
+                texto_padrao=texto_padrao_oferta_1
+            )
         },
         {
             "dias": 240,
             "numero_oferta": 2,
-            "mensagem": "*{}, {}!* 😊\n\nSentimos muito a sua falta por aqui!\n\nQue tal voltar para a nossa família com uma *SUPER OFERTA EXCLUSIVA*?\n\nEstamos oferecendo *os próximos 3 meses por apenas R$ 24,90 cada* para você que já foi nosso cliente! 🎉\n\nEsta é uma oportunidade única de retornar com um preço especial. Não perca!\n\nTem interesse? É só responder aqui! 🙌"
+            "mensagem": get_template_mensagem(
+                nome_job='mensalidades_canceladas',
+                chave_template='oferta_2_240_dias',
+                texto_padrao=texto_padrao_oferta_2
+            )
         },
         {
             "dias": 420,
             "numero_oferta": 3,
-            "mensagem": "*{}, {}!* 🌟\n\nEsta é a nossa *ÚLTIMA OFERTA ESPECIAL* para você!\n\nSabemos que você já foi parte da nossa família e queremos muito ter você de volta.\n\n✨ *OFERTA FINAL: R$ 24,90 para os próximos 3 meses* ✨\n\nEsta é realmente a última oportunidade de aproveitar este preço exclusivo.\n\nO que acha? Vamos renovar essa parceria? 🤝"
+            "mensagem": get_template_mensagem(
+                nome_job='mensalidades_canceladas',
+                chave_template='oferta_3_420_dias',
+                texto_padrao=texto_padrao_oferta_3
+            )
         }
     ]
 
@@ -991,12 +1084,16 @@ def _enviar_mensagem_cliente(cliente, admin, mensagem_template, qtd_dias, tipo_e
     """
     Envia mensagem para um cliente específico.
 
+    Placeholders suportados no template:
+        {saudacao} - Saudação conforme horário (Bom dia, Boa tarde, Boa noite)
+        {nome} - Primeiro nome do cliente
+
     Returns:
         bool: True se enviou com sucesso, False caso contrário
     """
     primeiro_nome = cliente.nome.split(' ')[0]
     saudacao = get_saudacao_por_hora()
-    mensagem = mensagem_template.format(saudacao, primeiro_nome)
+    mensagem = mensagem_template.format(saudacao=saudacao, nome=primeiro_nome)
 
     sessao = SessaoWpp.objects.filter(usuario=admin, is_active=True).first()
 

@@ -35,6 +35,7 @@ from wpp.api_connection import (
 
 from nossopainel.models import (
     SessaoWpp,
+    ConfiguracaoAgendamento,
 )
 
 from scripts.mensagens_wpp import (
@@ -45,6 +46,35 @@ URL_API_WPP = os.getenv("URL_API_WPP")
 LOG_GRUPOS = "logs/Envios grupos/envios.log"
 TEMPLATE_LOG_MSG_GRUPO = os.getenv("TEMPLATE_LOG_MSG_GRUPO")
 TEMPLATE_LOG_MSG_GRUPO_FALHOU = os.getenv("TEMPLATE_LOG_MSG_GRUPO_FALHOU")
+
+
+##########################################################################
+##### FUNÇÃO PARA OBTER TEMPLATE DE MENSAGEM DO BANCO DE DADOS #####
+##########################################################################
+
+def get_template_mensagem(nome_job: str, chave_template: str, texto_padrao: str) -> str:
+    """
+    Busca um template de mensagem configurado no banco de dados.
+
+    Args:
+        nome_job: Nome do job em ConfiguracaoAgendamento (ex: 'gp_futebol')
+        chave_template: Chave do template no JSON (ex: 'mensagem_futebol')
+        texto_padrao: Texto padrão caso não encontre no banco
+
+    Returns:
+        str: Template encontrado no banco ou texto_padrao como fallback
+    """
+    try:
+        config = ConfiguracaoAgendamento.objects.filter(nome=nome_job).first()
+        if config and config.templates_mensagem:
+            template = config.templates_mensagem.get(chave_template)
+            if template:
+                return template
+    except Exception as e:
+        logger.warning(f"Erro ao buscar template '{chave_template}' do job '{nome_job}': {e}")
+
+    return texto_padrao
+
 
 ##################################################################
 ################ FUNÇÃO PARA ENVIAR MENSAGENS ####################
@@ -516,6 +546,22 @@ def mensagem_gp_wpp(
 
 # Exemplo de chamadas
 def chamada_funcao_gp_vendas():
+    # Busca mensagem do banco com fallback para texto padrão
+    texto_padrao_vendas = (
+        "🔹 A *Star Max Streaming* se trata de um serviço onde através da sua TV Smart poderá ter acesso aos canais da TV Fechada brasileira e internacional.\n\n"
+        "🎬 Conteúdos de Filmes, Séries e Novelas das maiores plataformas de streaming, como _Amazon, Netflix, Globo Play, Disney+ e outras._\n\n"
+        "* Tudo isso usando apenas a sua TV Smart e internet, sem precisar outros aparelhos;\n"
+        "* Um excelente serviço por um custo baixíssimo;\n"
+        "* Pague com *PIX ou Cartão de Crédito.*\n"
+        "* 💰Planos a partir de R$ 25.00\n\n"
+        "‼️ Entre em contato conosco aqui mesmo no WhatsApp: +55 83 99332-9190"
+    )
+    mensagem = get_template_mensagem(
+        nome_job='gp_vendas',
+        chave_template='mensagem_vendas',
+        texto_padrao=texto_padrao_vendas
+    )
+
     mensagem_gp_wpp(
         tipo_envio="grupo_vendas",
         nomes_grupos=[
@@ -528,30 +574,35 @@ def chamada_funcao_gp_vendas():
             "💥 TROCAS E VENDAS 💥",
             "OLX  JACINTINHO - MACEIÓ. VENDAS/TROCAS/ PRESTAÇÃO DE SERVIÇOS.",
         ],
-        mensagem=(
-            "🔹 A *Star Max Streaming* se trata de um serviço onde através da sua TV Smart poderá ter acesso aos canais da TV Fechada brasileira e internacional.\n\n"
-            "🎬 Conteúdos de Filmes, Séries e Novelas das maiores plataformas de streaming, como _Amazon, Netflix, Globo Play, Disney+ e outras._\n\n"
-            "* Tudo isso usando apenas a sua TV Smart e internet, sem precisar outros aparelhos;\n"
-            "* Um excelente serviço por um custo baixíssimo;\n"
-            "* Pague com *PIX ou Cartão de Crédito.*\n"
-            "* 💰Planos a partir de R$ 25.00\n\n"
-            "‼️ Entre em contato conosco aqui mesmo no WhatsApp: +55 83 99332-9190"
-        ),
+        mensagem=mensagem,
         image_name="01.png",
     )
 
 def chamada_funcao_gp_futebol():
     # sem override => usa a pasta do dia atual
+    # Busca mensagem do banco com fallback para texto padrão
+    # Use {data} como placeholder para a data formatada
+    texto_padrao_futebol = (
+        "⚽️ *AGENDA FUTEBOL DO DIA!*\n"
+        "📅 *DATA:* {data}\n\n"
+        "Transmissão completa de todos os campeonatos apenas aqui 😉\n\n"
+        "Chamaaaaa!! 🔥"
+    )
+    template = get_template_mensagem(
+        nome_job='gp_futebol',
+        chave_template='mensagem_futebol',
+        texto_padrao=texto_padrao_futebol
+    )
+    # Substitui o placeholder {data} pela data atual formatada
+    mensagem = template.replace('{data}', localtime().strftime('%d/%m/%Y'))
+
     mensagem_gp_wpp(
         tipo_envio="grupo_futebol",
         nomes_grupos=[
             "BAMOR 5° VG 🇲🇫🌪️",
             "Jampa de Aço 5988",
         ],
-        mensagem="⚽️ *AGENDA FUTEBOL DO DIA!*"
-                 "\n📅 *DATA:* {}\n\n" \
-                 "Transmissão completa de todos os campeonatos apenas aqui 😉\n\n" \
-                 "Chamaaaaa!! 🔥".format(localtime().strftime('%d/%m/%Y')),
+        mensagem=mensagem,
     )
 
 def chamada_funcao_gp_futebol_teste_data_passada():
