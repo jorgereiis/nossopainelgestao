@@ -4873,10 +4873,10 @@ def edit_reject_call_config(request):
 @require_http_methods(["GET", "POST"])
 def edit_referral_plan(request):
     PLANOS_OBRIGATORIOS = [
-        {"tipo_plano": "desconto", "valor": 0.00, "valor_minimo_mensalidade": 5.00, "limite_indicacoes": 0},
-        {"tipo_plano": "dinheiro", "valor": 0.00, "valor_minimo_mensalidade": 5.00, "limite_indicacoes": 0},
-        {"tipo_plano": "anuidade", "valor": 0.00, "valor_minimo_mensalidade": 5.00, "limite_indicacoes": 0},
-        {"tipo_plano": "desconto_progressivo", "valor": 0.00, "valor_minimo_mensalidade": 5.00, "limite_indicacoes": 0},
+        {"tipo_plano": "desconto", "valor": 0.00, "valor_minimo_mensalidade": 10.00, "limite_indicacoes": 0},
+        {"tipo_plano": "dinheiro", "valor": 0.00, "valor_minimo_mensalidade": 10.00, "limite_indicacoes": 0},
+        {"tipo_plano": "anuidade", "valor": 0.00, "valor_minimo_mensalidade": 10.00, "limite_indicacoes": 0},
+        {"tipo_plano": "desconto_progressivo", "valor": 0.00, "valor_minimo_mensalidade": 10.00, "limite_indicacoes": 0},
     ]
     usuario = request.user
     sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()

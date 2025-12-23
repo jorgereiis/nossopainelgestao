@@ -4,9 +4,12 @@
 {% block title %}Login Cliente{% endblock %}
 
 {% block extra_head %}
-<!-- intl-tel-input CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/css/intlTelInput.min.css">
-<!-- reCAPTCHA -->
+<!-- intl-tel-input CSS (com SRI para seguranca) -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/css/intlTelInput.min.css"
+      integrity="sha384-0W+CYJBvPEFEj1zJRGJSs5b09qYE9+Ic/aQ6/7ZTxFLcf7EUpue5jVx7ZLS/YVJ3"
+      crossorigin="anonymous">
+<!-- reCAPTCHA (Google nao suporta SRI) -->
 {% if recaptcha_site_key %}
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 {% endif %}
@@ -494,8 +497,10 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- intl-tel-input JS -->
-<script src="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/intlTelInput.min.js"></script>
+<!-- intl-tel-input JS (com SRI para seguranca) -->
+<script src="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/intlTelInput.min.js"
+        integrity="sha384-jWaeC5aDXb7elsW1/0JOouI7BAEbEwWuVTFDzPZcAsJNImXvBfEs9YR8FwcDD/hm"
+        crossorigin="anonymous"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     // Loading inicial na página de login - mostra por 2 segundos

@@ -104,6 +104,7 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "csp.middleware.CSPMiddleware",  # Content Security Policy
     "setup.middleware.DomainRoutingMiddleware",  # Roteamento por domínio (JampaBet vs NossoPainel)
     "painel_cliente.middleware.SubdomainRoutingMiddleware",  # Roteamento de subdominios (*.pagar.cc)
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -139,6 +140,58 @@ SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "0").lower() in ("1", "tr
 SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = bool(SECURE_HSTS_SECONDS)
 SECURE_HSTS_PRELOAD = False
+
+# =============================================================================
+# LIMITES DE UPLOAD DE ARQUIVOS
+# =============================================================================
+# Limite global de upload: 5MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+
+# Limite especifico para logo do painel_cliente: 2MB
+PAINEL_CLIENTE_MAX_LOGO_SIZE = 2 * 1024 * 1024  # 2MB
+
+# =============================================================================
+# CONTENT SECURITY POLICY (CSP)
+# =============================================================================
+# Politica de seguranca de conteudo para prevenir XSS e injecao de codigo
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = (
+    "'self'",
+    "'unsafe-inline'",  # Necessario para scripts inline (Django messages, etc)
+    "'unsafe-eval'",    # Necessario para algumas libs JS
+    "https://www.google.com",
+    "https://www.gstatic.com",
+    "https://cdn.jsdelivr.net",
+)
+CSP_STYLE_SRC = (
+    "'self'",
+    "'unsafe-inline'",  # Necessario para estilos inline
+    "https://fonts.googleapis.com",
+    "https://cdn.jsdelivr.net",
+)
+CSP_FONT_SRC = (
+    "'self'",
+    "https://fonts.gstatic.com",
+    "data:",
+)
+CSP_IMG_SRC = (
+    "'self'",
+    "data:",
+    "https:",
+    "blob:",
+)
+CSP_FRAME_SRC = (
+    "'self'",
+    "https://www.google.com",  # reCAPTCHA
+)
+CSP_CONNECT_SRC = (
+    "'self'",
+    "https://www.google.com",
+)
+# Desabilita CSP em modo debug para facilitar desenvolvimento
+if DEBUG:
+    CSP_REPORT_ONLY = True  # Apenas reporta violacoes, nao bloqueia
 
 CSRF_TRUSTED_ORIGINS = [
     'https://nossopainel.com.br',

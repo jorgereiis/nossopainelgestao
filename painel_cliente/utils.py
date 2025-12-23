@@ -21,13 +21,18 @@ def validar_recaptcha(recaptcha_response, remote_ip=None):
         tuple: (sucesso: bool, mensagem_erro: str ou None)
     """
     if not recaptcha_response:
-        return False, "Por favor, confirme que você não é um robo."
+        return False, "Por favor, confirme que você não é um robô."
 
     secret_key = getattr(settings, 'RECAPTCHA_PRIVATE_KEY', None)
     if not secret_key:
-        # Se nao tiver chave configurada, permite passar (desenvolvimento)
-        logger.warning("[reCAPTCHA] RECAPTCHA_PRIVATE_KEY nao configurada, ignorando validacao")
-        return True, None
+        # Em modo DEBUG, permite passar sem reCAPTCHA configurado
+        if settings.DEBUG:
+            logger.warning("[reCAPTCHA] RECAPTCHA_PRIVATE_KEY nao configurada (modo desenvolvimento)")
+            return True, None
+        else:
+            # Em producao, falha se reCAPTCHA nao estiver configurado
+            logger.error("[reCAPTCHA] RECAPTCHA_PRIVATE_KEY nao configurada em PRODUCAO!")
+            return False, "Erro de configuração do sistema. Contate o suporte."
 
     try:
         payload = {
