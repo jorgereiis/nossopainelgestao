@@ -2051,6 +2051,7 @@ class NotificacaoSistema(models.Model):
         ('alerta_limite', 'Alerta de Limite'),
         ('limite_atingido', 'Limite Atingido'),
         ('mudanca_plano', 'Mudança de Plano'),
+        ('pagamento_confirmado', 'Pagamento Confirmado'),
         ('info', 'Informação'),
         ('aviso', 'Aviso'),
     ]
@@ -2146,6 +2147,55 @@ class NotificacaoSistema(models.Model):
                 'impacto_valor': float(impacto_valor),
             }
         )
+
+
+class PushSubscription(models.Model):
+    """
+    Armazena subscriptions de Web Push Notifications para cada usuário/dispositivo.
+
+    Permite enviar notificações push para o navegador do usuário mesmo
+    quando ele não está com a página aberta.
+    """
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='push_subscriptions'
+    )
+    endpoint = models.TextField(
+        help_text='URL do endpoint de push do navegador'
+    )
+    p256dh = models.CharField(
+        max_length=255,
+        help_text='Chave pública p256dh do cliente'
+    )
+    auth = models.CharField(
+        max_length=255,
+        help_text='Chave de autenticação do cliente'
+    )
+    user_agent = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        help_text='User-Agent do navegador (para identificação)'
+    )
+    ativo = models.BooleanField(
+        default=True,
+        help_text='Se False, a subscription expirou ou foi cancelada'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'cadastros_pushsubscription'
+        verbose_name = 'Push Subscription'
+        verbose_name_plural = 'Push Subscriptions'
+        unique_together = ('usuario', 'endpoint')
+        indexes = [
+            models.Index(fields=['usuario', 'ativo']),
+        ]
+
+    def __str__(self):
+        return f"Push: {self.usuario.username} ({self.endpoint[:50]}...)"
 
 
 class ClienteContaBancaria(models.Model):
@@ -2536,6 +2586,10 @@ class CobrancaPix(models.Model):
                         f'Cliente: {mensalidade.cliente.nome} - '
                         f'Signals de criação de nova mensalidade disparados'
                     )
+
+                    # === NOTIFICAÇÕES DE PAGAMENTO CONFIRMADO ===
+                    self._enviar_notificacoes_pagamento(mensalidade, logger)
+
                 else:
                     logger.warning(
                         f'[CobrancaPix] Mensalidade {mensalidade.id} já estava paga, '
@@ -2559,6 +2613,85 @@ class CobrancaPix(models.Model):
         if self.status == 'pending':
             self.status = 'cancelled'
             self.save()
+
+    def _enviar_notificacoes_pagamento(self, mensalidade, logger):
+        """
+        Envia notificações após confirmação de pagamento via PIX.
+
+        1. Cria notificação interna no sistema (NotificacaoSistema)
+        2. Envia mensagem WhatsApp de confirmação
+        3. Envia push notification no browser (se configurado)
+        """
+        cliente = mensalidade.cliente
+        primeiro_nome = cliente.nome.split()[0] if cliente.nome else "Cliente"
+
+        # 1. Criar notificação interna no sistema
+        try:
+            NotificacaoSistema.objects.create(
+                usuario=self.usuario,
+                tipo='pagamento_confirmado',
+                prioridade='media',
+                titulo='Pagamento PIX Confirmado',
+                mensagem=f'Pagamento de R$ {self.valor:.2f} confirmado para {cliente.nome}',
+                dados_extras={
+                    'cobranca_id': str(self.id),
+                    'cliente_id': cliente.id,
+                    'cliente_nome': cliente.nome,
+                    'valor': str(self.valor),
+                    'mensalidade_id': mensalidade.id,
+                    'pago_em': self.pago_em.isoformat() if self.pago_em else None,
+                }
+            )
+            logger.info(f'[CobrancaPix] Notificação interna criada para pagamento {self.id}')
+        except Exception as e:
+            logger.error(f'[CobrancaPix] Erro ao criar notificação interna: {e}')
+
+        # 2. Enviar mensagem WhatsApp de confirmação
+        if cliente.telefone and not cliente.nao_enviar_msgs:
+            try:
+                from nossopainel.services.wpp import send_message, MessageSendConfig, get_active_token
+
+                token = get_active_token(self.usuario.username)
+                if token:
+                    mensagem_wpp = (
+                        f"Obrigado, {primeiro_nome}. O seu pagamento foi confirmado "
+                        f"e a sua assinatura renovada. Confira o acesso ao nosso sistema "
+                        f"e nos informe se pudermos ajudar com qualquer dificuldade!"
+                    )
+
+                    config = MessageSendConfig(
+                        usuario=self.usuario.username,
+                        token=token,
+                        telefone=cliente.telefone,
+                        mensagem=mensagem_wpp,
+                        tipo_envio='confirmacao_pagamento',
+                        cliente=cliente
+                    )
+                    send_message(config)
+                    logger.info(f'[CobrancaPix] Mensagem WhatsApp enviada para {cliente.telefone}')
+                else:
+                    logger.warning(f'[CobrancaPix] Token WPP não encontrado para usuário {self.usuario.username}')
+            except Exception as e:
+                logger.error(f'[CobrancaPix] Erro ao enviar WhatsApp: {e}')
+
+        # 3. Enviar push notification (se houver subscriptions ativas)
+        try:
+            from nossopainel.services.push_notifications import enviar_push_pagamento
+            enviar_push_pagamento(
+                usuario=self.usuario,
+                titulo='Pagamento PIX Confirmado',
+                mensagem=f'R$ {self.valor:.2f} - {cliente.nome}',
+                dados={
+                    'url': f'/admin/clientes/{cliente.id}/',
+                    'cobranca_id': str(self.id),
+                }
+            )
+            logger.info(f'[CobrancaPix] Push notification enviado para usuário {self.usuario.id}')
+        except ImportError:
+            # Serviço de push ainda não implementado
+            pass
+        except Exception as e:
+            logger.error(f'[CobrancaPix] Erro ao enviar push notification: {e}')
 
 
 def avatar_upload_path(instance, filename):

@@ -6,7 +6,10 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse, path
 from django.utils.html import format_html
-from .models import JampabetUser, LoginToken, Match, Bet, AuditLog
+from .models import (
+    JampabetUser, LoginToken, Match, Bet, AuditLog,
+    BrazilianTeam, Competition, Fixture, APIConfig
+)
 from .auth import JampabetAuth
 
 
@@ -213,4 +216,168 @@ class AuditLogAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(BrazilianTeam)
+class BrazilianTeamAdmin(admin.ModelAdmin):
+    """Admin para times brasileiros."""
+    list_display = [
+        'name', 'short_name', 'external_id', 'code',
+        'city', 'state', 'is_active', 'updated_at'
+    ]
+    list_filter = ['is_active', 'state']
+    search_fields = ['name', 'short_name', 'code', 'city']
+    ordering = ['name']
+    readonly_fields = ['created_at', 'updated_at']
+    list_editable = ['is_active']
+
+    fieldsets = (
+        ('Identificacao', {
+            'fields': ('external_id', 'name', 'short_name', 'display_name', 'code')
+        }),
+        ('Logos', {
+            'fields': ('logo_url', 'custom_logo_url'),
+            'classes': ('collapse',)
+        }),
+        ('Localizacao', {
+            'fields': ('country', 'city', 'state', 'stadium', 'stadium_capacity')
+        }),
+        ('Informacoes', {
+            'fields': ('founded', 'is_active')
+        }),
+        ('Metadados', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(Competition)
+class CompetitionAdmin(admin.ModelAdmin):
+    """Admin para competicoes."""
+    list_display = [
+        'name', 'short_name', 'external_id', 'competition_type',
+        'current_season', 'is_tracked', 'is_active', 'updated_at'
+    ]
+    list_filter = ['competition_type', 'is_tracked', 'is_active', 'country']
+    search_fields = ['name', 'short_name']
+    ordering = ['name']
+    readonly_fields = ['created_at', 'updated_at']
+    list_editable = ['is_tracked', 'is_active']
+
+    fieldsets = (
+        ('Identificacao', {
+            'fields': ('external_id', 'name', 'short_name', 'logo_url')
+        }),
+        ('Configuracao', {
+            'fields': ('competition_type', 'country', 'current_season')
+        }),
+        ('Status', {
+            'fields': ('is_active', 'is_tracked')
+        }),
+        ('Metadados', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(Fixture)
+class FixtureAdmin(admin.ModelAdmin):
+    """Admin para partidas de competicoes."""
+    list_display = [
+        '__str__', 'competition', 'round', 'status',
+        'home_goals', 'away_goals', 'date'
+    ]
+    list_filter = ['status', 'competition', 'season']
+    search_fields = [
+        'home_team__name', 'away_team__name',
+        'home_team_name', 'away_team_name'
+    ]
+    ordering = ['-date']
+    readonly_fields = ['created_at', 'updated_at', 'last_api_update']
+    autocomplete_fields = ['competition', 'home_team', 'away_team']
+    date_hierarchy = 'date'
+
+    fieldsets = (
+        ('Partida', {
+            'fields': (
+                'external_id', 'competition', 'season', 'round', 'round_number'
+            )
+        }),
+        ('Times (Cadastrados)', {
+            'fields': ('home_team', 'away_team')
+        }),
+        ('Times (API)', {
+            'fields': (
+                'home_team_api_id', 'home_team_name', 'home_team_logo',
+                'away_team_api_id', 'away_team_name', 'away_team_logo'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Placar', {
+            'fields': (
+                'home_goals', 'away_goals', 'home_goals_ht', 'away_goals_ht'
+            )
+        }),
+        ('Data e Local', {
+            'fields': ('date', 'venue', 'venue_city')
+        }),
+        ('Status', {
+            'fields': ('status', 'elapsed_time')
+        }),
+        ('Controle', {
+            'fields': ('last_api_update', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(APIConfig)
+class APIConfigAdmin(admin.ModelAdmin):
+    """Admin para configuracoes da API (singleton)."""
+    list_display = [
+        'api_enabled', 'polling_interval', 'auto_update_scores',
+        'total_api_calls_today', 'last_poll_at', 'last_poll_status'
+    ]
+    readonly_fields = [
+        'last_poll_at', 'last_poll_status', 'last_poll_message',
+        'total_api_calls_today', 'last_api_call_reset',
+        'created_at', 'updated_at'
+    ]
+
+    fieldsets = (
+        ('Configuracoes da API', {
+            'fields': ('api_key', 'api_enabled')
+        }),
+        ('Polling', {
+            'fields': (
+                'polling_interval', 'auto_start_matches', 'auto_update_scores',
+                'minutes_before_match'
+            )
+        }),
+        ('Pontuacao', {
+            'fields': ('points_exact_victory', 'points_exact_draw', 'round_cost')
+        }),
+        ('Status do Polling', {
+            'fields': ('last_poll_at', 'last_poll_status', 'last_poll_message'),
+            'classes': ('collapse',)
+        }),
+        ('Contagem de Chamadas', {
+            'fields': ('total_api_calls_today', 'last_api_call_reset'),
+            'classes': ('collapse',)
+        }),
+        ('Metadados', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def has_add_permission(self, request):
+        """Permite apenas 1 registro (singleton)."""
+        return not APIConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        """Nao permite excluir o registro singleton."""
         return False

@@ -1296,6 +1296,7 @@
                             <th style="width: 40px;">
                               <input type="checkbox" class="form-check-input" id="selectAllClientes" title="Selecionar todos">
                             </th>
+                            <th style="width: 80px;" class="text-center">Status</th>
                             <th>Cliente</th>
                             <th>Plano</th>
                             <th class="text-end">Valor Anual</th>
@@ -1303,7 +1304,7 @@
                         </thead>
                         <tbody id="listaClientesAssociacao">
                           <tr>
-                            <td colspan="4" class="text-center text-muted py-4">
+                            <td colspan="5" class="text-center text-muted py-4">
                               <i class="bi bi-hourglass-split me-2"></i>Carregando clientes...
                             </td>
                           </tr>
@@ -1385,6 +1386,7 @@
                       <tr>
                         <th class="ps-4">Forma de Pagamento</th>
                         <th>Instituicao</th>
+                        <th class="text-center" style="width: 100px;">Clientes</th>
                         <th class="text-center" style="width: 60px;">Acoes</th>
                       </tr>
                     </thead>
@@ -1443,6 +1445,9 @@
                           {% else %}
                             <span class="text-muted">-</span>
                           {% endif %}
+                        </td>
+                        <td class="text-center">
+                          <span class="badge bg-primary rounded-pill">{{ forma_pgto.clientes_count|default:0 }}</span>
                         </td>
                         <td class="text-center">
                           <div class="btn-group btn-group-sm">
@@ -2017,6 +2022,7 @@
                           <th style="width: 40px;">
                             <input type="checkbox" class="form-check-input" id="editarSelectAllClientes" title="Selecionar todos">
                           </th>
+                          <th style="width: 80px;" class="text-center">Status</th>
                           <th>Cliente</th>
                           <th>Plano</th>
                           <th class="text-end">Valor Anual</th>
@@ -2024,7 +2030,7 @@
                       </thead>
                       <tbody id="editarListaClientes">
                         <tr>
-                          <td colspan="4" class="text-center text-muted py-4">
+                          <td colspan="5" class="text-center text-muted py-4">
                             <i class="bi bi-hourglass-split me-2"></i>Carregando clientes...
                           </td>
                         </tr>
@@ -2511,7 +2517,7 @@
         } else {
           $('#listaClientesAssociacao').html(`
             <tr>
-              <td colspan="4" class="text-center text-danger py-4">
+              <td colspan="5" class="text-center text-danger py-4">
                 <i class="bi bi-exclamation-triangle me-2"></i>${response.error || 'Erro ao carregar clientes'}
               </td>
             </tr>
@@ -2521,7 +2527,7 @@
       error: function() {
         $('#listaClientesAssociacao').html(`
           <tr>
-            <td colspan="4" class="text-center text-danger py-4">
+            <td colspan="5" class="text-center text-danger py-4">
               <i class="bi bi-exclamation-triangle me-2"></i>Erro ao carregar clientes
             </td>
           </tr>
@@ -2534,8 +2540,8 @@
     if (clientes.length === 0) {
       $('#listaClientesAssociacao').html(`
         <tr>
-          <td colspan="4" class="text-center text-muted py-4">
-            <i class="bi bi-person-x me-2"></i>Nenhum cliente ativo encontrado
+          <td colspan="5" class="text-center text-muted py-4">
+            <i class="bi bi-person-x me-2"></i>Nenhum cliente encontrado
           </td>
         </tr>
       `);
@@ -2580,6 +2586,11 @@
         `;
       }
 
+      // Badge de status do cliente
+      const statusBadge = cliente.cancelado
+        ? '<span class="badge bg-warning text-dark">Cancelado</span>'
+        : '<span class="badge bg-success">Ativo</span>';
+
       html += `
         <tr class="${selectedClass} ${blockedClass}" data-cliente-id="${cliente.id}" data-bloqueado="${bloqueado}">
           <td>
@@ -2588,6 +2599,9 @@
                    data-valor-anual="${cliente.valor_anual}"
                    data-bloqueado="${bloqueado}"
                    ${checked} ${disabled}>
+          </td>
+          <td class="text-center">
+            ${statusBadge}
           </td>
           <td>
             <div class="fw-semibold ${bloqueado ? 'text-muted' : ''}">${cliente.nome}</div>
@@ -3983,7 +3997,7 @@
   function carregarClientesParaEdicao(formaPgtoId) {
     $('#editarListaClientes').html(`
       <tr>
-        <td colspan="4" class="text-center text-muted py-4">
+        <td colspan="5" class="text-center text-muted py-4">
           <i class="bi bi-hourglass-split me-2"></i>Carregando clientes...
         </td>
       </tr>
@@ -4006,7 +4020,7 @@
       error: function() {
         $('#editarListaClientes').html(`
           <tr>
-            <td colspan="4" class="text-center text-danger py-4">
+            <td colspan="5" class="text-center text-danger py-4">
               <i class="bi bi-exclamation-triangle me-2"></i>Erro ao carregar clientes
             </td>
           </tr>
@@ -4029,7 +4043,7 @@
     if (clientesFiltrados.length === 0) {
       tbody.html(`
         <tr>
-          <td colspan="4" class="text-center text-muted py-4">
+          <td colspan="5" class="text-center text-muted py-4">
             ${filtro ? 'Nenhum cliente encontrado com esse nome' : 'Nenhum cliente disponível'}
           </td>
         </tr>
@@ -4114,9 +4128,15 @@
         checkboxHtml = `<input type="checkbox" class="form-check-input editar-checkbox-cliente" data-id="${cliente.id}" data-valor-anual="${valorAnual}">`;
       }
 
+      // Badge de status do cliente
+      const statusBadge = cliente.cancelado
+        ? '<span class="badge bg-warning text-dark">Cancelado</span>'
+        : '<span class="badge bg-success">Ativo</span>';
+
       const row = $(`
         <tr class="${rowClass}" data-cliente-id="${cliente.id}" data-bloqueado="${bloqueado}">
           <td>${checkboxHtml}</td>
+          <td class="text-center">${statusBadge}</td>
           <td>
             <div class="fw-semibold ${bloqueado && !isParaTransferir ? 'text-muted' : ''}">${cliente.nome}</div>
             <small class="text-muted">${cliente.telefone || ''}</small>

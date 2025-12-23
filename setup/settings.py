@@ -477,3 +477,14 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'JampaBet <noreply@jampabet
 # Para desenvolvimento, usar console backend se não tiver SMTP configurado
 if DEBUG and not EMAIL_HOST_USER:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# ========================================
+# Web Push Notifications (VAPID)
+# ========================================
+# Chaves VAPID para envio de notificações push no navegador
+# Para gerar novas chaves, execute:
+# from nossopainel.services.push_notifications import gerar_chaves_vapid
+# print(gerar_chaves_vapid())
+VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', '')
+VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', '')
+VAPID_EMAIL = os.getenv('VAPID_EMAIL', 'contato@nossopainel.com.br')

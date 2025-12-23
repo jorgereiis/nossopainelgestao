@@ -6067,7 +6067,7 @@ def create_server(request):
 # ACAO PARA CRIAR NOVO OBJETO FORMA DE PAGAMENTO (TIPOS_PGTO) - Versao simples para usuarios comuns
 @login_required
 def create_payment_method(request):
-    formas_pgto = Tipos_pgto.objects.filter(usuario=request.user).order_by('nome')
+    formas_pgto = Tipos_pgto.objects.filter(usuario=request.user).annotate(clientes_count=Count('cliente')).order_by('nome')
     usuario = request.user
     page_group = "nossopainel"
     page = "forma_pgto"
@@ -6144,7 +6144,7 @@ def create_payment_method_admin(request):
     def get_context(extra=None):
         from django.conf import settings as django_settings
         # Recarregar dados atualizados
-        formas_pgto = Tipos_pgto.objects.filter(usuario=usuario).order_by('nome').select_related('conta_bancaria', 'conta_bancaria__instituicao')
+        formas_pgto = Tipos_pgto.objects.filter(usuario=usuario).annotate(clientes_count=Count('cliente')).order_by('nome').select_related('conta_bancaria', 'conta_bancaria__instituicao')
         instituicoes = InstituicaoBancaria.objects.filter(ativo=True).order_by('nome')  # Para cards de seleção
         todas_instituicoes = InstituicaoBancaria.objects.all().order_by('nome')  # Para modal de gerenciamento
         contas_bancarias = ContaBancaria.objects.filter(usuario=usuario, ativo=True).select_related('instituicao')
@@ -7119,10 +7119,10 @@ def api_clientes_ativos_associacao(request):
                 'conta_nome': assoc['conta_bancaria__nome_identificacao']
             }
 
+        # Incluir todos os clientes (ativos e cancelados)
         clientes = Cliente.objects.filter(
-            usuario=request.user,
-            cancelado=False
-        ).select_related('plano', 'forma_pgto', 'forma_pgto__conta_bancaria').order_by('nome')
+            usuario=request.user
+        ).select_related('plano', 'forma_pgto', 'forma_pgto__conta_bancaria').order_by('cancelado', 'nome')
 
         resultado = []
         for cliente in clientes:
@@ -7250,6 +7250,9 @@ def api_clientes_ativos_associacao(request):
                 'bloqueado': bloqueado,
                 'ja_associado_esta_conta': ja_associado_esta_conta,
                 'conta_associada': conta_associada,
+                # Status do cliente (ativo ou cancelado)
+                'cancelado': cliente.cancelado,
+                'status': 'Cancelado' if cliente.cancelado else 'Ativo',
                 # Informações da forma de pagamento direta do cliente (Cliente.forma_pgto)
                 'forma_pgto': forma_pgto_info,
             })
@@ -7418,6 +7421,129 @@ def api_notificacoes_marcar_todas_lidas(request):
     except Exception as e:
         logger.error('[%s] [USER][%s] [IP][%s] [ERRO][%s]', timezone.localtime(), request.user, get_client_ip(request) or 'N/A', e, exc_info=True)
         return JsonResponse({'success': False, 'error': 'Erro ao marcar notificações.'}, status=500)
+
+
+# ============================================================================
+# PUSH NOTIFICATIONS - SUBSCRIPTION ENDPOINTS
+# ============================================================================
+
+@login_required
+@require_http_methods(["POST"])
+def api_push_subscribe(request):
+    """
+    Registra uma subscription de push notification para o usuário.
+
+    POST /api/push/subscribe/
+    Body: {
+        "endpoint": "https://...",
+        "keys": {
+            "p256dh": "...",
+            "auth": "..."
+        }
+    }
+    """
+    from nossopainel.models import PushSubscription
+
+    try:
+        data = json.loads(request.body)
+
+        endpoint = data.get('endpoint')
+        keys = data.get('keys', {})
+        p256dh = keys.get('p256dh')
+        auth = keys.get('auth')
+
+        if not all([endpoint, p256dh, auth]):
+            return JsonResponse({
+                'success': False,
+                'error': 'Dados de subscription incompletos'
+            }, status=400)
+
+        # Criar ou atualizar subscription
+        subscription, created = PushSubscription.objects.update_or_create(
+            usuario=request.user,
+            endpoint=endpoint,
+            defaults={
+                'p256dh': p256dh,
+                'auth': auth,
+                'user_agent': request.META.get('HTTP_USER_AGENT', '')[:500],
+                'ativo': True,
+            }
+        )
+
+        logger.info(f'[Push] Subscription {"criada" if created else "atualizada"} para usuário {request.user.id}')
+
+        return JsonResponse({
+            'success': True,
+            'created': created,
+            'subscription_id': subscription.id
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'JSON inválido'}, status=400)
+    except Exception as e:
+        logger.error(f'[Push] Erro ao criar subscription: {e}', exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_push_unsubscribe(request):
+    """
+    Remove uma subscription de push notification.
+
+    POST /api/push/unsubscribe/
+    Body: {"endpoint": "https://..."}
+    """
+    from nossopainel.models import PushSubscription
+
+    try:
+        data = json.loads(request.body)
+        endpoint = data.get('endpoint')
+
+        if not endpoint:
+            return JsonResponse({'success': False, 'error': 'Endpoint não fornecido'}, status=400)
+
+        deleted, _ = PushSubscription.objects.filter(
+            usuario=request.user,
+            endpoint=endpoint
+        ).delete()
+
+        logger.info(f'[Push] Subscription removida para usuário {request.user.id}: {deleted} registro(s)')
+
+        return JsonResponse({
+            'success': True,
+            'deleted': deleted
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'JSON inválido'}, status=400)
+    except Exception as e:
+        logger.error(f'[Push] Erro ao remover subscription: {e}', exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_push_vapid_public_key(request):
+    """
+    Retorna a chave pública VAPID para o frontend.
+
+    GET /api/push/vapid-key/
+    """
+    from django.conf import settings
+
+    vapid_public = getattr(settings, 'VAPID_PUBLIC_KEY', '')
+
+    if not vapid_public:
+        return JsonResponse({
+            'success': False,
+            'error': 'Push notifications não configurado'
+        }, status=503)
+
+    return JsonResponse({
+        'success': True,
+        'vapid_public_key': vapid_public
+    })
 
 
 # ============================================================================
@@ -7688,6 +7814,13 @@ def webhook_pagamento_pix(request):
 
         try:
             payload = json.loads(request.body)
+
+            # FastDePix às vezes envia JSON encapsulado como string
+            # Se o payload for string, fazer segundo parse
+            if isinstance(payload, str):
+                fdpx_logger.info("Payload é string, fazendo segundo parse...")
+                payload = json.loads(payload)
+
         except json.JSONDecodeError as e:
             fdpx_logger.error(f"ERRO: JSON inválido - {e}")
             fdpx_logger.info("=" * 80)
@@ -7698,7 +7831,8 @@ def webhook_pagamento_pix(request):
         fdpx_logger.info(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
 
         # ========== EXTRAIR DADOS DO PAYLOAD ==========
-        data = payload.get('data', payload)
+        # O payload pode vir com estrutura {data: {...}} ou diretamente como {...}
+        data = payload.get('data', payload) if isinstance(payload, dict) else payload
         transaction_id = str(data.get('id', data.get('transaction_id', '')))
         event_type = payload.get('event', '')
         status_str = data.get('status', '').lower()
@@ -7783,12 +7917,39 @@ def webhook_pagamento_pix(request):
                     fdpx_logger.info(f"  Data Pagamento (now): {paid_at}")
 
                 # Extrair valores financeiros
+                # FastDePix envia:
+                # - amount: valor bruto cobrado
+                # - commission_amount: valor líquido real (o que você recebe)
+                # - net_amount: NÃO usar (é valor arredondado, não é o líquido real)
                 amount = data.get('amount')
-                amount_received = data.get('amount_received') or data.get('net_amount')
+                # Priorizar commission_amount (valor líquido real do FastDePix)
+                amount_received = data.get('commission_amount') or data.get('amount_received') or data.get('net_amount')
                 fee = data.get('fee') or data.get('tax')
                 fdpx_logger.info(f"  Valor Cobrado: {amount}")
-                fdpx_logger.info(f"  Valor Recebido: {amount_received}")
-                fdpx_logger.info(f"  Taxa: {fee}")
+                fdpx_logger.info(f"  Valor Recebido (commission_amount): {amount_received}")
+                fdpx_logger.info(f"  Taxa informada: {fee}")
+
+                # Converter valores para Decimal se existirem
+                valor_recebido = None
+                valor_taxa = None
+                if amount_received:
+                    try:
+                        valor_recebido = Decimal(str(amount_received))
+                    except:
+                        pass
+                if fee:
+                    try:
+                        valor_taxa = Decimal(str(fee))
+                    except:
+                        pass
+
+                # Se não veio taxa explícita mas temos amount e valor_recebido, calcular
+                if valor_taxa is None and amount and valor_recebido:
+                    try:
+                        valor_taxa = Decimal(str(amount)) - valor_recebido
+                        fdpx_logger.info(f"  Taxa calculada: {valor_taxa}")
+                    except:
+                        pass
 
                 # Marcar como pago
                 fdpx_logger.info("  Executando mark_as_paid()...")
@@ -7797,6 +7958,8 @@ def webhook_pagamento_pix(request):
                     payer_name=payer_name,
                     payer_document=payer_doc,
                     webhook_data=payload,
+                    valor_recebido=valor_recebido,
+                    valor_taxa=valor_taxa,
                 )
 
                 fdpx_logger.info(f"  ✓ Cobrança {transaction_id} marcada como PAGA")
@@ -10880,13 +11043,12 @@ def api_forma_pagamento_detalhes(request, pk):
 @login_required
 @require_http_methods(["GET"])
 def api_forma_pagamento_clientes_count(request, pk):
-    """Retorna quantidade de clientes ATIVOS associados a uma forma de pagamento."""
+    """Retorna quantidade de clientes associados a uma forma de pagamento (ativos e cancelados)."""
     try:
         forma_pgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
         count = Cliente.objects.filter(
             forma_pgto=forma_pgto,
-            usuario=request.user,
-            cancelado=False  # Apenas clientes ativos
+            usuario=request.user
         ).count()
         return JsonResponse({'success': True, 'count': count})
     except Tipos_pgto.DoesNotExist:
@@ -12049,3 +12211,215 @@ def config_agendamentos(request):
     }
 
     return render(request, 'pages/admin/agendamentos.html', context)
+
+
+# ============================================================================
+# RELATÓRIO DE PAGAMENTOS
+# ============================================================================
+
+@login_required
+def relatorio_pagamentos(request):
+    """
+    Relatório de pagamentos recebidos e confirmados.
+
+    Exibe tanto pagamentos via PIX (API FastDePix) quanto pagamentos
+    registrados manualmente pelo usuário.
+
+    GET /admin/relatorios/pagamentos/
+
+    Query params:
+        - data_inicio: Data inicial (YYYY-MM-DD)
+        - data_fim: Data final (YYYY-MM-DD)
+        - tipo: 'pix', 'manual' ou 'todos' (default)
+    """
+    from django.db.models import Sum, Count
+    from datetime import datetime, timedelta
+
+    # Filtros
+    data_inicio_str = request.GET.get('data_inicio', '')
+    data_fim_str = request.GET.get('data_fim', '')
+    tipo_filtro = request.GET.get('tipo', 'todos')
+
+    # Parse de datas (default: últimos 30 dias)
+    hoje = timezone.now().date()
+    try:
+        data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date() if data_inicio_str else hoje - timedelta(days=30)
+    except ValueError:
+        data_inicio = hoje - timedelta(days=30)
+
+    try:
+        data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date() if data_fim_str else hoje
+    except ValueError:
+        data_fim = hoje
+
+    # ========== PAGAMENTOS VIA PIX (CobrancaPix com status='paid') ==========
+    pagamentos_pix = CobrancaPix.objects.filter(
+        usuario=request.user,
+        status='paid',
+        pago_em__date__gte=data_inicio,
+        pago_em__date__lte=data_fim
+    ).select_related('cliente', 'mensalidade', 'conta_bancaria').order_by('-pago_em')
+
+    # ========== PAGAMENTOS MANUAIS (Mensalidades pagas sem CobrancaPix) ==========
+    # Buscar mensalidades pagas que NÃO têm uma CobrancaPix associada com status 'paid'
+    from django.db.models import Exists, OuterRef
+
+    cobranca_paga_subquery = CobrancaPix.objects.filter(
+        mensalidade=OuterRef('pk'),
+        status='paid'
+    )
+
+    pagamentos_manuais = Mensalidade.objects.filter(
+        cliente__usuario=request.user,
+        pgto=True,
+        dt_pagamento__isnull=False,
+        dt_pagamento__gte=data_inicio,
+        dt_pagamento__lte=data_fim
+    ).exclude(
+        Exists(cobranca_paga_subquery)
+    ).select_related('cliente', 'cliente__plano').order_by('-dt_pagamento')
+
+    # Aplicar filtro de tipo
+    if tipo_filtro == 'pix':
+        pagamentos_manuais = Mensalidade.objects.none()
+    elif tipo_filtro == 'manual':
+        pagamentos_pix = CobrancaPix.objects.none()
+
+    # ========== ESTATÍSTICAS ==========
+    stats_pix = pagamentos_pix.aggregate(
+        total=Sum('valor'),
+        total_recebido=Sum('valor_recebido'),
+        total_taxa=Sum('valor_taxa'),
+        qtd=Count('id')
+    )
+
+    stats_manual = pagamentos_manuais.aggregate(
+        total=Sum('valor'),
+        qtd=Count('id')
+    )
+
+    # Preparar lista unificada de pagamentos para exibição
+    pagamentos_lista = []
+
+    # Adicionar pagamentos PIX
+    for pix in pagamentos_pix:
+        pagamentos_lista.append({
+            'tipo': 'pix',
+            'data': pix.pago_em,
+            'cliente_nome': pix.cliente.nome if pix.cliente else 'N/A',
+            'cliente_id': pix.cliente.id if pix.cliente else None,
+            'valor': pix.valor,
+            'valor_recebido': pix.valor_recebido,
+            'valor_taxa': pix.valor_taxa,
+            'conta': pix.conta_bancaria.nome if pix.conta_bancaria else 'N/A',
+            'transaction_id': pix.transaction_id,
+            'cobranca_id': str(pix.id),
+            'mensalidade_id': pix.mensalidade_id,
+            'webhook_data': pix.webhook_data,
+            'pagador_nome': pix.pagador_nome,
+            'pagador_documento': pix.pagador_documento,
+            'criado_em': pix.criado_em,
+        })
+
+    # Adicionar pagamentos manuais
+    for mens in pagamentos_manuais:
+        pagamentos_lista.append({
+            'tipo': 'manual',
+            'data': timezone.make_aware(datetime.combine(mens.dt_pagamento, datetime.min.time())),
+            'cliente_nome': mens.cliente.nome if mens.cliente else 'N/A',
+            'cliente_id': mens.cliente.id if mens.cliente else None,
+            'valor': mens.valor,
+            'valor_recebido': None,
+            'valor_taxa': None,
+            'conta': 'Manual',
+            'transaction_id': None,
+            'cobranca_id': None,
+            'mensalidade_id': mens.id,
+        })
+
+    # Ordenar por data (mais recente primeiro)
+    pagamentos_lista.sort(key=lambda x: x['data'], reverse=True)
+
+    context = {
+        'page': 'relatorio_pagamentos',
+        'page_group': 'relatorios',
+        'pagamentos': pagamentos_lista,
+        'pagamentos_pix': pagamentos_pix,
+        'pagamentos_manuais': pagamentos_manuais,
+
+        # Estatísticas
+        'total_pix': stats_pix['total'] or 0,
+        'total_pix_recebido': stats_pix['total_recebido'] or 0,
+        'total_pix_taxa': stats_pix['total_taxa'] or 0,
+        'qtd_pix': stats_pix['qtd'] or 0,
+        'total_manual': stats_manual['total'] or 0,
+        'qtd_manual': stats_manual['qtd'] or 0,
+        'total_geral': (stats_pix['total'] or 0) + (stats_manual['total'] or 0),
+        'qtd_total': (stats_pix['qtd'] or 0) + (stats_manual['qtd'] or 0),
+
+        # Filtros (para manter no form)
+        'data_inicio': data_inicio.strftime('%Y-%m-%d'),
+        'data_fim': data_fim.strftime('%Y-%m-%d'),
+        'tipo_filtro': tipo_filtro,
+    }
+
+    return render(request, 'pages/admin/relatorios/pagamentos.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_cliente_mensalidades(request, cliente_id):
+    """
+    Retorna a lista de mensalidades de um cliente.
+
+    GET /api/clientes/<cliente_id>/mensalidades/
+
+    Returns:
+        JSON com lista de mensalidades
+    """
+    try:
+        cliente = Cliente.objects.get(id=cliente_id, usuario=request.user)
+    except Cliente.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Cliente não encontrado'}, status=404)
+
+    mensalidades = Mensalidade.objects.filter(
+        cliente=cliente
+    ).select_related('cliente').order_by('-dt_vencimento')[:24]  # Últimas 24 mensalidades
+
+    # Buscar cobranças PIX relacionadas
+    from django.db.models import Prefetch
+    cobrancas_por_mensalidade = {}
+    cobrancas = CobrancaPix.objects.filter(
+        mensalidade__in=mensalidades
+    ).order_by('-criado_em')
+
+    for cob in cobrancas:
+        if cob.mensalidade_id not in cobrancas_por_mensalidade:
+            cobrancas_por_mensalidade[cob.mensalidade_id] = cob
+
+    lista = []
+    for mens in mensalidades:
+        cobranca = cobrancas_por_mensalidade.get(mens.id)
+        lista.append({
+            'id': mens.id,
+            'dt_vencimento': mens.dt_vencimento.strftime('%d/%m/%Y') if mens.dt_vencimento else None,
+            'dt_pagamento': mens.dt_pagamento.strftime('%d/%m/%Y') if mens.dt_pagamento else None,
+            'dt_cancelamento': mens.dt_cancelamento.strftime('%d/%m/%Y') if mens.dt_cancelamento else None,
+            'valor': float(mens.valor) if mens.valor else 0,
+            'pgto': mens.pgto,
+            'cancelado': mens.cancelado,
+            'status': 'Pago' if mens.pgto else ('Cancelada' if mens.cancelado or (mens.dt_vencimento and mens.dt_vencimento < timezone.now().date()) else 'Em aberto'),
+            'tipo_pagamento': 'PIX' if cobranca and cobranca.status == 'paid' else ('Manual' if mens.pgto else None),
+            'transaction_id': cobranca.transaction_id if cobranca else None,
+        })
+
+    return JsonResponse({
+        'success': True,
+        'cliente': {
+            'id': cliente.id,
+            'nome': cliente.nome,
+            'telefone': cliente.telefone,
+        },
+        'mensalidades': lista,
+        'total': len(lista),
+    })

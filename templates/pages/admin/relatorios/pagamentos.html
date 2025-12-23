@@ -1,0 +1,655 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Relatorio de Pagamentos | Nosso Painel</title>
+  <style>
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid #e9ecef;
+    }
+
+    .stat-card.pix {
+      border-left: 4px solid #8B5CF6;
+    }
+
+    .stat-card.manual {
+      border-left: 4px solid #10B981;
+    }
+
+    .stat-card.total {
+      border-left: 4px solid #3B82F6;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #6c757d;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #212529;
+    }
+
+    .stat-count {
+      font-size: 0.875rem;
+      color: #6c757d;
+      margin-top: 0.25rem;
+    }
+
+    /* Filters */
+    .filters-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid #e9ecef;
+      margin-bottom: 1.5rem;
+    }
+
+    .filters-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+
+    .filter-group {
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .filter-group label {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Table */
+    .table-container {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid #e9ecef;
+      overflow: hidden;
+    }
+
+    .table-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #e9ecef;
+      background: #f8f9fa;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-title {
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .payments-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .payments-table th {
+      text-align: left;
+      padding: 0.875rem 1rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #6c757d;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .payments-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #f1f3f4;
+      vertical-align: middle;
+    }
+
+    .payments-table tbody tr:hover {
+      background: #f8f9fa;
+    }
+
+    /* Badges */
+    .badge-pix {
+      background: rgba(139, 92, 246, 0.1);
+      color: #8B5CF6;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-manual {
+      background: rgba(16, 185, 129, 0.1);
+      color: #10B981;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .valor-principal {
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .valor-detalhe {
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+
+    .cliente-link {
+      color: #0d6efd;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .cliente-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Transaction Button */
+    .btn-transacao {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      border-radius: 4px;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      color: #495057;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-transacao:hover {
+      background: #e9ecef;
+      border-color: #adb5bd;
+    }
+
+    /* Modal Styles */
+    .modal-transacao .modal-body {
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    .transacao-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f1f3f4;
+    }
+
+    .transacao-item:last-child {
+      border-bottom: none;
+    }
+
+    .transacao-label {
+      color: #6c757d;
+      font-size: 0.875rem;
+    }
+
+    .transacao-valor {
+      font-weight: 500;
+      color: #212529;
+    }
+
+    /* Mensalidades Modal */
+    .mensalidade-row {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem;
+      border-bottom: 1px solid #f1f3f4;
+    }
+
+    .mensalidade-row:hover {
+      background: #f8f9fa;
+    }
+
+    .mensalidade-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 0.75rem;
+    }
+
+    .mensalidade-status.pago {
+      background: #10B981;
+    }
+
+    .mensalidade-status.em-aberto {
+      background: #6c757d;
+    }
+
+    .mensalidade-status.cancelada {
+      background: #F59E0B;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #6c757d;
+    }
+
+    .empty-state svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .filters-row {
+        flex-direction: column;
+      }
+
+      .filter-group {
+        width: 100%;
+      }
+
+      .payments-table {
+        font-size: 0.875rem;
+      }
+
+      .payments-table th,
+      .payments-table td {
+        padding: 0.75rem 0.5rem;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-light">
+  <!-- Wrapper -->
+  <div id="db-wrapper">
+    {% include 'partials/navbar-vertical.html' %}
+
+    <!-- Page Content -->
+    <div id="page-content">
+      {% include 'partials/header.html' %}
+
+      <!-- Container fluid -->
+      <div class="container-fluid px-4 mt-4">
+      <!-- Page Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h3 class="mb-1">Relatorio de Pagamentos</h3>
+          <p class="text-muted mb-0">Pagamentos recebidos via PIX (API) e registros manuais</p>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card pix">
+          <div class="stat-label">Pagamentos PIX</div>
+          <div class="stat-value">R$ {{ total_pix|floatformat:2 }}</div>
+          <div class="stat-count">{{ qtd_pix }} pagamento{{ qtd_pix|pluralize:"s" }}</div>
+        </div>
+
+        <div class="stat-card manual">
+          <div class="stat-label">Pagamentos Manuais</div>
+          <div class="stat-value">R$ {{ total_manual|floatformat:2 }}</div>
+          <div class="stat-count">{{ qtd_manual }} pagamento{{ qtd_manual|pluralize:"s" }}</div>
+        </div>
+
+        <div class="stat-card total">
+          <div class="stat-label">Total Geral</div>
+          <div class="stat-value">R$ {{ total_geral|floatformat:2 }}</div>
+          <div class="stat-count">{{ qtd_total }} pagamento{{ qtd_total|pluralize:"s" }}</div>
+        </div>
+
+        {% if total_pix_recebido %}
+        <div class="stat-card">
+          <div class="stat-label">Liquido PIX (apos taxas)</div>
+          <div class="stat-value">R$ {{ total_pix_recebido|floatformat:2 }}</div>
+          <div class="stat-count">Taxa total: R$ {{ total_pix_taxa|floatformat:2 }}</div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-card">
+        <form method="get" id="filterForm">
+          <div class="filters-row">
+            <div class="filter-group">
+              <label>Data Inicio</label>
+              <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+            </div>
+
+            <div class="filter-group">
+              <label>Data Fim</label>
+              <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+            </div>
+
+            <div class="filter-group">
+              <label>Tipo</label>
+              <select name="tipo" class="form-select">
+                <option value="todos" {% if tipo_filtro == 'todos' %}selected{% endif %}>Todos</option>
+                <option value="pix" {% if tipo_filtro == 'pix' %}selected{% endif %}>Apenas PIX</option>
+                <option value="manual" {% if tipo_filtro == 'manual' %}selected{% endif %}>Apenas Manual</option>
+              </select>
+            </div>
+
+            <div class="filter-group" style="flex: 0;">
+              <button type="submit" class="btn btn-primary">
+                <i data-feather="search" class="icon-xs me-1"></i> Filtrar
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Payments Table -->
+      <div class="table-container">
+        <div class="table-header">
+          <span class="table-title">Pagamentos</span>
+          <span class="text-muted">{{ pagamentos|length }} registro{{ pagamentos|length|pluralize:"s" }}</span>
+        </div>
+
+        {% if pagamentos %}
+        <div class="table-responsive">
+          <table class="payments-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Cliente</th>
+                <th>Valor</th>
+                <th>Tipo</th>
+                <th>Origem</th>
+                <th>Transacao</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pag in pagamentos %}
+              <tr>
+                <td>
+                  <div>{{ pag.data|date:"d/m/Y" }}</div>
+                  <div class="valor-detalhe">{{ pag.data|time:"H:i" }}</div>
+                </td>
+                <td>
+                  {% if pag.cliente_id %}
+                  <span class="cliente-link" onclick="abrirModalMensalidades({{ pag.cliente_id }}, '{{ pag.cliente_nome|escapejs }}')">
+                    {{ pag.cliente_nome }}
+                  </span>
+                  {% else %}
+                  {{ pag.cliente_nome }}
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="valor-principal">R$ {{ pag.valor|floatformat:2 }}</div>
+                  {% if pag.valor_recebido %}
+                  <div class="valor-detalhe">
+                    Liquido: R$ {{ pag.valor_recebido|floatformat:2 }}
+                    {% if pag.valor_taxa %} | Taxa: R$ {{ pag.valor_taxa|floatformat:2 }}{% endif %}
+                  </div>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if pag.tipo == 'pix' %}
+                  <span class="badge-pix">PIX</span>
+                  {% else %}
+                  <span class="badge-manual">Manual</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div>{{ pag.conta }}</div>
+                  {% if pag.transaction_id %}
+                  <div class="valor-detalhe" title="{{ pag.transaction_id }}">
+                    ID: {{ pag.transaction_id|truncatechars:15 }}
+                  </div>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if pag.tipo == 'pix' and pag.transaction_id %}
+                  <button type="button" class="btn-transacao" onclick='abrirModalTransacao({{ forloop.counter0 }})'>
+                    <i data-feather="eye" class="icon-xs"></i> Ver
+                  </button>
+                  {% else %}
+                  <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <h5>Nenhum pagamento encontrado</h5>
+          <p class="mb-0">Ajuste os filtros ou aguarde novos pagamentos serem registrados.</p>
+        </div>
+        {% endif %}
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Transacao -->
+  <div class="modal fade modal-transacao" id="modalTransacao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Detalhes da Transacao</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body" id="modalTransacaoBody">
+          <!-- Preenchido via JS -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Mensalidades -->
+  <div class="modal fade" id="modalMensalidades" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Mensalidades de <span id="modalMensalidadesNome"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body" id="modalMensalidadesBody">
+          <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Carregando...</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <a href="#" id="modalMensalidadesLink" class="btn btn-primary">Editar Cliente</a>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'partials/scripts.html' %}
+
+  <script>
+    // Dados dos pagamentos para o modal de transacao
+    const pagamentosData = [
+      {% for pag in pagamentos %}
+      {
+        tipo: '{{ pag.tipo }}',
+        data: '{{ pag.data|date:"d/m/Y H:i" }}',
+        cliente_nome: '{{ pag.cliente_nome|escapejs }}',
+        cliente_id: {{ pag.cliente_id|default:"null" }},
+        valor: '{{ pag.valor|floatformat:2 }}',
+        valor_recebido: {% if pag.valor_recebido %}'{{ pag.valor_recebido|floatformat:2 }}'{% else %}null{% endif %},
+        valor_taxa: {% if pag.valor_taxa %}'{{ pag.valor_taxa|floatformat:2 }}'{% else %}null{% endif %},
+        conta: '{{ pag.conta|escapejs }}',
+        transaction_id: {% if pag.transaction_id %}'{{ pag.transaction_id }}'{% else %}null{% endif %},
+        pagador_nome: {% if pag.pagador_nome %}'{{ pag.pagador_nome|escapejs }}'{% else %}null{% endif %},
+        pagador_documento: {% if pag.pagador_documento %}'{{ pag.pagador_documento }}'{% else %}null{% endif %},
+        criado_em: {% if pag.criado_em %}'{{ pag.criado_em|date:"d/m/Y H:i" }}'{% else %}null{% endif %},
+        webhook_data: {% if pag.webhook_data %}{{ pag.webhook_data|safe }}{% else %}null{% endif %}
+      },
+      {% endfor %}
+    ];
+
+    function abrirModalTransacao(index) {
+      const pag = pagamentosData[index];
+      if (!pag) return;
+
+      let html = '<div class="transacao-detalhes">';
+
+      // Dados principais
+      html += `<div class="transacao-item"><span class="transacao-label">ID Transacao</span><span class="transacao-valor">${pag.transaction_id || '-'}</span></div>`;
+      html += `<div class="transacao-item"><span class="transacao-label">Data Pagamento</span><span class="transacao-valor">${pag.data}</span></div>`;
+      html += `<div class="transacao-item"><span class="transacao-label">Data Criacao</span><span class="transacao-valor">${pag.criado_em || '-'}</span></div>`;
+      html += `<div class="transacao-item"><span class="transacao-label">Valor</span><span class="transacao-valor">R$ ${pag.valor}</span></div>`;
+
+      if (pag.valor_recebido) {
+        html += `<div class="transacao-item"><span class="transacao-label">Valor Recebido</span><span class="transacao-valor">R$ ${pag.valor_recebido}</span></div>`;
+      }
+      if (pag.valor_taxa) {
+        html += `<div class="transacao-item"><span class="transacao-label">Taxa</span><span class="transacao-valor">R$ ${pag.valor_taxa}</span></div>`;
+      }
+
+      html += `<div class="transacao-item"><span class="transacao-label">Conta</span><span class="transacao-valor">${pag.conta}</span></div>`;
+
+      if (pag.pagador_nome) {
+        html += `<div class="transacao-item"><span class="transacao-label">Pagador</span><span class="transacao-valor">${pag.pagador_nome}</span></div>`;
+      }
+      if (pag.pagador_documento) {
+        html += `<div class="transacao-item"><span class="transacao-label">Documento</span><span class="transacao-valor">${pag.pagador_documento}</span></div>`;
+      }
+
+      // Dados do Webhook
+      if (pag.webhook_data && Object.keys(pag.webhook_data).length > 0) {
+        html += '<hr class="my-3"><h6 class="mb-3">Dados do Webhook</h6>';
+        for (const [key, value] of Object.entries(pag.webhook_data)) {
+          if (value !== null && value !== undefined && value !== '') {
+            const displayValue = typeof value === 'object' ? JSON.stringify(value) : value;
+            html += `<div class="transacao-item"><span class="transacao-label">${key}</span><span class="transacao-valor" style="max-width: 60%; word-break: break-all;">${displayValue}</span></div>`;
+          }
+        }
+      }
+
+      html += '</div>';
+
+      document.getElementById('modalTransacaoBody').innerHTML = html;
+      new bootstrap.Modal(document.getElementById('modalTransacao')).show();
+    }
+
+    function abrirModalMensalidades(clienteId, clienteNome) {
+      document.getElementById('modalMensalidadesNome').textContent = clienteNome;
+      document.getElementById('modalMensalidadesLink').href = `/dashboard/cadastrar/clientes/${clienteId}/editar/`;
+      document.getElementById('modalMensalidadesBody').innerHTML = `
+        <div class="text-center py-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+          </div>
+        </div>
+      `;
+
+      new bootstrap.Modal(document.getElementById('modalMensalidades')).show();
+
+      // Buscar mensalidades
+      fetch(`/api/clientes/${clienteId}/mensalidades/`)
+        .then(response => response.json())
+        .then(data => {
+          if (!data.success) {
+            document.getElementById('modalMensalidadesBody').innerHTML = `
+              <div class="alert alert-danger">Erro ao carregar mensalidades</div>
+            `;
+            return;
+          }
+
+          if (data.mensalidades.length === 0) {
+            document.getElementById('modalMensalidadesBody').innerHTML = `
+              <div class="text-center text-muted py-4">Nenhuma mensalidade encontrada</div>
+            `;
+            return;
+          }
+
+          let html = `
+            <div class="table-responsive">
+              <table class="table table-sm text-center">
+                <thead>
+                  <tr>
+                    <th class="text-center">Vencimento</th>
+                    <th class="text-center">Valor</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Pagamento</th>
+                    <th class="text-center">Cancelamento</th>
+                    <th class="text-center">Tipo</th>
+                  </tr>
+                </thead>
+                <tbody>
+          `;
+
+          for (const mens of data.mensalidades) {
+            const statusClass = mens.status === 'Pago' ? 'success' : (mens.status === 'Cancelada' ? 'warning' : 'secondary');
+            const statusBadge = `<span class="badge bg-${statusClass}">${mens.status}</span>`;
+            const tipoBadge = mens.tipo_pagamento ?
+              (mens.tipo_pagamento === 'PIX' ? '<span class="badge-pix">PIX</span>' : '<span class="badge-manual">Manual</span>')
+              : '-';
+
+            html += `
+              <tr>
+                <td class="align-middle">${mens.dt_vencimento || '-'}</td>
+                <td class="align-middle">R$ ${mens.valor.toFixed(2)}</td>
+                <td class="align-middle">${statusBadge}</td>
+                <td class="align-middle">${mens.dt_pagamento || '-'}</td>
+                <td class="align-middle">${mens.dt_cancelamento || '-'}</td>
+                <td class="align-middle">${tipoBadge}</td>
+              </tr>
+            `;
+          }
+
+          html += '</tbody></table></div>';
+          document.getElementById('modalMensalidadesBody').innerHTML = html;
+        })
+        .catch(error => {
+          console.error('Erro:', error);
+          document.getElementById('modalMensalidadesBody').innerHTML = `
+            <div class="alert alert-danger">Erro ao carregar mensalidades</div>
+          `;
+        });
+    }
+
+    // Initialize Feather icons
+    if (typeof feather !== 'undefined') {
+      feather.replace();
+    }
+  </script>
+</body>
+
+</html>
