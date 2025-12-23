@@ -12,16 +12,28 @@ Views disponiveis:
 - EstatisticasView: Estatisticas de acesso
 """
 
+import logging
+import magic
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
+from django.contrib import messages
 from django.db.models import Count, Sum
 from django.utils import timezone
+from django.conf import settings
 from datetime import timedelta
 
 from nossopainel.models import Cliente, Mensalidade, ContaBancaria
+
+logger = logging.getLogger(__name__)
+
+# Tipos MIME permitidos para upload de imagens
+ALLOWED_IMAGE_MIMES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
+# Tamanho maximo de logo: 2MB (pode ser sobrescrito em settings.py)
+MAX_LOGO_SIZE = getattr(settings, 'PAINEL_CLIENTE_MAX_LOGO_SIZE', 2 * 1024 * 1024)
 from ..models import SubdominioPainelCliente, SessaoCliente
 from ..decorators import admin_painel_required, admin_superior_required
 from ..utils import validar_recaptcha, get_recaptcha_site_key
@@ -437,9 +449,54 @@ class PersonalizacaoView(View):
             config.texto_boas_vindas
         ).strip()
 
-        # Processa upload de logo
+        # Processa upload de logo com validacao de seguranca
         if 'logo' in request.FILES:
-            config.logo = request.FILES['logo']
+            logo_file = request.FILES['logo']
+
+            # Valida tamanho do arquivo
+            if logo_file.size > MAX_LOGO_SIZE:
+                max_size_mb = MAX_LOGO_SIZE // (1024 * 1024)
+                messages.error(
+                    request,
+                    f"Logo muito grande. Tamanho máximo: {max_size_mb}MB"
+                )
+                context = {
+                    'config': config,
+                    'is_admin_superior': request.is_admin_superior,
+                }
+                return render(request, self.template_name, context)
+
+            # Valida tipo MIME real do arquivo
+            try:
+                # Le os primeiros bytes para detectar o tipo real
+                file_mime = magic.from_buffer(logo_file.read(2048), mime=True)
+                logo_file.seek(0)  # Retorna ao inicio do arquivo
+
+                if file_mime not in ALLOWED_IMAGE_MIMES:
+                    logger.warning(
+                        f"[PainelCliente] Upload rejeitado: MIME {file_mime} nao permitido"
+                    )
+                    messages.error(
+                        request,
+                        "Tipo de arquivo não permitido. Use apenas: JPG, PNG, GIF ou WebP"
+                    )
+                    context = {
+                        'config': config,
+                        'is_admin_superior': request.is_admin_superior,
+                    }
+                    return render(request, self.template_name, context)
+
+            except Exception as e:
+                logger.error(f"[PainelCliente] Erro ao validar MIME: {e}")
+                messages.error(request, "Erro ao processar arquivo. Tente novamente.")
+                context = {
+                    'config': config,
+                    'is_admin_superior': request.is_admin_superior,
+                }
+                return render(request, self.template_name, context)
+
+            # Arquivo validado, pode salvar
+            config.logo = logo_file
 
         config.save()
 

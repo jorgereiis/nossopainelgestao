@@ -10,6 +10,8 @@ Views disponiveis:
 """
 
 import logging
+import time
+import random
 from decimal import Decimal
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -18,6 +20,9 @@ from django.views.decorators.http import require_POST, require_GET
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Q
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError as DjangoValidationError
+from ipware import get_client_ip
 
 from nossopainel.models import Cliente, Mensalidade, CobrancaPix
 from nossopainel.services.payment_integrations import (
@@ -63,15 +68,15 @@ class LoginView(View):
         }
         return render(request, self.template_name, context)
 
+    # Mensagem generica para evitar user enumeration
+    MENSAGEM_LOGIN_FALHA = "Credenciais inválidas. Verifique o telefone ou fale com o suporte."
+
     def post(self, request):
         """Processa tentativa de login."""
         config = request.painel_config
         telefone = request.POST.get('telefone', '').strip()
 
-        print(f"\n{'='*60}")
-        print(f"[PainelCliente LOGIN] Tentativa de login")
-        print(f"[PainelCliente LOGIN] Subdominio: {config.subdominio}")
-        print(f"[PainelCliente LOGIN] Telefone: {telefone}")
+        logger.debug(f"[PainelCliente LOGIN] Tentativa de login - Subdominio: {config.subdominio}")
 
         # Valida reCAPTCHA
         recaptcha_response = request.POST.get('g-recaptcha-response', '')
@@ -80,14 +85,12 @@ class LoginView(View):
             remote_ip=self._get_client_ip(request)
         )
         if not recaptcha_valido:
-            print(f"[PainelCliente LOGIN] ERRO: reCAPTCHA invalido")
-            print(f"{'='*60}\n")
+            logger.debug("[PainelCliente LOGIN] reCAPTCHA invalido")
             return self._render_error(request, recaptcha_erro)
 
         # Validacao basica
         if not telefone:
-            print(f"[PainelCliente LOGIN] ERRO: Telefone vazio")
-            print(f"{'='*60}\n")
+            logger.debug("[PainelCliente LOGIN] Telefone vazio")
             return self._render_error(
                 request,
                 'Por favor, informe seu telefone.'
@@ -95,14 +98,13 @@ class LoginView(View):
 
         # Verifica rate limiting
         ip_address = self._get_client_ip(request)
-        print(f"[PainelCliente LOGIN] IP: {ip_address}")
+        logger.debug(f"[PainelCliente LOGIN] IP: {ip_address}")
         bloqueado, tentativas_restantes = TentativaLogin.verificar_bloqueio(
             ip_address, config
         )
 
         if bloqueado:
-            print(f"[PainelCliente LOGIN] BLOQUEADO: Rate limit atingido")
-            print(f"{'='*60}\n")
+            logger.debug("[PainelCliente LOGIN] Rate limit atingido")
             return self._render_error(
                 request,
                 'Muitas tentativas de login. Aguarde 15 minutos.'
@@ -110,6 +112,9 @@ class LoginView(View):
 
         # Busca cliente pelo telefone
         cliente = self._buscar_cliente(telefone, config)
+
+        # Delay aleatorio para evitar timing attacks (entre 0.1 e 0.3 segundos)
+        time.sleep(random.uniform(0.1, 0.3))
 
         if not cliente:
             # Registra tentativa falha
@@ -119,22 +124,25 @@ class LoginView(View):
                 identificador=telefone,
                 sucesso=False
             )
-            print(f"[PainelCliente LOGIN] FALHA: Cliente nao encontrado")
-            print(f"[PainelCliente LOGIN] Tentativas restantes: {tentativas_restantes - 1}")
-            print(f"{'='*60}\n")
+            logger.debug("[PainelCliente LOGIN] Cliente nao encontrado")
+            # Mensagem generica para evitar user enumeration
             return self._render_error(
                 request,
-                'Telefone não cadastrado. Verifique o número ou fale com o suporte.',
+                self.MENSAGEM_LOGIN_FALHA,
                 tentativas_restantes=tentativas_restantes - 1
             )
 
-        print(f"[PainelCliente LOGIN] Cliente encontrado: {cliente.nome} (ID={cliente.id})")
+        logger.debug(f"[PainelCliente LOGIN] Cliente encontrado: ID={cliente.id}")
 
         # Verifica se cliente esta cancelado
         if cliente.cancelado:
-            print(f"[PainelCliente LOGIN] FALHA: Cliente cancelado")
-            print(f"{'='*60}\n")
-            return self._render_cancelado(request, cliente)
+            logger.debug("[PainelCliente LOGIN] Cliente cancelado")
+            # Mensagem generica para evitar user enumeration
+            return self._render_error(
+                request,
+                self.MENSAGEM_LOGIN_FALHA,
+                tentativas_restantes=tentativas_restantes - 1
+            )
 
         # Registra tentativa bem-sucedida
         TentativaLogin.registrar(
@@ -152,9 +160,7 @@ class LoginView(View):
             user_agent=request.META.get('HTTP_USER_AGENT', '')
         )
 
-        print(f"[PainelCliente LOGIN] SUCESSO: Sessao criada")
-        print(f"[PainelCliente LOGIN] Token: {sessao.token[:20]}...")
-        print(f"[PainelCliente LOGIN] Expira em: {sessao.expira_em}")
+        logger.debug(f"[PainelCliente LOGIN] SUCESSO: Sessao criada para cliente ID={cliente.id}")
 
         # Atualiza ultimo acesso
         cliente.ultimo_acesso_painel = timezone.now()
@@ -163,10 +169,10 @@ class LoginView(View):
         # Redireciona
         if cliente.dados_atualizados_painel:
             response = redirect('painel_cliente:dashboard')
-            print(f"[PainelCliente LOGIN] Redirecionando para: dashboard")
+            logger.debug("[PainelCliente LOGIN] Redirecionando para: dashboard")
         else:
             response = redirect('painel_cliente:perfil')
-            print(f"[PainelCliente LOGIN] Redirecionando para: perfil (primeiro acesso)")
+            logger.debug("[PainelCliente LOGIN] Redirecionando para: perfil (primeiro acesso)")
 
         # Seta cookie de sessao
         # Em desenvolvimento (HTTP), nao usar Secure
@@ -174,14 +180,6 @@ class LoginView(View):
         is_secure = request.is_secure()
         host = request.META.get('HTTP_HOST', '').split(':')[0]  # Remove porta
         is_development = ':8003' in request.META.get('HTTP_HOST', '') or 'localhost' in host or '127.0.0.1' in host
-
-        print(f"[PainelCliente LOGIN] Cookie config:")
-        print(f"  - Host: {host}")
-        print(f"  - is_secure: {is_secure}")
-        print(f"  - is_development: {is_development}")
-        print(f"  - Cookie name: {PainelClienteSessionMiddleware.COOKIE_NAME}")
-        print(f"  - Token (primeiros 30): {sessao.token[:30]}")
-        print(f"{'='*60}\n")
 
         response.set_cookie(
             PainelClienteSessionMiddleware.COOKIE_NAME,
@@ -209,7 +207,7 @@ class LoginView(View):
         if not telefone_normalizado.startswith('+'):
             telefone_normalizado = '+55' + telefone_normalizado
 
-        print(f"[PainelCliente LOGIN] Telefone normalizado: {telefone_normalizado}")
+        logger.debug(f"[PainelCliente LOGIN] Telefone normalizado: {telefone_normalizado}")
 
         # Primeira tentativa: busca exata
         cliente = Cliente.objects.select_related('plano').filter(
@@ -219,21 +217,21 @@ class LoginView(View):
         ).first()
 
         if cliente:
-            print(f"[PainelCliente LOGIN] Cliente encontrado na busca exata")
+            logger.debug("[PainelCliente LOGIN] Cliente encontrado na busca exata")
             return cliente
 
         # Se for brasileiro (+55), tenta variação com/sem 9
         if telefone_normalizado.startswith('+55'):
             variacao = self._gerar_variacao_brasileira(telefone_normalizado)
             if variacao:
-                print(f"[PainelCliente LOGIN] Tentando variacao: {variacao}")
+                logger.debug(f"[PainelCliente LOGIN] Tentando variacao brasileira")
                 cliente = Cliente.objects.select_related('plano').filter(
                     telefone=variacao,
                     usuario=config.admin_responsavel,
                     cancelado=False
                 ).first()
                 if cliente:
-                    print(f"[PainelCliente LOGIN] Cliente encontrado com variacao")
+                    logger.debug("[PainelCliente LOGIN] Cliente encontrado com variacao")
 
         return cliente
 
@@ -267,11 +265,17 @@ class LoginView(View):
         return None
 
     def _get_client_ip(self, request):
-        """Retorna IP do cliente."""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            return x_forwarded_for.split(',')[0].strip()
-        return request.META.get('REMOTE_ADDR', '0.0.0.0')
+        """
+        Retorna IP do cliente usando django-ipware.
+
+        Usa configuracao de proxy para evitar IP spoofing via X-Forwarded-For.
+        """
+        client_ip, is_routable = get_client_ip(
+            request,
+            request_header_order=['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR'],
+            proxy_count=1  # Ajustar conforme infraestrutura (numero de proxies reversos)
+        )
+        return client_ip or '0.0.0.0'
 
     def _render_error(self, request, mensagem, tentativas_restantes=None):
         """Renderiza pagina de login com erro."""
@@ -348,6 +352,11 @@ class PerfilView(View):
 
         if not email:
             erros.append('Email é obrigatório.')
+        else:
+            try:
+                validate_email(email)
+            except DjangoValidationError:
+                erros.append('Email inválido. Verifique o formato.')
 
         if not cpf:
             erros.append('CPF é obrigatório.')

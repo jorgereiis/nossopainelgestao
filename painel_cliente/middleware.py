@@ -5,8 +5,11 @@ Este middleware identifica requisicoes vindas de *.pagar.cc e
 roteia para as views do painel_cliente usando request.urlconf.
 """
 
+import logging
 from django.http import HttpResponseNotFound
 from django.shortcuts import render
+
+logger = logging.getLogger(__name__)
 
 
 class SubdomainRoutingMiddleware:
@@ -44,16 +47,12 @@ class SubdomainRoutingMiddleware:
 
         # Verifica se e um subdominio do painel (producao)
         if host.endswith(self.dominio_painel):
-            print(f"\n{'='*60}")
-            print(f"[PainelCliente Routing] Host detectado: {host}")
-            print(f"[PainelCliente Routing] Path: {request.path}")
+            logger.debug(f"[PainelCliente Routing] Host detectado: {host}, Path: {request.path}")
             return self._handle_painel_request(request, host)
 
         # Verifica se e ambiente de desenvolvimento (porta 8003)
         if host_with_port in self.DEV_PAINEL_HOSTS:
-            print(f"\n{'='*60}")
-            print(f"[PainelCliente Routing] DEV Host detectado: {host_with_port}")
-            print(f"[PainelCliente Routing] Path: {request.path}")
+            logger.debug(f"[PainelCliente Routing] DEV Host detectado: {host_with_port}, Path: {request.path}")
             return self._handle_dev_request(request)
 
         # Requisicao normal (nossopainel, jampabet, etc.)
@@ -80,12 +79,11 @@ class SubdomainRoutingMiddleware:
 
         # Extrai nome do subdominio
         subdomain = host.replace(self.dominio_painel, '')
-        print(f"[PainelCliente Routing] Subdominio extraido: '{subdomain}'")
+        logger.debug(f"[PainelCliente Routing] Subdominio extraido: '{subdomain}'")
 
         # Ignora se for apenas o dominio base (pagar.cc sem subdominio)
         if not subdomain or subdomain == 'www':
-            print(f"[PainelCliente Routing] ERRO: Subdominio vazio ou www")
-            print(f"{'='*60}\n")
+            logger.debug("[PainelCliente Routing] Subdominio vazio ou www - retornando 404")
             return self._render_painel_not_found(request)
 
         try:
@@ -99,10 +97,7 @@ class SubdomainRoutingMiddleware:
                 ativo=True
             )
 
-            print(f"[PainelCliente Routing] Subdominio encontrado: {config.nome_exibicao}")
-            print(f"[PainelCliente Routing] Admin: {config.admin_responsavel}")
-            print(f"[PainelCliente Routing] Ativo: {config.ativo}")
-            print(f"{'='*60}")
+            logger.debug(f"[PainelCliente Routing] Subdominio encontrado: {config.nome_exibicao}, Admin: {config.admin_responsavel}")
 
             # Injeta dados na requisicao
             request.is_painel_cliente = True
@@ -115,8 +110,7 @@ class SubdomainRoutingMiddleware:
             return self.get_response(request)
 
         except SubdominioPainelCliente.DoesNotExist:
-            print(f"[PainelCliente Routing] ERRO: Subdominio '{subdomain}' nao encontrado ou inativo")
-            print(f"{'='*60}\n")
+            logger.debug(f"[PainelCliente Routing] Subdominio '{subdomain}' nao encontrado ou inativo")
             return self._render_painel_not_found(request)
 
     def _handle_dev_request(self, request):
@@ -155,9 +149,9 @@ class SubdomainRoutingMiddleware:
                     subdominio=subdomain,
                     ativo=True
                 )
-                print(f"[PainelCliente Routing] DEV: Usando subdominio '{subdomain}'")
+                logger.debug(f"[PainelCliente Routing] DEV: Usando subdominio '{subdomain}'")
             except SubdominioPainelCliente.DoesNotExist:
-                print(f"[PainelCliente Routing] DEV: Subdominio '{subdomain}' nao encontrado")
+                logger.debug(f"[PainelCliente Routing] DEV: Subdominio '{subdomain}' nao encontrado")
                 return self._render_painel_not_found(
                     request,
                     f"Subdominio de desenvolvimento '{subdomain}' nao encontrado. "
@@ -172,7 +166,7 @@ class SubdomainRoutingMiddleware:
             ).filter(ativo=True).first()
 
             if not config:
-                print(f"[PainelCliente Routing] DEV: Nenhum subdominio ativo encontrado")
+                logger.debug("[PainelCliente Routing] DEV: Nenhum subdominio ativo encontrado")
                 return self._render_painel_not_found(
                     request,
                     "Nenhum subdominio ativo encontrado. "
@@ -180,11 +174,9 @@ class SubdomainRoutingMiddleware:
                     "use ?subdominio=nome na URL."
                 )
 
-            print(f"[PainelCliente Routing] DEV: Usando primeiro subdominio ativo: '{config.subdominio}'")
+            logger.debug(f"[PainelCliente Routing] DEV: Usando primeiro subdominio ativo: '{config.subdominio}'")
 
-        print(f"[PainelCliente Routing] DEV: Subdominio: {config.nome_exibicao}")
-        print(f"[PainelCliente Routing] DEV: Admin: {config.admin_responsavel}")
-        print(f"{'='*60}")
+        logger.debug(f"[PainelCliente Routing] DEV: Subdominio: {config.nome_exibicao}, Admin: {config.admin_responsavel}")
 
         # Injeta dados na requisicao
         request.is_painel_cliente = True
@@ -244,19 +236,14 @@ class PainelClienteSessionMiddleware:
         # Busca sessao pelo token no cookie
         token = request.COOKIES.get(self.COOKIE_NAME)
 
-        print(f"\n{'='*60}")
-        print(f"[PainelCliente Auth] PATH: {request.path} | METHOD: {request.method}")
-        print(f"[PainelCliente Auth] Subdominio: {getattr(request, 'painel_config', None)}")
-        print(f"[PainelCliente Auth] Todos os cookies: {list(request.COOKIES.keys())}")
-        print(f"[PainelCliente Auth] Token no cookie: {token[:20]}..." if token else "[PainelCliente Auth] Token no cookie: NENHUM")
+        logger.debug(f"[PainelCliente Auth] PATH: {request.path} | METHOD: {request.method}")
 
         if token:
             self._load_cliente_session(request, token)
         else:
             request.cliente_sessao = None
-            print(f"[PainelCliente Auth] Resultado: SEM SESSAO (cookie vazio)")
+            logger.debug("[PainelCliente Auth] Resultado: SEM SESSAO (cookie vazio)")
 
-        print(f"{'='*60}\n")
         return self.get_response(request)
 
     def _load_cliente_session(self, request, token):
@@ -280,19 +267,17 @@ class PainelClienteSessionMiddleware:
                 ativo=True
             )
 
-            print(f"[PainelCliente Auth] Sessao encontrada: ID={sessao.id}")
-            print(f"[PainelCliente Auth] Cliente: {sessao.cliente.nome} (ID={sessao.cliente.id})")
-            print(f"[PainelCliente Auth] Expira em: {sessao.expira_em}")
+            logger.debug(f"[PainelCliente Auth] Sessao encontrada: ID={sessao.id}")
 
             if sessao.is_valid():
                 request.cliente_sessao = sessao
                 # Renova sessao a cada acesso
                 sessao.renovar()
-                print(f"[PainelCliente Auth] Resultado: SESSAO VALIDA - Renovada")
+                logger.debug("[PainelCliente Auth] Resultado: SESSAO VALIDA - Renovada")
             else:
                 request.cliente_sessao = None
-                print(f"[PainelCliente Auth] Resultado: SESSAO EXPIRADA")
+                logger.debug("[PainelCliente Auth] Resultado: SESSAO EXPIRADA")
 
         except SessaoCliente.DoesNotExist:
             request.cliente_sessao = None
-            print(f"[PainelCliente Auth] Resultado: SESSAO NAO ENCONTRADA")
+            logger.debug("[PainelCliente Auth] Resultado: SESSAO NAO ENCONTRADA")
