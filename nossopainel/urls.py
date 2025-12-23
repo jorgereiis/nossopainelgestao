@@ -1,6 +1,9 @@
+import os
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from django.views.generic import RedirectView
+from django.http import HttpResponse
+from django.conf import settings
 from .views_webhook import webhook_wppconnect
 from .views_chat import (
     ChatPageView,
@@ -148,6 +151,10 @@ from .views import (
     api_notificacoes_listar,
     api_notificacao_marcar_lida,
     api_notificacoes_marcar_todas_lidas,
+    # Push Notifications
+    api_push_subscribe,
+    api_push_unsubscribe,
+    api_push_vapid_public_key,
     # Cobrança PIX
     gerar_cobranca_pix,
     consultar_cobranca_pix,
@@ -172,6 +179,9 @@ from .views import (
     integracoes_fastdepix_sincronizar,
     # Configuração de Agendamentos
     config_agendamentos,
+    # Relatório de Pagamentos
+    relatorio_pagamentos,
+    api_cliente_mensalidades,
 )
 
 urlpatterns = [
@@ -358,6 +368,11 @@ urlpatterns = [
     path("api/notificacoes/<int:notificacao_id>/marcar-lida/", api_notificacao_marcar_lida, name="api-notificacao-marcar-lida"),
     path("api/notificacoes/marcar-todas-lidas/", api_notificacoes_marcar_todas_lidas, name="api-notificacoes-marcar-todas-lidas"),
 
+    ############ Push Notifications ###########
+    path("api/push/subscribe/", api_push_subscribe, name="api-push-subscribe"),
+    path("api/push/unsubscribe/", api_push_unsubscribe, name="api-push-unsubscribe"),
+    path("api/push/vapid-key/", api_push_vapid_public_key, name="api-push-vapid-key"),
+
     ############ Cobrança PIX ###########
     path("api/pix/gerar/<int:mensalidade_id>/", gerar_cobranca_pix, name="api-pix-gerar"),
     path("api/pix/status/<uuid:cobranca_id>/", consultar_cobranca_pix, name="api-pix-status"),
@@ -387,6 +402,16 @@ urlpatterns = [
     path("api/forma-pagamento/<int:pk>/atualizar/", api_forma_pagamento_atualizar, name="api-forma-pagamento-atualizar"),
     path("api/forma-pagamento/<int:pk>/atualizar-antiga/", api_forma_pagamento_antiga_atualizar, name="api-forma-pagamento-antiga-atualizar"),
     path("api/forma-pagamento/<int:pk>/clientes-count/", api_forma_pagamento_clientes_count, name="api-forma-pagamento-clientes-count"),
+
+    ############ Relatórios (Admin) ###########
+    path("admin/relatorios/pagamentos/", relatorio_pagamentos, name="relatorio-pagamentos"),
+    path("api/clientes/<int:cliente_id>/mensalidades/", api_cliente_mensalidades, name="api-cliente-mensalidades"),
+
+    ########### Service Worker (Push Notifications) ###########
+    path("sw.js", lambda request: HttpResponse(
+        open(os.path.join(settings.STATICFILES_DIRS[0], 'sw.js')).read() if settings.STATICFILES_DIRS else '',
+        content_type='application/javascript'
+    ), name="service-worker"),
 
     ########### Tests ###########
     path("teste/", test, name="teste"),

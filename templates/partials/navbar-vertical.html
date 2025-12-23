@@ -132,6 +132,9 @@
                     data-bs-parent="#sideNavbar">
                     <ul class="nav flex-column">
                         <li class="nav-item">
+                            <a class="nav-link {% if page == 'relatorio_pagamentos' %}active{% endif %}" href="{% url 'relatorio-pagamentos' %}">Pagamentos</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if page == 'relatorio1' %}active{% endif %}" style="cursor: pointer;" onclick="modal_dns()">DNS'es</a>
                         </li>
                     </ul>

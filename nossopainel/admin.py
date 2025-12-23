@@ -34,6 +34,22 @@ from .models import (
     InstituicaoBancaria,
     ContaBancaria,
     ClienteContaBancaria,
+    # Modelos adicionais
+    ClientePlanoHistorico,
+    AssinaturaCliente,
+    OfertaPromocional,
+    PlanoLinkPagamento,
+    CredencialAPI,
+    ConfiguracaoLimite,
+    NotificacaoSistema,
+    PushSubscription,
+    CobrancaPix,
+    UserProfile,
+    ConfiguracaoAutomacao,
+    TemplateMensagem,
+    ConfiguracaoEnvio,
+    VarianteMensagem,
+    ConfiguracaoAgendamento,
 )
 
 # --- ADMINISTRADORES ---
@@ -568,6 +584,300 @@ class HistoricoExecucaoTarefaAdmin(admin.ModelAdmin):
 
 admin.site.register(TarefaEnvio, TarefaEnvioAdmin)
 admin.site.register(HistoricoExecucaoTarefa, HistoricoExecucaoTarefaAdmin)
+
+
+# --- MODELOS ADICIONAIS ---
+
+class ClientePlanoHistoricoAdmin(admin.ModelAdmin):
+    """Admin para histórico de planos dos clientes."""
+    list_display = ("id", "cliente", "plano_nome", "valor_plano", "telas", "inicio", "fim", "motivo", "usuario")
+    list_filter = ("motivo", "usuario", "inicio")
+    search_fields = ("cliente__nome", "plano_nome")
+    autocomplete_fields = ("cliente", "plano")
+    readonly_fields = ("criado_em",)
+    ordering = ("-inicio", "-criado_em")
+    date_hierarchy = "inicio"
+
+
+class AssinaturaClienteAdmin(admin.ModelAdmin):
+    """Admin para assinaturas de clientes."""
+    list_display = (
+        "id", "cliente", "plano", "data_inicio_assinatura", "dispositivos_usados",
+        "em_campanha", "campanha_mensalidades_pagas", "ativo"
+    )
+    list_filter = ("ativo", "em_campanha", "plano")
+    search_fields = ("cliente__nome", "cliente__telefone")
+    autocomplete_fields = ("cliente", "plano")
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("-criado_em",)
+    list_editable = ("ativo",)
+
+
+class OfertaPromocionalAdmin(admin.ModelAdmin):
+    """Admin para ofertas promocionais."""
+    list_display = (
+        "id", "cliente", "plano_oferta", "numero_mensalidades",
+        "mensalidades_restantes", "ativo", "criado_em"
+    )
+    list_filter = ("ativo", "plano_oferta", "criado_em")
+    search_fields = ("cliente__nome", "cliente__telefone")
+    autocomplete_fields = ("cliente", "plano_oferta")
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("-criado_em",)
+
+
+class PlanoLinkPagamentoAdmin(admin.ModelAdmin):
+    """Admin para links de pagamento dos planos."""
+    list_display = ("id", "plano", "conta_bancaria", "valor_configurado", "valor_divergente_display", "criado_em")
+    list_filter = ("conta_bancaria", "criado_em")
+    search_fields = ("plano__nome", "conta_bancaria__nome_identificacao")
+    autocomplete_fields = ("plano", "conta_bancaria")
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("plano__nome",)
+
+    def valor_divergente_display(self, obj):
+        """Indica se o valor do plano diverge do configurado."""
+        return obj.valor_divergente
+    valor_divergente_display.boolean = True
+    valor_divergente_display.short_description = "Valor Divergente"
+
+
+class CredencialAPIAdmin(admin.ModelAdmin):
+    """Admin para credenciais de API."""
+    list_display = ("id", "nome_identificacao", "tipo_integracao", "usuario", "is_configured_display", "ambiente_sandbox", "ativo")
+    list_filter = ("tipo_integracao", "ativo", "ambiente_sandbox", "usuario")
+    search_fields = ("nome_identificacao", "usuario__username")
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("-criado_em",)
+
+    def is_configured_display(self, obj):
+        """Exibe se está configurada corretamente."""
+        return obj.is_configured
+    is_configured_display.boolean = True
+    is_configured_display.short_description = "Configurada"
+
+    fieldsets = (
+        ("Identificação", {
+            "fields": ("usuario", "nome_identificacao", "tipo_integracao", "ativo")
+        }),
+        ("FastDePix", {
+            "fields": ("api_key",),
+            "classes": ("collapse",),
+        }),
+        ("Mercado Pago / Efi Bank", {
+            "fields": ("api_client_id", "api_client_secret", "api_access_token", "api_certificado"),
+            "classes": ("collapse",),
+        }),
+        ("Ambiente", {
+            "fields": ("ambiente_sandbox",),
+            "classes": ("collapse",),
+        }),
+        ("Metadados", {
+            "fields": ("criado_em", "atualizado_em"),
+            "classes": ("collapse",),
+        }),
+    )
+
+
+class ConfiguracaoLimiteAdmin(admin.ModelAdmin):
+    """Admin para configuração de limite MEI (singleton)."""
+    list_display = ("valor_anual", "margem_seguranca", "valor_alerta_display", "atualizado_em", "atualizado_por")
+    readonly_fields = ("atualizado_em",)
+
+    def valor_alerta_display(self, obj):
+        """Exibe o valor de alerta calculado."""
+        return f"R$ {obj.valor_alerta:,.2f}"
+    valor_alerta_display.short_description = "Valor de Alerta"
+
+    def has_add_permission(self, request):
+        """Permite apenas 1 registro (singleton)."""
+        return not ConfiguracaoLimite.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        """Não permite excluir o registro singleton."""
+        return False
+
+
+class NotificacaoSistemaAdmin(admin.ModelAdmin):
+    """Admin para notificações do sistema."""
+    list_display = ("id", "titulo", "tipo", "prioridade", "usuario", "lida", "criada_em")
+    list_filter = ("tipo", "prioridade", "lida", "criada_em")
+    search_fields = ("titulo", "mensagem", "usuario__username")
+    readonly_fields = ("criada_em", "data_leitura")
+    ordering = ("-criada_em",)
+    date_hierarchy = "criada_em"
+    list_per_page = 50
+
+
+class PushSubscriptionAdmin(admin.ModelAdmin):
+    """Admin para subscriptions de Push Notifications."""
+    list_display = ("id", "usuario", "endpoint_truncado", "ativo", "criado_em", "atualizado_em")
+    list_filter = ("ativo", "criado_em")
+    search_fields = ("usuario__username", "endpoint")
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("-criado_em",)
+
+    def endpoint_truncado(self, obj):
+        """Exibe endpoint truncado."""
+        if len(obj.endpoint) > 50:
+            return f"{obj.endpoint[:50]}..."
+        return obj.endpoint
+    endpoint_truncado.short_description = "Endpoint"
+
+
+class CobrancaPixAdmin(admin.ModelAdmin):
+    """Admin para cobranças PIX."""
+    list_display = (
+        "id", "cliente", "valor", "status", "integracao",
+        "conta_bancaria", "criado_em", "expira_em", "pago_em"
+    )
+    list_filter = ("status", "integracao", "conta_bancaria", "criado_em")
+    search_fields = ("cliente__nome", "cliente__telefone", "transaction_id", "pagador_nome")
+    autocomplete_fields = ("cliente", "mensalidade", "conta_bancaria")
+    readonly_fields = (
+        "id", "transaction_id", "qr_code", "qr_code_url", "pix_copia_cola",
+        "criado_em", "atualizado_em", "pago_em", "pagador_nome", "pagador_documento",
+        "valor_recebido", "valor_taxa", "raw_response", "webhook_data"
+    )
+    ordering = ("-criado_em",)
+    date_hierarchy = "criado_em"
+    list_per_page = 50
+
+    fieldsets = (
+        ("Identificação", {
+            "fields": ("id", "transaction_id", "integracao")
+        }),
+        ("Relacionamentos", {
+            "fields": ("usuario", "conta_bancaria", "cliente", "mensalidade")
+        }),
+        ("Valores", {
+            "fields": ("valor", "descricao", "status")
+        }),
+        ("Dados PIX", {
+            "fields": ("qr_code", "qr_code_url", "pix_copia_cola"),
+            "classes": ("collapse",),
+        }),
+        ("Pagamento", {
+            "fields": ("pago_em", "pagador_nome", "pagador_documento", "valor_recebido", "valor_taxa"),
+            "classes": ("collapse",),
+        }),
+        ("Datas", {
+            "fields": ("criado_em", "atualizado_em", "expira_em")
+        }),
+        ("Dados Técnicos", {
+            "fields": ("raw_response", "webhook_data"),
+            "classes": ("collapse",),
+        }),
+    )
+
+
+class UserProfileAdmin(admin.ModelAdmin):
+    """Admin para perfis de usuário."""
+    list_display = (
+        "user", "theme_preference", "two_factor_enabled",
+        "profile_public", "created_at"
+    )
+    list_filter = ("theme_preference", "two_factor_enabled", "profile_public")
+    search_fields = ("user__username", "user__email", "bio")
+    readonly_fields = ("created_at", "updated_at", "two_factor_secret", "two_factor_backup_codes")
+    ordering = ("-created_at",)
+
+    fieldsets = (
+        ("Usuário", {
+            "fields": ("user", "avatar", "bio", "cover_image")
+        }),
+        ("Preferências de Tema", {
+            "fields": ("theme_preference",)
+        }),
+        ("Notificações por E-mail", {
+            "fields": ("email_on_profile_change", "email_on_password_change", "email_on_login"),
+            "classes": ("collapse",),
+        }),
+        ("Privacidade", {
+            "fields": ("profile_public", "show_email", "show_phone", "show_statistics"),
+            "classes": ("collapse",),
+        }),
+        ("Autenticação em Dois Fatores", {
+            "fields": ("two_factor_enabled", "two_factor_secret", "two_factor_backup_codes"),
+            "classes": ("collapse",),
+        }),
+        ("Metadados", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",),
+        }),
+    )
+
+
+class ConfiguracaoAutomacaoAdmin(admin.ModelAdmin):
+    """Admin para configurações de automação."""
+    list_display = ("user", "debug_headless_mode", "criado_em", "atualizado_em")
+    list_filter = ("debug_headless_mode",)
+    search_fields = ("user__username",)
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("-atualizado_em",)
+
+
+class TemplateMensagemAdmin(admin.ModelAdmin):
+    """Admin para templates de mensagem."""
+    list_display = ("id", "nome", "categoria", "usuario", "ativo", "criado_em")
+    list_filter = ("categoria", "ativo", "usuario")
+    search_fields = ("nome", "descricao", "mensagem_html")
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("categoria", "nome")
+
+
+class ConfiguracaoEnvioAdmin(admin.ModelAdmin):
+    """Admin para configurações de envio (singleton)."""
+    list_display = (
+        "limite_envios_por_execucao", "intervalo_entre_mensagens",
+        "horario_inicio_permitido", "horario_fim_permitido", "atualizado_em"
+    )
+    readonly_fields = ("atualizado_em",)
+
+    def has_add_permission(self, request):
+        """Permite apenas 1 registro (singleton)."""
+        return not ConfiguracaoEnvio.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        """Não permite excluir o registro singleton."""
+        return False
+
+
+class VarianteMensagemAdmin(admin.ModelAdmin):
+    """Admin para variantes de mensagem (A/B Testing)."""
+    list_display = ("id", "tarefa", "nome", "peso", "total_envios", "ativo", "criado_em")
+    list_filter = ("ativo", "tarefa")
+    search_fields = ("nome", "tarefa__nome")
+    autocomplete_fields = ("tarefa",)
+    readonly_fields = ("total_envios", "criado_em")
+    ordering = ("tarefa", "nome")
+
+
+class ConfiguracaoAgendamentoAdmin(admin.ModelAdmin):
+    """Admin para configurações de agendamento."""
+    list_display = ("nome", "nome_exibicao", "horario", "ativo", "atualizado_em")
+    list_filter = ("ativo",)
+    search_fields = ("nome", "nome_exibicao", "descricao")
+    readonly_fields = ("atualizado_em",)
+    ordering = ("nome",)
+
+
+# Registro dos modelos adicionais
+admin.site.register(ClientePlanoHistorico, ClientePlanoHistoricoAdmin)
+admin.site.register(AssinaturaCliente, AssinaturaClienteAdmin)
+admin.site.register(OfertaPromocional, OfertaPromocionalAdmin)
+admin.site.register(PlanoLinkPagamento, PlanoLinkPagamentoAdmin)
+admin.site.register(CredencialAPI, CredencialAPIAdmin)
+admin.site.register(ConfiguracaoLimite, ConfiguracaoLimiteAdmin)
+admin.site.register(NotificacaoSistema, NotificacaoSistemaAdmin)
+admin.site.register(PushSubscription, PushSubscriptionAdmin)
+admin.site.register(CobrancaPix, CobrancaPixAdmin)
+admin.site.register(UserProfile, UserProfileAdmin)
+admin.site.register(ConfiguracaoAutomacao, ConfiguracaoAutomacaoAdmin)
+admin.site.register(TemplateMensagem, TemplateMensagemAdmin)
+admin.site.register(ConfiguracaoEnvio, ConfiguracaoEnvioAdmin)
+admin.site.register(VarianteMensagem, VarianteMensagemAdmin)
+admin.site.register(ConfiguracaoAgendamento, ConfiguracaoAgendamentoAdmin)
 
 
 # Configurações adicionais do admin
