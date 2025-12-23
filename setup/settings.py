@@ -104,7 +104,6 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "setup.middleware.CSPMiddleware",  # Content Security Policy (customizado para Python 3.8)
     "setup.middleware.DomainRoutingMiddleware",  # Roteamento por domínio (JampaBet vs NossoPainel)
     "painel_cliente.middleware.SubdomainRoutingMiddleware",  # Roteamento de subdominios (*.pagar.cc)
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -150,61 +149,6 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
 
 # Limite especifico para logo do painel_cliente: 2MB
 PAINEL_CLIENTE_MAX_LOGO_SIZE = 2 * 1024 * 1024  # 2MB
-
-# =============================================================================
-# CONTENT SECURITY POLICY (CSP)
-# =============================================================================
-# Politica de seguranca de conteudo para prevenir XSS e injecao de codigo
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = (
-    "'self'",
-    "'unsafe-inline'",  # Necessario para scripts inline (Django messages, etc)
-    "'unsafe-eval'",    # Necessario para algumas libs JS
-    "https://www.google.com",
-    "https://www.gstatic.com",
-    "https://cdn.jsdelivr.net",
-)
-CSP_STYLE_SRC = (
-    "'self'",
-    "'unsafe-inline'",  # Necessario para estilos inline
-    "https://fonts.googleapis.com",
-    "https://cdn.jsdelivr.net",
-)
-CSP_FONT_SRC = (
-    "'self'",
-    "https://fonts.gstatic.com",
-    "https://cdn.jsdelivr.net",  # Bootstrap Icons e outras fontes
-    "data:",
-)
-CSP_IMG_SRC = (
-    "'self'",
-    "data:",
-    "https:",
-    "blob:",
-)
-CSP_FRAME_SRC = (
-    "'self'",
-    "https://www.google.com",  # reCAPTCHA
-)
-CSP_CONNECT_SRC = (
-    "'self'",
-    "https://www.google.com",
-)
-# Diretivas adicionais para compatibilidade com handlers inline (onclick, etc)
-CSP_SCRIPT_SRC_ATTR = (
-    "'unsafe-inline'",  # Permite onclick, onload, etc em atributos HTML
-)
-CSP_SCRIPT_SRC_ELEM = (
-    "'self'",
-    "'unsafe-inline'",
-    "'unsafe-eval'",
-    "https://www.google.com",
-    "https://www.gstatic.com",
-    "https://cdn.jsdelivr.net",
-)
-# Desabilita CSP em modo debug para facilitar desenvolvimento
-if DEBUG:
-    CSP_REPORT_ONLY = True  # Apenas reporta violacoes, nao bloqueia
 
 CSRF_TRUSTED_ORIGINS = [
     'https://nossopainel.com.br',
