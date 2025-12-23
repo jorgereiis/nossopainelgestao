@@ -104,7 +104,7 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "csp.middleware.CSPMiddleware",  # Content Security Policy
+    "setup.middleware.CSPMiddleware",  # Content Security Policy (customizado para Python 3.8)
     "setup.middleware.DomainRoutingMiddleware",  # Roteamento por domínio (JampaBet vs NossoPainel)
     "painel_cliente.middleware.SubdomainRoutingMiddleware",  # Roteamento de subdominios (*.pagar.cc)
     "django.contrib.sessions.middleware.SessionMiddleware",

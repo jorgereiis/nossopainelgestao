@@ -3,6 +3,66 @@ from django.shortcuts import redirect
 from django.urls import NoReverseMatch, reverse
 
 
+class CSPMiddleware:
+    """
+    Middleware customizado para Content Security Policy (CSP).
+    Compatível com Python 3.8+.
+
+    Adiciona headers CSP para prevenir XSS e injeção de código.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        # Não aplica CSP em modo DEBUG se CSP_REPORT_ONLY estiver ativo
+        if getattr(settings, 'DEBUG', False) and getattr(settings, 'CSP_REPORT_ONLY', False):
+            # Em modo debug com report-only, usa header de report
+            header_name = 'Content-Security-Policy-Report-Only'
+        else:
+            header_name = 'Content-Security-Policy'
+
+        # Constrói a política CSP a partir das configurações
+        csp_policy = self._build_csp_policy()
+
+        if csp_policy:
+            response[header_name] = csp_policy
+
+        return response
+
+    def _build_csp_policy(self):
+        """Constrói a string de política CSP a partir das configurações."""
+        directives = []
+
+        # Mapeamento de configurações para diretivas CSP
+        csp_settings = {
+            'CSP_DEFAULT_SRC': 'default-src',
+            'CSP_SCRIPT_SRC': 'script-src',
+            'CSP_STYLE_SRC': 'style-src',
+            'CSP_FONT_SRC': 'font-src',
+            'CSP_IMG_SRC': 'img-src',
+            'CSP_FRAME_SRC': 'frame-src',
+            'CSP_CONNECT_SRC': 'connect-src',
+            'CSP_MEDIA_SRC': 'media-src',
+            'CSP_OBJECT_SRC': 'object-src',
+            'CSP_BASE_URI': 'base-uri',
+            'CSP_FORM_ACTION': 'form-action',
+        }
+
+        for setting_name, directive_name in csp_settings.items():
+            values = getattr(settings, setting_name, None)
+            if values:
+                if isinstance(values, (list, tuple)):
+                    values_str = ' '.join(values)
+                else:
+                    values_str = str(values)
+                directives.append('{} {}'.format(directive_name, values_str))
+
+        return '; '.join(directives)
+
+
 class DomainRoutingMiddleware:
     """
     Middleware para roteamento baseado em domínio.
