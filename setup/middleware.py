@@ -68,6 +68,10 @@ class CheckUserLoggedInMiddleware:
         if getattr(request, 'is_jampabet', False):
             return self._handle_jampabet(request)
 
+        # Se for Painel Cliente, ignora (tem middleware proprio de autenticacao)
+        if getattr(request, 'is_painel_cliente', False):
+            return self.get_response(request)
+
         # Lógica original para NossoPainel
         if request.user.is_authenticated:
             return self.get_response(request)

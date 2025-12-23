@@ -124,6 +124,60 @@ logger.info(f"Hostname: {socket.gethostname()}")
 logger.info(f"=" * 60)
 
 # --------------- Helpers ---------------
+def is_job_ativo(job_nome):
+    """
+    Verifica se o job está ativo na ConfiguracaoAgendamento.
+    Retorna True se ativo ou se não encontrar configuração (fallback).
+    """
+    try:
+        from nossopainel.models import ConfiguracaoAgendamento
+        config = ConfiguracaoAgendamento.objects.filter(nome=job_nome).first()
+        if config is None:
+            # Se não existe configuração, permite execução (fallback)
+            return True
+        return config.ativo
+    except Exception as e:
+        logger_fileonly.warning(f"Erro ao verificar status do job {job_nome}: {e}")
+        # Em caso de erro, permite execução (fallback seguro)
+        return True
+
+
+def get_job_horario(job_nome, default_horario):
+    """
+    Obtém o horário de execução do job do banco de dados.
+    Retorna o horário configurado ou o default se não encontrar.
+    """
+    try:
+        from nossopainel.models import ConfiguracaoAgendamento
+        config = ConfiguracaoAgendamento.objects.filter(nome=job_nome).first()
+        if config and config.horario and ':' in config.horario and len(config.horario) == 5:
+            return config.horario
+        return default_horario
+    except Exception as e:
+        logger_fileonly.warning(f"Erro ao obter horário do job {job_nome}: {e}")
+        return default_horario
+
+
+def job_wrapper(job_nome, job_func, *args, **kwargs):
+    """
+    Wrapper que verifica se o job está ativo antes de executar.
+    """
+    if not is_job_ativo(job_nome):
+        logger_fileonly.debug(f"Job {job_nome} está INATIVO - pulando execução")
+        return
+    job_func(*args, **kwargs)
+
+
+async def async_job_wrapper(job_nome, async_job_func, *args, **kwargs):
+    """
+    Wrapper async que verifica se o job está ativo antes de executar.
+    """
+    if not is_job_ativo(job_nome):
+        logger_fileonly.debug(f"Job async {job_nome} está INATIVO - pulando execução")
+        return
+    await async_job_func(*args, **kwargs)
+
+
 def log_jobs_state():
     """Loga o estado atual dos jobs agendados."""
     jobs = schedule.get_jobs()
@@ -171,22 +225,56 @@ def run_threaded_async(async_coro_func, *args, **kwargs):
     t.start()
 
 # --------------- Agendamentos ---------------
-# Jobs diários em horários fixos:
-schedule.every().day.at("08:00").do(run_threaded_sync, chamada_funcao_gp_futebol).tag("gp_futebol")
-schedule.every().day.at("10:00").do(run_threaded_sync, chamada_funcao_gp_vendas).tag("gp_vendas_manha")
-schedule.every().day.at("17:00").do(run_threaded_sync, obter_mensalidades_canceladas).tag("mensalidades_canceladas")
-schedule.every().day.at("20:00").do(run_threaded_sync, chamada_funcao_gp_vendas).tag("gp_vendas_noite")
+# Busca horários do banco de dados (com fallback para horário padrão)
+horario_gp_futebol = get_job_horario("gp_futebol", "08:00")
+horario_gp_vendas = get_job_horario("gp_vendas", "10:00")
+horario_mensalidades_canceladas = get_job_horario("mensalidades_canceladas", "17:00")
+horario_telegram_connection = get_job_horario("telegram_connection", "23:00")
+horario_upload_telegram = get_job_horario("upload_telegram", "23:50")
+
+logger.info(f"Horários configurados:")
+logger.info(f"  - GP Futebol: {horario_gp_futebol}")
+logger.info(f"  - GP Vendas: {horario_gp_vendas}")
+logger.info(f"  - Mensalidades Canceladas: {horario_mensalidades_canceladas}")
+logger.info(f"  - Telegram Connection: {horario_telegram_connection}")
+logger.info(f"  - Upload Telegram: {horario_upload_telegram}")
+
+# Jobs diários em horários fixos (com verificação de status no banco):
+schedule.every().day.at(horario_gp_futebol).do(
+    run_threaded_sync, job_wrapper, "gp_futebol", chamada_funcao_gp_futebol
+).tag("gp_futebol")
+
+schedule.every().day.at(horario_gp_vendas).do(
+    run_threaded_sync, job_wrapper, "gp_vendas", chamada_funcao_gp_vendas
+).tag("gp_vendas")
+
+schedule.every().day.at(horario_mensalidades_canceladas).do(
+    run_threaded_sync, job_wrapper, "mensalidades_canceladas", obter_mensalidades_canceladas
+).tag("mensalidades_canceladas")
 
 # Jobs async com loop dedicado:
-schedule.every().day.at("23:00").do(run_threaded_async, telegram_connection).tag("telegram_connection")
-schedule.every().day.at("23:50").do(run_threaded_sync, executar_upload_image_from_telegram_com_lock).tag("upload_telegram")
+schedule.every().day.at(horario_telegram_connection).do(
+    run_threaded_async, async_job_wrapper, "telegram_connection", telegram_connection
+).tag("telegram_connection")
+
+schedule.every().day.at(horario_upload_telegram).do(
+    run_threaded_sync, job_wrapper, "upload_telegram", executar_upload_image_from_telegram_com_lock
+).tag("upload_telegram")
 
 # Jobs em frequência curta:
-schedule.every(60).minutes.do(run_threaded_sync, backup_db_sh).tag("backup_db")
-schedule.every(1).minutes.do(run_threaded_sync_nolog, executar_envios_agendados_com_lock).tag("envios_agendados")
-schedule.every(1).minutes.do(run_threaded_sync_nolog, run_scheduled_tasks_from_db).tag("tarefas_envio_db")
+schedule.every(60).minutes.do(
+    run_threaded_sync, job_wrapper, "backup_db", backup_db_sh
+).tag("backup_db")
 
-# JampaBet - Verificacao de partidas ao vivo (a cada 1 minuto)
+schedule.every(1).minutes.do(
+    run_threaded_sync_nolog, job_wrapper, "envios_vencimento", executar_envios_agendados_com_lock
+).tag("envios_agendados")
+
+schedule.every(1).minutes.do(
+    run_threaded_sync_nolog, job_wrapper, "tarefas_envio_db", run_scheduled_tasks_from_db
+).tag("tarefas_envio_db")
+
+# JampaBet - Verificacao de partidas ao vivo (a cada 1 minuto) - SEM wrapper, job será removido
 schedule.every(1).minutes.do(run_threaded_sync_nolog, jampabet_check_live_matches).tag("jampabet_live")
 
 # --------------- Verificação de Lock de Instância Única ---------------

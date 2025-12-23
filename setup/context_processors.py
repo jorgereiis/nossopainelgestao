@@ -5,7 +5,8 @@ from nossopainel.models import Mensalidade, Tipos_pgto, UserProfile
 
 
 def notifications(request):
-    if not request.user.is_authenticated:
+    # Verifica se request.user existe (pode nao existir em middlewares customizados)
+    if not hasattr(request, 'user') or not request.user.is_authenticated:
         return {}
 
     hoje = timezone.localdate()
@@ -39,7 +40,8 @@ def user_profile(request):
     Disponibiliza o perfil do usuário (UserProfile) em todos os templates.
     Retorna o perfil do usuário autenticado, ou None se não estiver autenticado.
     """
-    if not request.user.is_authenticated:
+    # Verifica se request.user existe (pode nao existir em middlewares customizados)
+    if not hasattr(request, 'user') or not request.user.is_authenticated:
         return {"user_profile": None}
 
     try:

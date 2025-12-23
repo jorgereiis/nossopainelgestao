@@ -1,0 +1,67 @@
+"""
+Utilitarios do Painel do Cliente.
+"""
+
+import requests
+import logging
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
+
+def validar_recaptcha(recaptcha_response, remote_ip=None):
+    """
+    Valida a resposta do reCAPTCHA v2.
+
+    Args:
+        recaptcha_response: Token retornado pelo widget reCAPTCHA (g-recaptcha-response)
+        remote_ip: IP do cliente (opcional, para validacao adicional)
+
+    Returns:
+        tuple: (sucesso: bool, mensagem_erro: str ou None)
+    """
+    if not recaptcha_response:
+        return False, "Por favor, confirme que você não é um robo."
+
+    secret_key = getattr(settings, 'RECAPTCHA_PRIVATE_KEY', None)
+    if not secret_key:
+        # Se nao tiver chave configurada, permite passar (desenvolvimento)
+        logger.warning("[reCAPTCHA] RECAPTCHA_PRIVATE_KEY nao configurada, ignorando validacao")
+        return True, None
+
+    try:
+        payload = {
+            'secret': secret_key,
+            'response': recaptcha_response,
+        }
+        if remote_ip:
+            payload['remoteip'] = remote_ip
+
+        response = requests.post(
+            'https://www.google.com/recaptcha/api/siteverify',
+            data=payload,
+            timeout=10
+        )
+        result = response.json()
+
+        if result.get('success'):
+            return True, None
+        else:
+            error_codes = result.get('error-codes', [])
+            logger.warning(f"[reCAPTCHA] Validacao falhou: {error_codes}")
+            return False, "Verificação de seguranca falhou. Tente novamente."
+
+    except requests.RequestException as e:
+        logger.error(f"[reCAPTCHA] Erro de conexao: {e}")
+        # Em caso de erro de rede, permite passar para nao bloquear usuarios
+        return True, None
+    except Exception as e:
+        logger.exception(f"[reCAPTCHA] Erro inesperado: {e}")
+        return True, None
+
+
+def get_recaptcha_site_key():
+    """
+    Retorna a chave publica do reCAPTCHA.
+    """
+    return getattr(settings, 'RECAPTCHA_PUBLIC_KEY', '')

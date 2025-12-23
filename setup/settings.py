@@ -73,6 +73,8 @@ else:
         'jampabet.com.br',
         'www.jampabet.com.br',
         'local.jampabet.com.br',
+        # Painel do Cliente - subdominios dinamicos
+        '.pagar.cc',  # Permite qualquer subdominio de pagar.cc
     ]
     # Adiciona domínio extra do .env (ex: ngrok para testes de webhook)
     extra_host = os.getenv('EXTRA_ALLOWED_HOST', '')
@@ -92,6 +94,7 @@ INSTALLED_APPS = [
     "axes",  # django-axes para rate limiting e bloqueio de tentativas de login
     "nossopainel.apps.NossopainelConfig",
     "jampabet.apps.JampabetConfig",  # JampaBet - Sistema de Palpites
+    "painel_cliente.apps.PainelClienteConfig",  # Painel do Cliente - pagamentos
     "crispy_forms",
     "crispy_bootstrap5",
     "django_recaptcha",
@@ -102,10 +105,12 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "setup.middleware.DomainRoutingMiddleware",  # Roteamento por domínio (JampaBet vs NossoPainel)
+    "painel_cliente.middleware.SubdomainRoutingMiddleware",  # Roteamento de subdominios (*.pagar.cc)
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "painel_cliente.middleware.PainelClienteSessionMiddleware",  # Sessao do cliente no painel
     "axes.middleware.AxesMiddleware",  # django-axes deve vir após AuthenticationMiddleware
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -151,12 +156,21 @@ if DEBUG:
         'http://localhost',
         'http://localhost:8001',  # NossoPainel dev
         'http://localhost:8002',  # JampaBet dev
+        'http://localhost:8003',  # PainelCliente dev
         'http://127.0.0.1',
         'http://127.0.0.1:8001',  # NossoPainel dev
         'http://127.0.0.1:8002',  # JampaBet dev
+        'http://127.0.0.1:8003',  # PainelCliente dev
         'http://local.nossopainel.com.br',
         'http://local.nossopainel.com.br:8001', # NossoPainel dev
         'http://local.jampabet.com.br:8002',    # JampaBet dev
+        'http://*.pagar.cc:8003',               # PainelCliente dev (todos subdomínios)
+    ]
+else:
+    # Producao: adiciona wildcard para todos subdomínios pagar.cc
+    CSRF_TRUSTED_ORIGINS += [
+        'https://*.pagar.cc',
+        'http://*.pagar.cc',
     ]
 # Adiciona origem extra do .env (ex: ngrok para testes de webhook)
 extra_csrf_origin = os.getenv('EXTRA_CSRF_ORIGIN', '')

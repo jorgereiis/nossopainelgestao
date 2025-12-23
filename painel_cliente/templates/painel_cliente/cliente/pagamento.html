@@ -1,0 +1,1050 @@
+{% extends 'painel_cliente/base.html' %}
+{% load static %}
+
+{% block title %}Pagamento PIX{% endblock %}
+
+{% block body_class %}page-pagamento{% endblock %}
+
+{% block content %}
+<!-- Back Button -->
+<div class="page-header animate-fade-in">
+  <a href="{% url 'painel_cliente:dashboard' %}" class="back-link">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+    <span>Voltar</span>
+  </a>
+</div>
+
+<!-- Payment Container -->
+<div class="payment-container">
+  <!-- Payment Info Card -->
+  <div class="payment-info-card animate-fade-in-up {% if mensalidade.dt_vencimento < today %}payment-info-card-overdue{% endif %}">
+    <div class="payment-info-header">
+      {% if mensalidade.dt_vencimento < today %}
+      <span class="badge badge-danger badge-lg badge-dot">
+        <span class="dot animate-pulse"></span>
+        Em atraso
+      </span>
+      {% else %}
+      <span class="badge badge-warning badge-lg badge-dot">
+        <span class="dot animate-pulse"></span>
+        Em aberto
+      </span>
+      {% endif %}
+      <span class="payment-ref">{{ mensalidade.dt_vencimento|date:"F/Y" }}</span>
+    </div>
+    <div class="payment-info-amount">
+      <span class="currency">R$</span>
+      <span class="amount">{{ mensalidade.valor|floatformat:2 }}</span>
+    </div>
+    <div class="payment-info-due {% if mensalidade.dt_vencimento < today %}payment-info-due-overdue{% endif %}">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+      {% if mensalidade.dt_vencimento < today %}
+      <span>Venceu em: {{ mensalidade.dt_vencimento|date:"d/m/Y" }}</span>
+      {% elif mensalidade.dt_vencimento == today %}
+      <span>Vence hoje: {{ mensalidade.dt_vencimento|date:"d/m/Y" }}</span>
+      {% else %}
+      <span>Vencerá em: {{ mensalidade.dt_vencimento|date:"d/m/Y" }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- QR Code Section -->
+  <div class="qrcode-section animate-fade-in-up" style="animation-delay: 100ms;">
+    <!-- Initial State: Generate Button -->
+    <div id="state-initial" class="qrcode-state">
+      <div class="pix-icon-wrapper">
+        <div class="pix-icon animate-pulse-scale">
+          <img src="{% static 'assets/images/logo-apps/pix-logo.png' %}" alt="PIX">
+        </div>
+      </div>
+      <h2 class="qrcode-title">Pagar com PIX</h2>
+      <p class="qrcode-subtitle">Gere o QR Code para realizar o pagamento instantaneo</p>
+      <button id="btn-gerar-pix" class="btn btn-primary btn-gerar-qrcode" onclick="gerarPix()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        Gerar QR Code
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div id="state-loading" class="qrcode-state hidden">
+      <div class="loading-wrapper">
+        <div class="spinner spinner-lg"></div>
+        <p class="loading-text">Gerando QR Code...</p>
+      </div>
+    </div>
+
+    <!-- QR Code Generated State -->
+    <div id="state-qrcode" class="qrcode-state hidden">
+      <!-- Timer Circle -->
+      <div class="timer-wrapper">
+        <svg class="timer-circle" viewBox="0 0 100 100">
+          <circle class="timer-circle-bg" cx="50" cy="50" r="45"/>
+          <circle id="timer-progress" class="timer-circle-progress" cx="50" cy="50" r="45"/>
+        </svg>
+        <div class="timer-content">
+          <span class="timer-label">Expira em</span>
+          <span id="timer-display" class="timer-value">20:00</span>
+        </div>
+      </div>
+
+      <!-- QR Code Image -->
+      <div class="qrcode-wrapper">
+        <div class="qrcode-frame">
+          <img id="qrcode-img" src="" alt="QR Code PIX" class="qrcode-image">
+        </div>
+      </div>
+
+      <!-- Copy PIX Code -->
+      <div class="pix-copy-section">
+        <label class="form-label">PIX Copia e Cola</label>
+        <div class="pix-copy-input">
+          <input type="text" id="pix-copia-cola" class="form-input" readonly>
+          <button type="button" id="btn-copiar" class="btn btn-primary" onclick="copiarPix()">
+            <svg id="icon-copy" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <svg id="icon-check" class="hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span id="btn-copiar-text">Copiar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Waiting for payment -->
+      <div class="payment-waiting">
+        <div class="spinner spinner-md"></div>
+        <span class="waiting-text">Aguardando confirmação do pagamento...</span>
+        <span class="waiting-hint">Isso pode demorar até 2min após pagamento realizado.</span>
+      </div>
+
+      <!-- Open Bank App Button -->
+      <a id="btn-abrir-banco" href="#" class="btn btn-outline btn-block" style="display: none;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+        Abrir app do banco
+      </a>
+    </div>
+
+    <!-- Success State -->
+    <div id="state-success" class="qrcode-state hidden">
+      <div class="success-animation">
+        <div class="success-checkmark animate-scale-in-bounce">
+          <svg class="checkmark-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+            <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+            <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+          </svg>
+        </div>
+      </div>
+      <h2 class="success-title">Pagamento Confirmado!</h2>
+      <p class="success-subtitle">Seu pagamento foi processado com sucesso</p>
+      <div class="success-details">
+        <div class="success-detail-item">
+          <span class="detail-label">Valor pago</span>
+          <span class="detail-value">R$ {{ mensalidade.valor|floatformat:2 }}</span>
+        </div>
+        <div class="success-detail-item">
+          <span class="detail-label">Referencia</span>
+          <span class="detail-value">{{ mensalidade.dt_vencimento|date:"F/Y" }}</span>
+        </div>
+      </div>
+      <a href="{% url 'painel_cliente:dashboard' %}" class="btn btn-success btn-voltar-dashboard">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        Voltar ao Dashboard
+      </a>
+    </div>
+
+    <!-- Expired State -->
+    <div id="state-expired" class="qrcode-state hidden">
+      <div class="expired-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </div>
+      <h2 class="expired-title">PIX Expirado</h2>
+      <p class="expired-subtitle">O tempo para pagamento expirou. Gere um novo QR Code.</p>
+      <button class="btn btn-primary btn-lg btn-block" onclick="location.reload()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        Gerar Novo PIX
+      </button>
+    </div>
+  </div>
+
+  <!-- Instructions -->
+  <div class="instructions-card animate-fade-in-up" style="animation-delay: 200ms;">
+    <div class="instructions-header">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+      <span>Como pagar com PIX</span>
+    </div>
+    <ol class="instructions-list">
+      <li>
+        <span class="step-number">1</span>
+        <span class="step-text">Abra o app do seu banco</span>
+      </li>
+      <li>
+        <span class="step-number">2</span>
+        <span class="step-text">Escolha pagar com PIX</span>
+      </li>
+      <li>
+        <span class="step-number">3</span>
+        <span class="step-text">Escaneie o QR Code ou cole o codigo</span>
+      </li>
+      <li>
+        <span class="step-number">4</span>
+        <span class="step-text">Confirme o pagamento</span>
+      </li>
+    </ol>
+  </div>
+</div>
+
+<!-- Confetti Container (for success animation) -->
+<div id="confetti-container" class="confetti-container"></div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-pagamento .main-content {
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-8);
+  }
+
+  .page-header {
+    margin-bottom: var(--space-4);
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .back-link:hover {
+    color: var(--color-primary);
+  }
+
+  .back-link svg {
+    width: 18px;
+    height: 18px;
+    transition: transform var(--transition-fast);
+  }
+
+  .back-link:hover svg {
+    transform: translateX(-4px);
+  }
+
+  .payment-container {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* Payment Info Card */
+  .payment-info-card {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-6);
+    color: white;
+    margin-bottom: var(--space-4);
+    text-align: center;
+  }
+
+  .payment-info-card-overdue {
+    background: linear-gradient(135deg, var(--color-danger) 0%, #b91c1c 100%);
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  }
+
+  .payment-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
+  }
+
+  .payment-info-header .badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+
+  .payment-info-header .badge-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .payment-info-header .badge-dot .dot {
+    width: 8px;
+    height: 8px;
+    background: currentColor;
+    border-radius: 50%;
+  }
+
+  .payment-info-header .badge-dot .dot.animate-pulse {
+    animation: dotPulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes dotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .payment-info-header .badge-danger {
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  .payment-info-due-overdue {
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: var(--font-semibold);
+  }
+
+  .payment-ref {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    opacity: 0.9;
+    text-transform: capitalize;
+  }
+
+  .payment-info-amount {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: var(--space-1);
+    margin-bottom: var(--space-3);
+  }
+
+  .payment-info-amount .currency {
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
+    opacity: 0.9;
+  }
+
+  .payment-info-amount .amount {
+    font-size: var(--text-4xl);
+    font-weight: var(--font-bold);
+  }
+
+  .payment-info-due {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    opacity: 0.9;
+  }
+
+  .payment-info-due svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* QR Code Section */
+  .qrcode-section {
+    background: var(--color-surface);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-md);
+    margin-bottom: var(--space-4);
+  }
+
+  .qrcode-state {
+    text-align: center;
+  }
+
+  .qrcode-state.hidden {
+    display: none;
+  }
+
+  .pix-icon-wrapper {
+    margin-bottom: var(--space-5);
+  }
+
+  .pix-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15));
+    border-radius: var(--radius-2xl);
+    color: var(--color-primary);
+  }
+
+  .pix-icon svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .pix-icon img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+  }
+
+  .qrcode-title {
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-2) 0;
+  }
+
+  .qrcode-subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-5) 0;
+  }
+
+  /* Botao Gerar QR Code */
+  .btn-gerar-qrcode {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    border-radius: var(--radius-xl);
+    transition: all var(--transition-normal);
+  }
+
+  .btn-gerar-qrcode svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .btn-gerar-qrcode:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+  }
+
+  /* Botao Voltar ao Dashboard (Sucesso) */
+  .btn-voltar-dashboard {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    border-radius: var(--radius-xl);
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    text-decoration: none;
+    transition: all var(--transition-normal);
+    margin-top: var(--space-4);
+  }
+
+  .btn-voltar-dashboard svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .btn-voltar-dashboard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+    color: white;
+  }
+
+  /* Loading State */
+  .loading-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-8) 0;
+  }
+
+  .loading-text {
+    margin-top: var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    text-align: center;
+  }
+
+  /* Timer Circle */
+  .timer-wrapper {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto var(--space-5);
+  }
+
+  .timer-circle {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  .timer-circle-bg {
+    fill: none;
+    stroke: var(--color-gray-200);
+    stroke-width: 8;
+  }
+
+  .timer-circle-progress {
+    fill: none;
+    stroke: var(--color-primary);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 283;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s;
+  }
+
+  .timer-circle-progress.warning {
+    stroke: var(--color-warning);
+  }
+
+  .timer-circle-progress.danger {
+    stroke: var(--color-danger);
+  }
+
+  .timer-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+
+  .timer-label {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-1);
+  }
+
+  .timer-value {
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    color: var(--color-text-primary);
+  }
+
+  .timer-value.warning {
+    color: var(--color-warning);
+  }
+
+  .timer-value.danger {
+    color: var(--color-danger);
+    animation: urgencyPulse 1s ease-in-out infinite;
+  }
+
+  /* QR Code */
+  .qrcode-wrapper {
+    margin-bottom: var(--space-5);
+  }
+
+  .qrcode-frame {
+    display: inline-block;
+    padding: var(--space-4);
+    background: white;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .qrcode-image {
+    display: block;
+    width: 200px;
+    height: 200px;
+    object-fit: contain;
+  }
+
+  /* PIX Copy Section */
+  .pix-copy-section {
+    margin-bottom: var(--space-4);
+    text-align: center;
+  }
+
+  .pix-copy-input {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .pix-copy-input .form-input {
+    flex: 1;
+    font-size: var(--text-xs);
+    padding: var(--space-2-5) var(--space-3);
+    background-color: var(--color-gray-100);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+  }
+
+  .pix-copy-input .btn {
+    white-space: nowrap;
+    gap: var(--space-2);
+  }
+
+  .pix-copy-input .btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .pix-copy-input .btn svg.hidden {
+    display: none;
+  }
+
+  /* Waiting */
+  .payment-waiting {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    background: var(--color-info-light);
+    border-radius: var(--radius-lg);
+    color: var(--color-info);
+    margin-bottom: var(--space-4);
+    text-align: center;
+  }
+
+  .payment-waiting .waiting-text {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+  }
+
+  .payment-waiting .waiting-hint {
+    font-size: var(--text-xs);
+    opacity: 0.8;
+  }
+
+  /* Success State */
+  .success-animation {
+    margin-bottom: var(--space-5);
+  }
+
+  .success-checkmark {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto;
+  }
+
+  .checkmark-svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .checkmark-circle {
+    stroke: var(--color-success);
+    stroke-width: 3;
+    stroke-dasharray: 166;
+    stroke-dashoffset: 166;
+    animation: circleDraw 0.6s ease-in-out forwards;
+  }
+
+  .checkmark-check {
+    stroke: var(--color-success);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 50;
+    stroke-dashoffset: 50;
+    animation: checkmarkDraw 0.4s ease-in-out 0.4s forwards;
+  }
+
+  .success-title {
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    color: var(--color-success);
+    margin: 0 0 var(--space-2) 0;
+  }
+
+  .success-subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-5) 0;
+  }
+
+  .success-details {
+    background: var(--color-gray-50);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    margin-bottom: var(--space-5);
+  }
+
+  .success-detail-item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--space-2) 0;
+  }
+
+  .success-detail-item:not(:last-child) {
+    border-bottom: 1px solid var(--color-border-light);
+  }
+
+  .detail-label {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .detail-value {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-primary);
+  }
+
+  /* Expired State */
+  .expired-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto var(--space-5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-warning-light);
+    border-radius: var(--radius-full);
+    color: var(--color-warning);
+  }
+
+  .expired-icon svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .expired-title {
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    color: var(--color-warning);
+    margin: 0 0 var(--space-2) 0;
+  }
+
+  .expired-subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-5) 0;
+  }
+
+  /* Instructions */
+  .instructions-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .instructions-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-4);
+  }
+
+  .instructions-header svg {
+    width: 18px;
+    height: 18px;
+    color: var(--color-primary);
+  }
+
+  .instructions-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .instructions-list li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2-5) 0;
+  }
+
+  .instructions-list li:not(:last-child) {
+    border-bottom: 1px solid var(--color-border-light);
+  }
+
+  .step-number {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-primary);
+    color: white;
+    font-size: var(--text-xs);
+    font-weight: var(--font-bold);
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+  }
+
+  .step-text {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  /* Confetti */
+  .confetti-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: var(--z-toast);
+    overflow: hidden;
+  }
+
+  .confetti-piece {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    top: -20px;
+    animation: confettiFall 3s linear forwards;
+  }
+
+  @keyframes confettiFall {
+    0% {
+      transform: translateY(-100vh) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const mensalidadeId = '{{ mensalidade.id }}';
+  let cobrancaId = null;
+  let timerInterval = null;
+  let pollingInterval = null;
+  let expiracaoDate = null;
+  let totalSeconds = 1200; // 20 minutes
+
+  // State management
+  function showState(stateId) {
+    document.querySelectorAll('.qrcode-state').forEach(state => {
+      state.classList.add('hidden');
+    });
+    document.getElementById(stateId).classList.remove('hidden');
+  }
+
+  // Generate PIX
+  function gerarPix() {
+    showState('state-loading');
+
+    fetch(`{% url 'painel_cliente:gerar_pix' mensalidade.id %}`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}',
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        cobrancaId = data.cobranca_id;
+        expiracaoDate = new Date(data.expira_em);
+
+        // Calculate total seconds from expiration
+        const now = new Date();
+        totalSeconds = Math.floor((expiracaoDate - now) / 1000);
+
+        // Display QR Code
+        const qrcodeImg = document.getElementById('qrcode-img');
+        if (data.qr_code_base64) {
+          qrcodeImg.src = 'data:image/png;base64,' + data.qr_code_base64;
+        } else if (data.qr_code_url) {
+          qrcodeImg.src = data.qr_code_url;
+        }
+
+        document.getElementById('pix-copia-cola').value = data.pix_copia_cola;
+
+        // Show QR code state
+        showState('state-qrcode');
+
+        // Start timer
+        iniciarTimer();
+
+        // Start polling
+        iniciarPolling();
+      } else {
+        Toast.error(data.error || 'Erro ao gerar PIX');
+        showState('state-initial');
+      }
+    })
+    .catch(error => {
+      console.error('Erro:', error);
+      Toast.error('Erro ao conectar com o servidor');
+      showState('state-initial');
+    });
+  }
+
+  // Copy PIX code
+  function copiarPix() {
+    const input = document.getElementById('pix-copia-cola');
+    const btn = document.getElementById('btn-copiar');
+    const iconCopy = document.getElementById('icon-copy');
+    const iconCheck = document.getElementById('icon-check');
+    const btnText = document.getElementById('btn-copiar-text');
+
+    navigator.clipboard.writeText(input.value).then(() => {
+      // Visual feedback
+      iconCopy.classList.add('hidden');
+      iconCheck.classList.remove('hidden');
+      btnText.textContent = 'Copiado!';
+      btn.classList.remove('btn-primary');
+      btn.classList.add('btn-success');
+
+      Toast.success('Codigo PIX copiado!');
+
+      setTimeout(() => {
+        iconCopy.classList.remove('hidden');
+        iconCheck.classList.add('hidden');
+        btnText.textContent = 'Copiar';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+      }, 2000);
+    }).catch(() => {
+      // Fallback
+      input.select();
+      document.execCommand('copy');
+      Toast.success('Codigo PIX copiado!');
+    });
+  }
+
+  // Timer with circular progress
+  function iniciarTimer() {
+    const progressCircle = document.getElementById('timer-progress');
+    const timerDisplay = document.getElementById('timer-display');
+    const circumference = 2 * Math.PI * 45; // 2πr where r=45
+    progressCircle.style.strokeDasharray = circumference;
+
+    let remainingSeconds = totalSeconds;
+
+    function updateTimer() {
+      const now = new Date();
+      const diff = expiracaoDate - now;
+
+      if (diff <= 0) {
+        clearInterval(timerInterval);
+        clearInterval(pollingInterval);
+        showState('state-expired');
+        return;
+      }
+
+      remainingSeconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(remainingSeconds / 60);
+      const seconds = remainingSeconds % 60;
+
+      // Update display
+      timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+      // Update circular progress
+      const progress = remainingSeconds / totalSeconds;
+      const offset = circumference * (1 - progress);
+      progressCircle.style.strokeDashoffset = offset;
+
+      // Change color based on time remaining
+      if (remainingSeconds <= 60) {
+        progressCircle.classList.add('danger');
+        progressCircle.classList.remove('warning');
+        timerDisplay.classList.add('danger');
+        timerDisplay.classList.remove('warning');
+      } else if (remainingSeconds <= 300) {
+        progressCircle.classList.add('warning');
+        progressCircle.classList.remove('danger');
+        timerDisplay.classList.add('warning');
+        timerDisplay.classList.remove('danger');
+      }
+    }
+
+    updateTimer();
+    timerInterval = setInterval(updateTimer, 1000);
+  }
+
+  // Polling for payment status
+  function iniciarPolling() {
+    pollingInterval = setInterval(() => {
+      if (!cobrancaId) return;
+
+      fetch(`{% url 'painel_cliente:status_pix' '00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', cobrancaId))
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'paid') {
+          clearInterval(timerInterval);
+          clearInterval(pollingInterval);
+          showSuccess();
+        } else if (data.status === 'expired' || data.status === 'cancelled') {
+          clearInterval(timerInterval);
+          clearInterval(pollingInterval);
+          showState('state-expired');
+        }
+      })
+      .catch(error => console.error('Erro no polling:', error));
+    }, 5000);
+  }
+
+  // Show success with confetti
+  function showSuccess() {
+    showState('state-success');
+    createConfetti();
+  }
+
+  // Create confetti animation
+  function createConfetti() {
+    const container = document.getElementById('confetti-container');
+    const colors = ['#8B5CF6', '#EC4899', '#10B981', '#F59E0B', '#06B6D4'];
+
+    for (let i = 0; i < 50; i++) {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti-piece';
+      confetti.style.left = Math.random() * 100 + '%';
+      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.animationDelay = Math.random() * 0.5 + 's';
+      confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+
+      if (Math.random() > 0.5) {
+        confetti.style.borderRadius = '50%';
+      }
+
+      container.appendChild(confetti);
+
+      // Remove after animation
+      setTimeout(() => confetti.remove(), 4000);
+    }
+  }
+</script>
+{% endblock %}

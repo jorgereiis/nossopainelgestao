@@ -1,0 +1,1130 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>FastDePix | Integracoes API | Nosso Painel</title>
+  <style>
+    /* Page Header */
+    .page-header-custom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .page-header-custom h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .breadcrumb-custom {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+
+    .breadcrumb-custom a {
+      color: #0d6efd;
+      text-decoration: none;
+    }
+
+    .breadcrumb-custom a:hover {
+      text-decoration: underline;
+    }
+
+    /* Cards */
+    .config-card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+
+    .config-card-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid #e9ecef;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .config-card-header h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0;
+      color: #212529;
+    }
+
+    .config-card-header i {
+      color: #0d6efd;
+    }
+
+    .config-card-body {
+      padding: 1.5rem;
+    }
+
+    /* Status Badges */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 50px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .status-badge.success {
+      background: rgba(16, 185, 129, 0.1);
+      color: #10b981;
+    }
+
+    .status-badge.warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: #d97706;
+    }
+
+    .status-badge.danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+    }
+
+    .status-badge i {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Info Rows */
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-size: 0.875rem;
+      color: #6c757d;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .info-value {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #212529;
+    }
+
+    .info-value.mono {
+      font-family: 'Monaco', 'Menlo', monospace;
+      background: #f8f9fa;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    /* Webhook URL Box */
+    .webhook-url-box {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .webhook-url-box input {
+      flex: 1;
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.85rem;
+    }
+
+    .webhook-url-box .btn-copy {
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+
+    /* Alert Boxes */
+    .alert-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .alert-box.info {
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      color: #1565c0;
+    }
+
+    .alert-box.warning {
+      background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+      color: #e65100;
+    }
+
+    .alert-box.success {
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+      color: #2e7d32;
+    }
+
+    .alert-box i {
+      flex-shrink: 0;
+      margin-top: 0.125rem;
+    }
+
+    .alert-box p {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    /* Buttons */
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1.25rem;
+      border-radius: 10px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn-action:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-action i {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Log Table */
+    .log-table {
+      font-size: 0.85rem;
+    }
+
+    .log-table th {
+      font-weight: 600;
+      color: #495057;
+      background: #f8f9fa;
+    }
+
+    .log-table td {
+      vertical-align: middle;
+    }
+
+    .log-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    /* Grid Layout */
+    .config-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 992px) {
+      .config-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Spinner */
+    .spinner-border-sm {
+      width: 1rem;
+      height: 1rem;
+    }
+
+    /* Hidden API Key */
+    .api-key-hidden {
+      font-family: 'Monaco', 'Menlo', monospace;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+
+<body class="bg-light">
+  <!-- Wrapper -->
+  <div id="db-wrapper">
+    {% include 'partials/navbar-vertical.html' %}
+
+    <!-- Page Content -->
+    <div id="page-content">
+      {% include 'partials/header.html' %}
+
+      <!-- Container fluid -->
+      <div class="container-fluid px-4 mt-4">
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-custom mb-3">
+          <a href="{% url 'integracoes-api' %}">Integracoes API</a>
+          <i data-feather="chevron-right" style="width: 16px; height: 16px;"></i>
+          <span>FastDePix</span>
+        </div>
+
+        <!-- Page Header -->
+        <div class="page-header-custom">
+          <h1>
+            <img src="{% static 'assets/images/logo-apps/depix-logo.jpeg' %}" alt="FastDePix" style="width: 40px; height: 40px; border-radius: 10px;" onerror="this.style.display='none';">
+            FastDePix
+          </h1>
+          <a href="{% url 'integracoes-api' %}" class="btn btn-outline-secondary btn-action">
+            <i data-feather="arrow-left"></i>
+            Voltar
+          </a>
+        </div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <div class="config-grid">
+          <!-- Coluna Esquerda -->
+          <div>
+            <!-- Status da Conexao -->
+            <div class="config-card">
+              <div class="config-card-header">
+                <i data-feather="wifi"></i>
+                <h3>Status da Conexao</h3>
+                <span id="status-conta-badge" class="badge bg-secondary ms-2 d-none"></span>
+              </div>
+              <div class="config-card-body" id="status-conexao-content">
+                <!-- Estado inicial: nenhuma conta selecionada -->
+                <div id="status-no-selection" class="text-center py-4">
+                  <i data-feather="mouse-pointer" style="width: 40px; height: 40px; opacity: 0.4;"></i>
+                  <p class="mt-3 mb-0 text-muted">Selecione uma conta no card<br><strong>"Contas Configuradas"</strong><br>para conferir o status da conexao</p>
+                </div>
+
+                <!-- Estado: conta selecionada (oculto inicialmente) -->
+                <div id="status-with-selection" class="d-none">
+                  <div class="d-flex align-items-center justify-content-between mb-3">
+                    <span class="info-label">Status da API</span>
+                    <span id="status-api-badge" class="status-badge"></span>
+                  </div>
+
+                  <div class="info-row">
+                    <span class="info-label">
+                      <i data-feather="credit-card" style="width: 16px; height: 16px;"></i>
+                      Conta
+                    </span>
+                    <span class="info-value" id="status-conta-nome"></span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">
+                      <i data-feather="user" style="width: 16px; height: 16px;"></i>
+                      Usuario
+                    </span>
+                    <span class="info-value" id="status-usuario"></span>
+                  </div>
+                  <div class="info-row" id="status-apikey-row">
+                    <span class="info-label">
+                      <i data-feather="key" style="width: 16px; height: 16px;"></i>
+                      API Key
+                    </span>
+                    <span class="info-value api-key-hidden" id="status-apikey"></span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">
+                      <i data-feather="link" style="width: 16px; height: 16px;"></i>
+                      Webhook
+                    </span>
+                    <span id="status-webhook-badge"></span>
+                  </div>
+
+                  <div class="mt-3" id="status-testar-btn-container">
+                    <button type="button" class="btn btn-outline-primary btn-action w-100 justify-content-center" onclick="testarConexao()">
+                      <i data-feather="refresh-cw"></i>
+                      <span id="btn-testar-text">Testar Conexao</span>
+                      <span id="btn-testar-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                    </button>
+                  </div>
+                </div>
+                <div id="teste-resultado" class="mt-3 d-none"></div>
+              </div>
+            </div>
+
+            <!-- Configuracao Webhook -->
+            <div class="config-card">
+              <div class="config-card-header">
+                <i data-feather="link"></i>
+                <h3>Webhook</h3>
+              </div>
+              <div class="config-card-body">
+                <div class="alert-box info mb-3">
+                  <i data-feather="info"></i>
+                  <p class="mb-0">O webhook permite receber notificacoes de pagamento em tempo real.</p>
+                </div>
+
+                <div class="mt-3">
+                  <label class="form-label fw-semibold">URL do Webhook (seu sistema)</label>
+                  <div class="webhook-url-box">
+                    <input type="text" id="webhook-url-default" value="{{ webhook_url }}" readonly>
+                    <button type="button" class="btn btn-outline-secondary btn-copy" onclick="copiarWebhookUrl('webhook-url-default')">
+                      <i data-feather="copy" style="width: 16px; height: 16px;"></i>
+                      Copiar
+                    </button>
+                  </div>
+                  <small class="text-muted d-block mt-1">Copie esta URL e configure no painel do FastDePix.</small>
+                </div>
+
+                {% if is_development %}
+                <div class="mt-3">
+                  <label class="form-label fw-semibold">
+                    URL Base (desenvolvimento)
+                    <span class="badge bg-warning text-dark ms-2">DEBUG</span>
+                  </label>
+                  <div class="webhook-url-box">
+                    <input type="text" id="webhook-url-custom" value="{{ webhook_url_custom }}" placeholder="https://seu-tunnel.ngrok-free.dev">
+                    <button type="button" class="btn btn-outline-primary btn-copy" onclick="salvarWebhookCustom()">
+                      <i data-feather="save" style="width: 16px; height: 16px;"></i>
+                      Salvar
+                    </button>
+                  </div>
+                  <small class="text-muted mt-1 d-block">
+                    Informe apenas a URL base do ngrok/localtunnel. O path <code>/api/pix/webhook/</code> sera adicionado automaticamente.
+                  </small>
+                  <div id="webhook-url-preview" class="mt-2 p-2 bg-light rounded small" style="display: none;">
+                    <strong>URL completa:</strong> <code id="webhook-url-full"></code>
+                  </div>
+                </div>
+                {% endif %}
+
+                <!-- Acoes do Webhook -->
+                <div class="mt-4 pt-3 border-top">
+                  <label class="form-label fw-semibold mb-3">Acoes na API FastDePix</label>
+                  {% if webhook_status == 'configured' %}
+                  <!-- Webhook configurado: mostra Atualizar e Remover -->
+                  <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-action" onclick="atualizarWebhook()">
+                      <i data-feather="refresh-cw"></i>
+                      Atualizar
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-action" onclick="removerWebhook()">
+                      <i data-feather="trash-2"></i>
+                      Remover
+                    </button>
+                  </div>
+                  {% else %}
+                  <!-- Webhook nao configurado: mostra apenas Registrar centralizado -->
+                  <div class="text-center">
+                    <button type="button" class="btn btn-primary btn-action" onclick="registrarWebhook()">
+                      <i data-feather="upload-cloud"></i>
+                      Registrar na API
+                    </button>
+                  </div>
+                  {% endif %}
+                  {% if webhook_status == 'configured' %}
+                  <div class="alert-box success mt-3 mb-0">
+                    <i data-feather="check-circle"></i>
+                    <p class="mb-0">Webhook configurado e ativo na API FastDePix.</p>
+                  </div>
+                  {% else %}
+                  <small class="text-muted d-block mt-2">
+                    <i data-feather="info" style="width: 12px; height: 12px;"></i>
+                    Registre o webhook para receber notificacoes de pagamento automaticamente.
+                  </small>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coluna Direita -->
+          <div>
+            <!-- Estatisticas -->
+            <div class="config-card">
+              <div class="config-card-header">
+                <i data-feather="bar-chart-2"></i>
+                <h3>Estatisticas (30 dias)</h3>
+                <span id="stats-conta-badge" class="badge bg-secondary ms-2">Todas as contas</span>
+              </div>
+              <div class="config-card-body">
+                <!-- Contagem de Cobrancas -->
+                <div class="row g-2 mb-3">
+                  <div class="col-3">
+                    <div class="text-center p-2 bg-light rounded-3">
+                      <div class="fs-4 fw-bold text-primary" id="stats-geradas">{{ stats.total_cobrancas|default:0 }}</div>
+                      <div class="small text-muted">Geradas</div>
+                    </div>
+                  </div>
+                  <div class="col-3">
+                    <div class="text-center p-2 bg-light rounded-3">
+                      <div class="fs-4 fw-bold text-success" id="stats-pagas">{{ stats.total_pagas|default:0 }}</div>
+                      <div class="small text-muted">Pagas</div>
+                    </div>
+                  </div>
+                  <div class="col-3">
+                    <div class="text-center p-2 bg-light rounded-3">
+                      <div class="fs-4 fw-bold text-warning" id="stats-pendentes">{{ stats.total_pendentes|default:0 }}</div>
+                      <div class="small text-muted">Pendentes</div>
+                    </div>
+                  </div>
+                  <div class="col-3">
+                    <div class="text-center p-2 bg-light rounded-3">
+                      <div class="fs-4 fw-bold text-secondary" id="stats-expiradas">{{ stats.total_expiradas|default:0 }}</div>
+                      <div class="small text-muted">Expiradas</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Valores Financeiros -->
+                <div class="border-top pt-3">
+                  <h6 class="text-muted mb-3"><i data-feather="dollar-sign" style="width: 14px; height: 14px;"></i> Valores</h6>
+                  <div class="row g-2">
+                    <div class="col-4">
+                      <div class="text-center p-2 bg-light rounded-3 border-start border-3 border-primary">
+                        <div class="fs-5 fw-bold text-dark" id="stats-valor-pago">R$ {{ stats.valor_pago|floatformat:2|default:"0,00" }}</div>
+                        <div class="small text-primary">Valor Pago</div>
+                      </div>
+                    </div>
+                    <div class="col-4">
+                      <div class="text-center p-2 bg-light rounded-3 border-start border-3 border-success">
+                        <div class="fs-5 fw-bold text-dark" id="stats-valor-recebido">R$ {{ stats.valor_recebido|floatformat:2|default:"0,00" }}</div>
+                        <div class="small text-success">Valor Recebido</div>
+                      </div>
+                    </div>
+                    <div class="col-4">
+                      <div class="text-center p-2 bg-light rounded-3 border-start border-3 border-danger">
+                        <div class="fs-5 fw-bold text-dark" id="stats-valor-taxa">R$ {{ stats.valor_taxa|floatformat:2|default:"0,00" }}</div>
+                        <div class="small text-danger">Taxas</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-3 border-top pt-3" id="sync-btn-container">
+                  <button type="button" class="btn btn-outline-warning btn-action w-100 justify-content-center" onclick="sincronizarCobrancas()">
+                    <i data-feather="refresh-cw"></i>
+                    <span id="btn-sync-text">Sincronizar Status das Pendentes</span>
+                    <span id="btn-sync-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                  </button>
+                  <small class="text-muted d-block mt-1">Verifica na API FastDePix se as cobrancas pendentes foram pagas ou expiraram.</small>
+                </div>
+                <div id="sync-resultado" class="mt-3 d-none"></div>
+              </div>
+            </div>
+
+            <!-- Contas Configuradas -->
+            <div class="config-card">
+              <div class="config-card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                  <i data-feather="credit-card"></i>
+                  <h3 class="mb-0">Contas Configuradas</h3>
+                </div>
+                <button type="button" id="btn-limpar-selecao" class="btn btn-outline-secondary btn-sm d-none" onclick="limparSelecao()">
+                  <i data-feather="x" style="width: 14px; height: 14px;"></i>
+                  Limpar selecao
+                </button>
+              </div>
+              <div class="config-card-body">
+                {% if contas_fastdepix %}
+                <div class="table-responsive">
+                  <table class="table table-hover log-table mb-0">
+                    <thead>
+                      <tr>
+                        <th>Nome</th>
+                        <th>Status</th>
+                        <th class="text-center">Cobrancas</th>
+                      </tr>
+                    </thead>
+                    <tbody id="contas-tbody">
+                      {% for conta in contas_fastdepix %}
+                      <tr class="conta-row"
+                          data-conta-id="{{ conta.id }}"
+                          data-conta-nome="{{ conta.nome_identificacao|default:conta.beneficiario }}"
+                          style="cursor: pointer;"
+                          onclick="selecionarConta({{ conta.id }})">
+                        <td>
+                          <div class="d-flex align-items-center gap-2">
+                            <span class="conta-check-icon d-none">
+                              <i data-feather="check-circle" class="text-primary" style="width: 16px; height: 16px;"></i>
+                            </span>
+                            <div>
+                              <div class="fw-semibold">{{ conta.nome_identificacao|default:conta.beneficiario }}</div>
+                              <small class="text-muted">{{ conta.usuario.username }}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          {% if conta.api_key %}
+                          <span class="badge bg-success-soft text-success">
+                            <i data-feather="check" style="width: 12px; height: 12px;"></i>
+                            Conectado
+                          </span>
+                          {% else %}
+                          <span class="badge bg-warning-soft text-warning">
+                            <i data-feather="alert-circle" style="width: 12px; height: 12px;"></i>
+                            Sem API Key
+                          </span>
+                          {% endif %}
+                        </td>
+                        <td class="text-center">
+                          <span class="badge bg-light text-dark">{{ conta.total_cobrancas|default:0 }}</span>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                <small class="text-muted d-block mt-2">
+                  <i data-feather="info" style="width: 12px; height: 12px;"></i>
+                  Clique em uma conta para filtrar. Clique novamente para remover o filtro.
+                </small>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                  <i data-feather="inbox" style="width: 48px; height: 48px; opacity: 0.3;"></i>
+                  <p class="mt-2 mb-0">Nenhuma conta FastDePix configurada</p>
+                  <a href="{% url 'cadastro-forma-pagamento' %}" class="btn btn-outline-primary btn-sm mt-3">
+                    Configurar Conta
+                  </a>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Documentacao -->
+            <div class="config-card">
+              <div class="config-card-header">
+                <i data-feather="book-open"></i>
+                <h3>Documentacao</h3>
+              </div>
+              <div class="config-card-body">
+                <div class="list-group list-group-flush">
+                  <a href="https://fastdepix.space/api/docs.php" target="_blank" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                    <i data-feather="external-link" style="width: 16px; height: 16px;"></i>
+                    Documentacao da API FastDePix
+                  </a>
+                  <a href="https://fastdepix.space/partner/login.php" target="_blank" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                    <i data-feather="log-in" style="width: 16px; height: 16px;"></i>
+                    Painel FastDePix
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'partials/scripts.html' %}
+
+  <script>
+    // Testar conexao com API
+    function testarConexao() {
+      const btnText = document.getElementById('btn-testar-text');
+      const btnSpinner = document.getElementById('btn-testar-spinner');
+      const resultado = document.getElementById('teste-resultado');
+
+      btnText.textContent = 'Testando...';
+      btnSpinner.classList.remove('d-none');
+      resultado.classList.add('d-none');
+
+      fetch('{% url "integracoes-fastdepix-testar" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        btnText.textContent = 'Testar Conexao';
+        btnSpinner.classList.add('d-none');
+        resultado.classList.remove('d-none');
+
+        if (data.success) {
+          resultado.innerHTML = `
+            <div class="alert-box success">
+              <i data-feather="check-circle"></i>
+              <p>${data.message}</p>
+            </div>
+          `;
+        } else {
+          resultado.innerHTML = `
+            <div class="alert-box warning">
+              <i data-feather="alert-circle"></i>
+              <p>${data.message}</p>
+            </div>
+          `;
+        }
+        feather.replace();
+      })
+      .catch(error => {
+        btnText.textContent = 'Testar Conexao';
+        btnSpinner.classList.add('d-none');
+        resultado.classList.remove('d-none');
+        resultado.innerHTML = `
+          <div class="alert-box warning">
+            <i data-feather="alert-circle"></i>
+            <p>Erro ao testar conexao: ${error.message}</p>
+          </div>
+        `;
+        feather.replace();
+      });
+    }
+
+    // Copiar URL do webhook
+    function copiarWebhookUrl(inputId) {
+      const input = document.getElementById(inputId);
+      input.select();
+      document.execCommand('copy');
+
+      // Feedback visual
+      const btn = event.target.closest('.btn-copy');
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = '<i data-feather="check" style="width: 16px; height: 16px;"></i> Copiado!';
+      btn.classList.add('btn-success');
+      btn.classList.remove('btn-outline-secondary');
+      feather.replace();
+
+      setTimeout(() => {
+        btn.innerHTML = originalHtml;
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-outline-secondary');
+        feather.replace();
+      }, 2000);
+    }
+
+    // Salvar URL customizada do webhook (desenvolvimento)
+    function salvarWebhookCustom() {
+      const url = document.getElementById('webhook-url-custom').value.trim();
+
+      fetch('{% url "integracoes-fastdepix-webhook-salvar-url" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ url: url })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Feedback visual
+          const btn = event.target.closest('.btn-copy');
+          const originalHtml = btn.innerHTML;
+          btn.innerHTML = '<i data-feather="check" style="width: 16px; height: 16px;"></i> Salvo!';
+          btn.classList.add('btn-success');
+          btn.classList.remove('btn-outline-primary');
+          feather.replace();
+
+          setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-primary');
+            feather.replace();
+          }, 2000);
+        } else {
+          alert('Erro ao salvar URL: ' + data.message);
+        }
+      })
+      .catch(error => {
+        alert('Erro ao salvar URL: ' + error.message);
+      });
+    }
+
+    // Obter URL base do webhook (sem path)
+    function getWebhookBaseUrl() {
+      const customInput = document.getElementById('webhook-url-custom');
+      if (customInput && customInput.value.trim()) {
+        return customInput.value.trim().replace(/\/+$/, ''); // Remove barras finais
+      }
+      // Extrai URL base da URL padrao
+      const defaultUrl = document.getElementById('webhook-url-default').value;
+      return defaultUrl.replace('/api/pix/webhook/', '').replace(/\/+$/, '');
+    }
+
+    // Atualizar preview da URL completa
+    function atualizarPreviewUrl() {
+      const customInput = document.getElementById('webhook-url-custom');
+      const preview = document.getElementById('webhook-url-preview');
+      const fullUrl = document.getElementById('webhook-url-full');
+
+      if (customInput && preview && fullUrl) {
+        const baseUrl = customInput.value.trim();
+        if (baseUrl) {
+          const completeUrl = baseUrl.replace(/\/+$/, '') + '/api/pix/webhook/';
+          fullUrl.textContent = completeUrl;
+          preview.style.display = 'block';
+        } else {
+          preview.style.display = 'none';
+        }
+      }
+    }
+
+    // Adicionar listener para atualizar preview em tempo real
+    document.addEventListener('DOMContentLoaded', function() {
+      const customInput = document.getElementById('webhook-url-custom');
+      if (customInput) {
+        customInput.addEventListener('input', atualizarPreviewUrl);
+        atualizarPreviewUrl(); // Atualiza ao carregar se ja tem valor
+      }
+    });
+
+    // Registrar webhook
+    function registrarWebhook() {
+      const baseUrl = getWebhookBaseUrl();
+      const fullUrl = baseUrl + '/api/pix/webhook/';
+      if (!confirm('Deseja registrar o webhook na API FastDePix?\n\nURL completa: ' + fullUrl)) return;
+
+      fetch('{% url "integracoes-fastdepix-webhook-registrar" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ url: baseUrl })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert('Webhook registrado com sucesso!');
+          location.reload();
+        } else {
+          alert('Erro ao registrar webhook: ' + data.message);
+        }
+      })
+      .catch(error => {
+        alert('Erro ao registrar webhook: ' + error.message);
+      });
+    }
+
+    // Atualizar webhook
+    function atualizarWebhook() {
+      if (!confirm('Deseja atualizar o webhook na API FastDePix?')) return;
+
+      fetch('{% url "integracoes-fastdepix-webhook-atualizar" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert('Webhook atualizado com sucesso!');
+          location.reload();
+        } else {
+          alert('Erro ao atualizar webhook: ' + data.message);
+        }
+      })
+      .catch(error => {
+        alert('Erro ao atualizar webhook: ' + error.message);
+      });
+    }
+
+    // Remover webhook
+    function removerWebhook() {
+      if (!confirm('Tem certeza que deseja remover o webhook? Voce deixara de receber notificacoes de pagamento.')) return;
+
+      fetch('{% url "integracoes-fastdepix-webhook-remover" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert('Webhook removido com sucesso.');
+          location.reload();
+        } else {
+          alert('Erro ao remover webhook: ' + data.message);
+        }
+      })
+      .catch(error => {
+        alert('Erro ao remover webhook: ' + error.message);
+      });
+    }
+
+    // Sincronizar cobrancas pendentes com FastDePix
+    function sincronizarCobrancas() {
+      const btnText = document.getElementById('btn-sync-text');
+      const btnSpinner = document.getElementById('btn-sync-spinner');
+      const resultado = document.getElementById('sync-resultado');
+
+      btnText.textContent = 'Sincronizando...';
+      btnSpinner.classList.remove('d-none');
+      resultado.classList.add('d-none');
+
+      fetch('{% url "integracoes-fastdepix-sincronizar" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        btnText.textContent = 'Sincronizar Status das Pendentes';
+        btnSpinner.classList.add('d-none');
+        resultado.classList.remove('d-none');
+
+        if (data.success) {
+          let detalhesHtml = '';
+          if (data.detalhes && data.detalhes.length > 0) {
+            detalhesHtml = '<ul class="mb-0 mt-2 ps-3">';
+            data.detalhes.forEach(d => {
+              if (d.erro) {
+                detalhesHtml += `<li class="text-danger">Erro: ${d.erro}</li>`;
+              } else {
+                detalhesHtml += `<li>${d.mensagem}</li>`;
+              }
+            });
+            detalhesHtml += '</ul>';
+          }
+
+          if (data.atualizadas > 0) {
+            resultado.innerHTML = `
+              <div class="alert-box success">
+                <i data-feather="check-circle"></i>
+                <div>
+                  <p class="mb-0"><strong>${data.message}</strong></p>
+                  ${detalhesHtml}
+                </div>
+              </div>
+            `;
+            // Atualiza estatisticas sem recarregar a pagina
+            setTimeout(() => atualizarEstatisticas(), 1500);
+          } else {
+            resultado.innerHTML = `
+              <div class="alert-box info">
+                <i data-feather="info"></i>
+                <p class="mb-0">${data.message}</p>
+              </div>
+            `;
+          }
+        } else {
+          resultado.innerHTML = `
+            <div class="alert-box warning">
+              <i data-feather="alert-circle"></i>
+              <p class="mb-0">${data.message}</p>
+            </div>
+          `;
+        }
+        feather.replace();
+      })
+      .catch(error => {
+        btnText.textContent = 'Sincronizar Status das Pendentes';
+        btnSpinner.classList.add('d-none');
+        resultado.classList.remove('d-none');
+        resultado.innerHTML = `
+          <div class="alert-box warning">
+            <i data-feather="alert-circle"></i>
+            <p class="mb-0">Erro ao sincronizar: ${error.message}</p>
+          </div>
+        `;
+        feather.replace();
+      });
+    }
+
+    // ===== SELECAO DINAMICA DE CONTAS =====
+    let contaSelecionadaId = null;
+
+    // Seleciona ou desseleciona uma conta
+    function selecionarConta(contaId) {
+      if (contaSelecionadaId === contaId) {
+        // Clicou na mesma conta - desseleciona
+        limparSelecao();
+        return;
+      }
+
+      contaSelecionadaId = contaId;
+
+      // Atualiza visual das linhas da tabela
+      document.querySelectorAll('.conta-row').forEach(row => {
+        const rowId = parseInt(row.dataset.contaId);
+        const checkIcon = row.querySelector('.conta-check-icon');
+
+        if (rowId === contaId) {
+          row.classList.add('table-primary');
+          if (checkIcon) checkIcon.classList.remove('d-none');
+        } else {
+          row.classList.remove('table-primary');
+          if (checkIcon) checkIcon.classList.add('d-none');
+        }
+      });
+
+      // Mostra botao de limpar selecao
+      document.getElementById('btn-limpar-selecao').classList.remove('d-none');
+
+      // Busca dados da conta selecionada
+      carregarDadosConta(contaId);
+    }
+
+    // Limpa a selecao e volta ao estado inicial
+    function limparSelecao() {
+      contaSelecionadaId = null;
+
+      // Remove destaque de todas as linhas
+      document.querySelectorAll('.conta-row').forEach(row => {
+        row.classList.remove('table-primary');
+        const checkIcon = row.querySelector('.conta-check-icon');
+        if (checkIcon) checkIcon.classList.add('d-none');
+      });
+
+      // Esconde botao de limpar
+      document.getElementById('btn-limpar-selecao').classList.add('d-none');
+
+      // Volta ao estado inicial do Status da Conexao
+      document.getElementById('status-no-selection').classList.remove('d-none');
+      document.getElementById('status-with-selection').classList.add('d-none');
+      document.getElementById('status-conta-badge').classList.add('d-none');
+
+      // Carrega estatisticas de todas as contas
+      carregarDadosConta(null);
+    }
+
+    // Carrega dados da conta via AJAX
+    function carregarDadosConta(contaId) {
+      const url = contaId
+        ? '{% url "integracoes-fastdepix-conta-dados" %}' + contaId + '/'
+        : '{% url "integracoes-fastdepix-conta-dados" %}';
+
+      fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          atualizarUI(data, contaId);
+        } else {
+          console.error('Erro ao carregar dados:', data.message);
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao carregar dados:', error);
+      });
+    }
+
+    // Atualiza a interface com os dados recebidos
+    function atualizarUI(data, contaId) {
+      // Atualiza Estatisticas
+      const stats = data.stats;
+      document.getElementById('stats-geradas').textContent = stats.total_cobrancas || 0;
+      document.getElementById('stats-pagas').textContent = stats.total_pagas || 0;
+      document.getElementById('stats-pendentes').textContent = stats.total_pendentes || 0;
+      document.getElementById('stats-expiradas').textContent = stats.total_expiradas || 0;
+      document.getElementById('stats-valor-pago').textContent = 'R$ ' + formatarValor(stats.valor_pago);
+      document.getElementById('stats-valor-recebido').textContent = 'R$ ' + formatarValor(stats.valor_recebido);
+      document.getElementById('stats-valor-taxa').textContent = 'R$ ' + formatarValor(stats.valor_taxa);
+
+      // Atualiza badge de estatisticas
+      const statsBadge = document.getElementById('stats-conta-badge');
+      if (contaId && data.conta) {
+        statsBadge.textContent = data.conta.nome;
+        statsBadge.classList.remove('bg-secondary');
+        statsBadge.classList.add('bg-primary');
+      } else {
+        statsBadge.textContent = 'Todas as contas';
+        statsBadge.classList.remove('bg-primary');
+        statsBadge.classList.add('bg-secondary');
+      }
+
+      // Atualiza Status da Conexao
+      if (contaId && data.conta) {
+        const conta = data.conta;
+
+        // Mostra area de status selecionado
+        document.getElementById('status-no-selection').classList.add('d-none');
+        document.getElementById('status-with-selection').classList.remove('d-none');
+
+        // Badge da conta no header
+        const statusContaBadge = document.getElementById('status-conta-badge');
+        statusContaBadge.textContent = conta.nome;
+        statusContaBadge.classList.remove('d-none');
+
+        // Status da API
+        const statusBadge = document.getElementById('status-api-badge');
+        if (conta.api_status === 'connected') {
+          statusBadge.className = 'status-badge success';
+          statusBadge.innerHTML = '<i data-feather="check-circle"></i> Conectado';
+        } else if (conta.has_api_key) {
+          statusBadge.className = 'status-badge warning';
+          statusBadge.innerHTML = '<i data-feather="alert-circle"></i> API Key configurada';
+        } else {
+          statusBadge.className = 'status-badge danger';
+          statusBadge.innerHTML = '<i data-feather="x-circle"></i> Sem configuracao';
+        }
+
+        // Dados da conta
+        document.getElementById('status-conta-nome').textContent = conta.nome;
+        document.getElementById('status-usuario').textContent = conta.usuario;
+
+        // API Key
+        const apiKeyEl = document.getElementById('status-apikey');
+        const apiKeyRow = document.getElementById('status-apikey-row');
+        if (conta.has_api_key && conta.api_key_masked) {
+          apiKeyEl.textContent = conta.api_key_masked;
+          apiKeyRow.style.display = 'flex';
+        } else {
+          apiKeyRow.style.display = 'none';
+        }
+
+        // Webhook
+        const webhookBadge = document.getElementById('status-webhook-badge');
+        if (conta.webhook_configured) {
+          webhookBadge.innerHTML = '<span class="badge bg-success">Configurado</span>';
+        } else {
+          webhookBadge.innerHTML = '<span class="badge bg-warning text-dark">Nao configurado</span>';
+        }
+
+        feather.replace();
+      }
+    }
+
+    // Formata valor monetario
+    function formatarValor(valor) {
+      if (valor === null || valor === undefined) return '0,00';
+      return parseFloat(valor).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    // Atualiza estatisticas (chamado apos sincronizacao)
+    function atualizarEstatisticas() {
+      carregarDadosConta(contaSelecionadaId);
+    }
+  </script>
+</body>
+</html>

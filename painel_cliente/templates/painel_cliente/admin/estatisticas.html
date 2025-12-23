@@ -1,0 +1,303 @@
+{% extends 'painel_cliente/admin/base_admin.html' %}
+
+{% block title %}Estatisticas{% endblock %}
+{% block breadcrumb %}Estatisticas{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in-up">
+  <!-- Page Header -->
+  <div class="page-header-admin">
+    <h1>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
+      </svg>
+      Estatísticas
+    </h1>
+  </div>
+
+  {% if is_admin_superior %}
+  <!-- Admin Superior Stats -->
+  <div class="stat-cards">
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.1s;">
+      <div class="stat-card-icon primary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value">{{ sessoes_totais }}</div>
+        <div class="stat-card-label">Sessões (30 dias)</div>
+        <div class="stat-card-change">Em todos os subdomínios</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Subdominios -->
+  <div class="admin-card animate-fade-in-up" style="animation-delay: 0.2s;">
+    <div class="admin-card-header">
+      <h2 class="admin-card-title">Top Subdomínios por Sessões</h2>
+    </div>
+    <div class="admin-card-body-flush">
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th style="width: 60px;">#</th>
+              <th>Subdomínio</th>
+              <th>Admin</th>
+              <th style="text-align: right;">Total Sessões</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sub in subdominios_stats %}
+            <tr class="animate-fade-in-up" style="animation-delay: {{ forloop.counter }}00ms;">
+              <td>
+                <span class="ranking-badge {% if forloop.counter == 1 %}ranking-1{% elif forloop.counter == 2 %}ranking-2{% elif forloop.counter == 3 %}ranking-3{% endif %}">
+                  {{ forloop.counter }}
+                </span>
+              </td>
+              <td>
+                <span class="font-medium">{{ sub.subdominio }}.pagar.cc</span>
+              </td>
+              <td>
+                <div class="admin-user-cell">
+                  <div class="admin-user-avatar-sm">
+                    {{ sub.admin_responsavel.username|slice:":1"|upper }}
+                  </div>
+                  <span>{{ sub.admin_responsavel.username }}</span>
+                </div>
+              </td>
+              <td style="text-align: right;">
+                <span class="stat-badge">{{ sub.total_sessoes }}</span>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4">
+                <div class="admin-empty">
+                  <div class="admin-empty-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="20" x2="18" y2="10"></line>
+                      <line x1="12" y1="20" x2="12" y2="4"></line>
+                      <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                  </div>
+                  <h3 class="admin-empty-title">Nenhum dado disponível</h3>
+                  <p class="admin-empty-text">As estatísticas aparecerão aqui quando houver dados.</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- Admin Comum Stats -->
+  <div class="stat-cards">
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.1s;">
+      <div class="stat-card-icon primary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value">{{ sessoes_mes }}</div>
+        <div class="stat-card-label">Sessões (30 dias)</div>
+      </div>
+    </div>
+
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.15s;">
+      <div class="stat-card-icon success">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value">{{ clientes_com_acesso }}</div>
+        <div class="stat-card-label">Clientes Únicos</div>
+        <div class="stat-card-change">Acessaram no período</div>
+      </div>
+    </div>
+
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.2s;">
+      <div class="stat-card-icon info">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <rect x="7" y="7" width="10" height="10"></rect>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value">{{ pagamentos_mes.total|default:0 }}</div>
+        <div class="stat-card-label">Pagamentos (30 dias)</div>
+      </div>
+    </div>
+
+    <div class="stat-card animate-fade-in-up" style="animation-delay: 0.25s;">
+      <div class="stat-card-icon success">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="1" x2="12" y2="23"></line>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+      </div>
+      <div class="stat-card-content">
+        <div class="stat-card-value stat-card-value-success">R$ {{ pagamentos_mes.valor|floatformat:2|default:"0,00" }}</div>
+        <div class="stat-card-label">Valor Recebido</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info Card -->
+  <div class="admin-card animate-fade-in-up" style="animation-delay: 0.3s;">
+    <div class="admin-card-header">
+      <h2 class="admin-card-title">Resumo</h2>
+    </div>
+    <div class="admin-card-body">
+      <div class="info-box">
+        <div class="info-box-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </div>
+        <div class="info-box-content">
+          <p>Os dados acima referem-se aos <strong>últimos 30 dias</strong>.</p>
+          <p>Para estatísticas mais detalhadas, acesse <a href="https://nossopainel.com.br" target="_blank" rel="noopener noreferrer" style="color: var(--color-primary); text-decoration: underline;">nossopainel.com.br</a>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ranking-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    font-weight: var(--font-bold);
+    background: var(--color-surface-elevated);
+    color: var(--color-text-secondary);
+  }
+
+  .ranking-1 {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: white;
+  }
+
+  .ranking-2 {
+    background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
+    color: white;
+  }
+
+  .ranking-3 {
+    background: linear-gradient(135deg, #CD7F32, #A0522D);
+    color: white;
+  }
+
+  .font-medium {
+    font-weight: var(--font-medium);
+  }
+
+  .admin-user-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .admin-user-avatar-sm {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-full);
+    background: var(--gradient-primary);
+    color: white;
+    font-weight: var(--font-bold);
+    font-size: var(--text-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .stat-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--color-primary);
+    font-weight: var(--font-semibold);
+    font-size: var(--text-sm);
+  }
+
+  .stat-card-value-success {
+    color: var(--color-success);
+  }
+
+  .info-box {
+    display: flex;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-xl);
+  }
+
+  .info-box-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-lg);
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--color-info);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .info-box-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .info-box-content {
+    flex: 1;
+  }
+
+  .info-box-content p {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+
+  .info-box-content p + p {
+    margin-top: var(--space-1);
+  }
+
+  .info-box-content strong {
+    color: var(--color-text-primary);
+  }
+</style>
+{% endblock %}

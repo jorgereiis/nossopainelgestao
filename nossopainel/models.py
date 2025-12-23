@@ -227,6 +227,33 @@ class Tipos_pgto(models.Model):
         help_text="Conta bancária para recebimento (obrigatório para PIX)"
     )
 
+    # Dados bancários legados (para formas de pagamento antigas sem conta bancária)
+    dados_bancarios = models.ForeignKey(
+        'DadosBancarios',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='formas_pagamento',
+        verbose_name="Dados Bancários"
+    )
+
+    # Campos para formas de pagamento antigas (sem conta bancária)
+    nome_identificacao = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name="Nome de Identificação",
+        help_text="Nome para identificar esta forma de pagamento (ex: PIX NuBank)"
+    )
+    tipo_conta = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        choices=[('pf', 'Pessoa Física'), ('mei', 'MEI')],
+        default='pf',
+        verbose_name="Tipo de Conta"
+    )
+
     class Meta:
         db_table = 'cadastros_tipos_pgto'
         verbose_name = "Tipo de Pagamento"
@@ -235,9 +262,9 @@ class Tipos_pgto(models.Model):
         unique_together = [['usuario', 'nome', 'conta_bancaria']]
 
     def __str__(self):
-        if self.nome == self.PIX and self.conta_bancaria:
-            return f"{self.nome} - {self.conta_bancaria.nome_identificacao}"
-        return self.nome
+        if self.conta_bancaria and self.conta_bancaria.nome_identificacao:
+            return f"{self.nome} ({self.conta_bancaria.nome_identificacao})"
+        return f"{self.nome} (sem identificação)"
 
     def clean(self):
         """Validações customizadas."""
@@ -669,7 +696,7 @@ class Cliente(models.Model):
     uf = models.CharField(max_length=2, blank=True, null=True)
     indicado_por = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
     data_vencimento = models.DateField("Data de vencimento inicial", blank=True, null=True)
-    forma_pgto = models.ForeignKey(Tipos_pgto, on_delete=models.CASCADE, default=1, verbose_name="Forma de pagamento")
+    forma_pgto = models.ForeignKey(Tipos_pgto, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Forma de pagamento")
     plano = models.ForeignKey(Plano, on_delete=models.CASCADE, default=1)
     data_adesao = models.DateField("Data de adesão", default=date.today)
     data_cancelamento = models.DateField("Data de cancelamento", blank=True, null=True)
@@ -679,6 +706,26 @@ class Cliente(models.Model):
     enviado_oferta_promo = models.BooleanField("Oferta PROMO", default=False)
     notas = models.TextField("Notas", blank=True, null=True)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    # Campos para o Painel do Cliente (painel_cliente app)
+    dados_atualizados_painel = models.BooleanField(
+        "Dados atualizados no painel",
+        default=False,
+        help_text="Indica se o cliente ja atualizou seus dados no painel de pagamentos"
+    )
+    ultimo_acesso_painel = models.DateTimeField(
+        "Ultimo acesso ao painel",
+        null=True,
+        blank=True,
+        help_text="Data/hora do ultimo acesso do cliente ao painel de pagamentos"
+    )
+    cpf = models.CharField(
+        "CPF",
+        max_length=14,
+        null=True,
+        blank=True,
+        help_text="CPF do cliente (opcional, util para pagamentos)"
+    )
 
     class Meta:
         db_table = 'cadastros_cliente'
@@ -1463,6 +1510,9 @@ class DadosBancarios(models.Model):
 
     def formatar_telefone(self):
         """Normaliza o telefone para o padrão internacional E.164: +55DDDNÚMERO."""
+        if not self.wpp:
+            return  # Não formatar se não houver telefone
+
         numero = re.sub(r'\D+', '', self.wpp)
 
         # Adiciona DDI Brasil se for nacional
@@ -1476,7 +1526,8 @@ class DadosBancarios(models.Model):
 
     def save(self, *args, **kwargs):
         """Normaliza o telefone antes de persistir os dados bancários."""
-        self.formatar_telefone()
+        if self.wpp:  # Só formata se houver telefone
+            self.formatar_telefone()
         super().save(*args, **kwargs)
 
     class Meta:
@@ -1504,10 +1555,11 @@ def certificado_upload_path(instance, filename):
 class InstituicaoBancaria(models.Model):
     """
     Cadastro de instituições bancárias pelo Admin.
-    Apenas Efi Bank e Mercado Pago terão integração com API.
+    FastDePix, Efi Bank e Mercado Pago terão integração com API.
     Outras instituições funcionam no modo manual (sem geração automática de link).
     """
     TIPO_INTEGRACAO = [
+        ('fastdepix', 'FastDePix (API)'),
         ('efi_bank', 'Efi Bank (API)'),
         ('mercado_pago', 'Mercado Pago (API)'),
         ('manual', 'Manual (sem API)'),
@@ -1535,7 +1587,7 @@ class InstituicaoBancaria(models.Model):
     @property
     def tem_api(self):
         """Verifica se a instituição tem integração com API."""
-        return self.tipo_integracao in ['efi_bank', 'mercado_pago']
+        return self.tipo_integracao in ['fastdepix', 'efi_bank', 'mercado_pago']
 
 
 class ContaBancaria(models.Model):
@@ -1580,16 +1632,34 @@ class ContaBancaria(models.Model):
         verbose_name="Tipo de Conta"
     )
 
-    # Dados bancários
-    beneficiario = models.CharField(max_length=255, verbose_name="Beneficiário")
+    # Dados bancários (opcionais para instituições com API)
+    beneficiario = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="Beneficiário"
+    )
     tipo_chave_pix = models.CharField(
         max_length=50,
         choices=TIPO_CHAVE_PIX,
+        blank=True,
+        null=True,
         verbose_name="Tipo de Chave PIX"
     )
-    chave_pix = models.CharField(max_length=255, verbose_name="Chave PIX")
+    chave_pix = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="Chave PIX"
+    )
 
-    # Credenciais API (apenas para Efi Bank e Mercado Pago)
+    # Credenciais API (FastDePix, Efi Bank e Mercado Pago)
+    api_key = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="API Key",
+        help_text="Token de autenticação (obrigatório para FastDePix - formato: fdpx_...)"
+    )
     api_client_id = models.CharField(
         max_length=255,
         blank=True,
@@ -1621,6 +1691,48 @@ class ContaBancaria(models.Model):
         help_text="Marque para usar ambiente de testes"
     )
 
+    # Webhook (FastDePix)
+    webhook_secret = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Webhook Secret",
+        help_text="Chave secreta para validar webhooks HMAC-SHA256 (gerada ao registrar webhook)"
+    )
+    webhook_id = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Webhook ID",
+        help_text="ID do webhook registrado na API (para atualizar/remover)"
+    )
+
+    # Configuração de Cobranças FastDePix
+    TIPO_COBRANCA_FASTDEPIX = [
+        ('painel_cliente', 'Painel do Cliente'),
+        ('link_fastdepix', 'Link FastDePix'),
+        ('qrcode', 'QR Code + Copia e Cola'),
+    ]
+    tipo_cobranca_fastdepix = models.CharField(
+        max_length=30,
+        choices=TIPO_COBRANCA_FASTDEPIX,
+        null=True,
+        blank=True,
+        default='painel_cliente',
+        verbose_name='Tipo de Cobrança FastDePix'
+    )
+    # NOTA: Links de planos agora estão no modelo PlanoLinkPagamento
+
+    # Referência para credencial reutilizável (opcional)
+    # Se preenchido, usa os dados da credencial salva ao invés dos campos diretos
+    credencial = models.ForeignKey(
+        'CredencialAPI',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='contas_bancarias',
+        verbose_name='Credencial API',
+        help_text='Selecione uma credencial salva ou deixe vazio para usar credenciais específicas'
+    )
+
     # Controle MEI - limite de recebimento
     limite_mensal = models.DecimalField(
         max_digits=12,
@@ -1639,9 +1751,15 @@ class ContaBancaria(models.Model):
         db_table = 'cadastros_contabancaria'
         verbose_name = "Conta Bancária"
         verbose_name_plural = "Contas Bancárias"
-        # Impede mesma chave PIX duplicada para o mesmo usuário
-        unique_together = [['usuario', 'chave_pix']]
         ordering = ['-criado_em']
+        # Impede mesma chave PIX duplicada para o mesmo usuário (apenas quando chave_pix não é NULL)
+        constraints = [
+            models.UniqueConstraint(
+                fields=['usuario', 'chave_pix'],
+                name='unique_usuario_chave_pix',
+                condition=models.Q(chave_pix__isnull=False)
+            )
+        ]
 
     def __str__(self):
         tipo = "MEI" if self.tipo_conta == 'mei' else "PF"
@@ -1660,7 +1778,7 @@ class ContaBancaria(models.Model):
     @property
     def tem_integracao_api(self):
         """Verifica se a conta tem integração com API."""
-        return self.instituicao.tipo_integracao in ['efi_bank', 'mercado_pago']
+        return self.instituicao.tipo_integracao in ['fastdepix', 'efi_bank', 'mercado_pago']
 
     @property
     def is_mei(self):
@@ -1677,6 +1795,14 @@ class ContaBancaria(models.Model):
         if self.tipo_conta == 'mei' and not self.limite_mensal:
             raise ValidationError({
                 'limite_mensal': 'Contas MEI devem ter um limite mensal definido.'
+            })
+
+        # FastDePix deve ter API Key
+        if (self.instituicao and
+            self.instituicao.tipo_integracao == 'fastdepix' and
+            not self.api_key):
+            raise ValidationError({
+                'api_key': 'API Key é obrigatória para FastDePix.'
             })
 
         # Efi Bank deve ter certificado
@@ -1698,11 +1824,336 @@ class ContaBancaria(models.Model):
             })
 
 
+class PlanoLinkPagamento(models.Model):
+    """
+    Relaciona Plano com link de pagamento de uma ContaBancaria FastDePix.
+    Permite monitorar alterações de valor e detectar planos sem link configurado.
+    """
+    plano = models.ForeignKey(
+        'Plano',
+        on_delete=models.CASCADE,
+        related_name='links_pagamento',
+        verbose_name='Plano de Adesão'
+    )
+    conta_bancaria = models.ForeignKey(
+        ContaBancaria,
+        on_delete=models.CASCADE,
+        related_name='links_planos',
+        verbose_name='Conta Bancária FastDePix'
+    )
+    url = models.URLField(
+        'Link de Pagamento',
+        help_text='URL do link FastDePix para este plano'
+    )
+    valor_configurado = models.DecimalField(
+        'Valor quando configurado',
+        max_digits=7,
+        decimal_places=2,
+        help_text='Valor do plano no momento em que o link foi configurado'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'cadastros_planolinkpagamento'
+        verbose_name = 'Link de Pagamento do Plano'
+        verbose_name_plural = 'Links de Pagamento dos Planos'
+        unique_together = ('plano', 'conta_bancaria')
+        ordering = ['plano__nome', 'plano__telas']
+
+    def __str__(self):
+        return f"{self.plano.nome} ({self.plano.telas} tela(s)) - {self.conta_bancaria.nome_identificacao}"
+
+    @property
+    def valor_divergente(self):
+        """Verifica se o valor do plano mudou desde a configuração do link."""
+        return self.plano.valor != self.valor_configurado
+
+    @property
+    def diferenca_valor(self):
+        """Retorna a diferença entre o valor atual e o configurado."""
+        return self.plano.valor - self.valor_configurado
+
+
+class CredencialAPI(models.Model):
+    """
+    Credenciais de API reutilizáveis entre formas de pagamento.
+    Permite que o usuário cadastre credenciais uma vez e reutilize em múltiplas contas.
+    """
+    TIPO_INTEGRACAO_CHOICES = [
+        ('fastdepix', 'FastDePix'),
+        ('mercado_pago', 'Mercado Pago'),
+        ('efi_bank', 'Efi Bank'),
+    ]
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='credenciais_api'
+    )
+    nome_identificacao = models.CharField(
+        max_length=100,
+        verbose_name='Nome de Identificação',
+        help_text='Ex: Minha Credencial FastDePix'
+    )
+    tipo_integracao = models.CharField(
+        max_length=20,
+        choices=TIPO_INTEGRACAO_CHOICES,
+        verbose_name='Tipo de Integração'
+    )
+
+    # FastDePix
+    api_key = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='API Key',
+        help_text='Token de autenticação (formato: fdpx_...)'
+    )
+
+    # Mercado Pago / Efi Bank
+    api_client_id = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Client ID'
+    )
+    api_client_secret = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Client Secret'
+    )
+
+    # Mercado Pago apenas
+    api_access_token = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='Access Token'
+    )
+
+    # Efi Bank apenas
+    api_certificado = models.FileField(
+        upload_to=certificado_upload_path,
+        blank=True,
+        null=True,
+        verbose_name='Certificado (.p12)'
+    )
+
+    # Ambiente (visível apenas para admin em desenvolvimento)
+    ambiente_sandbox = models.BooleanField(
+        default=False,
+        verbose_name='Ambiente Sandbox'
+    )
+
+    ativo = models.BooleanField(default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'cadastros_credencialapi'
+        verbose_name = 'Credencial API'
+        verbose_name_plural = 'Credenciais API'
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        return f"{self.nome_identificacao} ({self.get_tipo_integracao_display()})"
+
+    @property
+    def is_configured(self):
+        """Verifica se a credencial está configurada corretamente."""
+        if self.tipo_integracao == 'fastdepix':
+            return bool(self.api_key)
+        elif self.tipo_integracao == 'mercado_pago':
+            return all([self.api_client_id, self.api_client_secret, self.api_access_token])
+        elif self.tipo_integracao == 'efi_bank':
+            return all([self.api_client_id, self.api_client_secret, self.api_certificado])
+        return False
+
+    def clean(self):
+        """Validações customizadas."""
+        if self.tipo_integracao == 'fastdepix' and not self.api_key:
+            raise ValidationError({
+                'api_key': 'API Key é obrigatória para FastDePix.'
+            })
+
+        if self.tipo_integracao == 'mercado_pago':
+            if not all([self.api_client_id, self.api_client_secret, self.api_access_token]):
+                raise ValidationError(
+                    'Client ID, Client Secret e Access Token são obrigatórios para Mercado Pago.'
+                )
+
+        if self.tipo_integracao == 'efi_bank':
+            if not all([self.api_client_id, self.api_client_secret]):
+                raise ValidationError(
+                    'Client ID e Client Secret são obrigatórios para Efi Bank.'
+                )
+
+
+class ConfiguracaoLimite(models.Model):
+    """
+    Configuração global de limite MEI (singleton).
+    Define o valor máximo anual permitido para contas MEI.
+    """
+    valor_anual = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('81000.00'),
+        verbose_name='Limite Anual MEI (R$)',
+        help_text='Valor máximo anual permitido para contas MEI'
+    )
+    margem_seguranca = models.IntegerField(
+        default=10,
+        verbose_name='Margem de Segurança (%)',
+        help_text='Percentual de margem (ex: 10 = alerta em 90%)'
+    )
+    atualizado_em = models.DateTimeField(auto_now=True)
+    atualizado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        db_table = 'cadastros_configuracaolimite'
+        verbose_name = 'Configuração de Limite'
+        verbose_name_plural = 'Configurações de Limite'
+
+    def save(self, *args, **kwargs):
+        # Garante singleton - sempre usa pk=1
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_config(cls):
+        """Retorna a configuração atual ou cria com valores padrão."""
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @property
+    def valor_alerta(self):
+        """Valor que dispara alerta (ex: 90% para margem de 10%)."""
+        return self.valor_anual * Decimal(str(100 - self.margem_seguranca)) / 100
+
+    @property
+    def valor_bloqueio(self):
+        """Valor que bloqueia adições (99%)."""
+        return self.valor_anual * Decimal('0.99')
+
+    def __str__(self):
+        return f"Limite MEI: R$ {self.valor_anual:,.2f}"
+
+
+class NotificacaoSistema(models.Model):
+    """
+    Notificações do sistema para alertar usuários sobre eventos importantes.
+    Ex: Limite MEI atingido, mudança de plano afetando limite, etc.
+    """
+    TIPO_CHOICES = [
+        ('alerta_limite', 'Alerta de Limite'),
+        ('limite_atingido', 'Limite Atingido'),
+        ('mudanca_plano', 'Mudança de Plano'),
+        ('info', 'Informação'),
+        ('aviso', 'Aviso'),
+    ]
+
+    PRIORIDADE_CHOICES = [
+        ('baixa', 'Baixa'),
+        ('media', 'Média'),
+        ('alta', 'Alta'),
+        ('critica', 'Crítica'),
+    ]
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='notificacoes_sistema'
+    )
+    tipo = models.CharField(
+        max_length=30,
+        choices=TIPO_CHOICES,
+        default='info'
+    )
+    prioridade = models.CharField(
+        max_length=10,
+        choices=PRIORIDADE_CHOICES,
+        default='media'
+    )
+    titulo = models.CharField(max_length=200)
+    mensagem = models.TextField()
+
+    # Dados adicionais em JSON (ex: conta_id, cliente_id, valores)
+    dados_extras = models.JSONField(default=dict, blank=True)
+
+    lida = models.BooleanField(default=False)
+    data_leitura = models.DateTimeField(null=True, blank=True)
+
+    criada_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'cadastros_notificacaosistema'
+        verbose_name = 'Notificação do Sistema'
+        verbose_name_plural = 'Notificações do Sistema'
+        ordering = ['-criada_em']
+
+    def __str__(self):
+        return f"[{self.get_tipo_display()}] {self.titulo}"
+
+    def marcar_como_lida(self):
+        """Marca a notificação como lida."""
+        if not self.lida:
+            self.lida = True
+            self.data_leitura = timezone.now()
+            self.save(update_fields=['lida', 'data_leitura'])
+
+    @classmethod
+    def criar_alerta_limite(cls, usuario, conta_bancaria, percentual_atual, valor_atual, valor_limite):
+        """Cria uma notificação de alerta de limite."""
+        return cls.objects.create(
+            usuario=usuario,
+            tipo='alerta_limite',
+            prioridade='alta' if percentual_atual >= 95 else 'media',
+            titulo=f'Alerta: Limite MEI em {percentual_atual:.1f}%',
+            mensagem=(
+                f'A conta "{conta_bancaria.beneficiario or conta_bancaria.instituicao}" '
+                f'atingiu {percentual_atual:.1f}% do limite MEI. '
+                f'Valor atual: R$ {valor_atual:,.2f} / Limite: R$ {valor_limite:,.2f}'
+            ),
+            dados_extras={
+                'conta_id': conta_bancaria.id,
+                'percentual': float(percentual_atual),
+                'valor_atual': float(valor_atual),
+                'valor_limite': float(valor_limite),
+            }
+        )
+
+    @classmethod
+    def criar_alerta_mudanca_plano(cls, usuario, cliente, plano_antigo, plano_novo, impacto_valor):
+        """Cria uma notificação de mudança de plano que afeta o limite."""
+        direcao = 'aumentou' if impacto_valor > 0 else 'diminuiu'
+        return cls.objects.create(
+            usuario=usuario,
+            tipo='mudanca_plano',
+            prioridade='alta' if impacto_valor > 0 else 'baixa',
+            titulo=f'Mudança de plano: {cliente.nome}',
+            mensagem=(
+                f'O cliente "{cliente.nome}" mudou do plano {plano_antigo} para {plano_novo}. '
+                f'O valor anual projetado {direcao} em R$ {abs(impacto_valor):,.2f}.'
+            ),
+            dados_extras={
+                'cliente_id': cliente.id,
+                'cliente_nome': cliente.nome,
+                'plano_antigo': plano_antigo,
+                'plano_novo': plano_novo,
+                'impacto_valor': float(impacto_valor),
+            }
+        )
+
+
 class ClienteContaBancaria(models.Model):
     """
-    Associação de clientes a contas bancárias.
-    Necessário para contas MEI que têm limite de recebimento.
-    Clientes associados a uma conta MEI terão suas cobranças direcionadas para ela.
+    Associação de clientes a contas bancárias (formas de pagamento com API).
+
+    REGRA IMPORTANTE: Um cliente só pode estar associado a UMA conta bancária ativa por vez.
+    Isso garante controle financeiro adequado para limites MEI e evita duplicidade de cobranças.
     """
     cliente = models.ForeignKey(
         'Cliente',
@@ -1714,7 +2165,13 @@ class ClienteContaBancaria(models.Model):
         on_delete=models.CASCADE,
         related_name='clientes_associados'
     )
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name='Ativo',
+        help_text='Indica se esta associação está ativa. Cliente só pode ter UMA associação ativa.'
+    )
     criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'cadastros_clientecontabancaria'
@@ -1723,17 +2180,385 @@ class ClienteContaBancaria(models.Model):
         unique_together = [['cliente', 'conta_bancaria']]
 
     def __str__(self):
-        return f"{self.cliente.nome} → {self.conta_bancaria.nome_identificacao}"
+        status = "✓" if self.ativo else "✗"
+        return f"{status} {self.cliente.nome} → {self.conta_bancaria.nome_identificacao}"
 
     def clean(self):
         """Validações customizadas."""
-        # Verificar se o limite da conta MEI foi atingido
-        if self.conta_bancaria.is_mei:
-            limite = self.conta_bancaria.limite_efetivo
-            if limite:
-                # Aqui poderia verificar total de mensalidades do mês
-                # Por enquanto, apenas valida se tem limite definido
-                pass
+        from django.core.exceptions import ValidationError
+
+        # REGRA: Cliente só pode ter UMA associação ATIVA
+        if self.ativo:
+            associacao_existente = ClienteContaBancaria.objects.filter(
+                cliente=self.cliente,
+                ativo=True
+            ).exclude(pk=self.pk).first()
+
+            if associacao_existente:
+                raise ValidationError({
+                    'cliente': f'Este cliente já está associado à conta "{associacao_existente.conta_bancaria.nome_identificacao}". '
+                               f'Desative a associação existente antes de criar uma nova.'
+                })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def transferir_cliente(cls, cliente, nova_conta, usuario=None):
+        """
+        Transfere um cliente de uma conta bancária para outra.
+        Desativa associação anterior e cria nova associação.
+
+        Retorna: (nova_associacao, associacao_antiga ou None)
+        """
+        from .models import NotificacaoSistema
+
+        # Buscar associação ativa existente
+        associacao_antiga = cls.objects.filter(
+            cliente=cliente,
+            ativo=True
+        ).first()
+
+        # Desativar associação antiga
+        conta_antiga_nome = None
+        if associacao_antiga:
+            conta_antiga_nome = associacao_antiga.conta_bancaria.nome_identificacao
+            associacao_antiga.ativo = False
+            associacao_antiga.save(update_fields=['ativo', 'atualizado_em'])
+
+        # Criar ou reativar associação com nova conta
+        nova_associacao, created = cls.objects.update_or_create(
+            cliente=cliente,
+            conta_bancaria=nova_conta,
+            defaults={'ativo': True}
+        )
+
+        # Criar notificação de transferência (se houver mudança)
+        if usuario and associacao_antiga and associacao_antiga.conta_bancaria != nova_conta:
+            try:
+                NotificacaoSistema.objects.create(
+                    usuario=usuario,
+                    tipo='info',
+                    prioridade='baixa',
+                    titulo=f'Cliente transferido: {cliente.nome}',
+                    mensagem=(
+                        f'O cliente "{cliente.nome}" foi transferido de '
+                        f'"{conta_antiga_nome}" para "{nova_conta.nome_identificacao}".'
+                    ),
+                    dados_extras={
+                        'cliente_id': cliente.id,
+                        'cliente_nome': cliente.nome,
+                        'conta_antiga': conta_antiga_nome,
+                        'conta_nova': nova_conta.nome_identificacao,
+                    }
+                )
+            except Exception:
+                pass  # Não falhar se notificação der erro
+
+        return nova_associacao, associacao_antiga
+
+
+class CobrancaPix(models.Model):
+    """
+    Armazena cobranças PIX geradas via integração com APIs.
+    Relaciona com mensalidades e permite rastreamento de pagamentos.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pendente'),
+        ('paid', 'Pago'),
+        ('expired', 'Expirado'),
+        ('cancelled', 'Cancelado'),
+        ('refunded', 'Estornado'),
+        ('error', 'Erro'),
+    ]
+
+    # Identificação
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    transaction_id = models.CharField(
+        max_length=255,
+        verbose_name="ID da Transação",
+        help_text="ID retornado pela API de pagamento"
+    )
+
+    # Relacionamentos
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='cobrancas_pix'
+    )
+    conta_bancaria = models.ForeignKey(
+        ContaBancaria,
+        on_delete=models.PROTECT,
+        related_name='cobrancas_pix',
+        verbose_name="Conta Bancária"
+    )
+    mensalidade = models.ForeignKey(
+        'Mensalidade',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cobrancas_pix',
+        verbose_name="Mensalidade"
+    )
+    cliente = models.ForeignKey(
+        'Cliente',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cobrancas_pix',
+        verbose_name="Cliente"
+    )
+
+    # Dados da cobrança
+    valor = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Valor (R$)"
+    )
+    descricao = models.CharField(
+        max_length=255,
+        verbose_name="Descrição"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name="Status"
+    )
+
+    # Dados PIX
+    qr_code = models.TextField(
+        blank=True,
+        verbose_name="QR Code",
+        help_text="Código EMV para gerar imagem do QR Code"
+    )
+    qr_code_url = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name="URL do QR Code",
+        help_text="Link para visualizar/compartilhar o QR Code"
+    )
+    qr_code_base64 = models.TextField(
+        blank=True,
+        verbose_name="QR Code Base64",
+        help_text="Imagem do QR Code em base64"
+    )
+    pix_copia_cola = models.TextField(
+        blank=True,
+        verbose_name="PIX Copia e Cola",
+        help_text="Código para copiar e colar"
+    )
+
+    # Datas
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+    expira_em = models.DateTimeField(
+        verbose_name="Expira em",
+        help_text="Data/hora de expiração da cobrança"
+    )
+    pago_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Pago em"
+    )
+
+    # Dados do pagador (preenchidos após pagamento)
+    pagador_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Nome do Pagador"
+    )
+    pagador_documento = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name="CPF/CNPJ do Pagador"
+    )
+
+    # Valores financeiros (preenchidos após pagamento)
+    valor_recebido = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Valor Recebido (R$)",
+        help_text="Valor líquido após taxas"
+    )
+    valor_taxa = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Taxa (R$)",
+        help_text="Taxa cobrada pela integração"
+    )
+
+    # Metadados
+    integracao = models.CharField(
+        max_length=50,
+        verbose_name="Integração",
+        help_text="fastdepix, mercado_pago, efi_bank"
+    )
+    raw_response = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Resposta Raw",
+        help_text="Resposta completa da API"
+    )
+    webhook_data = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Dados Webhook",
+        help_text="Dados recebidos via webhook"
+    )
+
+    class Meta:
+        db_table = 'pagamentos_cobranca_pix'
+        verbose_name = "Cobrança PIX"
+        verbose_name_plural = "Cobranças PIX"
+        ordering = ['-criado_em']
+        indexes = [
+            models.Index(fields=['transaction_id']),
+            models.Index(fields=['status']),
+            models.Index(fields=['usuario', 'status']),
+            models.Index(fields=['mensalidade']),
+        ]
+
+    def __str__(self):
+        return f"PIX {self.transaction_id[:8]}... - R$ {self.valor} ({self.get_status_display()})"
+
+    @property
+    def is_expired(self):
+        """Verifica se a cobrança está expirada."""
+        if self.status == 'expired':
+            return True
+        if self.status == 'pending' and self.expira_em:
+            return timezone.now() > self.expira_em
+        return False
+
+    @property
+    def is_paid(self):
+        """Verifica se a cobrança foi paga."""
+        return self.status == 'paid'
+
+    @property
+    def can_cancel(self):
+        """Verifica se a cobrança pode ser cancelada."""
+        return self.status == 'pending' and not self.is_expired
+
+    def mark_as_paid(self, paid_at=None, payer_name=None, payer_document=None, webhook_data=None, valor_recebido=None, valor_taxa=None):
+        """
+        Marca a cobrança como paga e atualiza a mensalidade relacionada.
+
+        Aplica o pagamento na mensalidade:
+        - Define dt_pagamento com a data do pagamento
+        - Define pgto = True
+
+        O save() da mensalidade dispara os signals:
+        - pre_save: criar_nova_mensalidade (cria próxima mensalidade)
+        - post_save: atualiza_ultimo_pagamento (atualiza cliente.ultimo_pagamento)
+        """
+        import logging
+        from decimal import Decimal
+        logger = logging.getLogger(__name__)
+
+        self.status = 'paid'
+        self.pago_em = paid_at or timezone.now()
+        if payer_name:
+            self.pagador_nome = payer_name
+        if payer_document:
+            self.pagador_documento = payer_document
+        if webhook_data:
+            self.webhook_data = webhook_data
+
+        # Extrair valores financeiros do webhook_data se não fornecidos diretamente
+        if webhook_data and isinstance(webhook_data, dict):
+            data = webhook_data.get('data', webhook_data)
+
+            # Tentar extrair valor recebido (líquido)
+            if valor_recebido is None:
+                # FastDePix pode usar: net_amount, amount_received, liquid_value
+                for key in ['net_amount', 'amount_received', 'liquid_value', 'valor_liquido']:
+                    if key in data and data[key] is not None:
+                        try:
+                            valor_recebido = Decimal(str(data[key]))
+                        except (ValueError, TypeError):
+                            pass
+                        break
+
+            # Tentar extrair taxa
+            if valor_taxa is None:
+                for key in ['fee', 'taxa', 'fee_amount', 'valor_taxa']:
+                    if key in data and data[key] is not None:
+                        try:
+                            valor_taxa = Decimal(str(data[key]))
+                        except (ValueError, TypeError):
+                            pass
+                        break
+
+        # Se temos valor_recebido mas não valor_taxa, calcular taxa
+        if valor_recebido is not None and valor_taxa is None and self.valor:
+            valor_taxa = self.valor - valor_recebido
+
+        # Se temos valor_taxa mas não valor_recebido, calcular valor_recebido
+        if valor_taxa is not None and valor_recebido is None and self.valor:
+            valor_recebido = self.valor - valor_taxa
+
+        # Salvar valores financeiros
+        if valor_recebido is not None:
+            self.valor_recebido = valor_recebido
+        if valor_taxa is not None:
+            self.valor_taxa = valor_taxa
+
+        self.save()
+
+        # Atualizar mensalidade se existir
+        if self.mensalidade_id:
+            # Buscar mensalidade fresca do banco com relacionamentos necessários
+            # Isso garante que os signals tenham acesso a cliente.plano, etc.
+            from nossopainel.models import Mensalidade
+            try:
+                mensalidade = Mensalidade.objects.select_related(
+                    'cliente',
+                    'cliente__plano',
+                    'usuario'
+                ).get(pk=self.mensalidade_id)
+
+                # Verifica se a mensalidade ainda não foi paga
+                if not mensalidade.pgto:
+                    mensalidade.dt_pagamento = self.pago_em.date()
+                    mensalidade.pgto = True
+                    mensalidade.save()  # Dispara signals: criar_nova_mensalidade, atualiza_ultimo_pagamento
+
+                    logger.info(
+                        f'[CobrancaPix] Mensalidade {mensalidade.id} marcada como PAGA '
+                        f'via PIX (cobrança {self.id}) - '
+                        f'Cliente: {mensalidade.cliente.nome} - '
+                        f'Signals de criação de nova mensalidade disparados'
+                    )
+                else:
+                    logger.warning(
+                        f'[CobrancaPix] Mensalidade {mensalidade.id} já estava paga, '
+                        f'ignorando atualização (cobrança {self.id})'
+                    )
+
+            except Mensalidade.DoesNotExist:
+                logger.error(
+                    f'[CobrancaPix] Mensalidade {self.mensalidade_id} não encontrada '
+                    f'ao marcar cobrança {self.id} como paga'
+                )
+
+    def mark_as_expired(self):
+        """Marca a cobrança como expirada."""
+        if self.status == 'pending':
+            self.status = 'expired'
+            self.save()
+
+    def mark_as_cancelled(self):
+        """Marca a cobrança como cancelada."""
+        if self.status == 'pending':
+            self.status = 'cancelled'
+            self.save()
 
 
 def avatar_upload_path(instance, filename):
@@ -3300,5 +4125,114 @@ class VarianteMensagem(models.Model):
         if total_tarefa == 0:
             return 0
         return round((self.total_envios / total_tarefa) * 100, 1)
+
+
+class ConfiguracaoAgendamento(models.Model):
+    """
+    Configuração centralizada de agendamentos do sistema.
+
+    Permite gerenciar todos os jobs automatizados do sistema,
+    visualizar status, ativar/desativar e configurar templates de mensagem.
+    """
+
+    # Identificação
+    nome = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name='Nome do Job',
+        help_text='Identificador único do job (ex: envios_vencimento)'
+    )
+
+    nome_exibicao = models.CharField(
+        max_length=100,
+        verbose_name='Nome de Exibição',
+        help_text='Nome amigável para exibir na interface'
+    )
+
+    descricao = models.TextField(
+        blank=True,
+        verbose_name='Descrição',
+        help_text='Descrição detalhada do job'
+    )
+
+    icone = models.CharField(
+        max_length=50,
+        default='calendar',
+        verbose_name='Ícone',
+        help_text='Nome do ícone (Lucide Icons)'
+    )
+
+    # Horário/Frequência
+    horario = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='Horário/Frequência',
+        help_text='Horário de execução (ex: 08:00) ou frequência (ex: 1min, 60min)'
+    )
+
+    # Status
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name='Ativo',
+        help_text='Se o job está ativo e será executado'
+    )
+
+    bloqueado = models.BooleanField(
+        default=False,
+        verbose_name='Bloqueado',
+        help_text='Se True, não pode ser editado pela interface web'
+    )
+
+    # Templates de mensagem (JSON) - para jobs configuráveis
+    templates_mensagem = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Templates de Mensagem',
+        help_text='JSON com templates de mensagem personalizáveis'
+    )
+
+    # Metadados
+    ordem = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Ordem',
+        help_text='Ordem de exibição na lista'
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Criado Em'
+    )
+
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Atualizado Em'
+    )
+
+    class Meta:
+        db_table = 'cadastros_configuracaoagendamento'
+        verbose_name = 'Configuração de Agendamento'
+        verbose_name_plural = 'Configurações de Agendamentos'
+        ordering = ['ordem', 'nome']
+
+    def __str__(self):
+        status = "Ativo" if self.ativo else "Inativo"
+        bloqueio = " (Bloqueado)" if self.bloqueado else ""
+        return f"{self.nome_exibicao} - {status}{bloqueio}"
+
+    def get_status_display(self):
+        """Retorna status formatado para exibição."""
+        if not self.ativo:
+            return "Inativo"
+        if self.bloqueado:
+            return "Bloqueado"
+        return "Ativo"
+
+    def get_status_class(self):
+        """Retorna classe CSS para o status."""
+        if not self.ativo:
+            return "badge-danger"
+        if self.bloqueado:
+            return "badge-warning"
+        return "badge-success"
 
 

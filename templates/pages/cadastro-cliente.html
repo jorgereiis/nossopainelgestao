@@ -108,7 +108,7 @@
                   <select class="form-select form-select-lg" id="forma_pgto" name="forma_pgto" required>
                     <option value="" selected disabled>Selecione uma forma de pagamento</option>
                     {% for forma_pgto in formas_pgtos %}
-                    <option value="{{ forma_pgto.nome }}">{{ forma_pgto.nome }}</option>
+                    <option value="{{ forma_pgto.id }}">{{ forma_pgto.nome }} ({% if forma_pgto.conta_bancaria and forma_pgto.conta_bancaria.nome_identificacao %}{{ forma_pgto.conta_bancaria.nome_identificacao }}{% else %}sem identificação{% endif %})</option>
                     {% endfor %}
                   </select>
                   <small class="text-muted">Método de pagamento escolhido pelo cliente</small>

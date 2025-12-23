@@ -29,6 +29,10 @@ urlpatterns = [
     # Estrutura: /app/{clube}/ - preparado para múltiplos clubes
     # Exemplos futuros: /app/sport/, /app/vitoria/, /app/saopaulo/
     path("app/bahia/", include("jampabet.urls", namespace="jampabet")),
+    # Painel do Cliente - Sistema de Pagamentos
+    # NOTA: Rotas do painel_cliente sao gerenciadas pelo SubdomainRoutingMiddleware
+    # Acessado APENAS via subdominios *.pagar.cc (porta 8003 em desenvolvimento)
+    # O middleware intercepta requisicoes e roteia para painel_cliente.urls
 ]
 
 # ============================================================================

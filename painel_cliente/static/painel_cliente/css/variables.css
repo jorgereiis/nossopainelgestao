@@ -1,0 +1,260 @@
+/**
+ * Design Tokens - Painel do Cliente
+ * Estilo: Colorido/Vibrante (Nubank/PicPay inspired)
+ *
+ * Este arquivo contém todas as variáveis CSS do sistema.
+ * As cores primária e secundária são customizáveis por subdomínio.
+ */
+
+:root {
+  /* ========================================
+     CORES - LIGHT MODE
+     ======================================== */
+
+  /* Cores Primárias (customizáveis via SubdominioPainelCliente) */
+  --color-primary: var(--cor-primaria, #8B5CF6);
+  --color-primary-hover: var(--cor-primaria-hover, #7C3AED);
+  --color-primary-light: var(--cor-primaria-light, #A78BFA);
+  --color-primary-dark: var(--cor-primaria-dark, #6D28D9);
+
+  --color-secondary: var(--cor-secundaria, #06B6D4);
+  --color-secondary-hover: var(--cor-secundaria-hover, #0891B2);
+  --color-secondary-light: var(--cor-secundaria-light, #22D3EE);
+
+  /* Cores de Status */
+  --color-success: #10B981;
+  --color-success-light: #D1FAE5;
+  --color-success-dark: #059669;
+
+  --color-warning: #F59E0B;
+  --color-warning-light: #FEF3C7;
+  --color-warning-dark: #D97706;
+
+  --color-danger: #EF4444;
+  --color-danger-light: #FEE2E2;
+  --color-danger-dark: #DC2626;
+
+  --color-info: #3B82F6;
+  --color-info-light: #DBEAFE;
+  --color-info-dark: #2563EB;
+
+  /* Cores Neutras */
+  --color-white: #FFFFFF;
+  --color-black: #000000;
+
+  --color-gray-50: #F8FAFC;
+  --color-gray-100: #F1F5F9;
+  --color-gray-200: #E2E8F0;
+  --color-gray-300: #CBD5E1;
+  --color-gray-400: #94A3B8;
+  --color-gray-500: #64748B;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+  --color-gray-800: #1E293B;
+  --color-gray-900: #0F172A;
+
+  /* Cores Semânticas */
+  --color-background: #F5F3FF;
+  --color-surface: #FFFFFF;
+  --color-surface-elevated: #FFFFFF;
+  --color-text-primary: #1E1B4B;
+  --color-text-secondary: #64748B;
+  --color-text-muted: #94A3B8;
+  --color-text-inverse: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-border-light: #F1F5F9;
+
+  /* Gradientes */
+  --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, #EC4899 100%);
+  --gradient-hero: linear-gradient(135deg, #8B5CF6 0%, #EC4899 50%, #F59E0B 100%);
+  --gradient-success: linear-gradient(135deg, #10B981 0%, #06B6D4 100%);
+  --gradient-danger: linear-gradient(135deg, #EF4444 0%, #F59E0B 100%);
+  --gradient-card-highlight: linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(236,72,153,0.08) 100%);
+  --gradient-surface: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+
+  /* ========================================
+     TIPOGRAFIA
+     ======================================== */
+
+  /* Font Family */
+  --font-family-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+
+  /* Font Sizes */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.875rem;    /* 14px */
+  --text-base: 1rem;      /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 1.875rem;   /* 30px */
+  --text-4xl: 2.25rem;    /* 36px */
+  --text-5xl: 3rem;       /* 48px */
+
+  /* Font Weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+
+  /* Line Heights */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* Letter Spacing */
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+
+  /* ========================================
+     ESPACAMENTO
+     ======================================== */
+
+  --space-0: 0;
+  --space-px: 1px;
+  --space-0-5: 0.125rem;  /* 2px */
+  --space-1: 0.25rem;     /* 4px */
+  --space-1-5: 0.375rem;  /* 6px */
+  --space-2: 0.5rem;      /* 8px */
+  --space-2-5: 0.625rem;  /* 10px */
+  --space-3: 0.75rem;     /* 12px */
+  --space-3-5: 0.875rem;  /* 14px */
+  --space-4: 1rem;        /* 16px */
+  --space-5: 1.25rem;     /* 20px */
+  --space-6: 1.5rem;      /* 24px */
+  --space-7: 1.75rem;     /* 28px */
+  --space-8: 2rem;        /* 32px */
+  --space-9: 2.25rem;     /* 36px */
+  --space-10: 2.5rem;     /* 40px */
+  --space-11: 2.75rem;    /* 44px */
+  --space-12: 3rem;       /* 48px */
+  --space-14: 3.5rem;     /* 56px */
+  --space-16: 4rem;       /* 64px */
+  --space-20: 5rem;       /* 80px */
+  --space-24: 6rem;       /* 96px */
+
+  /* ========================================
+     BORDAS
+     ======================================== */
+
+  /* Border Radius */
+  --radius-none: 0;
+  --radius-sm: 0.375rem;  /* 6px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.75rem;   /* 12px */
+  --radius-xl: 1rem;      /* 16px */
+  --radius-2xl: 1.5rem;   /* 24px */
+  --radius-3xl: 2rem;     /* 32px */
+  --radius-full: 9999px;
+
+  /* Border Width */
+  --border-0: 0;
+  --border-1: 1px;
+  --border-2: 2px;
+  --border-4: 4px;
+
+  /* ========================================
+     SOMBRAS
+     ======================================== */
+
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 8px rgba(139, 92, 246, 0.08);
+  --shadow-md: 0 4px 16px rgba(139, 92, 246, 0.12);
+  --shadow-lg: 0 8px 32px rgba(139, 92, 246, 0.16);
+  --shadow-xl: 0 16px 48px rgba(139, 92, 246, 0.20);
+  --shadow-2xl: 0 24px 64px rgba(139, 92, 246, 0.24);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 40px rgba(139, 92, 246, 0.3);
+  --shadow-glow-sm: 0 0 20px rgba(139, 92, 246, 0.2);
+
+  /* Sombras de Status */
+  --shadow-success: 0 4px 16px rgba(16, 185, 129, 0.2);
+  --shadow-danger: 0 4px 16px rgba(239, 68, 68, 0.2);
+  --shadow-warning: 0 4px 16px rgba(245, 158, 11, 0.2);
+
+  /* ========================================
+     TRANSICOES
+     ======================================== */
+
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 500ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* Easings */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* ========================================
+     Z-INDEX
+     ======================================== */
+
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+  --z-fab: 1090;
+
+  /* ========================================
+     BREAKPOINTS (para referência em media queries)
+     ======================================== */
+
+  /*
+   * --breakpoint-sm: 640px;
+   * --breakpoint-md: 768px;
+   * --breakpoint-lg: 1024px;
+   * --breakpoint-xl: 1280px;
+   * --breakpoint-2xl: 1536px;
+   */
+
+  /* ========================================
+     TAMANHOS DE COMPONENTES
+     ======================================== */
+
+  /* Buttons */
+  --btn-height-sm: 2rem;      /* 32px */
+  --btn-height-md: 2.5rem;    /* 40px */
+  --btn-height-lg: 3rem;      /* 48px */
+  --btn-height-xl: 3.5rem;    /* 56px */
+
+  /* Inputs */
+  --input-height-sm: 2rem;    /* 32px */
+  --input-height-md: 2.5rem;  /* 40px */
+  --input-height-lg: 3rem;    /* 48px */
+
+  /* Cards */
+  --card-padding-sm: var(--space-4);
+  --card-padding-md: var(--space-6);
+  --card-padding-lg: var(--space-8);
+
+  /* Container */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+
+  /* FAB */
+  --fab-size: 56px;
+  --fab-size-sm: 40px;
+
+  /* Sidebar Admin */
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 80px;
+
+  /* Header */
+  --header-height: 64px;
+  --header-height-mobile: 56px;
+}

@@ -1,0 +1,559 @@
+{% extends 'painel_cliente/base.html' %}
+{% load static %}
+
+{% block title %}Login Cliente{% endblock %}
+
+{% block extra_head %}
+<!-- intl-tel-input CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/css/intlTelInput.min.css">
+<!-- reCAPTCHA -->
+{% if recaptcha_site_key %}
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+{% endif %}
+{% endblock %}
+
+{% block body_class %}page-login{% endblock %}
+
+{% block header %}
+<!-- Login page has no header -->
+{% endblock %}
+
+{% block body %}
+<div class="login-page">
+  <!-- Background decoration -->
+  <div class="login-bg"></div>
+
+  <main class="login-container">
+    <!-- Login Card -->
+    <div class="login-card animate-fade-in-up">
+      <!-- Logo Section -->
+      <div class="login-header">
+        <div class="login-logo">
+          {% if config.logo %}
+          <img src="{{ config.logo.url }}" alt="{{ config.nome_exibicao }}" class="login-logo-img">
+          {% else %}
+          <div class="login-logo-text">{{ config.nome_exibicao }}</div>
+          {% endif %}
+        </div>
+        <h1>Bem-vindo!</h1>
+        <p>Acesse sua área de cliente para gerenciar suas mensalidades</p>
+      </div>
+
+      <!-- Error Alert -->
+      {% if erro %}
+      <div class="alert alert-danger animate-shake">
+        <svg class="alert-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+        <span>{{ erro }}</span>
+      </div>
+      {% endif %}
+
+      <!-- Rate Limit Warning -->
+      {% if tentativas_restantes is not None and tentativas_restantes <= 2 %}
+      <div class="alert alert-warning animate-shake">
+        <svg class="alert-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <span>
+          {% if tentativas_restantes == 0 %}
+          Muitas tentativas. Aguarde 15 minutos.
+          {% else %}
+          Restam {{ tentativas_restantes }} tentativa{{ tentativas_restantes|pluralize:"s" }}.
+          {% endif %}
+        </span>
+      </div>
+      {% endif %}
+
+      <!-- Login Form -->
+      <form method="post" action="{% url 'painel_cliente:login' %}" class="login-form" id="login-form">
+        {% csrf_token %}
+
+        <div class="form-group">
+          <label for="telefone" class="form-label">Telefone</label>
+          <input
+            type="tel"
+            class="form-input form-input-lg"
+            id="telefone"
+            name="telefone"
+            value="{{ telefone|default:'' }}"
+            required
+            autocomplete="tel"
+            autofocus
+          >
+          <p class="form-hint">
+            <svg class="form-hint-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            Digite o telefone cadastrado
+          </p>
+        </div>
+
+        <!-- reCAPTCHA -->
+        {% if recaptcha_site_key %}
+        <div class="recaptcha-container">
+          <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key }}" data-theme="dark"></div>
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-login">
+          <span class="btn-text">Continuar</span>
+          <svg class="btn-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </form>
+    </div>
+
+    <!-- Security Footer -->
+    <footer class="login-footer">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
+      <span>Seus dados estão protegidos</span>
+    </footer>
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* intl-tel-input styles */
+  .iti {
+    width: 100%;
+  }
+
+  .iti__country-list {
+    z-index: 10000;
+    background-color: #111827 !important;
+    border: 1px solid #374151 !important;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    max-height: 250px;
+  }
+
+  .iti__country-list .iti__country {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #111827;
+  }
+
+  .iti__country-list .iti__country:hover,
+  .iti__country-list .iti__country.iti__highlight {
+    background-color: #1f2937 !important;
+  }
+
+  .iti__country-list .iti__country-name {
+    color: #ffffff !important;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .iti__country-list .iti__dial-code {
+    color: #d1d5db !important;
+    font-size: 13px;
+  }
+
+  .iti__divider {
+    border-bottom-color: #374151;
+    margin: 4px 0;
+  }
+
+  .iti__search-input {
+    background-color: #111827;
+    border: 1px solid #374151;
+    color: #f3f4f6;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .iti__search-input::placeholder {
+    color: #6b7280;
+  }
+
+  .iti__search-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+  }
+
+  .iti__selected-flag {
+    background-color: transparent !important;
+    padding: 0 8px 0 12px;
+  }
+
+  .iti__selected-flag:hover,
+  .iti__selected-flag:focus {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  .iti__selected-dial-code {
+    color: var(--color-text-primary);
+    font-size: 14px;
+    margin-left: 6px;
+  }
+
+  .iti__arrow {
+    border-top-color: #9ca3af;
+    margin-left: 6px;
+  }
+
+  .iti__arrow--up {
+    border-bottom-color: #9ca3af;
+  }
+
+  /* Scrollbar estilizada para a lista de países */
+  .iti__country-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .iti__country-list::-webkit-scrollbar-track {
+    background: #1f2937;
+  }
+
+  .iti__country-list::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 3px;
+  }
+
+  .iti__country-list::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+  }
+
+  /* reCAPTCHA styles */
+  .recaptcha-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--space-5);
+    position: relative;
+    z-index: 100;
+    overflow: visible;
+  }
+
+  .g-recaptcha {
+    transform-origin: center;
+  }
+
+  /* Iframe do reCAPTCHA precisa de z-index alto */
+  .g-recaptcha iframe {
+    z-index: 100;
+  }
+
+  /* Ajuste para telas menores */
+  @media (max-width: 340px) {
+    .g-recaptcha {
+      transform: scale(0.9);
+    }
+
+    .recaptcha-container {
+      margin-left: -10px;
+      margin-right: -10px;
+    }
+  }
+
+  .login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6);
+    background: linear-gradient(135deg, #1E1B4B 0%, #312E81 100%);
+    position: relative;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .login-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+      radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.15) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .login-container {
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .login-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-8);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  @media (max-width: 480px) {
+    .login-card {
+      padding: var(--space-6);
+    }
+  }
+
+  .login-header {
+    text-align: center;
+    margin-bottom: var(--space-6);
+  }
+
+  .login-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: var(--space-5);
+  }
+
+  .login-logo-img {
+    max-height: 72px;
+    width: auto;
+    display: block;
+  }
+
+  .login-logo-text {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-bold);
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .login-header h1 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-2) 0;
+  }
+
+  .login-header p {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+
+  .login-form {
+    margin-bottom: 0;
+  }
+
+  .form-group {
+    margin-bottom: var(--space-5);
+  }
+
+  .form-label {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-2);
+  }
+
+  .input-icon-wrapper {
+    position: relative;
+  }
+
+  .input-icon {
+    position: absolute;
+    left: var(--space-4);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+    transition: color var(--transition-fast);
+  }
+
+  .input-icon-wrapper .form-input {
+    padding-left: calc(var(--space-4) + 28px);
+  }
+
+  .input-icon-wrapper:focus-within .input-icon {
+    color: var(--color-primary);
+  }
+
+  .form-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-base);
+    color: var(--color-text-primary);
+    background-color: var(--color-background);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    transition: all var(--transition-fast);
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+  }
+
+  .form-input::placeholder {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .form-input-lg {
+    padding: var(--space-4) var(--space-5);
+    padding-left: calc(var(--space-4) + 28px);
+    min-height: 56px;
+  }
+
+  .form-hint {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .form-hint-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .btn-arrow {
+    width: 20px;
+    height: 20px;
+    transition: transform var(--transition-fast);
+  }
+
+  .btn:hover .btn-arrow {
+    transform: translateX(4px);
+  }
+
+  .alert {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-xl);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-5);
+  }
+
+  .alert-danger {
+    background-color: var(--color-danger-light);
+    color: var(--color-danger-dark);
+  }
+
+  .alert-warning {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #B45309;
+  }
+
+  .alert-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+  }
+
+  .login-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-top: var(--space-6);
+    font-size: var(--text-sm);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .login-footer svg {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  /* Dark mode */
+  [data-theme="dark"] .login-page {
+    background: linear-gradient(135deg, #0F0D1A 0%, #1E1B2E 100%);
+  }
+
+  [data-theme="dark"] .form-input {
+    background-color: var(--color-surface-elevated);
+  }
+
+  [data-theme="dark"] .alert-warning {
+    background-color: rgba(245, 158, 11, 0.2);
+    color: #FBBF24;
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- intl-tel-input JS -->
+<script src="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/intlTelInput.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Loading inicial na página de login - mostra por 2 segundos
+    var loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen && window.LoadingScreen) {
+      // Remove a classe hidden que pode ter sido adicionada
+      loadingScreen.classList.remove('hidden');
+      // Esconde após 2 segundos
+      setTimeout(function() {
+        window.LoadingScreen.hide();
+      }, 2000);
+    }
+
+    const form = document.getElementById('login-form');
+    const telefoneInput = document.getElementById('telefone');
+    const btn = document.getElementById('btn-login');
+
+    // Inicializa intl-tel-input
+    const iti = window.intlTelInput(telefoneInput, {
+      preferredCountries: ["br", "us", "pt"],
+      initialCountry: "br",
+      formatOnDisplay: false,
+      nationalMode: true,
+      separateDialCode: true,
+      autoPlaceholder: "aggressive",
+      placeholderNumberType: "MOBILE",
+      utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/utils.js"
+    });
+
+    // Form submit - adiciona DDI ao telefone
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      // Verifica reCAPTCHA (se existir)
+      const recaptchaResponse = document.querySelector('[name="g-recaptcha-response"]');
+      if (recaptchaResponse && recaptchaResponse.value === '') {
+        // reCAPTCHA não marcado - mostra alerta
+        alert('Por favor, confirme que você não é um robô.');
+        return;
+      }
+
+      // Obtém DDI selecionado
+      const countryData = iti.getSelectedCountryData();
+      const countryCode = countryData.dialCode;
+
+      // Remove caracteres não numéricos do telefone
+      let numero = telefoneInput.value.replace(/\D/g, '');
+
+      // Formata com DDI completo
+      telefoneInput.value = '+' + countryCode + numero;
+
+      // Loading state
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-sm spinner-white"></span> Verificando...';
+
+      // Submete o formulário
+      form.submit();
+    });
+  });
+</script>
+{% endblock %}

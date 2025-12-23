@@ -1,0 +1,377 @@
+{% extends 'painel_cliente/base.html' %}
+{% load static %}
+
+{% block title %}Login Admin{% endblock %}
+
+{% block extra_head %}
+<!-- reCAPTCHA -->
+{% if recaptcha_site_key %}
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+{% endif %}
+{% endblock %}
+
+{% block body_class %}page-admin-login{% endblock %}
+
+{% block header %}
+<!-- Admin login page has no header -->
+{% endblock %}
+
+{% block body %}
+<div class="admin-login-page">
+  <!-- Background decoration -->
+  <div class="admin-login-bg"></div>
+
+  <main class="admin-login-container">
+    <!-- Login Card -->
+    <div class="admin-login-card animate-fade-in-up">
+      <!-- Logo/Title Section -->
+      <div class="admin-login-header">
+        <div class="admin-login-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+        </div>
+        <h1>Painel Administrativo</h1>
+        <p>Acesso restrito a administradores</p>
+      </div>
+
+      <!-- Error Alert -->
+      {% if erro %}
+      <div class="alert alert-danger animate-shake">
+        <svg class="alert-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+        <span>{{ erro }}</span>
+      </div>
+      {% endif %}
+
+      <!-- Login Form -->
+      <form method="post" action="{% url 'painel_cliente:admin_login' %}" class="admin-login-form" id="admin-login-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <div class="form-group">
+          <label for="username" class="form-label">Usuário</label>
+          <div class="input-icon-wrapper">
+            <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <input
+              type="text"
+              class="form-input form-input-lg"
+              id="username"
+              name="username"
+              placeholder="Seu usuario"
+              value="{{ username|default:'' }}"
+              required
+              autocomplete="username"
+              autofocus
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password" class="form-label">Senha</label>
+          <div class="input-icon-wrapper">
+            <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <input
+              type="password"
+              class="form-input form-input-lg"
+              id="password"
+              name="password"
+              placeholder="Sua senha"
+              required
+              autocomplete="current-password"
+            >
+          </div>
+        </div>
+
+        <!-- reCAPTCHA -->
+        {% if recaptcha_site_key %}
+        <div class="recaptcha-container">
+          <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key }}" data-theme="dark"></div>
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-login">
+          <span class="btn-text">Entrar</span>
+          <svg class="btn-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </form>
+
+      <!-- Back to Client Panel -->
+      <div class="admin-login-footer">
+        <a href="{% url 'painel_cliente:login' %}" class="back-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Voltar para painel do cliente
+        </a>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .admin-login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6);
+    background: linear-gradient(135deg, #1E1B4B 0%, #312E81 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .admin-login-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+      radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.15) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .admin-login-container {
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .admin-login-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-8);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  @media (max-width: 480px) {
+    .admin-login-card {
+      padding: var(--space-6);
+    }
+  }
+
+  .admin-login-header {
+    text-align: center;
+    margin-bottom: var(--space-6);
+  }
+
+  .admin-login-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto var(--space-4);
+    background: var(--gradient-primary);
+    border-radius: var(--radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+
+  .admin-login-icon svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .admin-login-header h1 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-2) 0;
+  }
+
+  .admin-login-header p {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+
+  .admin-login-form {
+    margin-bottom: var(--space-6);
+  }
+
+  .form-group {
+    margin-bottom: var(--space-5);
+  }
+
+  .form-label {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-2);
+  }
+
+  .input-icon-wrapper {
+    position: relative;
+  }
+
+  .input-icon {
+    position: absolute;
+    left: var(--space-4);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+    transition: color var(--transition-fast);
+  }
+
+  .input-icon-wrapper .form-input {
+    padding-left: calc(var(--space-4) + 28px);
+  }
+
+  .input-icon-wrapper:focus-within .input-icon {
+    color: var(--color-primary);
+  }
+
+  .form-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-base);
+    color: var(--color-text-primary);
+    background-color: var(--color-background);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    transition: all var(--transition-fast);
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+  }
+
+  .form-input::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  .form-input-lg {
+    padding: var(--space-4) var(--space-5);
+    padding-left: calc(var(--space-4) + 28px);
+    min-height: 56px;
+  }
+
+  .btn-arrow {
+    width: 20px;
+    height: 20px;
+    transition: transform var(--transition-fast);
+  }
+
+  .btn:hover .btn-arrow {
+    transform: translateX(4px);
+  }
+
+  .alert {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-xl);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-5);
+  }
+
+  .alert-danger {
+    background-color: var(--color-danger-light);
+    color: var(--color-danger-dark);
+  }
+
+  .alert-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+  }
+
+  .admin-login-footer {
+    text-align: center;
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border-light);
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .back-link:hover {
+    color: var(--color-primary);
+  }
+
+  .back-link svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Dark mode */
+  [data-theme="dark"] .admin-login-page {
+    background: linear-gradient(135deg, #0F0D1A 0%, #1E1B2E 100%);
+  }
+
+  [data-theme="dark"] .form-input {
+    background-color: var(--color-surface-elevated);
+  }
+
+  /* reCAPTCHA styles */
+  .recaptcha-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--space-5);
+  }
+
+  .g-recaptcha {
+    transform-origin: center;
+  }
+
+  @media (max-width: 340px) {
+    .g-recaptcha {
+      transform: scale(0.9);
+    }
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('admin-login-form');
+    const btn = document.getElementById('btn-login');
+
+    form.addEventListener('submit', function(e) {
+      // Verifica reCAPTCHA (se existir)
+      const recaptchaResponse = document.querySelector('[name="g-recaptcha-response"]');
+      if (recaptchaResponse && recaptchaResponse.value === '') {
+        e.preventDefault();
+        alert('Por favor, confirme que você não é um robô.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-sm spinner-white"></span> Entrando...';
+    });
+  });
+</script>
+{% endblock %}

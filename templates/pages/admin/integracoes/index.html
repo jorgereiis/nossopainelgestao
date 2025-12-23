@@ -1,0 +1,395 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Integracoes API | Nosso Painel - Gestao IPTV</title>
+  <style>
+    /* Integration Cards */
+    .integration-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .integration-card {
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      transition: all 0.3s ease;
+      border: 1px solid #e9ecef;
+    }
+
+    .integration-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+    }
+
+    .integration-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.5rem;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .integration-logo {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #f8f9fa;
+    }
+
+    .integration-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .integration-logo i {
+      font-size: 1.75rem;
+    }
+
+    .integration-info h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #212529;
+      margin: 0 0 0.25rem 0;
+    }
+
+    .integration-info p {
+      font-size: 0.875rem;
+      color: #6c757d;
+      margin: 0;
+    }
+
+    .integration-body {
+      padding: 1.5rem;
+    }
+
+    .integration-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .status-indicator.connected {
+      background: linear-gradient(135deg, #10b981, #059669);
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    }
+
+    .status-indicator.disconnected {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+
+    .status-indicator.partial {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+
+    .status-indicator.coming-soon {
+      background: linear-gradient(135deg, #6b7280, #4b5563);
+    }
+
+    .status-text {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .status-text.connected { color: #10b981; }
+    .status-text.disconnected { color: #ef4444; }
+    .status-text.partial { color: #f59e0b; }
+    .status-text.coming-soon { color: #6b7280; }
+
+    .integration-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat-item {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #212529;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .integration-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #e9ecef;
+      background: #f8f9fa;
+    }
+
+    .btn-integration {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .btn-integration:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-integration.btn-primary {
+      background: linear-gradient(135deg, #0d6efd, #0056b3);
+      color: #fff;
+      border: none;
+    }
+
+    .btn-integration.btn-outline-secondary {
+      background: #fff;
+      border: 1px solid #dee2e6;
+      color: #495057;
+    }
+
+    .btn-integration.btn-outline-secondary:hover {
+      background: #e9ecef;
+    }
+
+    /* Coming Soon Badge */
+    .badge-coming-soon {
+      background: linear-gradient(135deg, #6b7280, #4b5563);
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 50px;
+      font-weight: 500;
+    }
+
+    /* Page Header */
+    .page-header-custom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .page-header-custom h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .page-header-custom h1 i {
+      color: #0d6efd;
+    }
+
+    /* Info Box */
+    .info-box {
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .info-box i {
+      color: #1976d2;
+      font-size: 1.25rem;
+      margin-top: 0.125rem;
+    }
+
+    .info-box p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #1565c0;
+    }
+  </style>
+</head>
+
+<body class="bg-light">
+  <!-- Wrapper -->
+  <div id="db-wrapper">
+    {% include 'partials/navbar-vertical.html' %}
+
+    <!-- Page Content -->
+    <div id="page-content">
+      {% include 'partials/header.html' %}
+
+      <!-- Container fluid -->
+      <div class="container-fluid px-4 mt-4">
+        <!-- Page Header -->
+        <div class="page-header-custom">
+          <h1>
+            <i data-feather="zap"></i>
+            Integracoes API
+          </h1>
+        </div>
+
+        <!-- Info Box -->
+        <div class="info-box">
+          <i data-feather="info"></i>
+          <p>
+            Configure as integracoes de pagamento PIX para receber pagamentos de forma automatizada.
+            Cada integracao permite gerar cobranças, receber notificacoes (webhooks) e gerenciar transacoes.
+          </p>
+        </div>
+
+        <!-- Integration Cards Grid -->
+        <div class="integration-grid">
+          <!-- FastDePix Card -->
+          <div class="integration-card">
+            <div class="integration-header">
+              <div class="integration-logo">
+                <img src="{% static 'assets/images/logo-apps/depix-logo.jpeg' %}" alt="FastDePix" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <i data-feather="zap" style="display: none; color: #0d6efd;"></i>
+              </div>
+              <div class="integration-info">
+                <h3>FastDePix</h3>
+                <p>Gateway de pagamentos PIX</p>
+              </div>
+            </div>
+            <div class="integration-body">
+              <div class="integration-status">
+                {% if fastdepix_status == 'connected' %}
+                <span class="status-indicator connected"></span>
+                <span class="status-text connected">Conectado</span>
+                {% elif fastdepix_status == 'partial' %}
+                <span class="status-indicator partial"></span>
+                <span class="status-text partial">Webhook pendente</span>
+                {% else %}
+                <span class="status-indicator disconnected"></span>
+                <span class="status-text disconnected">Nao configurado</span>
+                {% endif %}
+              </div>
+              <div class="integration-stats">
+                <div class="stat-item">
+                  <div class="stat-value">{{ fastdepix_contas|default:0 }}</div>
+                  <div class="stat-label">Contas</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">{{ fastdepix_cobrancas|default:0 }}</div>
+                  <div class="stat-label">Cobrancas (30d)</div>
+                </div>
+              </div>
+            </div>
+            <div class="integration-footer">
+              <a href="{% url 'integracoes-fastdepix' %}" class="btn btn-integration btn-primary">
+                <i data-feather="settings" style="width: 18px; height: 18px;"></i>
+                Configurar
+              </a>
+            </div>
+          </div>
+
+          <!-- Mercado Pago Card (Em breve) -->
+          <div class="integration-card" style="opacity: 0.7;">
+            <div class="integration-header">
+              <div class="integration-logo">
+                <img src="{% static 'assets/images/logo-apps/mercadopago-logo.png' %}" alt="Mercado Pago" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <i data-feather="credit-card" style="display: none; color: #00b1ea;"></i>
+              </div>
+              <div class="integration-info">
+                <h3>Mercado Pago</h3>
+                <p>Pagamentos PIX, cartao e boleto</p>
+              </div>
+            </div>
+            <div class="integration-body">
+              <div class="integration-status">
+                <span class="status-indicator coming-soon"></span>
+                <span class="status-text coming-soon">Em breve</span>
+                <span class="badge-coming-soon ms-auto">COMING SOON</span>
+              </div>
+              <div class="integration-stats">
+                <div class="stat-item">
+                  <div class="stat-value">-</div>
+                  <div class="stat-label">Contas</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">-</div>
+                  <div class="stat-label">Cobrancas</div>
+                </div>
+              </div>
+            </div>
+            <div class="integration-footer">
+              <button class="btn btn-integration btn-outline-secondary" disabled>
+                <i data-feather="clock" style="width: 18px; height: 18px;"></i>
+                Disponivel em breve
+              </button>
+            </div>
+          </div>
+
+          <!-- Efi Bank Card (Em breve) -->
+          <div class="integration-card" style="opacity: 0.7;">
+            <div class="integration-header">
+              <div class="integration-logo">
+                <img src="{% static 'assets/images/logo-apps/efibank-logo.png' %}" alt="Efi Bank" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <i data-feather="dollar-sign" style="display: none; color: #00a651;"></i>
+              </div>
+              <div class="integration-info">
+                <h3>Efi Bank</h3>
+                <p>PIX com taxas reduzidas</p>
+              </div>
+            </div>
+            <div class="integration-body">
+              <div class="integration-status">
+                <span class="status-indicator coming-soon"></span>
+                <span class="status-text coming-soon">Em breve</span>
+                <span class="badge-coming-soon ms-auto">COMING SOON</span>
+              </div>
+              <div class="integration-stats">
+                <div class="stat-item">
+                  <div class="stat-value">-</div>
+                  <div class="stat-label">Contas</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">-</div>
+                  <div class="stat-label">Cobrancas</div>
+                </div>
+              </div>
+            </div>
+            <div class="integration-footer">
+              <button class="btn btn-integration btn-outline-secondary" disabled>
+                <i data-feather="clock" style="width: 18px; height: 18px;"></i>
+                Disponivel em breve
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'partials/scripts.html' %}
+</body>
+</html>

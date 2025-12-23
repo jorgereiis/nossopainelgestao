@@ -1,0 +1,909 @@
+{% extends 'painel_cliente/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block body_class %}page-dashboard{% endblock %}
+
+{% block content %}
+<!-- Welcome Section -->
+<section class="welcome-section animate-fade-in">
+  <div class="welcome-content">
+    <div class="welcome-avatar">
+      <div class="avatar avatar-lg">
+        {{ cliente.nome|slice:":1"|upper }}
+      </div>
+    </div>
+    <div class="welcome-text">
+      <h1 class="welcome-greeting">Olá, <span data-fullname="{{ cliente.nome }}">{{ cliente.nome }}</span></h1>
+      <p class="welcome-subtitle">{{ config.texto_boas_vindas }}</p>
+    </div>
+  </div>
+</section>
+
+<!-- Pending Payments Alert -->
+{% if mensalidades_abertas %}
+<section class="section animate-fade-in-up" style="animation-delay: 100ms;">
+  {% for mensalidade in mensalidades_abertas %}
+  <div class="payment-card payment-card-pending {% if mensalidade.dt_vencimento < today %}payment-card-overdue animate-pulse-border{% endif %}">
+    <div class="payment-card-header">
+      <div class="payment-status">
+        {% if mensalidade.dt_vencimento < today %}
+        <span class="badge badge-danger badge-dot">
+          <span class="dot animate-pulse"></span>
+          Em atraso
+        </span>
+        {% else %}
+        <span class="badge badge-warning badge-dot">
+          <span class="dot animate-pulse"></span>
+          Em aberto
+        </span>
+        {% endif %}
+      </div>
+      <span class="payment-reference">{{ mensalidade.dt_vencimento|date:"F/Y" }}</span>
+    </div>
+
+    <div class="payment-card-body">
+      <div class="payment-info">
+        <div class="payment-amount">
+          <span class="currency">R$</span>
+          <span class="value">{{ mensalidade.valor|floatformat:2 }}</span>
+        </div>
+        <div class="payment-due {% if mensalidade.dt_vencimento < today %}payment-due-overdue{% endif %}">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          {% if mensalidade.dt_vencimento < today %}
+          <span>Venceu em: {{ mensalidade.dt_vencimento|date:"d/m/Y" }}</span>
+          {% elif mensalidade.dt_vencimento == today %}
+          <span>Vence hoje: {{ mensalidade.dt_vencimento|date:"d/m/Y" }}</span>
+          {% else %}
+          <span>Vencera em: {{ mensalidade.dt_vencimento|date:"d/m/Y" }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <a href="{% url 'painel_cliente:pagamento' mensalidade.id %}" class="btn btn-primary btn-lg payment-btn animate-pulse-glow">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M7 7h.01"/>
+          <path d="M17 7h.01"/>
+          <path d="M7 17h.01"/>
+          <path d="M17 17h.01"/>
+          <path d="M7 12h10"/>
+          <path d="M12 7v10"/>
+        </svg>
+        Pagar com PIX
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- Plan & Payment Info -->
+<section class="section plan-cards-grid {% if cliente.cancelado %}plan-cards-grid-single{% endif %} animate-fade-in-up" style="animation-delay: 200ms;">
+  <!-- Current Plan Card -->
+  <div class="card {% if not cliente.cancelado %}card-highlight{% else %}card-cancelled{% endif %}">
+    <div class="card-header">
+      <div class="card-header-icon {% if cliente.cancelado %}card-header-icon-danger{% endif %}">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+          <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </svg>
+      </div>
+      <span class="card-header-title">Seu Plano</span>
+    </div>
+    <div class="card-body">
+      {% if cliente.cancelado %}
+      <!-- Assinatura Cancelada -->
+      <div class="plan-cancelled">
+        <div class="plan-cancelled-badge">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+          <span>Cancelado</span>
+        </div>
+        <p class="plan-cancelled-text">Sua assinatura está cancelada.</p>
+        {% if config.whatsapp_suporte %}
+        <a href="{{ config.get_whatsapp_url }}" target="_blank" rel="noopener noreferrer" class="plan-renew-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+          </svg>
+          <span>Fale conosco para renovar</span>
+        </a>
+        {% else %}
+        <p class="plan-renew-text">Entre em contato com o suporte para renovar.</p>
+        {% endif %}
+      </div>
+      {% else %}
+      <!-- Assinatura Ativa -->
+      <h3 class="plan-name">{{ cliente.plano.nome }}</h3>
+      <div class="plan-price">
+        <span class="price-currency">R$</span>
+        <span class="price-value">{{ cliente.plano.valor|floatformat:2 }}</span>
+        <span class="price-period">
+          {% if cliente.plano.nome == "Mensal" %}
+            /mês
+          {% elif cliente.plano.nome == "Bimestral" %}
+            a cada 2 meses
+          {% elif cliente.plano.nome == "Trimestral" %}
+            a cada 3 meses
+          {% elif cliente.plano.nome == "Semestral" %}
+            a cada 6 meses
+          {% elif cliente.plano.nome == "Anual" %}
+            a cada 12 meses
+          {% else %}
+            /mes
+          {% endif %}
+        </span>
+      </div>
+      <p class="plan-due">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        Vencimento dia {{ cliente.data_vencimento|date:"d" }} de cada mês
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Plan Details Card (only show if not cancelled) -->
+  {% if not cliente.cancelado %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-icon card-header-icon-info">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </div>
+      <span class="card-header-title">Detalhes adicionais</span>
+    </div>
+    <div class="card-body">
+      <div class="plan-details">
+        <p class="plan-details-text">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span>Seu Plano <strong>{{ cliente.plano.nome }}</strong> lhe permite um total de <strong>{{ cliente.plano.telas }}</strong> tela{{ cliente.plano.telas|pluralize }} para uso do nosso sistema.</span>
+        </p>
+        <p class="plan-details-note">
+          {% if cliente.plano.telas == 1 %}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
+          </svg>
+          <span>Apesar do seu plano ser para apenas 1 tela, você poderá ter o nosso sistema em até 2 dispositivos, desde que não faça acesso simultâneo.</span>
+          {% else %}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+            <rect x="9" y="9" width="6" height="6"></rect>
+            <line x1="9" y1="1" x2="9" y2="4"></line>
+            <line x1="15" y1="1" x2="15" y2="4"></line>
+            <line x1="9" y1="20" x2="9" y2="23"></line>
+            <line x1="15" y1="20" x2="15" y2="23"></line>
+            <line x1="20" y1="9" x2="23" y2="9"></line>
+            <line x1="20" y1="14" x2="23" y2="14"></line>
+            <line x1="1" y1="9" x2="4" y2="9"></line>
+            <line x1="1" y1="14" x2="4" y2="14"></line>
+          </svg>
+          <span>Você poderá fazer uso do nosso sistema em <strong>{{ cliente.plano.telas }}</strong> dispositivos simultaneamente.</span>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<!-- Recent History -->
+<section class="section animate-fade-in-up" style="animation-delay: 300ms;">
+  <div class="card">
+    <div class="card-header card-header-between">
+      <div class="card-header-left">
+        <div class="card-header-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <span class="card-header-title">Histórico de Pagamentos</span>
+      </div>
+      <a href="{% url 'painel_cliente:historico' %}" class="btn btn-ghost btn-sm">
+        Ver tudo
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </a>
+    </div>
+    <div class="card-body card-body-flush">
+      {% if historico_recente %}
+      <div class="history-list">
+        {% for mensalidade in historico_recente %}
+        <div class="history-item">
+          <div class="history-item-left">
+            <div class="history-icon {% if mensalidade.pgto %}history-icon-success{% elif mensalidade.cancelado %}history-icon-muted{% elif mensalidade.dt_vencimento < today %}history-icon-danger{% else %}history-icon-warning{% endif %}">
+              {% if mensalidade.pgto %}
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              {% elif mensalidade.cancelado %}
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              {% else %}
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              {% endif %}
+            </div>
+            <div class="history-info">
+              <span class="history-reference">{{ mensalidade.dt_vencimento|date:"F/Y" }}</span>
+              <span class="history-date">Vencimento: {{ mensalidade.dt_vencimento|date:"d/m/Y" }}</span>
+            </div>
+          </div>
+          <div class="history-item-right">
+            <span class="history-amount">R$ {{ mensalidade.valor|floatformat:2 }}</span>
+            {% if mensalidade.pgto %}
+            <span class="badge badge-success badge-sm">Pago</span>
+            {% elif mensalidade.cancelado %}
+            <span class="badge badge-muted badge-sm">Cancelado</span>
+            {% elif mensalidade.dt_vencimento < today %}
+            <span class="badge badge-danger badge-sm">Vencido</span>
+            {% else %}
+            <span class="badge badge-warning badge-sm">Aberto</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h3 class="empty-state-title">Nenhuma mensalidade</h3>
+        <p class="empty-state-description">Seu histórico de mensalidades aparecerá aqui</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<!-- Quick Actions -->
+<section class="section animate-fade-in-up" style="animation-delay: 400ms;">
+  <div class="quick-actions">
+    <a href="{% url 'painel_cliente:perfil' %}" class="quick-action-item">
+      <div class="quick-action-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </div>
+      <span class="quick-action-label">Meu Perfil</span>
+    </a>
+
+    <a href="{% url 'painel_cliente:historico' %}" class="quick-action-item">
+      <div class="quick-action-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+      </div>
+      <span class="quick-action-label">Histórico</span>
+    </a>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-dashboard .main-content {
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-8);
+  }
+
+  .section {
+    margin-bottom: var(--space-6);
+  }
+
+  /* Welcome Section */
+  .welcome-section {
+    margin-bottom: var(--space-6);
+  }
+
+  .welcome-content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .welcome-avatar .avatar {
+    background: var(--gradient-primary);
+    color: white;
+    font-weight: var(--font-bold);
+  }
+
+  .welcome-greeting {
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-1) 0;
+  }
+
+  .welcome-subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+
+  /* Payment Card */
+  .payment-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-5);
+    border: 2px solid var(--color-warning);
+    box-shadow: var(--shadow-md);
+    margin-bottom: var(--space-4);
+  }
+
+  .payment-card-overdue {
+    border-color: var(--color-danger);
+  }
+
+  /* Pulse Border Animation for Overdue */
+  @keyframes pulse-border {
+    0%, 100% {
+      border-color: var(--color-danger);
+      box-shadow: var(--shadow-md), 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+    50% {
+      border-color: #FCA5A5;
+      box-shadow: var(--shadow-md), 0 0 20px 4px rgba(239, 68, 68, 0.3);
+    }
+  }
+
+  .animate-pulse-border {
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  .payment-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
+  }
+
+  .payment-reference {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-secondary);
+    text-transform: capitalize;
+  }
+
+  .payment-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  @media (min-width: 640px) {
+    .payment-card-body {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  .payment-amount {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+  }
+
+  .payment-amount .currency {
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-secondary);
+  }
+
+  .payment-amount .value {
+    font-size: var(--text-3xl);
+    font-weight: var(--font-bold);
+    color: var(--color-text-primary);
+  }
+
+  .payment-due {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-top: var(--space-2);
+  }
+
+  .payment-due svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .payment-due-overdue {
+    color: var(--color-danger);
+    font-weight: var(--font-medium);
+  }
+
+  .payment-due-overdue svg {
+    color: var(--color-danger);
+  }
+
+  .payment-btn {
+    white-space: nowrap;
+  }
+
+  .payment-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Plan Cards Grid */
+  .plan-cards-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  @media (min-width: 768px) {
+    .plan-cards-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* When plan is cancelled, single card takes full width */
+    .plan-cards-grid-single {
+      grid-template-columns: 1fr;
+    }
+
+    .plan-cards-grid-single .card {
+      max-width: 100%;
+    }
+  }
+
+  /* Card Header */
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--color-border-light);
+  }
+
+  .card-header-between {
+    justify-content: space-between;
+  }
+
+  .card-header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .card-header-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15));
+    border-radius: var(--radius-lg);
+    color: var(--color-primary);
+  }
+
+  .card-header-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .card-header-icon-success {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--color-success);
+  }
+
+  .card-header-icon-danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--color-danger);
+  }
+
+  .card-header-title {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-secondary);
+  }
+
+  .card-body {
+    padding: var(--space-4);
+  }
+
+  .card-body-flush {
+    padding: 0;
+  }
+
+  /* Plan Card */
+  .plan-name {
+    font-size: var(--text-lg);
+    font-weight: var(--font-bold);
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-3) 0;
+  }
+
+  .plan-price {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin-bottom: var(--space-3);
+  }
+
+  .price-currency {
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-secondary);
+  }
+
+  .price-value {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-bold);
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .price-period {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
+  .plan-due {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+
+  .plan-due svg {
+    width: 16px;
+    height: 16px;
+    color: var(--color-primary);
+  }
+
+  /* Cancelled Plan */
+  .card-cancelled {
+    border: 1px solid var(--color-danger);
+    background: var(--color-surface);
+  }
+
+  .plan-cancelled {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+  }
+
+  .plan-cancelled-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    border-radius: var(--radius-full);
+    background-color: var(--color-danger-light);
+    color: var(--color-danger);
+  }
+
+  .plan-cancelled-badge svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .plan-cancelled-text {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .plan-renew-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    text-decoration: none;
+    border-radius: var(--radius-xl);
+    background-color: #25D366;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-top: var(--space-2);
+    width: 100%;
+    max-width: 240px;
+  }
+
+  .plan-renew-btn:hover {
+    background-color: #20BD5C;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+  }
+
+  .plan-renew-btn svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .plan-renew-text {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  @media (max-width: 640px) {
+    .plan-cancelled {
+      padding: var(--space-1) 0;
+    }
+
+    .plan-renew-btn {
+      width: 100%;
+      max-width: none;
+    }
+  }
+
+  /* Plan Details */
+  .card-header-icon-info {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--color-info);
+  }
+
+  .plan-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .plan-details-text,
+  .plan-details-note {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .plan-details-text svg,
+  .plan-details-note svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--color-primary);
+  }
+
+  .plan-details-text strong,
+  .plan-details-note strong {
+    color: var(--color-text-primary);
+    font-weight: var(--font-semibold);
+  }
+
+  .plan-details-note {
+    padding: var(--space-3);
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-lg);
+    border-left: 3px solid var(--color-primary);
+  }
+
+  .plan-details-note svg {
+    color: var(--color-info);
+  }
+
+  /* History List */
+  .history-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--color-border-light);
+    transition: background-color var(--transition-fast);
+  }
+
+  .history-item:last-child {
+    border-bottom: none;
+  }
+
+  .history-item:hover {
+    background-color: var(--color-gray-50);
+  }
+
+  .history-item-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .history-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+  }
+
+  .history-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .history-icon-success {
+    background-color: var(--color-success-light);
+    color: var(--color-success);
+  }
+
+  .history-icon-warning {
+    background-color: var(--color-warning-light);
+    color: var(--color-warning);
+  }
+
+  .history-icon-danger {
+    background-color: var(--color-danger-light);
+    color: var(--color-danger);
+  }
+
+  .history-icon-muted {
+    background-color: var(--color-gray-100);
+    color: var(--color-text-muted);
+  }
+
+  .history-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5);
+  }
+
+  .history-reference {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-primary);
+    text-transform: capitalize;
+  }
+
+  .history-date {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .history-item-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-1);
+  }
+
+  .history-amount {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-primary);
+  }
+
+  /* Quick Actions */
+  .quick-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-6);
+  }
+
+  .quick-action-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    text-decoration: none;
+    transition: transform var(--transition-fast);
+  }
+
+  .quick-action-item:hover {
+    transform: translateY(-2px);
+  }
+
+  .quick-action-icon {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-gray-100);
+    border-radius: var(--radius-xl);
+    color: var(--color-text-secondary);
+    transition: all var(--transition-fast);
+  }
+
+  .quick-action-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .quick-action-item:hover .quick-action-icon {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15));
+    color: var(--color-primary);
+  }
+
+  .quick-action-label {
+    font-size: var(--text-xs);
+    font-weight: var(--font-medium);
+    color: var(--color-text-secondary);
+  }
+
+  /* Badge with dot */
+  .badge-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1-5);
+  }
+
+  .badge-dot .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+  }
+
+  /* Text utilities */
+  .text-success {
+    color: var(--color-success);
+  }
+
+  .text-muted {
+    color: var(--color-text-muted);
+  }
+</style>
+{% endblock %}

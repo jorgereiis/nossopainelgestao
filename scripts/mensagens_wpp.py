@@ -63,6 +63,7 @@ from nossopainel.models import (
     Cliente, DadosBancarios, HorarioEnvios,
     MensagensLeads, TelefoneLeads, OfertaPromocionalEnviada,
     TarefaEnvio, HistoricoExecucaoTarefa,
+    ConfiguracaoAgendamento,
 )
 
 URL_API_WPP = os.getenv("URL_API_WPP")
@@ -217,6 +218,158 @@ def enviar_mensagem_agendada(telefone: str, mensagem: str, usuario: str, token: 
 ##### FIM #####
 
 
+##########################################################################
+##### FUNÇÃO AUXILIAR PARA VALIDAR FORMA DE PAGAMENTO DO CLIENTE #####
+##########################################################################
+
+def validar_forma_pagamento_cliente(cliente):
+    """
+    Valida se o cliente tem forma de pagamento válida para receber notificações.
+
+    Verifica:
+    1. Se o cliente tem forma de pagamento associada
+    2. Se a forma tem API (PIX automático), está válido
+    3. Se for PIX sem API, verifica se os dados estão completos
+
+    Returns:
+        tuple: (valido, motivo, dados_pix)
+        - valido: bool - Se pode enviar notificação
+        - motivo: str - Motivo caso inválido
+        - dados_pix: dict|None - Dados PIX para montar mensagem
+    """
+    # 1. Verificar se tem forma de pagamento
+    if not cliente.forma_pgto:
+        return (False, "sem_forma_pagamento", None)
+
+    forma_pgto = cliente.forma_pgto
+
+    # 2. Se tem API, está válido (PIX automático)
+    if forma_pgto.tem_integracao_api:
+        return (True, "com_api", None)
+
+    # 3. Se não tem API e é PIX, validar dados
+    if forma_pgto.nome == "PIX":
+        # Tentar via conta_bancaria (formas novas)
+        if forma_pgto.conta_bancaria:
+            cb = forma_pgto.conta_bancaria
+            if all([
+                cb.instituicao and cb.instituicao.nome,
+                cb.beneficiario,
+                cb.tipo_chave_pix,
+                cb.chave_pix
+            ]):
+                return (True, "pix_manual_completo", {
+                    "instituicao": cb.instituicao.nome,
+                    "beneficiario": cb.beneficiario,
+                    "tipo_chave": cb.tipo_chave_pix,
+                    "chave": cb.chave_pix
+                })
+            return (False, "pix_dados_incompletos", None)
+
+        # Tentar via dados_bancarios (formas antigas/legadas)
+        if forma_pgto.dados_bancarios:
+            db = forma_pgto.dados_bancarios
+            if all([db.instituicao, db.beneficiario, db.tipo_chave, db.chave]):
+                return (True, "pix_manual_completo", {
+                    "instituicao": db.instituicao,
+                    "beneficiario": db.beneficiario,
+                    "tipo_chave": db.tipo_chave,
+                    "chave": db.chave
+                })
+            return (False, "pix_dados_incompletos", None)
+
+        return (False, "pix_sem_dados", None)
+
+    # 4. Boleto e Cartão não precisam de dados extras
+    return (True, "forma_valida", None)
+
+
+##########################################################################
+##### FUNÇÃO PARA OBTER TIPO DE INTEGRAÇÃO DA FORMA DE PAGAMENTO #####
+##########################################################################
+
+def obter_tipo_integracao_cliente(cliente):
+    """
+    Retorna o tipo de integração da forma de pagamento do cliente.
+
+    Returns:
+        str: 'fastdepix', 'mercado_pago', 'efi_bank', 'manual', 'boleto', 'cartao', None
+    """
+    if not cliente.forma_pgto:
+        return None
+
+    forma = cliente.forma_pgto
+
+    if forma.nome == "Cartão de Crédito":
+        return 'cartao'
+
+    if forma.nome == "Boleto":
+        return 'boleto'
+
+    # PIX - verificar integração
+    if forma.nome == "PIX":
+        if forma.conta_bancaria and forma.conta_bancaria.instituicao:
+            return forma.conta_bancaria.instituicao.tipo_integracao  # fastdepix, mercado_pago, efi_bank, manual
+        return 'manual'
+
+    return None
+
+
+##########################################################################
+##### FUNÇÃO PARA OBTER URL BASE DO PAINEL DO CLIENTE #####
+##########################################################################
+
+def get_url_painel_cliente(usuario):
+    """
+    Retorna URL base do painel do cliente para o usuário.
+
+    Args:
+        usuario: User do Django (admin responsável pelo painel)
+
+    Returns:
+        str: URL completa (ex: "https://meunegocio.pagar.cc/") ou None
+    """
+    from painel_cliente.models import SubdominioPainelCliente
+
+    config = SubdominioPainelCliente.objects.filter(
+        admin_responsavel=usuario,
+        ativo=True
+    ).first()
+
+    if not config:
+        return None
+
+    return f"https://{config.dominio_completo}/"
+
+
+##########################################################################
+##### FUNÇÃO PARA OBTER TEMPLATE DE MENSAGEM DO BANCO DE DADOS #####
+##########################################################################
+
+def get_template_mensagem(nome_job: str, chave_template: str, texto_padrao: str) -> str:
+    """
+    Busca um template de mensagem configurado no banco de dados.
+
+    Args:
+        nome_job: Nome do job em ConfiguracaoAgendamento (ex: 'envios_vencimento')
+        chave_template: Chave do template no JSON (ex: 'observacao_fastdepix')
+        texto_padrao: Texto padrão caso não encontre no banco
+
+    Returns:
+        str: Template encontrado no banco ou texto_padrao como fallback
+    """
+    try:
+        config = ConfiguracaoAgendamento.objects.filter(nome=nome_job).first()
+        if config and config.templates_mensagem:
+            template = config.templates_mensagem.get(chave_template)
+            if template:
+                return template
+    except Exception as e:
+        logger.warning(f"Erro ao buscar template '{chave_template}' do job '{nome_job}': {e}")
+
+    return texto_padrao
+
+
 #####################################################################
 ##### FUNÇÃO PARA FILTRAR AS MENSALIDADES DOS CLIENTES A VENCER #####
 #####################################################################
@@ -262,6 +415,65 @@ def obter_mensalidades_a_vencer(usuario_query):
                 })
                 continue
 
+            # Obter tipo de integração do cliente
+            tipo_integracao = obter_tipo_integracao_cliente(cliente)
+
+            # Não enviar para clientes com Cartão de Crédito
+            if tipo_integracao == 'cartao':
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_a_vencer",
+                    "status": "ignorado_cartao_credito",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
+                continue
+
+            # Não enviar para clientes com Mercado Pago ou EfiBank (APIs pendentes)
+            if tipo_integracao in ('mercado_pago', 'efi_bank'):
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_a_vencer",
+                    "status": f"ignorado_api_pendente_{tipo_integracao}",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
+                continue
+
+            # Validar forma de pagamento do cliente
+            valido, motivo, dados_pix = validar_forma_pagamento_cliente(cliente)
+            if not valido:
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_a_vencer",
+                    "status": f"forma_pgto_invalida_{motivo}",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
+                continue
+
+            # Para FastDePix, obter URL do painel
+            url_painel = None
+            if tipo_integracao == 'fastdepix':
+                url_painel = get_url_painel_cliente(usuario)
+                if not url_painel:
+                    registrar_log_auditoria({
+                        "funcao": "obter_mensalidades_a_vencer",
+                        "status": "fastdepix_sem_painel_configurado",
+                        "usuario": str(usuario),
+                        "cliente": cliente.nome,
+                        "cliente_id": cliente.id,
+                        "tipo_envio": tipo_mensagem,
+                        "mensalidade_id": mensalidade.id,
+                    })
+                    continue
+
             sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
             if not sessao:
                 registrar_log_auditoria({
@@ -281,25 +493,11 @@ def obter_mensalidades_a_vencer(usuario_query):
 
             mensagem = None
 
-            # Verificar forma de pagamento
-            forma_pgto = cliente.forma_pgto.nome
-
+            # ===== MENSALIDADE A VENCER (1 DIA ANTES) =====
             if tipo_mensagem == "à vencer 1 dias":
-                # Não enviar mensagens de vencimento para clientes com CARTÃO
-                if forma_pgto == "Cartão de Crédito":
-                    registrar_log_auditoria({
-                        "funcao": "obter_mensalidades_a_vencer",
-                        "status": "ignorado_cartao_credito",
-                        "usuario": str(usuario),
-                        "cliente": cliente.nome,
-                        "cliente_id": cliente.id,
-                        "tipo_envio": tipo_mensagem,
-                        "mensalidade_id": mensalidade.id,
-                    })
-                    continue
 
-                # Template para BOLETO
-                if forma_pgto == "Boleto":
+                # Template FastDePix - com link do painel
+                if tipo_integracao == 'fastdepix':
                     mensagem = (
                         f"⚠️ *ATENÇÃO, {primeiro_nome}!* ⚠️\n\n"
                         f"▫️ *DETALHES DO SEU PLANO:*\n"
@@ -308,26 +506,30 @@ def obter_mensalidades_a_vencer(usuario_query):
                         f"📆 *Vencimento*: {dt_formatada}\n"
                         f"💰 *Valor*: R$ {mensalidade.valor}\n"
                         f"_________________________________\n\n"
-                        f"▫️ *PAGAMENTO COM BOLETO:*\n"
+                        f"▫️ *PAGAMENTO COM PIX:*\n"
+                        f"📱 Acesse o link abaixo, faça login para visualizar sua mensalidade e efetuar o pagamento:\n\n"
+                        f"🔗 {url_painel}\n\n"
+                        f"✅ O pagamento será confirmado automaticamente!"
+                    )
+
+                # Template Boleto
+                elif tipo_integracao == 'boleto':
+                    mensagem = (
+                        f"⚠️ *ATENÇÃO, {primeiro_nome}!* ⚠️\n\n"
+                        f"▫️ *DETALHES DO SEU PLANO:*\n"
+                        f"_________________________________\n"
+                        f"🔖 *Plano*: {plano_nome}\n"
+                        f"📆 *Vencimento*: {dt_formatada}\n"
+                        f"💰 *Valor*: R$ {mensalidade.valor}\n"
+                        f"_________________________________\n\n"
+                        f"▫️ *PAGAMENTO COM BOLETO:*\n\n"
                         f"✉️ O seu boleto já foi emitido\n"
                         f"📧 Caso não o identifique em seu e-mail, solicite aqui no WhatsApp\n\n"
                         f"‼️ _Caso já tenha pago, desconsidere esta mensagem._"
                     )
-                else:
-                    # Template para PIX (padrão)
-                    dados = DadosBancarios.objects.filter(usuario=usuario).first()
-                    if not dados:
-                        registrar_log_auditoria({
-                            "funcao": "obter_mensalidades_a_vencer",
-                            "status": "dados_bancarios_ausentes",
-                            "usuario": str(usuario),
-                            "cliente": cliente.nome,
-                            "cliente_id": cliente.id,
-                            "tipo_envio": tipo_mensagem,
-                            "mensalidade_id": mensalidade.id,
-                        })
-                        continue
 
+                # Template PIX Manual - com dados bancários
+                elif tipo_integracao == 'manual' and dados_pix:
                     mensagem = (
                         f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
                         f"▫️ *DETALHES DO SEU PLANO:*\n"
@@ -338,33 +540,34 @@ def obter_mensalidades_a_vencer(usuario_query):
                         f"_________________________________\n\n"
                         f"▫️ *PAGAMENTO COM PIX:*\n"
                         f"_________________________________\n"
-                        f"🔑 *Tipo*: {dados.tipo_chave}\n"
-                        f"🔢 *Chave*: {dados.chave}\n"
-                        f"🏦 *Banco*: {dados.instituicao}\n"
-                        f"👤 *Beneficiário*: {dados.beneficiario}\n"
+                        f"🔑 *Tipo*: {dados_pix['tipo_chave']}\n"
+                        f"🔢 *Chave*: {dados_pix['chave']}\n"
+                        f"🏦 *Banco*: {dados_pix['instituicao']}\n"
+                        f"👤 *Beneficiário*: {dados_pix['beneficiario']}\n"
                         f"_________________________________\n\n"
                         f"‼️ _Caso já tenha pago, por favor, nos envie o comprovante._"
                     )
 
+            # ===== VENCE HOJE =====
             elif tipo_mensagem == "vence hoje":
-                # Não enviar mensagens de vencimento para clientes com CARTÃO
-                if forma_pgto == "Cartão de Crédito":
-                    registrar_log_auditoria({
-                        "funcao": "obter_mensalidades_a_vencer",
-                        "status": "ignorado_cartao_credito",
-                        "usuario": str(usuario),
-                        "cliente": cliente.nome,
-                        "cliente_id": cliente.id,
-                        "tipo_envio": tipo_mensagem,
-                        "mensalidade_id": mensalidade.id,
-                    })
-                    continue
 
-                mensagem = (
-                    f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
-                    f"O seu plano *{plano_nome}* *vence hoje* ({dt_formatada}).\n\n"
-                    f"Evite interrupções e mantenha seu acesso em dia! ✅"
-                )
+                # Template FastDePix - com link do painel
+                if tipo_integracao == 'fastdepix':
+                    mensagem = (
+                        f"⚠️ *ATENÇÃO, {primeiro_nome}!* ⚠️\n\n"
+                        f"O seu plano *{plano_nome}* *vence hoje* ({dt_formatada}).\n\n"
+                        f"📱 Acesse o link abaixo, faça login para visualizar sua mensalidade e efetuar o pagamento:\n"
+                        f"🔗 {url_painel}\n\n"
+                        f"✅ Evite interrupções e mantenha seu acesso em dia!"
+                    )
+
+                # Template Manual/Boleto - sem link
+                elif tipo_integracao in ('manual', 'boleto'):
+                    mensagem = (
+                        f"⚠️ *ATENÇÃO, {primeiro_nome} !!!* ⚠️\n\n"
+                        f"O seu plano *{plano_nome}* *vence hoje* ({dt_formatada}).\n\n"
+                        f"Evite interrupções e mantenha seu acesso em dia! ✅"
+                    )
 
             if not mensagem:
                 registrar_log(
@@ -379,6 +582,7 @@ def obter_mensalidades_a_vencer(usuario_query):
                     "cliente": cliente.nome,
                     "cliente_id": cliente.id,
                     "tipo_envio": tipo_mensagem,
+                    "tipo_integracao": tipo_integracao,
                     "mensalidade_id": mensalidade.id,
                 })
                 continue
@@ -392,6 +596,42 @@ def obter_mensalidades_a_vencer(usuario_query):
                 cliente=cliente.nome,
                 tipo_envio=tipo_mensagem
             )
+
+            # Enviar mensagem de observação para FastDePix apenas no "à vencer 1 dias"
+            if tipo_integracao == 'fastdepix' and tipo_mensagem == "à vencer 1 dias":
+                time.sleep(5)  # Aguarda 5 segundos antes de enviar a observação
+
+                # Busca template do banco de dados, com fallback para texto padrão
+                texto_padrao_observacao = (
+                    "OBSERVAÇÃO: Estamos mudando a forma como os clientes devem fazer seus pagamentos "
+                    "e não aceitaremos mais pagamento enviados na chave pix anterior. Você precisa acessar "
+                    "o link do nosso Painel do Cliente, acessar com seu número de telefone e realizar o "
+                    "pagamento da mensalidade que estará em aberto na tela inicial."
+                )
+                mensagem_observacao = get_template_mensagem(
+                    nome_job='envios_vencimento',
+                    chave_template='observacao_fastdepix',
+                    texto_padrao=texto_padrao_observacao
+                )
+
+                enviar_mensagem_agendada(
+                    telefone=telefone,
+                    mensagem=mensagem_observacao,
+                    usuario=usuario,
+                    token=sessao.token,
+                    cliente=cliente.nome,
+                    tipo_envio="observação fastdepix"
+                )
+
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_a_vencer",
+                    "status": "observacao_fastdepix_enviada",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
 
             time.sleep(random.uniform(30, 60))
 ##### FIM #####
@@ -442,6 +682,65 @@ def obter_mensalidades_vencidas(usuario_query):
                 })
                 continue
 
+            # Obter tipo de integração do cliente
+            tipo_integracao = obter_tipo_integracao_cliente(cliente)
+
+            # Não enviar para clientes com Cartão de Crédito
+            if tipo_integracao == 'cartao':
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_vencidas",
+                    "status": "ignorado_cartao_credito",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
+                continue
+
+            # Não enviar para clientes com Mercado Pago ou EfiBank (APIs pendentes)
+            if tipo_integracao in ('mercado_pago', 'efi_bank'):
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_vencidas",
+                    "status": f"ignorado_api_pendente_{tipo_integracao}",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
+                continue
+
+            # Validar forma de pagamento do cliente
+            valido, motivo, _ = validar_forma_pagamento_cliente(cliente)
+            if not valido:
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_vencidas",
+                    "status": f"forma_pgto_invalida_{motivo}",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "mensalidade_id": mensalidade.id,
+                })
+                continue
+
+            # Para FastDePix no lembrete de atraso, obter URL do painel
+            url_painel = None
+            if tipo_integracao == 'fastdepix' and tipo_mensagem == "lembrete atraso":
+                url_painel = get_url_painel_cliente(usuario)
+                if not url_painel:
+                    registrar_log_auditoria({
+                        "funcao": "obter_mensalidades_vencidas",
+                        "status": "fastdepix_sem_painel_configurado",
+                        "usuario": str(usuario),
+                        "cliente": cliente.nome,
+                        "cliente_id": cliente.id,
+                        "tipo_envio": tipo_mensagem,
+                        "mensalidade_id": mensalidade.id,
+                    })
+                    continue
+
             sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
             if not sessao:
                 registrar_log_auditoria({
@@ -458,12 +757,29 @@ def obter_mensalidades_vencidas(usuario_query):
             primeiro_nome = cliente.nome.split()[0]
             saudacao = get_saudacao_por_hora(localtime().time())
 
+            mensagem = None
+
+            # ===== LEMBRETE DE ATRASO (2 DIAS) =====
             if tipo_mensagem == "lembrete atraso":
-                mensagem = (
-                    f"*{saudacao}, {primeiro_nome} 😊*\n\n"
-                    f"*Ainda não identificamos o pagamento da sua mensalidade para renovação.*\n\n"
-                    f"Caso já tenha feito, envie aqui novamente o seu comprovante, por favor!"
-                )
+
+                # Template FastDePix - com link do painel
+                if tipo_integracao == 'fastdepix':
+                    mensagem = (
+                        f"*{saudacao}, {primeiro_nome}* 😊\n\n"
+                        f"*Ainda não identificamos o pagamento da sua mensalidade.*\n\n"
+                        f"📱 Acesse o link abaixo, faça login para visualizar sua mensalidade e efetuar o pagamento:\n"
+                        f"🔗 {url_painel}"
+                    )
+
+                # Template Manual/Boleto - sem link
+                elif tipo_integracao in ('manual', 'boleto'):
+                    mensagem = (
+                        f"*{saudacao}, {primeiro_nome} 😊*\n\n"
+                        f"*Ainda não identificamos o pagamento da sua mensalidade para renovação.*\n\n"
+                        f"Caso já tenha feito, envie aqui novamente o seu comprovante, por favor!"
+                    )
+
+            # ===== SUSPENSÃO (3 DIAS) - Mesmo template para todos =====
             elif tipo_mensagem == "suspensao":
                 mensagem = (
                     f"*{saudacao}, {primeiro_nome}*\n\n"
@@ -471,6 +787,19 @@ def obter_mensalidades_vencidas(usuario_query):
                     f"⚠️ Se o seu plano atual for promocional ou incluir algum desconto, esses benefícios poderão não estar mais disponíveis para futuras renovações.\n\n"
                     f"Agradecemos pela confiança e esperamos poder contar com você novamente em breve."
                 )
+
+            if not mensagem:
+                registrar_log_auditoria({
+                    "funcao": "obter_mensalidades_vencidas",
+                    "status": "mensagem_nao_montada",
+                    "usuario": str(usuario),
+                    "cliente": cliente.nome,
+                    "cliente_id": cliente.id,
+                    "tipo_envio": tipo_mensagem,
+                    "tipo_integracao": tipo_integracao,
+                    "mensalidade_id": mensalidade.id,
+                })
+                continue
 
             enviar_mensagem_agendada(
                 telefone=telefone,
@@ -501,14 +830,60 @@ def obter_mensalidades_canceladas():
 
     Cada cliente recebe no máximo 3 ofertas promocionais em toda a vida.
     A contagem de dias é sempre a partir da data_cancelamento atual.
+
+    Placeholders disponíveis nos templates: {saudacao}, {nome}
     """
     admin = User.objects.filter(is_superuser=True).order_by('id').first()
 
+    # Textos padrão (fallback)
+    texto_padrao_feedback = (
+        "*{saudacao}, {nome}* 🫡\n\n"
+        "Tudo bem? Espero que sim.\n\n"
+        "Faz um tempo que você deixou de ser nosso cliente ativo e ficamos preocupados. "
+        "Houve algo que não agradou em nosso sistema?\n\n"
+        "Pergunto, pois se algo não agradou, nos informe para fornecermos uma plataforma "
+        "melhor para você, tá bom?\n\n"
+        "Estamos à disposição! 🙏🏼"
+    )
+
+    texto_padrao_oferta_1 = (
+        "*Opa.. {saudacao}, {nome}!! Tudo bacana?*\n\n"
+        "Como você já foi nosso cliente, trago uma notícia que talvez você goste muuuiito!!\n\n"
+        "Você pode renovar a sua mensalidade conosco pagando *APENAS R$ 24.90* nos próximos "
+        "3 meses. Olha só que bacana?!?!\n\n"
+        "Esse tipo de desconto não oferecemos a qualquer um, viu? rsrs\n\n"
+        "Caso tenha interesse, avise aqui, pois iremos garantir essa oferta apenas essa semana. 👏🏼👏🏼"
+    )
+
+    texto_padrao_oferta_2 = (
+        "*{saudacao}, {nome}!* 😊\n\n"
+        "Sentimos muito a sua falta por aqui!\n\n"
+        "Que tal voltar para a nossa família com uma *SUPER OFERTA EXCLUSIVA*?\n\n"
+        "Estamos oferecendo *os próximos 3 meses por apenas R$ 24,90 cada* para você "
+        "que já foi nosso cliente! 🎉\n\n"
+        "Esta é uma oportunidade única de retornar com um preço especial. Não perca!\n\n"
+        "Tem interesse? É só responder aqui! 🙌"
+    )
+
+    texto_padrao_oferta_3 = (
+        "*{saudacao}, {nome}!* 🌟\n\n"
+        "Esta é a nossa *ÚLTIMA OFERTA ESPECIAL* para você!\n\n"
+        "Sabemos que você já foi parte da nossa família e queremos muito ter você de volta.\n\n"
+        "✨ *OFERTA FINAL: R$ 24,90 para os próximos 3 meses* ✨\n\n"
+        "Esta é realmente a última oportunidade de aproveitar este preço exclusivo.\n\n"
+        "O que acha? Vamos renovar essa parceria? 🤝"
+    )
+
+    # Busca templates do banco de dados com fallback para texto padrão
     # Mensagem de feedback (20 dias)
     feedback_config = {
         "dias": 20,
         "tipo": "feedback",
-        "mensagem": "*{}, {}* 🫡\n\nTudo bem? Espero que sim.\n\nFaz um tempo que você deixou de ser nosso cliente ativo e ficamos preocupados. Houve algo que não agradou em nosso sistema?\n\nPergunto, pois se algo não agradou, nos informe para fornecermos uma plataforma melhor para você, tá bom?\n\nEstamos à disposição! 🙏🏼"
+        "mensagem": get_template_mensagem(
+            nome_job='mensalidades_canceladas',
+            chave_template='feedback_20_dias',
+            texto_padrao=texto_padrao_feedback
+        )
     }
 
     # Ofertas promocionais progressivas
@@ -516,17 +891,29 @@ def obter_mensalidades_canceladas():
         {
             "dias": 60,
             "numero_oferta": 1,
-            "mensagem": "*Opa.. {}, {}!! Tudo bacana?*\n\nComo você já foi nosso cliente, trago uma notícia que talvez você goste muuuiito!!\n\nVocê pode renovar a sua mensalidade conosco pagando *APENAS R$ 24.90* nos próximos 3 meses. Olha só que bacana?!?!\n\nEsse tipo de desconto não oferecemos a qualquer um, viu? rsrs\n\nCaso tenha interesse, avise aqui, pois iremos garantir essa oferta apenas essa semana. 👏🏼👏🏼"
+            "mensagem": get_template_mensagem(
+                nome_job='mensalidades_canceladas',
+                chave_template='oferta_1_60_dias',
+                texto_padrao=texto_padrao_oferta_1
+            )
         },
         {
             "dias": 240,
             "numero_oferta": 2,
-            "mensagem": "*{}, {}!* 😊\n\nSentimos muito a sua falta por aqui!\n\nQue tal voltar para a nossa família com uma *SUPER OFERTA EXCLUSIVA*?\n\nEstamos oferecendo *os próximos 3 meses por apenas R$ 24,90 cada* para você que já foi nosso cliente! 🎉\n\nEsta é uma oportunidade única de retornar com um preço especial. Não perca!\n\nTem interesse? É só responder aqui! 🙌"
+            "mensagem": get_template_mensagem(
+                nome_job='mensalidades_canceladas',
+                chave_template='oferta_2_240_dias',
+                texto_padrao=texto_padrao_oferta_2
+            )
         },
         {
             "dias": 420,
             "numero_oferta": 3,
-            "mensagem": "*{}, {}!* 🌟\n\nEsta é a nossa *ÚLTIMA OFERTA ESPECIAL* para você!\n\nSabemos que você já foi parte da nossa família e queremos muito ter você de volta.\n\n✨ *OFERTA FINAL: R$ 24,90 para os próximos 3 meses* ✨\n\nEsta é realmente a última oportunidade de aproveitar este preço exclusivo.\n\nO que acha? Vamos renovar essa parceria? 🤝"
+            "mensagem": get_template_mensagem(
+                nome_job='mensalidades_canceladas',
+                chave_template='oferta_3_420_dias',
+                texto_padrao=texto_padrao_oferta_3
+            )
         }
     ]
 
@@ -697,12 +1084,16 @@ def _enviar_mensagem_cliente(cliente, admin, mensagem_template, qtd_dias, tipo_e
     """
     Envia mensagem para um cliente específico.
 
+    Placeholders suportados no template:
+        {saudacao} - Saudação conforme horário (Bom dia, Boa tarde, Boa noite)
+        {nome} - Primeiro nome do cliente
+
     Returns:
         bool: True se enviou com sucesso, False caso contrário
     """
     primeiro_nome = cliente.nome.split(' ')[0]
     saudacao = get_saudacao_por_hora()
-    mensagem = mensagem_template.format(saudacao, primeiro_nome)
+    mensagem = mensagem_template.format(saudacao=saudacao, nome=primeiro_nome)
 
     sessao = SessaoWpp.objects.filter(usuario=admin, is_active=True).first()
 
