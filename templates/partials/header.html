@@ -412,5 +412,27 @@
     .catch(() => { showToast('error', 'Falha ao marcar notificações.'); })
     .finally(() => { link.innerHTML = oldHtml; });
   });
+
+  // Handler para "Dispensar" notificação no dropdown (event delegation)
+  $(document).on('click', '.btn-marcar-lida', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const btn = $(this);
+    const notifId = btn.data('notif-id');
+
+    $.ajax({
+      url: '/api/notificacoes/' + notifId + '/marcar-lida/',
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrftoken
+      },
+      success: function() {
+        btn.closest('.notif-item').fadeOut(300, function() {
+          $(this).remove();
+          refreshBadge();
+        });
+      }
+    });
+  });
 })();
 </script>

@@ -6904,7 +6904,7 @@ def excluir_instituicao_bancaria(request, pk):
 @require_http_methods(["GET"])
 def api_config_limite(request):
     """
-    Retorna a configuração atual de limite MEI.
+    Retorna a configuração atual de limites de faturamento.
     GET /api/config-limite/
     """
     try:
@@ -6913,9 +6913,12 @@ def api_config_limite(request):
             'success': True,
             'config': {
                 'valor_anual': float(config.valor_anual),
+                'valor_anual_pf': float(config.valor_anual_pf),
                 'margem_seguranca': config.margem_seguranca,
                 'valor_alerta': float(config.valor_alerta),
                 'valor_bloqueio': float(config.valor_bloqueio),
+                'valor_alerta_pf': float(config.valor_alerta_pf),
+                'valor_bloqueio_pf': float(config.valor_bloqueio_pf),
             }
         })
     except Exception as e:
@@ -6927,12 +6930,13 @@ def api_config_limite(request):
 @require_http_methods(["POST"])
 def api_config_limite_atualizar(request):
     """
-    Atualiza a configuração de limite MEI.
+    Atualiza a configuração de limites de faturamento.
     POST /api/config-limite/atualizar/
 
     Corpo da requisição (JSON):
     {
         "valor_anual": 81000,
+        "valor_anual_pf": 60000,
         "margem_seguranca": 10
     }
     """
@@ -6942,16 +6946,21 @@ def api_config_limite_atualizar(request):
     try:
         data = json.loads(request.body)
         valor_anual = data.get('valor_anual')
+        valor_anual_pf = data.get('valor_anual_pf')
         margem_seguranca = data.get('margem_seguranca')
 
         if valor_anual is None or valor_anual <= 0:
-            return JsonResponse({'success': False, 'error': 'Valor anual inválido.'}, status=400)
+            return JsonResponse({'success': False, 'error': 'Valor anual MEI inválido.'}, status=400)
+
+        if valor_anual_pf is None or valor_anual_pf <= 0:
+            return JsonResponse({'success': False, 'error': 'Valor anual Pessoa Física inválido.'}, status=400)
 
         if margem_seguranca is None or margem_seguranca < 0 or margem_seguranca > 50:
             return JsonResponse({'success': False, 'error': 'Margem de segurança deve ser entre 0 e 50%.'}, status=400)
 
         config = ConfiguracaoLimite.get_config()
         config.valor_anual = Decimal(str(valor_anual))
+        config.valor_anual_pf = Decimal(str(valor_anual_pf))
         config.margem_seguranca = int(margem_seguranca)
         config.atualizado_por = request.user
         config.save()
@@ -7154,6 +7163,19 @@ def api_clientes_ativos_associacao(request):
                 dt_pagamento__year=ano_atual
             ).aggregate(total=Sum('valor'))['total'] or Decimal('0')
 
+            # Próximo vencimento em aberto (apenas para clientes ATIVOS)
+            prox_vencimento = None
+            prox_vencimento_formatado = '-'
+            if not cliente.cancelado:
+                proxima_mensalidade = Mensalidade.objects.filter(
+                    cliente=cliente,
+                    pgto=False,
+                    cancelado=False,
+                ).order_by('dt_vencimento').values('dt_vencimento').first()
+                if proxima_mensalidade:
+                    prox_vencimento = str(proxima_mensalidade['dt_vencimento'])
+                    prox_vencimento_formatado = proxima_mensalidade['dt_vencimento'].strftime('%d/%m/%Y')
+
             # Verificar se cliente já está associado a outra conta
             associacao_info = clientes_associados.get(cliente.id)
             ja_associado = associacao_info is not None
@@ -7254,6 +7276,9 @@ def api_clientes_ativos_associacao(request):
                 'pagamentos_ano': pagamentos_ano,
                 'valor_anual': valor_anual_projetado,
                 'valor_recebido_ano': float(valor_recebido_ano),
+                # Próximo vencimento em aberto
+                'prox_vencimento': prox_vencimento,
+                'prox_vencimento_formatado': prox_vencimento_formatado,
                 # Informações de associação (ClienteContaBancaria)
                 'ja_associado': ja_associado,
                 'bloqueado': bloqueado,
@@ -7820,6 +7845,12 @@ def webhook_pagamento_pix(request):
         fdpx_logger.info("BODY (raw):")
         raw_body = request.body.decode('utf-8', errors='replace')
         fdpx_logger.info(raw_body)
+
+        # Tratar requisições com body vazio (possíveis health checks)
+        if not raw_body or not raw_body.strip():
+            fdpx_logger.info("Requisição vazia recebida (possível health check) - ignorando")
+            fdpx_logger.info("=" * 80)
+            return JsonResponse({'status': 'ok', 'info': 'empty body ignored'})
 
         try:
             payload = json.loads(request.body)
@@ -11477,10 +11508,11 @@ def integracoes_api_index(request):
             else:
                 fastdepix_status = 'partial'
 
-    # Cobrancas dos ultimos 30 dias
-    desde = timezone.now() - timedelta(days=30)
+    # Cobrancas do mês atual (primeiro ao último dia)
+    hoje = timezone.now()
+    inicio_mes = hoje.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     fastdepix_cobrancas = CobrancaPix.objects.filter(
-        criado_em__gte=desde
+        criado_em__gte=inicio_mes
     ).count()
 
     context = {
@@ -11567,14 +11599,15 @@ def integracoes_fastdepix(request):
     if is_development:
         webhook_url_custom = request.session.get('fastdepix_webhook_url_custom', '')
 
-    # Estatisticas dos ultimos 30 dias
-    desde = timezone.now() - timedelta(days=30)
+    # Estatisticas do mês atual (primeiro ao último dia)
+    hoje = timezone.now()
+    inicio_mes = hoje.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     # Base queryset: cobranças via FastDePix
     # Se há conta selecionada, filtrar por ela; senão, mostrar todas do usuário
     cobrancas_base = CobrancaPix.objects.filter(
         integracao='fastdepix',
-        criado_em__gte=desde
+        criado_em__gte=inicio_mes
     )
 
     if conta_selecionada:
@@ -12227,8 +12260,8 @@ def config_agendamentos(request):
             logger.error(f'[Agendamentos] Erro ao processar ação: {e}')
             return JsonResponse({'success': False, 'message': f'Erro: {str(e)}'})
 
-    # GET - Exibir página (desbloqueados primeiro, depois bloqueados)
-    jobs = ConfiguracaoAgendamento.objects.all().order_by('bloqueado', 'ordem', 'nome')
+    # GET - Exibir página (ordem alfabética pelo nome de exibição)
+    jobs = ConfiguracaoAgendamento.objects.all().order_by('nome_exibicao')
 
     context = {
         'page': 'config-agendamentos',
@@ -12268,12 +12301,13 @@ def relatorio_pagamentos(request):
     tipo_filtro = request.GET.get('tipo', 'todos')
     status_filtro = request.GET.get('status', 'todos')
 
-    # Parse de datas (default: últimos 30 dias)
+    # Parse de datas (default: mês atual - primeiro dia até hoje)
     hoje = timezone.now().date()
+    primeiro_dia_mes = hoje.replace(day=1)
     try:
-        data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date() if data_inicio_str else hoje - timedelta(days=30)
+        data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date() if data_inicio_str else primeiro_dia_mes
     except ValueError:
-        data_inicio = hoje - timedelta(days=30)
+        data_inicio = primeiro_dia_mes
 
     try:
         data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date() if data_fim_str else hoje

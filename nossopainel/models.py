@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 import re
 import os
+import time
 import uuid
 
 from django.contrib.auth.models import User
@@ -14,6 +15,12 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.db import models
 from django.utils import timezone
+
+# Importação lazy para evitar circular import
+def _get_encrypt_decrypt():
+    """Retorna funções de encriptação de forma lazy."""
+    from nossopainel.utils import encrypt_value, decrypt_value
+    return encrypt_value, decrypt_value
 
 # Mapeamento de DDDs nacionais para a unidade federativa correspondente.
 DDD_UF_MAP = {
@@ -1654,10 +1661,12 @@ class ContaBancaria(models.Model):
     )
 
     # Credenciais API (FastDePix, Efi Bank e Mercado Pago)
-    api_key = models.CharField(
-        max_length=255,
+    # Campos encriptados com FERNET - use as properties para acessar
+    _api_key = models.TextField(
         blank=True,
-        verbose_name="API Key",
+        default='',
+        db_column='api_key',
+        verbose_name="API Key (encriptado)",
         help_text="Token de autenticação (obrigatório para FastDePix - formato: fdpx_...)"
     )
     api_client_id = models.CharField(
@@ -1666,11 +1675,12 @@ class ContaBancaria(models.Model):
         verbose_name="Client ID",
         help_text="Credencial da API (Efi Bank ou Mercado Pago)"
     )
-    api_client_secret = models.CharField(
-        max_length=255,
+    _api_client_secret = models.TextField(
         blank=True,
-        verbose_name="Client Secret",
-        help_text="Será armazenado de forma segura"
+        default='',
+        db_column='api_client_secret',
+        verbose_name="Client Secret (encriptado)",
+        help_text="Armazenado de forma segura com FERNET"
     )
     api_certificado = models.FileField(
         upload_to=certificado_upload_path,
@@ -1679,10 +1689,11 @@ class ContaBancaria(models.Model):
         verbose_name="Certificado (.p12)",
         help_text="Obrigatório para Efi Bank"
     )
-    api_access_token = models.CharField(
-        max_length=500,
+    _api_access_token = models.TextField(
         blank=True,
-        verbose_name="Access Token",
+        default='',
+        db_column='api_access_token',
+        verbose_name="Access Token (encriptado)",
         help_text="Obrigatório para Mercado Pago"
     )
     ambiente_sandbox = models.BooleanField(
@@ -1692,10 +1703,11 @@ class ContaBancaria(models.Model):
     )
 
     # Webhook (FastDePix)
-    webhook_secret = models.CharField(
-        max_length=255,
+    _webhook_secret = models.TextField(
         blank=True,
-        verbose_name="Webhook Secret",
+        default='',
+        db_column='webhook_secret',
+        verbose_name="Webhook Secret (encriptado)",
         help_text="Chave secreta para validar webhooks HMAC-SHA256 (gerada ao registrar webhook)"
     )
     webhook_id = models.CharField(
@@ -1746,6 +1758,91 @@ class ContaBancaria(models.Model):
     ativo = models.BooleanField(default=True, verbose_name="Ativo")
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
+
+    # ==================== PROPERTIES ENCRIPTADAS ====================
+    # Estas properties encriptam/descriptografam automaticamente os valores
+    # usando FERNET. O código existente continua funcionando normalmente.
+
+    @property
+    def api_key(self):
+        """Retorna a API key descriptografada."""
+        if not self._api_key:
+            return ''
+        try:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            return decrypt_value(self._api_key)
+        except Exception:
+            # Fallback para valores não encriptados (migração pendente)
+            return self._api_key
+
+    @api_key.setter
+    def api_key(self, value):
+        """Encripta e armazena a API key."""
+        if value:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            self._api_key = encrypt_value(value)
+        else:
+            self._api_key = ''
+
+    @property
+    def api_client_secret(self):
+        """Retorna o client secret descriptografado."""
+        if not self._api_client_secret:
+            return ''
+        try:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            return decrypt_value(self._api_client_secret)
+        except Exception:
+            return self._api_client_secret
+
+    @api_client_secret.setter
+    def api_client_secret(self, value):
+        """Encripta e armazena o client secret."""
+        if value:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            self._api_client_secret = encrypt_value(value)
+        else:
+            self._api_client_secret = ''
+
+    @property
+    def api_access_token(self):
+        """Retorna o access token descriptografado."""
+        if not self._api_access_token:
+            return ''
+        try:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            return decrypt_value(self._api_access_token)
+        except Exception:
+            return self._api_access_token
+
+    @api_access_token.setter
+    def api_access_token(self, value):
+        """Encripta e armazena o access token."""
+        if value:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            self._api_access_token = encrypt_value(value)
+        else:
+            self._api_access_token = ''
+
+    @property
+    def webhook_secret(self):
+        """Retorna o webhook secret descriptografado."""
+        if not self._webhook_secret:
+            return ''
+        try:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            return decrypt_value(self._webhook_secret)
+        except Exception:
+            return self._webhook_secret
+
+    @webhook_secret.setter
+    def webhook_secret(self, value):
+        """Encripta e armazena o webhook secret."""
+        if value:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            self._webhook_secret = encrypt_value(value)
+        else:
+            self._webhook_secret = ''
 
     class Meta:
         db_table = 'cadastros_contabancaria'
@@ -1902,11 +1999,12 @@ class CredencialAPI(models.Model):
         verbose_name='Tipo de Integração'
     )
 
-    # FastDePix
-    api_key = models.CharField(
-        max_length=255,
+    # FastDePix - Encriptado com FERNET
+    _api_key = models.TextField(
         blank=True,
-        verbose_name='API Key',
+        default='',
+        db_column='api_key',
+        verbose_name='API Key (encriptado)',
         help_text='Token de autenticação (formato: fdpx_...)'
     )
 
@@ -1916,17 +2014,19 @@ class CredencialAPI(models.Model):
         blank=True,
         verbose_name='Client ID'
     )
-    api_client_secret = models.CharField(
-        max_length=255,
+    _api_client_secret = models.TextField(
         blank=True,
-        verbose_name='Client Secret'
+        default='',
+        db_column='api_client_secret',
+        verbose_name='Client Secret (encriptado)'
     )
 
-    # Mercado Pago apenas
-    api_access_token = models.CharField(
-        max_length=500,
+    # Mercado Pago apenas - Encriptado com FERNET
+    _api_access_token = models.TextField(
         blank=True,
-        verbose_name='Access Token'
+        default='',
+        db_column='api_access_token',
+        verbose_name='Access Token (encriptado)'
     )
 
     # Efi Bank apenas
@@ -1946,6 +2046,68 @@ class CredencialAPI(models.Model):
     ativo = models.BooleanField(default=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
+
+    # ==================== PROPERTIES ENCRIPTADAS ====================
+
+    @property
+    def api_key(self):
+        """Retorna a API key descriptografada."""
+        if not self._api_key:
+            return ''
+        try:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            return decrypt_value(self._api_key)
+        except Exception:
+            return self._api_key
+
+    @api_key.setter
+    def api_key(self, value):
+        """Encripta e armazena a API key."""
+        if value:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            self._api_key = encrypt_value(value)
+        else:
+            self._api_key = ''
+
+    @property
+    def api_client_secret(self):
+        """Retorna o client secret descriptografado."""
+        if not self._api_client_secret:
+            return ''
+        try:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            return decrypt_value(self._api_client_secret)
+        except Exception:
+            return self._api_client_secret
+
+    @api_client_secret.setter
+    def api_client_secret(self, value):
+        """Encripta e armazena o client secret."""
+        if value:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            self._api_client_secret = encrypt_value(value)
+        else:
+            self._api_client_secret = ''
+
+    @property
+    def api_access_token(self):
+        """Retorna o access token descriptografado."""
+        if not self._api_access_token:
+            return ''
+        try:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            return decrypt_value(self._api_access_token)
+        except Exception:
+            return self._api_access_token
+
+    @api_access_token.setter
+    def api_access_token(self, value):
+        """Encripta e armazena o access token."""
+        if value:
+            encrypt_value, decrypt_value = _get_encrypt_decrypt()
+            self._api_access_token = encrypt_value(value)
+        else:
+            self._api_access_token = ''
 
     class Meta:
         db_table = 'cadastros_credencialapi'
@@ -1989,8 +2151,8 @@ class CredencialAPI(models.Model):
 
 class ConfiguracaoLimite(models.Model):
     """
-    Configuração global de limite MEI (singleton).
-    Define o valor máximo anual permitido para contas MEI.
+    Configuração global de limites de faturamento (singleton).
+    Define os valores máximos anuais permitidos para contas MEI e Pessoa Física.
     """
     valor_anual = models.DecimalField(
         max_digits=12,
@@ -1998,6 +2160,13 @@ class ConfiguracaoLimite(models.Model):
         default=Decimal('81000.00'),
         verbose_name='Limite Anual MEI (R$)',
         help_text='Valor máximo anual permitido para contas MEI'
+    )
+    valor_anual_pf = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('60000.00'),
+        verbose_name='Limite Anual Pessoa Física (R$)',
+        help_text='Valor máximo anual permitido para contas Pessoa Física'
     )
     margem_seguranca = models.IntegerField(
         default=10,
@@ -2030,16 +2199,26 @@ class ConfiguracaoLimite(models.Model):
 
     @property
     def valor_alerta(self):
-        """Valor que dispara alerta (ex: 90% para margem de 10%)."""
+        """Valor que dispara alerta MEI (ex: 90% para margem de 10%)."""
         return self.valor_anual * Decimal(str(100 - self.margem_seguranca)) / 100
 
     @property
     def valor_bloqueio(self):
-        """Valor que bloqueia adições (99%)."""
+        """Valor que bloqueia adições MEI (99%)."""
         return self.valor_anual * Decimal('0.99')
 
+    @property
+    def valor_alerta_pf(self):
+        """Valor que dispara alerta PF (ex: 90% para margem de 10%)."""
+        return self.valor_anual_pf * Decimal(str(100 - self.margem_seguranca)) / 100
+
+    @property
+    def valor_bloqueio_pf(self):
+        """Valor que bloqueia adições PF (99%)."""
+        return self.valor_anual_pf * Decimal('0.99')
+
     def __str__(self):
-        return f"Limite MEI: R$ {self.valor_anual:,.2f}"
+        return f"Limite MEI: R$ {self.valor_anual:,.2f} | PF: R$ {self.valor_anual_pf:,.2f}"
 
 
 class NotificacaoSistema(models.Model):
@@ -2677,6 +2856,7 @@ class CobrancaPix(models.Model):
                         log_writer=log_writer,
                         log_templates=log_templates,
                     )
+                    time.sleep(5)  # Aguarda 5 segundos antes de enviar a confirmação
                     send_message(config)
                     logger.info(f'[CobrancaPix] Mensagem WhatsApp enviada para {cliente.telefone}')
                 else:
