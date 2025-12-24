@@ -37,7 +37,7 @@ def send_profile_change_notification(user, change_type, changes_detail=None, ip_
             'changes': changes_detail or {},
             'ip_address': ip_address or 'Desconhecido',
             'timestamp': timezone.now(),
-            'site_name': 'Nosso Painel - Gestão IPTV',
+            'site_name': 'Nosso Painel - Gestão Simplificada',
             'site_url': site_url,
         }
 
@@ -91,7 +91,7 @@ def send_password_change_notification(user, ip_address=None):
             'user': user,
             'ip_address': ip_address or 'Desconhecido',
             'timestamp': timezone.now(),
-            'site_name': 'Nosso Painel - Gestão IPTV',
+            'site_name': 'Nosso Painel - Gestão Simplificada',
             'site_url': site_url,
         }
 
@@ -134,7 +134,7 @@ def send_login_notification(user, ip_address=None, user_agent=None, location=Non
             'user_agent': user_agent or 'Desconhecido',
             'location': location or 'Localização não disponível',
             'timestamp': timezone.now(),
-            'site_name': 'Nosso Painel - Gestão IPTV',
+            'site_name': 'Nosso Painel - Gestão Simplificada',
             'site_url': site_url,
         }
 
@@ -169,7 +169,7 @@ def send_2fa_enabled_notification(user):
         context = {
             'user': user,
             'timestamp': timezone.now(),
-            'site_name': 'Nosso Painel - Gestão IPTV',
+            'site_name': 'Nosso Painel - Gestão Simplificada',
             'site_url': site_url,
         }
 

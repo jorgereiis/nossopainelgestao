@@ -1,0 +1,41 @@
+{
+  "name": "NossoPainel - Gestao Simplificada",
+  "short_name": "NossoPainel",
+  "description": "Sistema de gestão simplificada para provedores de streaming",
+  "start_url": "/dashboard/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#624bff",
+  "scope": "/",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/static/assets/images/favicon/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/static/assets/images/favicon/favicon.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Ver dashboard principal",
+      "url": "/dashboard/"
+    },
+    {
+      "name": "Clientes",
+      "short_name": "Clientes",
+      "description": "Gerenciar clientes",
+      "url": "/admin/clientes/"
+    }
+  ],
+  "prefer_related_applications": false
+}

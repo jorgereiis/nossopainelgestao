@@ -2654,9 +2654,9 @@ class CobrancaPix(models.Model):
                 token = get_active_token(self.usuario.username)
                 if token:
                     mensagem_wpp = (
-                        f"Obrigado, {primeiro_nome}. O seu pagamento foi confirmado "
-                        f"e a sua assinatura renovada. Confira o acesso ao nosso sistema "
-                        f"e nos informe se pudermos ajudar com qualquer dificuldade!"
+                        f"Obrigado, {primeiro_nome}. O seu pagamento foi confirmado!"
+                        f"\nConfira o seu acesso ao nosso sistema e nos informe se pudermos "
+                        f"ajudar com qualquer dificuldade!"
                     )
 
                     # Configurar log_writer e templates para MessageSendConfig
