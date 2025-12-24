@@ -2789,6 +2789,15 @@ class NotificationsModalView(LoginRequiredMixin, ListView):
             .order_by("ja_lida", "dt_vencimento")
         )
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Adicionar notificações do sistema
+        context['notificacoes_sistema'] = NotificacaoSistema.objects.filter(
+            usuario=self.request.user,
+            lida=False
+        ).order_by('-criada_em')[:50]
+        return context
+
 @login_required
 def notifications_count(request):
     hoje = timezone.localdate()
@@ -7870,7 +7879,7 @@ def webhook_pagamento_pix(request):
             if cobranca.cliente:
                 fdpx_logger.info(f"  Cliente: {cobranca.cliente.nome} (ID: {cobranca.cliente.id})")
             if cobranca.conta_bancaria:
-                fdpx_logger.info(f"  Conta Bancária: {cobranca.conta_bancaria.nome}")
+                fdpx_logger.info(f"  Conta Bancária: {cobranca.conta_bancaria.nome_identificacao}")
 
         except CobrancaPix.DoesNotExist:
             fdpx_logger.warning(f"COBRANÇA NÃO ENCONTRADA: {transaction_id}")
@@ -11590,13 +11599,20 @@ def integracoes_fastdepix(request):
     if valor_taxa == 0 and valor_pago > 0 and valor_recebido > 0:
         valor_taxa = valor_pago - valor_recebido
 
+    # Calcular indicadores de taxa
+    total_pagas = cobrancas_pagas.count()
+    taxa_media = valor_taxa / total_pagas if total_pagas > 0 else 0
+    taxa_percentual = (valor_taxa / valor_pago * 100) if valor_pago > 0 else 0
+
     stats = {
         'total_cobrancas': cobrancas_base.count(),
-        'total_pagas': cobrancas_pagas.count(),
+        'total_pagas': total_pagas,
         'total_pendentes': cobrancas_base.filter(status='pending').count(),
         'total_expiradas': cobrancas_base.filter(status='expired').count(),
         'valor_pago': valor_pago,
         'valor_recebido': valor_recebido,
+        'taxa_media': taxa_media,
+        'taxa_percentual': taxa_percentual,
         'valor_taxa': valor_taxa,
     }
 
@@ -11685,14 +11701,21 @@ def integracoes_fastdepix_conta_dados(request, conta_id=None):
     if valor_taxa == 0 and valor_pago > 0 and valor_recebido > 0:
         valor_taxa = valor_pago - valor_recebido
 
+    # Calcular indicadores de taxa
+    total_pagas = cobrancas_pagas.count()
+    taxa_media = float(valor_taxa / total_pagas) if total_pagas > 0 else 0
+    taxa_percentual = float(valor_taxa / valor_pago * 100) if valor_pago > 0 else 0
+
     stats = {
         'total_cobrancas': cobrancas_base.count(),
-        'total_pagas': cobrancas_pagas.count(),
+        'total_pagas': total_pagas,
         'total_pendentes': cobrancas_base.filter(status='pending').count(),
         'total_expiradas': cobrancas_base.filter(status='expired').count(),
         'valor_pago': float(valor_pago),
         'valor_recebido': float(valor_recebido),
         'valor_taxa': float(valor_taxa),
+        'taxa_media': taxa_media,
+        'taxa_percentual': taxa_percentual,
     }
 
     return JsonResponse({
@@ -12220,10 +12243,10 @@ def config_agendamentos(request):
 @login_required
 def relatorio_pagamentos(request):
     """
-    Relatório de pagamentos recebidos e confirmados.
+    Relatório de pagamentos e transações PIX.
 
-    Exibe tanto pagamentos via PIX (API FastDePix) quanto pagamentos
-    registrados manualmente pelo usuário.
+    Exibe pagamentos via PIX (API FastDePix), transações pendentes/expiradas,
+    e pagamentos registrados manualmente.
 
     GET /admin/relatorios/pagamentos/
 
@@ -12231,6 +12254,7 @@ def relatorio_pagamentos(request):
         - data_inicio: Data inicial (YYYY-MM-DD)
         - data_fim: Data final (YYYY-MM-DD)
         - tipo: 'pix', 'manual' ou 'todos' (default)
+        - status: 'paid', 'pending', 'expired' ou 'todos' (default)
     """
     from django.db.models import Sum, Count
     from datetime import datetime, timedelta
@@ -12239,6 +12263,7 @@ def relatorio_pagamentos(request):
     data_inicio_str = request.GET.get('data_inicio', '')
     data_fim_str = request.GET.get('data_fim', '')
     tipo_filtro = request.GET.get('tipo', 'todos')
+    status_filtro = request.GET.get('status', 'todos')
 
     # Parse de datas (default: últimos 30 dias)
     hoje = timezone.now().date()
@@ -12252,16 +12277,24 @@ def relatorio_pagamentos(request):
     except ValueError:
         data_fim = hoje
 
-    # ========== PAGAMENTOS VIA PIX (CobrancaPix com status='paid') ==========
-    pagamentos_pix = CobrancaPix.objects.filter(
+    # ========== TRANSAÇÕES PIX ==========
+    # Base query para todas as cobranças PIX do período
+    cobrancas_pix_base = CobrancaPix.objects.filter(
         usuario=request.user,
-        status='paid',
-        pago_em__date__gte=data_inicio,
-        pago_em__date__lte=data_fim
-    ).select_related('cliente', 'mensalidade', 'conta_bancaria').order_by('-pago_em')
+        criado_em__date__gte=data_inicio,
+        criado_em__date__lte=data_fim
+    ).select_related('cliente', 'mensalidade', 'conta_bancaria')
+
+    # Pagamentos PIX (status='paid')
+    pagamentos_pix = cobrancas_pix_base.filter(status='paid').order_by('-pago_em')
+
+    # Transações pendentes (status='pending')
+    transacoes_pendentes = cobrancas_pix_base.filter(status='pending').order_by('-criado_em')
+
+    # Transações expiradas (status='expired')
+    transacoes_expiradas = cobrancas_pix_base.filter(status='expired').order_by('-criado_em')
 
     # ========== PAGAMENTOS MANUAIS (Mensalidades pagas sem CobrancaPix) ==========
-    # Buscar mensalidades pagas que NÃO têm uma CobrancaPix associada com status 'paid'
     from django.db.models import Exists, OuterRef
 
     cobranca_paga_subquery = CobrancaPix.objects.filter(
@@ -12284,6 +12317,21 @@ def relatorio_pagamentos(request):
         pagamentos_manuais = Mensalidade.objects.none()
     elif tipo_filtro == 'manual':
         pagamentos_pix = CobrancaPix.objects.none()
+        transacoes_pendentes = CobrancaPix.objects.none()
+        transacoes_expiradas = CobrancaPix.objects.none()
+
+    # Aplicar filtro de status (apenas para PIX)
+    if status_filtro == 'paid':
+        transacoes_pendentes = CobrancaPix.objects.none()
+        transacoes_expiradas = CobrancaPix.objects.none()
+    elif status_filtro == 'pending':
+        pagamentos_pix = CobrancaPix.objects.none()
+        transacoes_expiradas = CobrancaPix.objects.none()
+        pagamentos_manuais = Mensalidade.objects.none()
+    elif status_filtro == 'expired':
+        pagamentos_pix = CobrancaPix.objects.none()
+        transacoes_pendentes = CobrancaPix.objects.none()
+        pagamentos_manuais = Mensalidade.objects.none()
 
     # ========== ESTATÍSTICAS ==========
     stats_pix = pagamentos_pix.aggregate(
@@ -12298,33 +12346,74 @@ def relatorio_pagamentos(request):
         qtd=Count('id')
     )
 
-    # Preparar lista unificada de pagamentos para exibição
+    stats_pendentes = transacoes_pendentes.aggregate(
+        total=Sum('valor'),
+        qtd=Count('id')
+    )
+
+    stats_expiradas = transacoes_expiradas.aggregate(
+        total=Sum('valor'),
+        qtd=Count('id')
+    )
+
+    # Calcular taxa média e percentual
+    total_pix_valor = stats_pix['total'] or 0
+    total_pix_taxa = stats_pix['total_taxa'] or 0
+    qtd_pix = stats_pix['qtd'] or 0
+    taxa_media = total_pix_taxa / qtd_pix if qtd_pix > 0 else 0
+    taxa_percentual = (total_pix_taxa / total_pix_valor * 100) if total_pix_valor > 0 else 0
+
+    # Preparar lista unificada de transações para exibição
     pagamentos_lista = []
 
-    # Adicionar pagamentos PIX
-    for pix in pagamentos_pix:
+    # Função auxiliar para adicionar transação PIX à lista
+    def adicionar_transacao_pix(pix, status):
+        webhook_data_json = None
+        if pix.webhook_data:
+            try:
+                webhook_data_json = json.dumps(pix.webhook_data, ensure_ascii=False, default=str)
+            except (TypeError, ValueError):
+                webhook_data_json = None
+
+        # Usar pago_em para pagos, criado_em para outros status
+        data_ref = pix.pago_em if status == 'paid' and pix.pago_em else pix.criado_em
+
         pagamentos_lista.append({
             'tipo': 'pix',
-            'data': pix.pago_em,
+            'status': status,
+            'data': data_ref,
             'cliente_nome': pix.cliente.nome if pix.cliente else 'N/A',
             'cliente_id': pix.cliente.id if pix.cliente else None,
             'valor': pix.valor,
             'valor_recebido': pix.valor_recebido,
             'valor_taxa': pix.valor_taxa,
-            'conta': pix.conta_bancaria.nome if pix.conta_bancaria else 'N/A',
+            'conta': pix.conta_bancaria.nome_identificacao if pix.conta_bancaria else 'N/A',
             'transaction_id': pix.transaction_id,
             'cobranca_id': str(pix.id),
             'mensalidade_id': pix.mensalidade_id,
-            'webhook_data': pix.webhook_data,
+            'webhook_data': webhook_data_json,
             'pagador_nome': pix.pagador_nome,
             'pagador_documento': pix.pagador_documento,
             'criado_em': pix.criado_em,
         })
 
+    # Adicionar pagamentos PIX (status='paid')
+    for pix in pagamentos_pix:
+        adicionar_transacao_pix(pix, 'paid')
+
+    # Adicionar transações pendentes (status='pending')
+    for pix in transacoes_pendentes:
+        adicionar_transacao_pix(pix, 'pending')
+
+    # Adicionar transações expiradas (status='expired')
+    for pix in transacoes_expiradas:
+        adicionar_transacao_pix(pix, 'expired')
+
     # Adicionar pagamentos manuais
     for mens in pagamentos_manuais:
         pagamentos_lista.append({
             'tipo': 'manual',
+            'status': 'paid',
             'data': timezone.make_aware(datetime.combine(mens.dt_pagamento, datetime.min.time())),
             'cliente_nome': mens.cliente.nome if mens.cliente else 'N/A',
             'cliente_id': mens.cliente.id if mens.cliente else None,
@@ -12338,16 +12427,14 @@ def relatorio_pagamentos(request):
         })
 
     # Ordenar por data (mais recente primeiro)
-    pagamentos_lista.sort(key=lambda x: x['data'], reverse=True)
+    pagamentos_lista.sort(key=lambda x: x['data'] if x['data'] else timezone.now(), reverse=True)
 
     context = {
         'page': 'relatorio_pagamentos',
         'page_group': 'relatorios',
         'pagamentos': pagamentos_lista,
-        'pagamentos_pix': pagamentos_pix,
-        'pagamentos_manuais': pagamentos_manuais,
 
-        # Estatísticas
+        # Estatísticas - Pagamentos confirmados
         'total_pix': stats_pix['total'] or 0,
         'total_pix_recebido': stats_pix['total_recebido'] or 0,
         'total_pix_taxa': stats_pix['total_taxa'] or 0,
@@ -12357,13 +12444,24 @@ def relatorio_pagamentos(request):
         'total_geral': (stats_pix['total'] or 0) + (stats_manual['total'] or 0),
         'qtd_total': (stats_pix['qtd'] or 0) + (stats_manual['qtd'] or 0),
 
+        # Estatísticas - Pendentes e Expiradas
+        'total_pendentes': stats_pendentes['total'] or 0,
+        'qtd_pendentes': stats_pendentes['qtd'] or 0,
+        'total_expiradas': stats_expiradas['total'] or 0,
+        'qtd_expiradas': stats_expiradas['qtd'] or 0,
+
+        # Estatísticas - Taxas
+        'taxa_media': taxa_media,
+        'taxa_percentual': taxa_percentual,
+
         # Filtros (para manter no form)
         'data_inicio': data_inicio.strftime('%Y-%m-%d'),
         'data_fim': data_fim.strftime('%Y-%m-%d'),
         'tipo_filtro': tipo_filtro,
+        'status_filtro': status_filtro,
     }
 
-    return render(request, 'pages/admin/relatorios/pagamentos.html', context)
+    return render(request, 'pages/relatorios/pagamentos.html', context)
 
 
 @login_required

@@ -1,7 +1,7 @@
 from django.db.models import DurationField, ExpressionWrapper, F
 from django.utils import timezone
 
-from nossopainel.models import Mensalidade, Tipos_pgto, UserProfile
+from nossopainel.models import Mensalidade, Tipos_pgto, UserProfile, NotificacaoSistema
 
 
 def notifications(request):
@@ -12,7 +12,8 @@ def notifications(request):
     hoje = timezone.localdate()
     tipos = [Tipos_pgto.CARTAO, Tipos_pgto.BOLETO]
 
-    qs = (
+    # Mensalidades vencidas
+    mensalidades_vencidas = (
         Mensalidade.objects.select_related("cliente", "cliente__forma_pgto", "cliente__plano")
         .filter(
             usuario=request.user,
@@ -32,7 +33,20 @@ def notifications(request):
         .order_by("dt_vencimento")
     )
 
-    return {"notif_items": qs[:20], "notif_count": qs.count()}
+    # Notificações do sistema não lidas
+    notificacoes_sistema = NotificacaoSistema.objects.filter(
+        usuario=request.user,
+        lida=False
+    )
+
+    # Total = mensalidades vencidas + notificações do sistema
+    total_count = mensalidades_vencidas.count() + notificacoes_sistema.count()
+
+    return {
+        "notif_items": mensalidades_vencidas[:20],
+        "notif_count": total_count,
+        "notificacoes_sistema": notificacoes_sistema[:10],
+    }
 
 
 def user_profile(request):

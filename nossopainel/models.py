@@ -2649,7 +2649,7 @@ class CobrancaPix(models.Model):
         # 2. Enviar mensagem WhatsApp de confirmação
         if cliente.telefone and not cliente.nao_enviar_msgs:
             try:
-                from nossopainel.services.wpp import send_message, MessageSendConfig, get_active_token
+                from nossopainel.services.wpp import send_message, MessageSendConfig, get_active_token, LogTemplates
 
                 token = get_active_token(self.usuario.username)
                 if token:
@@ -2659,13 +2659,23 @@ class CobrancaPix(models.Model):
                         f"e nos informe se pudermos ajudar com qualquer dificuldade!"
                     )
 
+                    # Configurar log_writer e templates para MessageSendConfig
+                    log_writer = lambda msg: logger.info(f'[WhatsApp] {msg}')
+                    log_templates = LogTemplates(
+                        success="[{0}] Mensagem {1} enviada com sucesso para {3}",
+                        failure="[{0}] Falha ao enviar {1} para {3}: {6}",
+                        invalid="[{0}] Telefone inválido para {1} - {3}",
+                    )
+
                     config = MessageSendConfig(
                         usuario=self.usuario.username,
                         token=token,
                         telefone=cliente.telefone,
                         mensagem=mensagem_wpp,
                         tipo_envio='confirmacao_pagamento',
-                        cliente=cliente
+                        cliente=cliente,
+                        log_writer=log_writer,
+                        log_templates=log_templates,
                     )
                     send_message(config)
                     logger.info(f'[CobrancaPix] Mensagem WhatsApp enviada para {cliente.telefone}')

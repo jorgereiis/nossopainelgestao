@@ -35,6 +35,18 @@
       border-left: 4px solid #3B82F6;
     }
 
+    .stat-card.pending {
+      border-left: 4px solid #F59E0B;
+    }
+
+    .stat-card.expired {
+      border-left: 4px solid #EF4444;
+    }
+
+    .stat-card.taxa {
+      border-left: 4px solid #6366F1;
+    }
+
     .stat-label {
       font-size: 0.75rem;
       text-transform: uppercase;
@@ -148,6 +160,33 @@
     .badge-manual {
       background: rgba(16, 185, 129, 0.1);
       color: #10B981;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-paid {
+      background: rgba(16, 185, 129, 0.1);
+      color: #10B981;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-pending {
+      background: rgba(245, 158, 11, 0.1);
+      color: #F59E0B;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-expired {
+      background: rgba(239, 68, 68, 0.1);
+      color: #EF4444;
       padding: 0.25rem 0.75rem;
       border-radius: 20px;
       font-size: 0.75rem;
@@ -308,7 +347,7 @@
         </div>
       </div>
 
-      <!-- Stats Cards -->
+      <!-- Stats Cards - Pagamentos Confirmados -->
       <div class="stats-grid">
         <div class="stat-card pix">
           <div class="stat-label">Pagamentos PIX</div>
@@ -323,7 +362,7 @@
         </div>
 
         <div class="stat-card total">
-          <div class="stat-label">Total Geral</div>
+          <div class="stat-label">Total Confirmado</div>
           <div class="stat-value">R$ {{ total_geral|floatformat:2 }}</div>
           <div class="stat-count">{{ qtd_total }} pagamento{{ qtd_total|pluralize:"s" }}</div>
         </div>
@@ -333,6 +372,35 @@
           <div class="stat-label">Liquido PIX (apos taxas)</div>
           <div class="stat-value">R$ {{ total_pix_recebido|floatformat:2 }}</div>
           <div class="stat-count">Taxa total: R$ {{ total_pix_taxa|floatformat:2 }}</div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Stats Cards - Pendentes, Expiradas e Taxas -->
+      <div class="stats-grid">
+        <div class="stat-card pending">
+          <div class="stat-label">Pendentes</div>
+          <div class="stat-value">R$ {{ total_pendentes|floatformat:2 }}</div>
+          <div class="stat-count">{{ qtd_pendentes }} transacao{{ qtd_pendentes|pluralize:"oes" }}</div>
+        </div>
+
+        <div class="stat-card expired">
+          <div class="stat-label">Expiradas</div>
+          <div class="stat-value">R$ {{ total_expiradas|floatformat:2 }}</div>
+          <div class="stat-count">{{ qtd_expiradas }} transacao{{ qtd_expiradas|pluralize:"oes" }}</div>
+        </div>
+
+        <div class="stat-card taxa">
+          <div class="stat-label">Taxa por Transacao</div>
+          <div class="stat-value">R$ 1,00 + 3%</div>
+          <div class="stat-count">Taxa fixa FastDePix</div>
+        </div>
+
+        {% if qtd_pix > 0 %}
+        <div class="stat-card taxa">
+          <div class="stat-label">Media Geral das Taxas</div>
+          <div class="stat-value">R$ {{ taxa_media|floatformat:2 }}</div>
+          <div class="stat-count">{{ taxa_percentual|floatformat:2 }}% do valor</div>
         </div>
         {% endif %}
       </div>
@@ -360,6 +428,16 @@
               </select>
             </div>
 
+            <div class="filter-group">
+              <label>Status</label>
+              <select name="status" class="form-select">
+                <option value="todos" {% if status_filtro == 'todos' %}selected{% endif %}>Todos</option>
+                <option value="paid" {% if status_filtro == 'paid' %}selected{% endif %}>Pagos</option>
+                <option value="pending" {% if status_filtro == 'pending' %}selected{% endif %}>Pendentes</option>
+                <option value="expired" {% if status_filtro == 'expired' %}selected{% endif %}>Expirados</option>
+              </select>
+            </div>
+
             <div class="filter-group" style="flex: 0;">
               <button type="submit" class="btn btn-primary">
                 <i data-feather="search" class="icon-xs me-1"></i> Filtrar
@@ -372,7 +450,7 @@
       <!-- Payments Table -->
       <div class="table-container">
         <div class="table-header">
-          <span class="table-title">Pagamentos</span>
+          <span class="table-title">Transacoes</span>
           <span class="text-muted">{{ pagamentos|length }} registro{{ pagamentos|length|pluralize:"s" }}</span>
         </div>
 
@@ -385,8 +463,9 @@
                 <th>Cliente</th>
                 <th>Valor</th>
                 <th>Tipo</th>
+                <th>Status</th>
                 <th>Origem</th>
-                <th>Transacao</th>
+                <th>Acao</th>
               </tr>
             </thead>
             <tbody>
@@ -422,6 +501,17 @@
                   {% endif %}
                 </td>
                 <td>
+                  {% if pag.status == 'paid' %}
+                  <span class="badge-paid">Pago</span>
+                  {% elif pag.status == 'pending' %}
+                  <span class="badge-pending">Pendente</span>
+                  {% elif pag.status == 'expired' %}
+                  <span class="badge-expired">Expirado</span>
+                  {% else %}
+                  <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
                   <div>{{ pag.conta }}</div>
                   {% if pag.transaction_id %}
                   <div class="valor-detalhe" title="{{ pag.transaction_id }}">
@@ -430,7 +520,7 @@
                   {% endif %}
                 </td>
                 <td>
-                  {% if pag.tipo == 'pix' and pag.transaction_id %}
+                  {% if pag.status == 'paid' and pag.tipo == 'pix' and pag.transaction_id %}
                   <button type="button" class="btn-transacao" onclick='abrirModalTransacao({{ forloop.counter0 }})'>
                     <i data-feather="eye" class="icon-xs"></i> Ver
                   </button>
@@ -507,6 +597,7 @@
       {% for pag in pagamentos %}
       {
         tipo: '{{ pag.tipo }}',
+        status: '{{ pag.status }}',
         data: '{{ pag.data|date:"d/m/Y H:i" }}',
         cliente_nome: '{{ pag.cliente_nome|escapejs }}',
         cliente_id: {{ pag.cliente_id|default:"null" }},
@@ -518,7 +609,7 @@
         pagador_nome: {% if pag.pagador_nome %}'{{ pag.pagador_nome|escapejs }}'{% else %}null{% endif %},
         pagador_documento: {% if pag.pagador_documento %}'{{ pag.pagador_documento }}'{% else %}null{% endif %},
         criado_em: {% if pag.criado_em %}'{{ pag.criado_em|date:"d/m/Y H:i" }}'{% else %}null{% endif %},
-        webhook_data: {% if pag.webhook_data %}{{ pag.webhook_data|safe }}{% else %}null{% endif %}
+        webhook_data: {% if pag.webhook_data %}JSON.parse('{{ pag.webhook_data|escapejs }}'){% else %}null{% endif %}
       },
       {% endfor %}
     ];
