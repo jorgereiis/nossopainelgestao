@@ -615,7 +615,7 @@ def obter_mensalidades_a_vencer(usuario_query):
 
             # Enviar mensagem de observação para FastDePix apenas no "à vencer 1 dias"
             if tipo_integracao == 'fastdepix' and tipo_mensagem == "à vencer 1 dias":
-                time.sleep(5)  # Aguarda 5 segundos antes de enviar a observação
+                time.sleep(10)  # Aguarda 10 segundos antes de enviar a observação
 
                 # Busca template do banco de dados, com fallback para texto padrão
                 texto_padrao_observacao = (

@@ -184,39 +184,8 @@
 </div>
 
 <script>
-  // Renderizar ícones Feather
+  // Renderizar ícones Feather após carregamento via AJAX
   if (typeof feather !== 'undefined') {
     feather.replace();
   }
-
-  // Marcar notificação do sistema como lida
-  $(document).off('click', '.btn-marcar-lida').on('click', '.btn-marcar-lida', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    const btn = $(this);
-    const notifId = btn.data('notif-id');
-
-    $.ajax({
-      url: '/api/notificacoes/' + notifId + '/marcar-lida/',
-      method: 'POST',
-      headers: {
-        'X-CSRFToken': '{{ csrf_token }}'
-      },
-      success: function() {
-        btn.closest('.notif-item').fadeOut(300, function() {
-          $(this).remove();
-          // Atualizar contagem no badge
-          const badge = $('#notifBadge');
-          if (badge.length) {
-            let count = parseInt(badge.text()) - 1;
-            if (count <= 0) {
-              $('#notifBadgeWrapper').html('');
-            } else {
-              badge.text(count);
-            }
-          }
-        });
-      }
-    });
-  });
 </script>

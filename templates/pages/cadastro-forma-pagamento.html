@@ -1299,12 +1299,13 @@
                             <th style="width: 80px;" class="text-center">Status</th>
                             <th>Cliente</th>
                             <th>Plano</th>
+                            <th class="text-center" style="width: 110px;">Prox. Vencim.</th>
                             <th class="text-end">Valor Anual</th>
                           </tr>
                         </thead>
                         <tbody id="listaClientesAssociacao">
                           <tr>
-                            <td colspan="5" class="text-center text-muted py-4">
+                            <td colspan="6" class="text-center text-muted py-4">
                               <i class="bi bi-hourglass-split me-2"></i>Carregando clientes...
                             </td>
                           </tr>
@@ -2025,12 +2026,13 @@
                           <th style="width: 80px;" class="text-center">Status</th>
                           <th>Cliente</th>
                           <th>Plano</th>
+                          <th class="text-center" style="width: 110px;">Prox. Vencim.</th>
                           <th class="text-end">Valor Anual</th>
                         </tr>
                       </thead>
                       <tbody id="editarListaClientes">
                         <tr>
-                          <td colspan="5" class="text-center text-muted py-4">
+                          <td colspan="6" class="text-center text-muted py-4">
                             <i class="bi bi-hourglass-split me-2"></i>Carregando clientes...
                           </td>
                         </tr>
@@ -2183,17 +2185,28 @@
         <div class="modal-content">
           <div class="modal-header bg-secondary text-white">
             <h5 class="modal-title" id="modalLimitesLabel">
-              <i class="bi bi-speedometer2 me-2"></i>Configurar Limite MEI Global
+              <i class="bi bi-speedometer2 me-2"></i>Configurar Limites de Faturamento
             </h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
           </div>
           <div class="modal-body">
             <form id="formConfigLimite">
               <div class="mb-3">
-                <label class="form-label fw-semibold">Limite Anual MEI (R$)</label>
+                <label class="form-label fw-semibold">
+                  <i class="bi bi-building me-1"></i>Limite Anual MEI (R$)
+                </label>
                 <input type="number" class="form-control form-control-lg" id="limiteValorAnual"
                        value="81000" step="1000" min="0">
                 <small class="text-muted">Valor maximo anual permitido para contas MEI</small>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold">
+                  <i class="bi bi-person me-1"></i>Limite Anual Pessoa Fisica (R$)
+                </label>
+                <input type="number" class="form-control form-control-lg" id="limiteValorAnualPf"
+                       value="60000" step="1000" min="0">
+                <small class="text-muted">Valor maximo anual permitido para contas Pessoa Fisica</small>
               </div>
 
               <div class="mb-3">
@@ -2202,11 +2215,24 @@
                 <small class="text-muted">Alerta sera exibido ao atingir esse percentual (ex: 10 = alerta em 90%)</small>
               </div>
 
-              <div class="alert alert-info">
+              <div class="alert alert-info mb-0">
                 <i class="bi bi-info-circle me-2"></i>
-                <strong>Resumo:</strong><br>
-                - Alerta em: <span id="valorAlertaDisplay">R$ 72.900,00</span> (<span id="percentAlerta">90</span>%)<br>
-                - Bloqueio em: <span id="valorBloqueioDisplay">R$ 80.190,00</span> (99%)
+                <strong>Resumo dos Limites:</strong><br>
+                <div class="mt-2">
+                  <strong class="text-primary">MEI:</strong><br>
+                  - Alerta em: <span id="valorAlertaDisplay">R$ 72.900,00</span> (<span id="percentAlerta">90</span>%)<br>
+                  - Bloqueio em: <span id="valorBloqueioDisplay">R$ 80.190,00</span> (99%)
+                </div>
+                <div class="mt-2">
+                  <strong class="text-success">Pessoa Fisica:</strong><br>
+                  - Alerta em: <span id="valorAlertaPfDisplay">R$ 54.000,00</span> (<span id="percentAlertaPf">90</span>%)<br>
+                  - Bloqueio em: <span id="valorBloqueioPfDisplay">R$ 59.400,00</span> (99%)
+                </div>
+                <hr class="my-2">
+                <small class="text-muted">
+                  <i class="bi bi-lightning-charge me-1"></i>
+                  <strong>FastDePix:</strong> Contas com integracao FastDePix nao possuem limites monitorados.
+                </small>
               </div>
             </form>
           </div>
@@ -2499,7 +2525,7 @@
   function carregarClientesAtivos() {
     $('#listaClientesAssociacao').html(`
       <tr>
-        <td colspan="4" class="text-center text-muted py-4">
+        <td colspan="6" class="text-center text-muted py-4">
           <i class="bi bi-hourglass-split me-2"></i>Carregando clientes...
         </td>
       </tr>
@@ -2517,7 +2543,7 @@
         } else {
           $('#listaClientesAssociacao').html(`
             <tr>
-              <td colspan="5" class="text-center text-danger py-4">
+              <td colspan="6" class="text-center text-danger py-4">
                 <i class="bi bi-exclamation-triangle me-2"></i>${response.error || 'Erro ao carregar clientes'}
               </td>
             </tr>
@@ -2527,7 +2553,7 @@
       error: function() {
         $('#listaClientesAssociacao').html(`
           <tr>
-            <td colspan="5" class="text-center text-danger py-4">
+            <td colspan="6" class="text-center text-danger py-4">
               <i class="bi bi-exclamation-triangle me-2"></i>Erro ao carregar clientes
             </td>
           </tr>
@@ -2540,7 +2566,7 @@
     if (clientes.length === 0) {
       $('#listaClientesAssociacao').html(`
         <tr>
-          <td colspan="5" class="text-center text-muted py-4">
+          <td colspan="6" class="text-center text-muted py-4">
             <i class="bi bi-person-x me-2"></i>Nenhum cliente encontrado
           </td>
         </tr>
@@ -2548,8 +2574,21 @@
       return;
     }
 
+    // Ordenar por próximo vencimento (mais recente primeiro)
+    // Clientes sem vencimento vão para o final
+    const clientesOrdenados = [...clientes].sort((a, b) => {
+      const dataA = a.prox_vencimento ? new Date(a.prox_vencimento) : null;
+      const dataB = b.prox_vencimento ? new Date(b.prox_vencimento) : null;
+
+      if (!dataA && !dataB) return 0;
+      if (!dataA) return 1;  // a vai para o final
+      if (!dataB) return -1; // b vai para o final
+
+      return dataA - dataB;  // mais próximo primeiro
+    });
+
     let html = '';
-    clientes.forEach(function(cliente) {
+    clientesOrdenados.forEach(function(cliente) {
       const valorPlano = cliente.valor_plano || 0;
       const pagamentosAno = cliente.pagamentos_ano || 12;
 
@@ -2611,6 +2650,9 @@
           <td>
             <span class="badge ${badgeClass} ${bloqueado ? 'opacity-50' : ''}">${cliente.plano || '-'}</span>
             <small class="text-muted d-block">${formatarMoedaBR(valorPlano)} × ${pagamentosAno}/ano</small>
+          </td>
+          <td class="text-center">
+            ${cliente.cancelado ? '-' : `<span class="badge bg-light text-dark border">${cliente.prox_vencimento_formatado || '-'}</span>`}
           </td>
           <td class="text-end">
             <span class="${bloqueado ? 'text-muted' : 'text-success'} fw-semibold">${formatarMoedaBR(cliente.valor_anual)}</span>
@@ -3402,6 +3444,7 @@
         if (response.success) {
           configLimiteAtual = response.config;
           $('#limiteValorAnual').val(response.config.valor_anual);
+          $('#limiteValorAnualPf').val(response.config.valor_anual_pf || 60000);
           $('#limiteMargem').val(response.config.margem_seguranca);
           atualizarDisplayLimites();
         }
@@ -3414,33 +3457,51 @@
   });
 
   // Atualizar display ao alterar valores
-  $('#limiteValorAnual, #limiteMargem').on('input', function() {
+  $('#limiteValorAnual, #limiteValorAnualPf, #limiteMargem').on('input', function() {
     atualizarDisplayLimites();
   });
 
   function atualizarDisplayLimites() {
     const valorAnual = parseFloat($('#limiteValorAnual').val()) || 81000;
+    const valorAnualPf = parseFloat($('#limiteValorAnualPf').val()) || 60000;
     const margem = parseInt($('#limiteMargem').val()) || 10;
     const percentAlerta = 100 - margem;
 
+    // MEI
     const valorAlerta = valorAnual * (percentAlerta / 100);
     const valorBloqueio = valorAnual * 0.99;
-
     $('#valorAlertaDisplay').text(formatarMoedaBR(valorAlerta));
     $('#valorBloqueioDisplay').text(formatarMoedaBR(valorBloqueio));
     $('#percentAlerta').text(percentAlerta);
+
+    // Pessoa Fisica
+    const valorAlertaPf = valorAnualPf * (percentAlerta / 100);
+    const valorBloqueioPf = valorAnualPf * 0.99;
+    $('#valorAlertaPfDisplay').text(formatarMoedaBR(valorAlertaPf));
+    $('#valorBloqueioPfDisplay').text(formatarMoedaBR(valorBloqueioPf));
+    $('#percentAlertaPf').text(percentAlerta);
   }
 
   // Salvar configuracao
   $('#btnSalvarLimite').on('click', function() {
     const valorAnual = parseFloat($('#limiteValorAnual').val());
+    const valorAnualPf = parseFloat($('#limiteValorAnualPf').val());
     const margem = parseInt($('#limiteMargem').val());
 
     if (!valorAnual || valorAnual <= 0) {
       Swal.fire({
         icon: 'error',
         title: 'Erro',
-        text: 'Informe um valor anual valido.'
+        text: 'Informe um valor anual MEI valido.'
+      });
+      return;
+    }
+
+    if (!valorAnualPf || valorAnualPf <= 0) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Erro',
+        text: 'Informe um valor anual Pessoa Fisica valido.'
       });
       return;
     }
@@ -3459,6 +3520,7 @@
       method: 'POST',
       data: JSON.stringify({
         valor_anual: valorAnual,
+        valor_anual_pf: valorAnualPf,
         margem_seguranca: margem
       }),
       contentType: 'application/json',
@@ -3997,7 +4059,7 @@
   function carregarClientesParaEdicao(formaPgtoId) {
     $('#editarListaClientes').html(`
       <tr>
-        <td colspan="5" class="text-center text-muted py-4">
+        <td colspan="6" class="text-center text-muted py-4">
           <i class="bi bi-hourglass-split me-2"></i>Carregando clientes...
         </td>
       </tr>
@@ -4020,7 +4082,7 @@
       error: function() {
         $('#editarListaClientes').html(`
           <tr>
-            <td colspan="5" class="text-center text-danger py-4">
+            <td colspan="6" class="text-center text-danger py-4">
               <i class="bi bi-exclamation-triangle me-2"></i>Erro ao carregar clientes
             </td>
           </tr>
@@ -4040,10 +4102,23 @@
       clientesFiltrados = clientes.filter(c => c.nome.toLowerCase().includes(filtroLower));
     }
 
+    // Ordenar por próximo vencimento (mais recente primeiro)
+    // Clientes sem vencimento vão para o final
+    clientesFiltrados = [...clientesFiltrados].sort((a, b) => {
+      const dataA = a.prox_vencimento ? new Date(a.prox_vencimento) : null;
+      const dataB = b.prox_vencimento ? new Date(b.prox_vencimento) : null;
+
+      if (!dataA && !dataB) return 0;
+      if (!dataA) return 1;  // a vai para o final
+      if (!dataB) return -1; // b vai para o final
+
+      return dataA - dataB;  // mais próximo primeiro
+    });
+
     if (clientesFiltrados.length === 0) {
       tbody.html(`
         <tr>
-          <td colspan="5" class="text-center text-muted py-4">
+          <td colspan="6" class="text-center text-muted py-4">
             ${filtro ? 'Nenhum cliente encontrado com esse nome' : 'Nenhum cliente disponível'}
           </td>
         </tr>
@@ -4145,6 +4220,9 @@
           <td>
             <span class="badge ${badgeClass} ${bloqueado && !isParaTransferir ? 'opacity-50' : ''}">${plano}</span>
             <small class="text-muted d-block">${formatarMoedaBR(valorPlano)} × ${pagamentosAno}/ano</small>
+          </td>
+          <td class="text-center">
+            ${cliente.cancelado ? '-' : `<span class="badge bg-light text-dark border">${cliente.prox_vencimento_formatado || '-'}</span>`}
           </td>
           <td class="text-end">
             <span class="${bloqueado && !isParaTransferir ? 'text-muted' : 'text-success'} fw-semibold">${formatarMoedaBR(valorAnual)}</span>

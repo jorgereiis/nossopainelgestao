@@ -914,6 +914,11 @@ def verificar_limite_apos_mudanca_plano(sender, instance, created, **kwargs):
 def verificar_limites_contas_cliente(cliente, impacto_valor):
     """
     Verifica se o aumento de valor do cliente ultrapassa limites das contas associadas.
+
+    Regras:
+    - FastDePix: NÃO monitora limites (não tem restrição)
+    - MEI: usa limite config.valor_anual
+    - Pessoa Física: usa limite config.valor_anual_pf
     """
     from decimal import Decimal
     from .models import (
@@ -934,19 +939,34 @@ def verificar_limites_contas_cliente(cliente, impacto_valor):
     associacoes = ClienteContaBancaria.objects.filter(
         cliente=cliente,
         ativo=True
-    ).select_related('conta_bancaria')
+    ).select_related('conta_bancaria', 'conta_bancaria__instituicao')
 
     if not associacoes.exists():
         return  # Cliente não está associado a nenhuma conta
 
     # Obter configuração de limite
     config = ConfiguracaoLimite.get_config()
-    limite_global = float(config.valor_anual)
     margem = config.margem_seguranca
     percentual_alerta = 100 - margem  # Ex: 90% para margem de 10%
 
     for assoc in associacoes:
         conta = assoc.conta_bancaria
+
+        # FastDePix não tem limite monitorado
+        if conta.instituicao and conta.instituicao.tipo_integracao == 'fastdepix':
+            logger.debug(f"[LIMITE] Conta {conta.id} é FastDePix - ignorando monitoramento de limite")
+            continue
+
+        # Determinar tipo de conta e limite aplicável
+        tipo_conta = conta.tipo_conta  # 'mei' ou 'pf'
+        if tipo_conta == 'mei':
+            limite_aplicavel = float(config.valor_anual)
+            tipo_label = 'MEI'
+            limite_formatado = f"R$ {config.valor_anual:,.2f}"
+        else:
+            limite_aplicavel = float(config.valor_anual_pf)
+            tipo_label = 'Pessoa Física'
+            limite_formatado = f"R$ {config.valor_anual_pf:,.2f}"
 
         # Calcular total anual projetado de todos os clientes associados à conta
         clientes_conta = ClienteContaBancaria.objects.filter(
@@ -961,7 +981,7 @@ def verificar_limites_contas_cliente(cliente, impacto_valor):
                 total_anual += cc.cliente.plano.valor * pagamentos
 
         total_anual_float = float(total_anual)
-        percentual_atual = (total_anual_float / limite_global) * 100 if limite_global > 0 else 0
+        percentual_atual = (total_anual_float / limite_aplicavel) * 100 if limite_aplicavel > 0 else 0
 
         # Verificar se ultrapassou alerta ou limite
         if percentual_atual >= 99:
@@ -979,33 +999,54 @@ def verificar_limites_contas_cliente(cliente, impacto_valor):
                 ).exists()
 
                 if not notif_recente:
+                    # Mensagem personalizada por tipo de conta
+                    if tipo_conta == 'mei':
+                        mensagem = (
+                            f'A conta "{conta.beneficiario or conta.instituicao}" atingiu '
+                            f'{percentual_atual:.1f}% do limite de faturamento anual do MEI ({limite_formatado}). '
+                            f'Valor total projetado: R$ {total_anual_float:,.2f}. '
+                            f'Ação necessária: realoque alguns clientes para outra Forma de Pagamento para '
+                            f'manter o valor projetado para recebimento anual dentro do limite do MEI, '
+                            f'caso contrário, o Leão poderá lhe comer vivo. '
+                            f'Recomendado: separe os recebimentos entre uma conta FastDePix e MEI, '
+                            f'mantendo o maior volume de recebimento em FastDePix.'
+                        )
+                    else:
+                        mensagem = (
+                            f'A conta "{conta.beneficiario or conta.instituicao}" atingiu '
+                            f'{percentual_atual:.1f}% do limite de faturamento anual de Pessoa Física ({limite_formatado}). '
+                            f'Valor total projetado: R$ {total_anual_float:,.2f}. '
+                            f'Ação necessária: realoque alguns clientes para outra Forma de Pagamento para '
+                            f'manter o valor projetado para recebimento anual dentro do limite da Pessoa Física, '
+                            f'caso contrário, o Leão poderá lhe comer vivo. '
+                            f'Recomendado: separe os recebimentos entre uma conta FastDePix e Pessoa Física, '
+                            f'mantendo o maior volume de recebimento em FastDePix.'
+                        )
+
                     NotificacaoSistema.objects.create(
                         usuario=cliente.usuario,
                         tipo='limite_atingido',
                         prioridade='critica',
                         titulo=f'⚠️ LIMITE CRÍTICO: {percentual_atual:.1f}%',
-                        mensagem=(
-                            f'A conta "{conta.beneficiario or conta.instituicao}" atingiu '
-                            f'{percentual_atual:.1f}% do limite MEI ({config.valor_anual:,.2f}). '
-                            f'Valor total projetado: R$ {total_anual_float:,.2f}. '
-                            f'Ação necessária: remova clientes ou aumente o limite.'
-                        ),
+                        mensagem=mensagem,
                         dados_extras={
                             'conta_id': conta.id,
                             'conta_nome': conta.beneficiario or str(conta.instituicao),
+                            'tipo_conta': tipo_conta,
+                            'tipo_label': tipo_label,
                             'percentual': percentual_atual,
                             'valor_atual': total_anual_float,
-                            'valor_limite': limite_global,
+                            'valor_limite': limite_aplicavel,
                             'cliente_causador': cliente.nome,
                             'impacto_valor': impacto_valor,
                         }
                     )
                     logger.warning(
-                        f"[LIMITE_MEI] Notificação CRÍTICA criada para conta {conta.id} - "
+                        f"[LIMITE_{tipo_label.upper()}] Notificação CRÍTICA criada para conta {conta.id} - "
                         f"{percentual_atual:.1f}% do limite"
                     )
             except Exception as e:
-                logger.error(f"[LIMITE_MEI] Erro ao criar notificação crítica: {e}")
+                logger.error(f"[LIMITE] Erro ao criar notificação crítica: {e}")
 
         elif percentual_atual >= percentual_alerta:
             # Alerta de aproximação do limite
@@ -1015,11 +1056,11 @@ def verificar_limites_contas_cliente(cliente, impacto_valor):
                     conta_bancaria=conta,
                     percentual_atual=percentual_atual,
                     valor_atual=total_anual_float,
-                    valor_limite=limite_global
+                    valor_limite=limite_aplicavel
                 )
                 logger.info(
-                    f"[LIMITE_MEI] Notificação de alerta criada para conta {conta.id} - "
+                    f"[LIMITE_{tipo_label.upper()}] Notificação de alerta criada para conta {conta.id} - "
                     f"{percentual_atual:.1f}% do limite"
                 )
             except Exception as e:
-                logger.error(f"[LIMITE_MEI] Erro ao criar notificação de alerta: {e}")
+                logger.error(f"[LIMITE] Erro ao criar notificação de alerta: {e}")

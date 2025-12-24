@@ -1014,7 +1014,7 @@
         }
       })
       .catch(error => console.error('Erro no polling:', error));
-    }, 5000);
+    }, 15000);  // 15 segundos - evita rate limiting
   }
 
   // Show success with confetti

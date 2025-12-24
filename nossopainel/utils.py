@@ -6,6 +6,7 @@ from pathlib import Path
 import logging
 import os
 import re
+import time
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Q
@@ -1087,6 +1088,7 @@ def envio_apos_novo_cadastro(cliente):
     )
 
     try:
+        time.sleep(5)  # Aguarda 5 segundos antes de enviar a confirmação
         enviar_mensagem(
             telefone,
             mensagem,
@@ -1692,6 +1694,12 @@ def test_encryption():
         raise AssertionError("Senhas diferentes geraram o mesmo hash criptografado")
 
     return True
+
+
+# Aliases genéricos para uso em campos que não são senhas
+# (API keys, tokens, secrets, etc.)
+encrypt_value = encrypt_password
+decrypt_value = decrypt_password
 
 
 # ==================== MANIPULAÇÃO DE DOMÍNIOS DNS ====================

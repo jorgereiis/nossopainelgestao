@@ -22,6 +22,7 @@ from mensagens_wpp import (
 from upload_status_wpp import executar_upload_image_from_telegram_com_lock
 from integracoes.telegram_connection import telegram_connection
 from jampabet_live_matches import run_check_and_poll as jampabet_check_live_matches
+from sync_pagamentos_pix import sincronizar_pagamentos_pix_pendentes
 
 ################################################
 ##### PROTEÇÃO CONTRA MÚLTIPLAS INSTÂNCIAS #####
@@ -276,6 +277,12 @@ schedule.every(1).minutes.do(
 
 # JampaBet - Verificacao de partidas ao vivo (a cada 1 minuto) - SEM wrapper, job será removido
 schedule.every(1).minutes.do(run_threaded_sync_nolog, jampabet_check_live_matches).tag("jampabet_live")
+
+# Sincronização de pagamentos PIX pendentes (a cada 30 minutos)
+# Rede de segurança para casos onde o webhook falhe
+schedule.every(30).minutes.do(
+    run_threaded_sync_nolog, job_wrapper, "sync_pix", sincronizar_pagamentos_pix_pendentes
+).tag("sync_pix")
 
 # --------------- Verificação de Lock de Instância Única ---------------
 if not acquire_scheduler_lock():
