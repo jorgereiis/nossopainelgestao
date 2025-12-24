@@ -11543,6 +11543,7 @@ def integracoes_fastdepix(request):
 
     # Determinar URL base para webhook
     if is_development:
+        # Em desenvolvimento, usar HTTP local
         webhook_url_default = request.build_absolute_uri('/api/pix/webhook/')
     else:
         # Em produção, usar domínio configurado
@@ -11558,7 +11559,8 @@ def integracoes_fastdepix(request):
             # Usar HTTPS em produção
             webhook_url_default = f"https://{production_domain}/api/pix/webhook/"
         else:
-            webhook_url_default = request.build_absolute_uri('/api/pix/webhook/')
+            # Fallback: forçar HTTPS para evitar redirect que perde o body
+            webhook_url_default = f"https://{request.get_host()}/api/pix/webhook/"
 
     # Webhook URL customizada salva na sessao (para desenvolvimento)
     webhook_url_custom = ''
@@ -11787,7 +11789,8 @@ def integracoes_fastdepix_webhook_registrar(request):
 
     # URL do webhook - pode vir do body (desenvolvimento) ou usar padrao
     webhook_path = '/api/pix/webhook/'
-    webhook_url = request.build_absolute_uri(webhook_path)
+    # Forçar HTTPS para evitar redirect que perde o body do POST
+    webhook_url = f"https://{request.get_host()}{webhook_path}"
 
     # Em desenvolvimento, permitir URL base customizada
     if getattr(settings, 'DEBUG', False):
@@ -11898,8 +11901,8 @@ def integracoes_fastdepix_webhook_atualizar(request):
             'message': 'Nenhum webhook configurado para atualizar.'
         })
 
-    # URL do webhook
-    webhook_url = request.build_absolute_uri('/api/pix/webhook/')
+    # URL do webhook - forçar HTTPS para evitar redirect que perde o body
+    webhook_url = f"https://{request.get_host()}/api/pix/webhook/"
 
     # Atualizar webhook
     integration = get_payment_integration(conta_ativa)

@@ -116,7 +116,8 @@ def enviar_push_pagamento(usuario, titulo, mensagem, dados=None):
                 vapid_private_key=vapid_private,
                 vapid_claims={
                     'sub': f'mailto:{vapid_email}'
-                }
+                },
+                ttl=86400  # 24 horas - necessário para compatibilidade com WNS (Windows)
             )
             resultados['enviados'] += 1
             logger.info(f'[Push] Enviado para subscription {sub.id}')
