@@ -36,25 +36,27 @@ const PushManager = {
             this.swRegistration = await navigator.serviceWorker.register('/sw.js');
             console.log('[Push] Service Worker registrado');
 
-            // Verificar se já está inscrito
+            // Verificar se já está inscrito NO NAVEGADOR
             const subscription = await this.swRegistration.pushManager.getSubscription();
             this.isSubscribed = !(subscription === null);
 
-            console.log('[Push] Usuário está inscrito:', this.isSubscribed);
-
-            // Atualizar UI se necessário
-            this.updateUI();
-
+            console.log('[Push] Usuário está inscrito no navegador:', this.isSubscribed);
             console.log('[Push] Notification.permission:', Notification.permission);
 
-            // Se já tiver permissão concedida e não estiver inscrito, inscrever automaticamente
-            if (Notification.permission === 'granted' && !this.isSubscribed) {
-                console.log('[Push] Permissão já concedida, inscrevendo...');
+            // Se existe subscription no navegador, SEMPRE sincronizar com servidor
+            // Isso garante que a subscription está salva no banco de dados
+            if (subscription) {
+                console.log('[Push] Sincronizando subscription com servidor...');
+                await this.syncSubscription(subscription);
+            }
+            // Se permissão granted mas sem subscription, criar nova
+            else if (Notification.permission === 'granted') {
+                console.log('[Push] Permissão concedida, criando subscription...');
                 await this.subscribe();
             }
-            // Se nunca foi perguntado, solicitar permissão automaticamente
+            // Se nunca foi perguntado, solicitar permissão
             else if (Notification.permission === 'default') {
-                console.log('[Push] Permissão default, solicitando...');
+                console.log('[Push] Solicitando permissão...');
                 await this.subscribe();
             }
             // Se foi negado
@@ -62,8 +64,51 @@ const PushManager = {
                 console.log('[Push] Permissão negada pelo usuário');
             }
 
+            // Atualizar UI
+            this.updateUI();
+
         } catch (error) {
             console.error('[Push] Erro na inicialização:', error);
+        }
+    },
+
+    /**
+     * Sincroniza uma subscription existente com o servidor
+     * Garante que a subscription do navegador está salva no banco de dados
+     */
+    async syncSubscription(subscription) {
+        try {
+            const csrfToken = this.getCsrfToken();
+            if (!csrfToken) {
+                console.error('[Push] CSRF token não encontrado');
+                return;
+            }
+
+            const response = await fetch('/api/push/subscribe/', {
+                method: 'POST',
+                credentials: 'same-origin',  // Importante: envia cookies
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(subscription)
+            });
+
+            if (!response.ok) {
+                console.error('[Push] Erro HTTP:', response.status, response.statusText);
+                return;
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('[Push] Subscription sincronizada com servidor ✓');
+                this.isSubscribed = true;
+            } else {
+                console.error('[Push] Erro ao sincronizar subscription:', data.error);
+            }
+        } catch (error) {
+            console.error('[Push] Erro na sincronização:', error);
         }
     },
 
@@ -91,12 +136,18 @@ const PushManager = {
             // Enviar para o servidor
             const response = await fetch('/api/push/subscribe/', {
                 method: 'POST',
+                credentials: 'same-origin',  // Importante: envia cookies
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.getCsrfToken()
                 },
                 body: JSON.stringify(subscription)
             });
+
+            if (!response.ok) {
+                console.error('[Push] Erro HTTP ao salvar:', response.status);
+                return false;
+            }
 
             const data = await response.json();
 
@@ -127,6 +178,7 @@ const PushManager = {
                 // Remover do servidor
                 await fetch('/api/push/unsubscribe/', {
                     method: 'POST',
+                    credentials: 'same-origin',  // Importante: envia cookies
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': this.getCsrfToken()
@@ -188,22 +240,28 @@ const PushManager = {
     },
 
     /**
-     * Obtém o CSRF token do cookie
+     * Obtém o CSRF token (meta tag ou cookie)
      */
     getCsrfToken() {
+        // Primeiro, tentar obter da meta tag (padrão do projeto)
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag) {
+            return metaTag.getAttribute('content');
+        }
+
+        // Fallback: tentar obter do cookie
         const name = 'csrftoken';
-        let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
             const cookies = document.cookie.split(';');
             for (let i = 0; i < cookies.length; i++) {
                 const cookie = cookies[i].trim();
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
+                    return decodeURIComponent(cookie.substring(name.length + 1));
                 }
             }
         }
-        return cookieValue;
+
+        return null;
     }
 };
 

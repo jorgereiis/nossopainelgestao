@@ -1,63 +1,196 @@
 {% comment %} Lista de notificações para o dropdown {% endcomment %}
-<ul class="list-group list-group-flush notification-list-scroll">
+<style>
+  .notif-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f3f5;
+    transition: background-color 0.15s ease;
+    cursor: default;
+  }
+  .notif-item:hover {
+    background-color: #f8f9fa;
+  }
+  .notif-item:last-child {
+    border-bottom: none;
+  }
+  .notif-item.notif-sistema {
+    border-left: 3px solid #6c757d;
+  }
+  .notif-item.notif-pagamento {
+    border-left: 3px solid #198754;
+  }
+  .notif-item.notif-alerta {
+    border-left: 3px solid #ffc107;
+  }
+  .notif-item.notif-critico {
+    border-left: 3px solid #dc3545;
+  }
+  .notif-item.notif-plano {
+    border-left: 3px solid #0d6efd;
+  }
+  .notif-item.notif-vencida {
+    border-left: 3px solid #dc3545;
+  }
+  .notif-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .notif-icon.icon-pagamento {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+  }
+  .notif-icon.icon-alerta {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #cc9a00;
+  }
+  .notif-icon.icon-critico {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  .notif-icon.icon-plano {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+  }
+  .notif-icon.icon-info {
+    background-color: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
+  }
+  .notif-icon.icon-vencida {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  .notif-content {
+    flex: 1;
+    min-width: 0;
+    margin-left: 12px;
+  }
+  .notif-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 2px;
+    line-height: 1.3;
+  }
+  .notif-message {
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 4px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .notif-time {
+    font-size: 11px;
+    color: #adb5bd;
+  }
+  .notif-dismiss {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: #adb5bd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+  .notif-dismiss:hover {
+    background-color: #e9ecef;
+    color: #495057;
+  }
+  .notif-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #adb5bd;
+  }
+  .notif-empty svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+  }
+</style>
+
+<div class="notification-list-scroll">
   {% if notificacoes_sistema %}
     {% for n in notificacoes_sistema %}
-      <li class="list-group-item {% if n.prioridade == 'critica' %}bg-danger bg-opacity-10{% elif n.prioridade == 'alta' %}bg-warning bg-opacity-10{% else %}bg-info bg-opacity-10{% endif %}">
-        <div class="d-flex justify-content-between align-items-start">
-          <div class="text-decoration-none">
-            <h6 class="mb-1">
-              {% if n.prioridade == 'critica' %}
-                <span class="badge bg-danger me-2">Crítico</span>
-              {% elif n.prioridade == 'alta' %}
-                <span class="badge bg-warning text-dark me-2">Alerta</span>
-              {% elif n.tipo == 'mudanca_plano' %}
-                <span class="badge bg-info me-2">Plano</span>
-              {% else %}
-                <span class="badge bg-secondary me-2">Info</span>
-              {% endif %}
-              {{ n.titulo }}
-            </h6>
-            <p class="mb-0 fs-6 text-muted">{{ n.mensagem|truncatewords:20 }}</p>
-            <small class="text-muted">{{ n.criada_em|timesince }} atrás</small>
-          </div>
-          <button type="button" class="btn btn-sm btn-outline-secondary ms-2 btn-marcar-lida"
-                  data-notif-id="{{ n.id }}" title="Marcar como lida">
-            <i class="bi bi-check"></i>
-          </button>
+      <div class="notif-item d-flex align-items-start {% if n.tipo == 'pagamento_confirmado' %}notif-pagamento{% elif n.prioridade == 'critica' %}notif-critico{% elif n.prioridade == 'alta' %}notif-alerta{% elif n.tipo == 'mudanca_plano' %}notif-plano{% else %}notif-sistema{% endif %}">
+
+        <div class="notif-icon {% if n.tipo == 'pagamento_confirmado' %}icon-pagamento{% elif n.prioridade == 'critica' %}icon-critico{% elif n.prioridade == 'alta' %}icon-alerta{% elif n.tipo == 'mudanca_plano' %}icon-plano{% else %}icon-info{% endif %}">
+          {% if n.tipo == 'pagamento_confirmado' %}
+            <i data-feather="check-circle" style="width: 18px; height: 18px;"></i>
+          {% elif n.prioridade == 'critica' %}
+            <i data-feather="alert-octagon" style="width: 18px; height: 18px;"></i>
+          {% elif n.prioridade == 'alta' %}
+            <i data-feather="alert-triangle" style="width: 18px; height: 18px;"></i>
+          {% elif n.tipo == 'mudanca_plano' %}
+            <i data-feather="refresh-cw" style="width: 18px; height: 18px;"></i>
+          {% else %}
+            <i data-feather="info" style="width: 18px; height: 18px;"></i>
+          {% endif %}
         </div>
-      </li>
+
+        <div class="notif-content">
+          <div class="notif-title">{{ n.titulo }}</div>
+          <div class="notif-message">{{ n.mensagem|truncatewords:15 }}</div>
+          <div class="notif-time">{{ n.criada_em|timesince }} atras</div>
+        </div>
+
+        <button type="button" class="notif-dismiss btn-marcar-lida" data-notif-id="{{ n.id }}" title="Dispensar">
+          <i data-feather="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
     {% endfor %}
   {% endif %}
 
   {% if notif_items %}
     {% for m in notif_items %}
-      <li class="list-group-item bg-light">
-        <a href="#" class="text-muted text-decoration-none">
-          <h6 class="mb-1">
-            <span class="badge bg-danger me-2">Vencida</span>
-            {{ m.cliente.nome }}
-            &mdash; <span class="badge {% if m.cliente.forma_pgto.nome == 'Cartão de Crédito' %}bg-primary{% else %}bg-warning text-dark{% endif %}">
-                {{ m.cliente.forma_pgto.nome }}
-              </span>
-          </h6>
-          <p class="mb-0 fs-6">
-            Venceu em <strong>{{ m.dt_vencimento|date:"d/m/Y" }}</strong>.
-            Plano: <strong>{{ m.cliente.plano.nome }}</strong>.
-            Valor: <strong>R$ {{ m.valor }}</strong>.
-          </p>
-        </a>
-      </li>
+      <div class="notif-item d-flex align-items-start notif-vencida">
+        <div class="notif-icon icon-vencida">
+          <i data-feather="alert-circle" style="width: 18px; height: 18px;"></i>
+        </div>
+
+        <div class="notif-content">
+          <div class="notif-title">{{ m.cliente.nome }}</div>
+          <div class="notif-message">
+            Mensalidade vencida em {{ m.dt_vencimento|date:"d/m/Y" }} - R$ {{ m.valor }}
+          </div>
+          <div class="notif-time">
+            <span style="color: #dc3545;">{{ m.dias_atraso.days }} dias em atraso</span>
+          </div>
+        </div>
+      </div>
     {% endfor %}
   {% endif %}
 
   {% if not notif_items and not notificacoes_sistema %}
-    <li class="list-group-item text-center text-muted">Nenhuma notificação 🙂</li>
+    <div class="notif-empty">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+      <div style="font-size: 14px; font-weight: 500; color: #6c757d;">Tudo certo por aqui!</div>
+      <div style="font-size: 12px; color: #adb5bd;">Nenhuma notificacao pendente</div>
+    </div>
   {% endif %}
-</ul>
+</div>
 
 <script>
+  // Renderizar ícones Feather
+  if (typeof feather !== 'undefined') {
+    feather.replace();
+  }
+
   // Marcar notificação do sistema como lida
-  $(document).on('click', '.btn-marcar-lida', function(e) {
+  $(document).off('click', '.btn-marcar-lida').on('click', '.btn-marcar-lida', function(e) {
     e.preventDefault();
     e.stopPropagation();
     const btn = $(this);
@@ -70,10 +203,18 @@
         'X-CSRFToken': '{{ csrf_token }}'
       },
       success: function() {
-        btn.closest('li').fadeOut(300, function() {
+        btn.closest('.notif-item').fadeOut(300, function() {
           $(this).remove();
-          // Atualizar contagem
-          if (typeof refreshBadge === 'function') refreshBadge();
+          // Atualizar contagem no badge
+          const badge = $('#notifBadge');
+          if (badge.length) {
+            let count = parseInt(badge.text()) - 1;
+            if (count <= 0) {
+              $('#notifBadgeWrapper').html('');
+            } else {
+              badge.text(count);
+            }
+          }
         });
       }
     });

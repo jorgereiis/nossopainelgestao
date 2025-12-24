@@ -24,11 +24,39 @@
   const modalEl = document.getElementById('notifModal');
   const modalBody = document.getElementById('notifModalBody');
 
+  // Função para obter CSRF token do cookie
+  function getCSRFToken() {
+    // Primeiro tenta usar a variável global definida no header
+    if (typeof csrftoken !== 'undefined' && csrftoken) {
+      return csrftoken;
+    }
+    // Fallback: busca do cookie
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
   function loadNotifications(url) {
     modalBody.innerHTML = '<div class="text-center py-5">Carregando…</div>';
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(r => r.text())
-      .then(html => { modalBody.innerHTML = html; })
+      .then(html => {
+        modalBody.innerHTML = html;
+        // Renderizar ícones Feather após carregar conteúdo
+        if (typeof feather !== 'undefined') {
+          feather.replace();
+        }
+      })
       .catch(() => { modalBody.innerHTML = '<div class="text-danger p-3">Erro ao carregar notificações.</div>'; });
   }
 
@@ -40,13 +68,81 @@
     modal.show();
   });
 
-  // Paginação via delegação de eventos
+  // Event delegation para cliques no modal body
   modalBody?.addEventListener('click', function (e) {
+    // Paginação
     const a = e.target.closest('a.js-notif-page');
     if (a) {
       e.preventDefault();
       const url = "{% url 'notifications_modal' %}" + a.getAttribute('href');
       loadNotifications(url);
+      return;
+    }
+
+    // Marcar notificação como lida
+    const btnMarcarLida = e.target.closest('.btn-marcar-lida-modal');
+    if (btnMarcarLida) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const notifId = btnMarcarLida.getAttribute('data-notif-id');
+      const token = getCSRFToken();
+
+      if (!token) {
+        console.error('CSRF token não encontrado');
+        return;
+      }
+
+      fetch('/api/notificacoes/' + notifId + '/marcar-lida/', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': token,
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          // Remover item da lista com animação
+          const item = btnMarcarLida.closest('.notif-modal-item');
+          if (item) {
+            item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(20px)';
+            setTimeout(() => {
+              item.remove();
+              // Atualizar contagem na seção
+              const section = modalBody.querySelector('.notif-modal-section');
+              if (section) {
+                const countEl = section.querySelector('.notif-section-count');
+                if (countEl) {
+                  const match = countEl.textContent.match(/\d+/);
+                  if (match) {
+                    const newCount = parseInt(match[0]) - 1;
+                    countEl.textContent = '(' + newCount + ')';
+                  }
+                }
+              }
+            }, 300);
+          }
+
+          // Atualizar badge no header
+          const badge = document.getElementById('notifBadge');
+          if (badge) {
+            let count = parseInt(badge.textContent) - 1;
+            if (count <= 0) {
+              const wrapper = document.getElementById('notifBadgeWrapper');
+              if (wrapper) wrapper.innerHTML = '';
+            } else {
+              badge.textContent = count;
+            }
+          }
+        } else {
+          console.error('Erro ao marcar notificação como lida');
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao marcar notificação:', error);
+      });
     }
   });
 })();
