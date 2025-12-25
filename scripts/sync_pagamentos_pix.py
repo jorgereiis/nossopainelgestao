@@ -55,12 +55,12 @@ def sincronizar_pagamentos_pix_pendentes():
     """
     logger.info("[Sync PIX] Iniciando sincronização automática...")
 
-    # Buscar contas FastDePix ativas
+    # Buscar contas FastDePix ativas (campo encriptado é _api_key)
     contas = ContaBancaria.objects.filter(
         instituicao__tipo_integracao='fastdepix',
-        api_key__isnull=False,
+        _api_key__isnull=False,
         ativo=True
-    ).exclude(api_key='')
+    ).exclude(_api_key='')
 
     if not contas.exists():
         logger.info("[Sync PIX] Nenhuma conta FastDePix configurada")
