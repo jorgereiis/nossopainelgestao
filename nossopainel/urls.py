@@ -178,6 +178,7 @@ from .views import (
     integracoes_fastdepix_webhook_remover,
     integracoes_fastdepix_webhook_salvar_url,
     integracoes_fastdepix_sincronizar,
+    integracoes_fastdepix_revisar_valores,
     # Configuração de Agendamentos
     config_agendamentos,
     # Relatório de Pagamentos
@@ -395,6 +396,7 @@ urlpatterns = [
     path("admin/integracoes-api/fastdepix/webhook/remover/", integracoes_fastdepix_webhook_remover, name="integracoes-fastdepix-webhook-remover"),
     path("admin/integracoes-api/fastdepix/webhook/salvar-url/", integracoes_fastdepix_webhook_salvar_url, name="integracoes-fastdepix-webhook-salvar-url"),
     path("admin/integracoes-api/fastdepix/sincronizar/", integracoes_fastdepix_sincronizar, name="integracoes-fastdepix-sincronizar"),
+    path("admin/integracoes-api/fastdepix/revisar-valores/", integracoes_fastdepix_revisar_valores, name="integracoes-fastdepix-revisar-valores"),
     path("admin/integracoes-api/fastdepix/conta/", integracoes_fastdepix_conta_dados, name="integracoes-fastdepix-conta-dados"),
     path("admin/integracoes-api/fastdepix/conta/<int:conta_id>/", integracoes_fastdepix_conta_dados, name="integracoes-fastdepix-conta-dados-id"),
 

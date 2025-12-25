@@ -548,6 +548,16 @@
                   <small class="text-muted d-block mt-1">Verifica na API FastDePix se as cobrancas pendentes foram pagas ou expiraram.</small>
                 </div>
                 <div id="sync-resultado" class="mt-3 d-none"></div>
+
+                <div class="mt-2">
+                  <button type="button" class="btn btn-outline-info btn-action w-100 justify-content-center" onclick="revisarValores()">
+                    <i data-feather="dollar-sign"></i>
+                    <span id="btn-revisar-text">Revisar Valores das Pagas</span>
+                    <span id="btn-revisar-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                  </button>
+                  <small class="text-muted d-block mt-1">Atualiza valores recebidos e taxas de cobrancas pagas consultando a API.</small>
+                </div>
+                <div id="revisar-resultado" class="mt-3 d-none"></div>
               </div>
             </div>
 
@@ -962,6 +972,86 @@
           <div class="alert-box warning">
             <i data-feather="alert-circle"></i>
             <p class="mb-0">Erro ao sincronizar: ${error.message}</p>
+          </div>
+        `;
+        feather.replace();
+      });
+    }
+
+    // Revisar valores de cobrancas pagas
+    function revisarValores() {
+      const btnText = document.getElementById('btn-revisar-text');
+      const btnSpinner = document.getElementById('btn-revisar-spinner');
+      const resultado = document.getElementById('revisar-resultado');
+
+      btnText.textContent = 'Revisando...';
+      btnSpinner.classList.remove('d-none');
+      resultado.classList.add('d-none');
+
+      fetch('{% url "integracoes-fastdepix-revisar-valores" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        btnText.textContent = 'Revisar Valores das Pagas';
+        btnSpinner.classList.add('d-none');
+        resultado.classList.remove('d-none');
+
+        if (data.success) {
+          let detalhesHtml = '';
+          if (data.detalhes && data.detalhes.length > 0) {
+            detalhesHtml = '<ul class="mb-0 mt-2 ps-3 small">';
+            data.detalhes.forEach(d => {
+              if (d.erro) {
+                detalhesHtml += `<li class="text-danger">${d.transaction_id}: ${d.erro}</li>`;
+              } else {
+                detalhesHtml += `<li>${d.transaction_id}: R$ ${d.valor_recebido} (taxa: R$ ${d.valor_taxa})</li>`;
+              }
+            });
+            detalhesHtml += '</ul>';
+          }
+
+          if (data.atualizadas > 0) {
+            resultado.innerHTML = `
+              <div class="alert-box success">
+                <i data-feather="check-circle"></i>
+                <div>
+                  <p class="mb-0"><strong>${data.message}</strong></p>
+                  ${detalhesHtml}
+                </div>
+              </div>
+            `;
+            setTimeout(() => atualizarEstatisticas(), 1500);
+          } else {
+            resultado.innerHTML = `
+              <div class="alert-box info">
+                <i data-feather="info"></i>
+                <p class="mb-0">${data.total > 0 ? 'Todos os valores ja estao corretos.' : 'Nenhuma cobranca paga encontrada.'}</p>
+              </div>
+            `;
+          }
+        } else {
+          resultado.innerHTML = `
+            <div class="alert-box warning">
+              <i data-feather="alert-circle"></i>
+              <p class="mb-0">${data.message}</p>
+            </div>
+          `;
+        }
+        feather.replace();
+      })
+      .catch(error => {
+        btnText.textContent = 'Revisar Valores das Pagas';
+        btnSpinner.classList.add('d-none');
+        resultado.classList.remove('d-none');
+        resultado.innerHTML = `
+          <div class="alert-box warning">
+            <i data-feather="alert-circle"></i>
+            <p class="mb-0">Erro ao revisar: ${error.message}</p>
           </div>
         `;
         feather.replace();
