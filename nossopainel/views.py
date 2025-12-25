@@ -2935,6 +2935,39 @@ def reactivate_customer(request, cliente_id):
     cliente.cancelado = False
     cliente.data_cancelamento = None
     cliente.data_vencimento = data_hoje
+
+    # ⭐ ASSOCIAR FORMA DE PAGAMENTO (se fornecida no POST)
+    forma_pgto_id = request.POST.get('forma_pagamento_id')
+    if forma_pgto_id:
+        try:
+            forma_pgto = Tipos_pgto.objects.get(id=forma_pgto_id, usuario=request.user)
+            cliente.forma_pgto = forma_pgto
+
+            logger.info('[%s] [USER][%s] Cliente ID %s associado à forma de pagamento ID %s',
+                        timezone.localtime(), request.user, cliente_id, forma_pgto_id)
+
+            # Se tem conta bancária, criar/atualizar associação ClienteContaBancaria
+            if forma_pgto.conta_bancaria:
+                # Desativar associações anteriores
+                ClienteContaBancaria.objects.filter(
+                    cliente=cliente,
+                    ativo=True
+                ).update(ativo=False)
+
+                # Criar nova associação
+                ClienteContaBancaria.objects.update_or_create(
+                    cliente=cliente,
+                    conta_bancaria=forma_pgto.conta_bancaria,
+                    defaults={'ativo': True}
+                )
+
+                logger.info('[%s] [USER][%s] Cliente ID %s associado à conta bancária ID %s',
+                            timezone.localtime(), request.user, cliente_id, forma_pgto.conta_bancaria.id)
+
+        except Tipos_pgto.DoesNotExist:
+            logger.warning('[%s] [USER][%s] Forma de pagamento ID %s não encontrada',
+                           timezone.localtime(), request.user, forma_pgto_id)
+
     cliente.save()
 
     logger.info('[%s] [USER][%s] Cliente ID %s marcado como ativo',
@@ -7038,8 +7071,8 @@ def api_credenciais_por_tipo(request, tipo_integracao):
             contas_fastdepix = ContaBancaria.objects.filter(
                 usuario=request.user,
                 instituicao__tipo_integracao='fastdepix',
-                api_key__isnull=False
-            ).exclude(api_key='').order_by('-criado_em')
+                _api_key__isnull=False
+            ).exclude(_api_key='').order_by('-criado_em')
 
             for conta in contas_fastdepix:
                 lista.append({
@@ -7137,10 +7170,11 @@ def api_clientes_ativos_associacao(request):
                 'conta_nome': assoc['conta_bancaria__nome_identificacao']
             }
 
-        # Incluir todos os clientes (ativos e cancelados)
+        # Incluir apenas clientes ATIVOS (cancelados não interferem nos limites)
         clientes = Cliente.objects.filter(
-            usuario=request.user
-        ).select_related('plano', 'forma_pgto', 'forma_pgto__conta_bancaria').order_by('cancelado', 'nome')
+            usuario=request.user,
+            cancelado=False
+        ).select_related('plano', 'forma_pgto', 'forma_pgto__conta_bancaria').order_by('nome')
 
         resultado = []
         for cliente in clientes:
@@ -10989,6 +11023,157 @@ def tarefa_envio_historico_api(request, pk):
 
 @login_required
 @require_http_methods(["GET"])
+def api_formas_pagamento_disponiveis(request):
+    """
+    Lista formas de pagamento disponíveis com informações de limite.
+    Usado no modal de reativação de clientes cancelados.
+
+    GET /api/formas-pagamento-disponiveis/
+
+    Retorna:
+    - Lista de formas de pagamento com status de limite detalhado
+    - FastDePix: nunca bloqueado (sem limite de faturamento)
+    - MEI/PF: bloqueado se percentual >= 99%
+    """
+    try:
+        from decimal import Decimal
+
+        # Mapeamento de tipo de plano para quantidade de pagamentos por ano
+        PAGAMENTOS_POR_ANO = {
+            'Mensal': 12,
+            'Bimestral': 6,
+            'Trimestral': 4,
+            'Semestral': 2,
+            'Anual': 1,
+        }
+
+        # Obter configuração de limites
+        config = ConfiguracaoLimite.get_config()
+        limite_mei = float(config.valor_anual)
+        limite_pf = float(config.valor_anual_pf)
+
+        # Buscar formas de pagamento do usuário
+        formas_pgto = Tipos_pgto.objects.filter(
+            usuario=request.user
+        ).select_related(
+            'conta_bancaria',
+            'conta_bancaria__instituicao'
+        ).order_by('nome_identificacao', 'nome')
+
+        resultado = []
+
+        for forma in formas_pgto:
+            conta = forma.conta_bancaria
+            instituicao = conta.instituicao if conta else None
+            tipo_integracao = instituicao.tipo_integracao if instituicao else None
+
+            # Dados básicos
+            item = {
+                'id': forma.id,
+                'nome': forma.nome,
+                'nome_identificacao': forma.nome_identificacao or forma.nome,
+                'tipo_conta': conta.tipo_conta if conta else forma.tipo_conta,
+                'tipo_conta_label': '',
+                'tipo_integracao': tipo_integracao,
+                'instituicao_nome': instituicao.nome if instituicao else None,
+                'tem_conta_bancaria': conta is not None,
+                'limite_anual': 0,
+                'total_projetado': 0,
+                'percentual_utilizado': 0,
+                'margem_disponivel': 0,
+                'clientes_ativos': 0,
+                'bloqueado': False,
+                'motivo_bloqueio': None,
+                'status': 'disponivel',  # disponivel, proximo_limite, bloqueado
+            }
+
+            # Se não tem conta bancária, não tem controle de limite
+            if not conta:
+                item['tipo_conta_label'] = 'Sem conta vinculada'
+                item['status'] = 'disponivel'
+                resultado.append(item)
+                continue
+
+            # FastDePix: sem limite de faturamento
+            if tipo_integracao == 'fastdepix':
+                item['limite_anual'] = 0
+                item['tipo_conta_label'] = 'FastDePix (Sem limite)'
+                item['bloqueado'] = False
+                item['motivo_bloqueio'] = None
+                item['status'] = 'disponivel'
+                resultado.append(item)
+                continue
+
+            # Calcular limite aplicável (MEI ou PF)
+            tipo_conta = conta.tipo_conta
+            if tipo_conta == 'mei':
+                limite_aplicavel = limite_mei
+                tipo_label = 'MEI'
+            else:
+                limite_aplicavel = limite_pf
+                tipo_label = 'Pessoa Física'
+
+            item['limite_anual'] = limite_aplicavel
+            item['tipo_conta_label'] = tipo_label
+
+            # Calcular total projetado dos clientes ATIVOS associados
+            clientes_conta = ClienteContaBancaria.objects.filter(
+                conta_bancaria=conta,
+                ativo=True,
+                cliente__cancelado=False
+            ).select_related('cliente__plano')
+
+            total_projetado = Decimal('0')
+            clientes_count = 0
+            for cc in clientes_conta:
+                clientes_count += 1
+                if cc.cliente.plano:
+                    pagamentos = PAGAMENTOS_POR_ANO.get(cc.cliente.plano.nome, 12)
+                    total_projetado += cc.cliente.plano.valor * pagamentos
+
+            item['total_projetado'] = float(total_projetado)
+            item['clientes_ativos'] = clientes_count
+
+            # Calcular percentual utilizado e margem
+            if limite_aplicavel > 0:
+                percentual = (float(total_projetado) / limite_aplicavel) * 100
+                margem = limite_aplicavel - float(total_projetado)
+            else:
+                percentual = 0
+                margem = 0
+
+            item['percentual_utilizado'] = round(percentual, 1)
+            item['margem_disponivel'] = max(0, margem)
+
+            # Determinar status baseado no percentual
+            if percentual >= 99:
+                item['bloqueado'] = True
+                item['motivo_bloqueio'] = f'Limite {tipo_label} atingido ({percentual:.1f}%)'
+                item['status'] = 'bloqueado'
+            elif percentual >= 80:
+                item['status'] = 'proximo_limite'
+            else:
+                item['status'] = 'disponivel'
+
+            resultado.append(item)
+
+        return JsonResponse({
+            'success': True,
+            'formas': resultado,
+            'limite_mei': limite_mei,
+            'limite_pf': limite_pf,
+        })
+
+    except Exception as e:
+        logger.error(f"[API] Erro ao listar formas de pagamento disponíveis: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
 def api_forma_pagamento_detalhes(request, pk):
     """
     Retorna os detalhes de uma forma de pagamento.
@@ -11498,8 +11683,8 @@ def integracoes_api_index(request):
     fastdepix_status = 'not_configured'
 
     if fastdepix_contas > 0:
-        # Verifica se alguma conta tem api_key configurada
-        contas_com_api = contas_fastdepix.filter(api_key__isnull=False).exclude(api_key='')
+        # Verifica se alguma conta tem api_key configurada (campo encriptado é _api_key)
+        contas_com_api = contas_fastdepix.filter(_api_key__isnull=False).exclude(_api_key='')
         if contas_com_api.exists():
             # Verifica se tem webhook configurado
             contas_com_webhook = contas_com_api.filter(webhook_id__isnull=False).exclude(webhook_id='')
@@ -11769,11 +11954,11 @@ def integracoes_fastdepix_testar(request):
     """
     from nossopainel.services.payment_integrations import get_payment_integration
 
-    # Buscar conta ativa
+    # Buscar conta ativa (campo encriptado é _api_key)
     conta_ativa = ContaBancaria.objects.filter(
         instituicao__tipo_integracao='fastdepix',
-        api_key__isnull=False
-    ).exclude(api_key='').first()
+        _api_key__isnull=False
+    ).exclude(_api_key='').first()
 
     if not conta_ativa:
         return JsonResponse({
@@ -11808,11 +11993,11 @@ def integracoes_fastdepix_webhook_registrar(request):
     from django.conf import settings
     from nossopainel.services.payment_integrations import get_payment_integration, PaymentIntegrationError
 
-    # Buscar conta ativa
+    # Buscar conta ativa (campo encriptado é _api_key)
     conta_ativa = ContaBancaria.objects.filter(
         instituicao__tipo_integracao='fastdepix',
-        api_key__isnull=False
-    ).exclude(api_key='').first()
+        _api_key__isnull=False
+    ).exclude(_api_key='').first()
 
     if not conta_ativa:
         return JsonResponse({
@@ -11921,12 +12106,12 @@ def integracoes_fastdepix_webhook_atualizar(request):
     """
     from nossopainel.services.payment_integrations import get_payment_integration, PaymentIntegrationError
 
-    # Buscar conta ativa com webhook
+    # Buscar conta ativa com webhook (campo encriptado é _api_key)
     conta_ativa = ContaBancaria.objects.filter(
         instituicao__tipo_integracao='fastdepix',
-        api_key__isnull=False,
+        _api_key__isnull=False,
         webhook_id__isnull=False
-    ).exclude(api_key='').exclude(webhook_id='').first()
+    ).exclude(_api_key='').exclude(webhook_id='').first()
 
     if not conta_ativa:
         return JsonResponse({
@@ -11978,12 +12163,12 @@ def integracoes_fastdepix_webhook_remover(request):
     """
     from nossopainel.services.payment_integrations import get_payment_integration, PaymentIntegrationError
 
-    # Buscar conta ativa com webhook
+    # Buscar conta ativa com webhook (campo encriptado é _api_key)
     conta_ativa = ContaBancaria.objects.filter(
         instituicao__tipo_integracao='fastdepix',
-        api_key__isnull=False,
+        _api_key__isnull=False,
         webhook_id__isnull=False
-    ).exclude(api_key='').exclude(webhook_id='').first()
+    ).exclude(_api_key='').exclude(webhook_id='').first()
 
     if not conta_ativa:
         return JsonResponse({
@@ -12046,11 +12231,11 @@ def integracoes_fastdepix_sincronizar(request):
     from django.utils import timezone
     from datetime import timedelta
 
-    # Buscar conta ativa FastDePix
+    # Buscar conta ativa FastDePix (campo encriptado é _api_key)
     conta_ativa = ContaBancaria.objects.filter(
         instituicao__tipo_integracao='fastdepix',
-        api_key__isnull=False
-    ).exclude(api_key='').first()
+        _api_key__isnull=False
+    ).exclude(_api_key='').first()
 
     if not conta_ativa:
         return JsonResponse({

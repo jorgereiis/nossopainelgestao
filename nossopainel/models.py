@@ -1883,8 +1883,11 @@ class ContaBancaria(models.Model):
         return self.tipo_conta == 'mei'
 
     def get_clientes_associados_count(self):
-        """Retorna a quantidade de clientes associados a esta conta."""
-        return self.clientecontabancaria_set.count()
+        """Retorna a quantidade de clientes ATIVOS associados a esta conta."""
+        return self.clientes_associados.filter(
+            ativo=True,
+            cliente__cancelado=False
+        ).count()
 
     def clean(self):
         """Validações customizadas."""
@@ -1919,6 +1922,32 @@ class ContaBancaria(models.Model):
             raise ValidationError({
                 'api_access_token': 'Access Token é obrigatório para Mercado Pago.'
             })
+
+    def save(self, *args, **kwargs):
+        """
+        Garante que campos sensíveis sejam encriptados antes de salvar.
+        Isso é necessário porque o admin atribui diretamente aos campos _*
+        em vez de usar as properties.
+        """
+        encrypt_value, _ = _get_encrypt_decrypt()
+
+        # Encriptar _api_key se não estiver encriptado
+        if self._api_key and not self._api_key.startswith('gAAAAA'):
+            self._api_key = encrypt_value(self._api_key)
+
+        # Encriptar _api_client_secret se não estiver encriptado
+        if self._api_client_secret and not self._api_client_secret.startswith('gAAAAA'):
+            self._api_client_secret = encrypt_value(self._api_client_secret)
+
+        # Encriptar _api_access_token se não estiver encriptado
+        if self._api_access_token and not self._api_access_token.startswith('gAAAAA'):
+            self._api_access_token = encrypt_value(self._api_access_token)
+
+        # Encriptar _webhook_secret se não estiver encriptado
+        if self._webhook_secret and not self._webhook_secret.startswith('gAAAAA'):
+            self._webhook_secret = encrypt_value(self._webhook_secret)
+
+        super().save(*args, **kwargs)
 
 
 class PlanoLinkPagamento(models.Model):
@@ -2147,6 +2176,28 @@ class CredencialAPI(models.Model):
                 raise ValidationError(
                     'Client ID e Client Secret são obrigatórios para Efi Bank.'
                 )
+
+    def save(self, *args, **kwargs):
+        """
+        Garante que campos sensíveis sejam encriptados antes de salvar.
+        Isso é necessário porque o admin atribui diretamente aos campos _*
+        em vez de usar as properties.
+        """
+        encrypt_value, _ = _get_encrypt_decrypt()
+
+        # Encriptar _api_key se não estiver encriptado
+        if self._api_key and not self._api_key.startswith('gAAAAA'):
+            self._api_key = encrypt_value(self._api_key)
+
+        # Encriptar _api_client_secret se não estiver encriptado
+        if self._api_client_secret and not self._api_client_secret.startswith('gAAAAA'):
+            self._api_client_secret = encrypt_value(self._api_client_secret)
+
+        # Encriptar _api_access_token se não estiver encriptado
+        if self._api_access_token and not self._api_access_token.startswith('gAAAAA'):
+            self._api_access_token = encrypt_value(self._api_access_token)
+
+        super().save(*args, **kwargs)
 
 
 class ConfiguracaoLimite(models.Model):

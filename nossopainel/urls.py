@@ -163,6 +163,7 @@ from .views import (
     # Admin - Testes
     create_payment_method_admin,
     # API Forma de Pagamento
+    api_formas_pagamento_disponiveis,
     api_forma_pagamento_detalhes,
     api_forma_pagamento_atualizar,
     api_forma_pagamento_antiga_atualizar,
@@ -398,6 +399,7 @@ urlpatterns = [
     path("admin/integracoes-api/fastdepix/conta/<int:conta_id>/", integracoes_fastdepix_conta_dados, name="integracoes-fastdepix-conta-dados-id"),
 
     ############ API Forma de Pagamento ###########
+    path("api/formas-pagamento-disponiveis/", api_formas_pagamento_disponiveis, name="api-formas-pagamento-disponiveis"),
     path("api/forma-pagamento/<int:pk>/", api_forma_pagamento_detalhes, name="api-forma-pagamento-detalhes"),
     path("api/forma-pagamento/<int:pk>/atualizar/", api_forma_pagamento_atualizar, name="api-forma-pagamento-atualizar"),
     path("api/forma-pagamento/<int:pk>/atualizar-antiga/", api_forma_pagamento_antiga_atualizar, name="api-forma-pagamento-antiga-atualizar"),

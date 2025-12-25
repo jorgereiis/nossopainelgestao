@@ -229,10 +229,15 @@ class ContaBancariaAdmin(admin.ModelAdmin):
         ("Dados Bancários", {
             "fields": ("beneficiario", "tipo_chave_pix", "chave_pix")
         }),
-        ("Credenciais API (Efi Bank / Mercado Pago)", {
-            "fields": ("api_client_id", "api_client_secret", "api_certificado", "api_access_token", "ambiente_sandbox"),
+        ("Credenciais FastDePix", {
+            "fields": ("_api_key", "_webhook_secret", "webhook_id", "tipo_cobranca_fastdepix"),
             "classes": ("collapse",),
-            "description": "Preencha apenas se a instituição tiver integração com API."
+            "description": "Preencha apenas para integração FastDePix. Campos sensíveis são armazenados criptografados."
+        }),
+        ("Credenciais API (Efi Bank / Mercado Pago)", {
+            "fields": ("api_client_id", "_api_client_secret", "api_certificado", "_api_access_token", "ambiente_sandbox"),
+            "classes": ("collapse",),
+            "description": "Preencha apenas se a instituição tiver integração com API. Campos sensíveis são armazenados criptografados."
         }),
         ("Controle MEI", {
             "fields": ("limite_mensal",),
@@ -661,12 +666,14 @@ class CredencialAPIAdmin(admin.ModelAdmin):
             "fields": ("usuario", "nome_identificacao", "tipo_integracao", "ativo")
         }),
         ("FastDePix", {
-            "fields": ("api_key",),
+            "fields": ("_api_key",),
             "classes": ("collapse",),
+            "description": "Campos sensíveis são armazenados criptografados."
         }),
         ("Mercado Pago / Efi Bank", {
-            "fields": ("api_client_id", "api_client_secret", "api_access_token", "api_certificado"),
+            "fields": ("api_client_id", "_api_client_secret", "_api_access_token", "api_certificado"),
             "classes": ("collapse",),
+            "description": "Campos sensíveis são armazenados criptografados."
         }),
         ("Ambiente", {
             "fields": ("ambiente_sandbox",),

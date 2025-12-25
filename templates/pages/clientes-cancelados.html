@@ -110,7 +110,8 @@
                                                 <td class="small text-center" style="max-width: 10px;">{{cliente.data_cancelamento|date:'d/m/Y'}}</td>
                                                 <td class="text-capitalize text-center" style="max-width: 200px;"><span class="badge bg-danger">Cancelado</span></td>
                                                 <td class="text-center">
-                                                    <input type="checkbox" class="toggle-switch" id="reativar-{{ cliente.id }}" onclick="reativarCliente({{ cliente.id }})">
+                                                    <input type="checkbox" class="toggle-switch" id="reativar-{{ cliente.id }}"
+                                                           onclick="abrirModalReativacao({{ cliente.id }}, '{{ cliente.nome|escapejs }}')">
                                                     <label for="reativar-{{ cliente.id }}"></label>
                                                 </td>
                                             </tr>
@@ -189,6 +190,64 @@
                     {% include 'partials/modal_userlogs.html' %}
                     <!-- Modais Globais -->
                     {% include 'partials/modais_globais.html' %}
+
+                    <!-- Modal de Reativação de Cliente -->
+                    <div class="modal fade" id="modalReativarCliente" tabindex="-1" aria-labelledby="modalReativarClienteLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header" style="background: linear-gradient(135deg, #624BFF 0%, #8b5cf6 100%);">
+                                    <h5 class="modal-title text-white" id="modalReativarClienteLabel">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+                                        Reativar Cliente
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body py-4">
+                                    <div class="alert alert-info d-flex align-items-center mb-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 flex-shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                                        <div>
+                                            Selecione a <strong>Forma de Pagamento</strong> para associar o cliente <strong id="nomeClienteReativar"></strong>.
+                                        </div>
+                                    </div>
+
+                                    <!-- Loading State -->
+                                    <div id="loadingFormasPagamento" class="text-center py-5">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Carregando...</span>
+                                        </div>
+                                        <p class="mt-3 text-muted">Carregando formas de pagamento...</p>
+                                    </div>
+
+                                    <!-- Lista de Formas de Pagamento -->
+                                    <div id="listaFormasPagamento" style="display: none;">
+                                        <!-- Carregado via JavaScript -->
+                                    </div>
+
+                                    <!-- Erro State -->
+                                    <div id="erroFormasPagamento" class="alert alert-danger" style="display: none;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                                        <span id="mensagemErroFormas">Erro ao carregar formas de pagamento.</span>
+                                    </div>
+
+                                    <!-- Sem formas cadastradas -->
+                                    <div id="semFormasPagamento" class="text-center py-4" style="display: none;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6c757d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                                        <p class="mt-3 text-muted mb-0">Nenhuma forma de pagamento cadastrada.</p>
+                                        <a href="{% url 'cadastro-forma-pagamento' %}" class="btn btn-outline-primary btn-sm mt-2">Cadastrar Forma de Pagamento</a>
+                                    </div>
+                                </div>
+                                <div class="modal-footer bg-light">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                        Cancelar
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="btnConfirmarReativacao" disabled>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><polyline points="20 6 9 17 4 12"/></svg>
+                                        Confirmar Reativação
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Offcanvas de Configurações -->
                     {% include 'partials/offcanvas_configuracoes.html' %}
@@ -296,45 +355,424 @@
     .toggle-switch:checked + label:before {
         transform: translateX(20px);
     }
+
+    /* Loading com 3 pontos animados */
+    .loading-dots {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+    }
+
+    .loading-dots span {
+        width: 8px;
+        height: 8px;
+        background-color: #fff;
+        border-radius: 50%;
+        animation: wave 1.2s ease-in-out infinite;
+    }
+
+    .loading-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .loading-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes wave {
+        0%, 60%, 100% {
+            transform: translateY(0);
+        }
+        30% {
+            transform: translateY(-8px);
+        }
+    }
 </style>
 
 <script>
-    function reativarCliente(clienteId) {
-      var toggleSwitch = document.getElementById('reativar-' + clienteId);
-      
-      // Verifica se o toggle switch está marcado (valor "true")
-      if (toggleSwitch.checked) {
-        $.ajax({
-          url: '/reativar-cliente/' + clienteId + '/',
-          method: 'POST',
-          beforeSend: function (xhr) {
-            xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
-          },
-          success: function (response) {
-            // Lida com a resposta da requisição
-            if (response.success_message_activate) {
-              swal.fire({
-                icon: 'success',
-                title: 'Reativação realizada.',
-                html: response.success_message_activate,
-                didClose: function () {
-                  window.location.href = '/clientes-cancelados/';
-                }
-              });
-            } else {
-              swal.fire({
-                icon: 'error',
-                title: 'Oops...',
-                text: 'Erro ao reativar o cliente.'
-              });
-            }
-          },
-          error: function (jqXHR, textStatus, errorThrown) {
-            console.log("Erro na requisição: " + textStatus + ", " + errorThrown);
-          }
-        });
-      }
+    // Variáveis globais para o modal de reativação
+    let clienteIdReativar = null;
+    let formaPagamentoSelecionada = null;
+    let modalReativarInstance = null;
+
+    /**
+     * Abre o modal de reativação de cliente
+     */
+    function abrirModalReativacao(clienteId, clienteNome) {
+        // Resetar toggle switch (não deixar marcado)
+        var toggleSwitch = document.getElementById('reativar-' + clienteId);
+        if (toggleSwitch) {
+            toggleSwitch.checked = false;
+        }
+
+        // Salvar dados do cliente
+        clienteIdReativar = clienteId;
+        formaPagamentoSelecionada = null;
+
+        // Atualizar nome no modal
+        document.getElementById('nomeClienteReativar').textContent = clienteNome;
+
+        // Resetar botão de confirmação
+        document.getElementById('btnConfirmarReativacao').disabled = true;
+
+        // Mostrar loading, esconder outros estados
+        document.getElementById('loadingFormasPagamento').style.display = 'block';
+        document.getElementById('listaFormasPagamento').style.display = 'none';
+        document.getElementById('erroFormasPagamento').style.display = 'none';
+        document.getElementById('semFormasPagamento').style.display = 'none';
+
+        // Abrir modal
+        const modalElement = document.getElementById('modalReativarCliente');
+        modalReativarInstance = new bootstrap.Modal(modalElement);
+        modalReativarInstance.show();
+
+        // Carregar formas de pagamento
+        carregarFormasPagamento();
     }
+
+    /**
+     * Carrega formas de pagamento disponíveis via API
+     */
+    function carregarFormasPagamento() {
+        fetch('/api/formas-pagamento-disponiveis/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erro ao carregar formas de pagamento');
+            }
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById('loadingFormasPagamento').style.display = 'none';
+
+            if (data.formas && data.formas.length > 0) {
+                renderizarFormasPagamento(data.formas);
+                document.getElementById('listaFormasPagamento').style.display = 'block';
+            } else {
+                document.getElementById('semFormasPagamento').style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            document.getElementById('loadingFormasPagamento').style.display = 'none';
+            document.getElementById('mensagemErroFormas').textContent = error.message || 'Erro ao carregar formas de pagamento.';
+            document.getElementById('erroFormasPagamento').style.display = 'flex';
+        });
+    }
+
+    /**
+     * Formata valor monetário em R$
+     */
+    function formatarMoeda(valor) {
+        return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    /**
+     * Renderiza a lista de formas de pagamento no modal
+     */
+    function renderizarFormasPagamento(formas) {
+        const container = document.getElementById('listaFormasPagamento');
+
+        let html = '<div class="list-group gap-2">';
+
+        formas.forEach(forma => {
+            const bloqueado = forma.bloqueado;
+            const isFastDePix = forma.tipo_integracao === 'fastdepix';
+            const status = forma.status; // disponivel, proximo_limite, bloqueado
+
+            // Classes CSS baseadas no estado
+            let borderClass = '';
+            let bgClass = '';
+            if (status === 'bloqueado') {
+                borderClass = 'border-danger';
+                bgClass = 'bg-danger bg-opacity-10';
+            } else if (status === 'proximo_limite') {
+                borderClass = 'border-warning';
+                bgClass = '';
+            } else {
+                borderClass = 'border-success border-opacity-50';
+                bgClass = '';
+            }
+
+            const classeOpacidade = bloqueado ? 'opacity-60' : '';
+            const cursorStyle = bloqueado ? 'cursor: not-allowed;' : 'cursor: pointer;';
+
+            // Ícone baseado no status
+            let icone = '';
+            let corIcone = '';
+            if (isFastDePix) {
+                corIcone = '#198754'; // verde
+                icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`;
+            } else if (status === 'bloqueado') {
+                corIcone = '#dc3545'; // vermelho
+                icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>`;
+            } else if (status === 'proximo_limite') {
+                corIcone = '#ffc107'; // amarelo
+                icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`;
+            } else {
+                corIcone = '#198754'; // verde
+                icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+            }
+
+            // Badge de tipo de conta
+            let badgeTipo = '';
+            if (isFastDePix) {
+                badgeTipo = '<span class="badge bg-success">FastDePix</span>';
+            } else if (forma.tipo_conta === 'mei') {
+                badgeTipo = '<span class="badge bg-primary">MEI</span>';
+            } else if (forma.tipo_conta === 'pf') {
+                badgeTipo = '<span class="badge bg-secondary">Pessoa Física</span>';
+            }
+
+            // Informações de limite
+            let infoLimite = '';
+            if (isFastDePix) {
+                infoLimite = `
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <span class="badge bg-success">Sem limite de faturamento</span>
+                    </div>
+                `;
+            } else if (forma.limite_anual > 0) {
+                // Barra de progresso
+                const percentual = forma.percentual_utilizado;
+                let barraCorClass = 'bg-success';
+                if (percentual >= 99) {
+                    barraCorClass = 'bg-danger';
+                } else if (percentual >= 80) {
+                    barraCorClass = 'bg-warning';
+                }
+
+                infoLimite = `
+                    <div class="mt-2">
+                        <div class="d-flex justify-content-between align-items-center small mb-1">
+                            <span class="text-muted">Utilizado: <strong>${formatarMoeda(forma.total_projetado)}</strong></span>
+                            <span class="text-muted">Limite: <strong>${formatarMoeda(forma.limite_anual)}</strong></span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar ${barraCorClass}" role="progressbar"
+                                 style="width: ${Math.min(percentual, 100)}%;"
+                                 aria-valuenow="${percentual}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center small mt-1">
+                            <span class="${status === 'bloqueado' ? 'text-danger fw-bold' : status === 'proximo_limite' ? 'text-warning fw-bold' : 'text-success'}">
+                                ${percentual.toFixed(1)}% utilizado
+                            </span>
+                            <span class="${status === 'bloqueado' ? 'text-danger' : 'text-muted'}">
+                                ${status === 'bloqueado' ? 'Sem margem disponível' : 'Margem: ' + formatarMoeda(forma.margem_disponivel)}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Badge de status
+            let badgeStatus = '';
+            if (status === 'bloqueado') {
+                badgeStatus = `
+                    <div class="text-end">
+                        <span class="badge bg-danger px-3 py-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            Bloqueado
+                        </span>
+                        <div class="small text-danger mt-1">${forma.motivo_bloqueio || 'Limite atingido'}</div>
+                    </div>
+                `;
+            } else if (status === 'proximo_limite') {
+                badgeStatus = `
+                    <div class="text-end">
+                        <span class="badge bg-warning text-dark px-3 py-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            Próximo do Limite
+                        </span>
+                    </div>
+                `;
+            } else {
+                badgeStatus = `
+                    <div class="text-end">
+                        <span class="badge bg-success px-3 py-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Disponível
+                        </span>
+                    </div>
+                `;
+            }
+
+            // Quantidade de clientes
+            let infoClientes = '';
+            if (forma.clientes_ativos > 0) {
+                infoClientes = `<span class="text-muted small">${forma.clientes_ativos} cliente${forma.clientes_ativos > 1 ? 's' : ''} ativo${forma.clientes_ativos > 1 ? 's' : ''}</span>`;
+            }
+
+            html += `
+                <div class="list-group-item ${borderClass} ${bgClass} ${classeOpacidade} rounded-3 border-2 p-3"
+                     style="${cursorStyle}" ${bloqueado ? '' : `onclick="selecionarFormaPagamento(${forma.id}, this)"`}>
+                    <div class="d-flex align-items-start gap-3">
+                        <!-- Radio + Ícone -->
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="radio" name="formaPagamentoReativar" value="${forma.id}"
+                                   class="form-check-input" style="width: 20px; height: 20px;" ${bloqueado ? 'disabled' : ''}>
+                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                ${icone}
+                            </div>
+                        </div>
+
+                        <!-- Informações -->
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h6 class="mb-0 fw-bold">${forma.nome_identificacao || forma.nome}</h6>
+                                ${badgeTipo}
+                            </div>
+                            ${forma.instituicao_nome ? `<div class="text-muted small">${forma.instituicao_nome}</div>` : ''}
+                            ${infoClientes}
+                            ${infoLimite}
+                        </div>
+
+                        <!-- Status -->
+                        ${badgeStatus}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+
+        // Legenda
+        html += `
+            <div class="mt-4 p-3 bg-light rounded-3">
+                <div class="small text-muted mb-2 fw-semibold">Legenda:</div>
+                <div class="d-flex align-items-center gap-4 flex-wrap small">
+                    <span class="d-flex align-items-center gap-1">
+                        <span class="badge bg-success">Verde</span> Limite disponível
+                    </span>
+                    <span class="d-flex align-items-center gap-1">
+                        <span class="badge bg-warning text-dark">Amarelo</span> Próximo do limite (≥80%)
+                    </span>
+                    <span class="d-flex align-items-center gap-1">
+                        <span class="badge bg-danger">Vermelho</span> Bloqueado (≥99%)
+                    </span>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Seleciona uma forma de pagamento
+     */
+    function selecionarFormaPagamento(formaId, element) {
+        formaPagamentoSelecionada = formaId;
+
+        // Remover seleção anterior
+        document.querySelectorAll('#listaFormasPagamento .list-group-item').forEach(item => {
+            item.classList.remove('ring-2', 'ring-primary', 'shadow-sm');
+            item.style.boxShadow = '';
+        });
+
+        // Marcar o radio button
+        const radio = element.querySelector('input[type="radio"]');
+        if (radio) {
+            radio.checked = true;
+        }
+
+        // Destacar item selecionado
+        element.style.boxShadow = '0 0 0 3px rgba(98, 75, 255, 0.3)';
+        element.classList.add('shadow-sm');
+
+        // Habilitar botão de confirmação
+        document.getElementById('btnConfirmarReativacao').disabled = false;
+    }
+
+    /**
+     * Confirma a reativação do cliente
+     */
+    document.getElementById('btnConfirmarReativacao').addEventListener('click', function() {
+        if (!clienteIdReativar || !formaPagamentoSelecionada) {
+            return;
+        }
+
+        // Desabilitar botão e mostrar loading com 3 pontos
+        const btn = this;
+        const btnTextoOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+
+        // Criar FormData
+        const formData = new FormData();
+        formData.append('forma_pagamento_id', formaPagamentoSelecionada);
+
+        // Enviar requisição
+        fetch(`/reativar-cliente/${clienteIdReativar}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Fechar modal
+            if (modalReativarInstance) {
+                modalReativarInstance.hide();
+            }
+
+            if (data.success_message_activate) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Cliente Reativado!',
+                    html: data.success_message_activate,
+                    confirmButtonColor: '#624BFF'
+                }).then(() => {
+                    window.location.href = '/clientes-cancelados/';
+                });
+            } else if (data.error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro na Reativação',
+                    text: data.error,
+                    confirmButtonColor: '#624BFF'
+                });
+                btn.disabled = false;
+                btn.innerHTML = btnTextoOriginal;
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Erro ao reativar o cliente.',
+                    confirmButtonColor: '#624BFF'
+                });
+                btn.disabled = false;
+                btn.innerHTML = btnTextoOriginal;
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            if (modalReativarInstance) {
+                modalReativarInstance.hide();
+            }
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro',
+                text: 'Falha na comunicação com o servidor.',
+                confirmButtonColor: '#624BFF'
+            });
+            btn.disabled = false;
+            btn.innerHTML = btnTextoOriginal;
+        });
+    });
+
+    // Limpar estado ao fechar modal
+    document.getElementById('modalReativarCliente').addEventListener('hidden.bs.modal', function () {
+        clienteIdReativar = null;
+        formaPagamentoSelecionada = null;
+        document.getElementById('btnConfirmarReativacao').disabled = true;
+    });
 </script>
 
 <style>

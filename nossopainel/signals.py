@@ -968,10 +968,12 @@ def verificar_limites_contas_cliente(cliente, impacto_valor):
             tipo_label = 'Pessoa Física'
             limite_formatado = f"R$ {config.valor_anual_pf:,.2f}"
 
-        # Calcular total anual projetado de todos os clientes associados à conta
+        # Calcular total anual projetado de todos os clientes ATIVOS associados à conta
+        # (clientes cancelados não interferem nos limites)
         clientes_conta = ClienteContaBancaria.objects.filter(
             conta_bancaria=conta,
-            ativo=True
+            ativo=True,
+            cliente__cancelado=False
         ).select_related('cliente__plano')
 
         total_anual = Decimal('0')
