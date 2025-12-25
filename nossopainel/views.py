@@ -12290,8 +12290,8 @@ def integracoes_fastdepix_sincronizar(request):
                     valor_recebido = None
                     valor_taxa = None
 
-                    # Tentar extrair valor recebido (líquido)
-                    for key in ['net_amount', 'amount_received', 'liquid_value', 'valor_liquido']:
+                    # Tentar extrair valor recebido (líquido) - priorizar commission_amount do FastDePix
+                    for key in ['commission_amount', 'net_amount', 'amount_received', 'liquid_value', 'valor_liquido']:
                         if key in details and details[key] is not None:
                             try:
                                 valor_recebido = Decimal(str(details[key]))
@@ -12300,7 +12300,7 @@ def integracoes_fastdepix_sincronizar(request):
                             break
 
                     # Tentar extrair taxa
-                    for key in ['fee', 'taxa', 'fee_amount', 'valor_taxa']:
+                    for key in ['fee', 'tax', 'taxa', 'fee_amount', 'valor_taxa']:
                         if key in details and details[key] is not None:
                             try:
                                 valor_taxa = Decimal(str(details[key]))
