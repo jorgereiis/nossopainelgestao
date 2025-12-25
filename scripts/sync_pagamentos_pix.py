@@ -23,7 +23,7 @@ django.setup()
 
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from nossopainel.models import CobrancaPix, ContaBancaria
+from nossopainel.models import CobrancaPix
 from nossopainel.services.payment_integrations import get_payment_integration, PaymentStatus
 
 # Logger específico para sincronização PIX
@@ -48,119 +48,122 @@ def sincronizar_pagamentos_pix_pendentes():
 
     Critérios de seleção:
     - Status: pending
-    - Criados há mais de 30 minutos (evita conflito com polling)
+    - Integração: fastdepix
+    - Criados há mais de 5 minutos (evita conflito com polling)
     - Criados nos últimos 7 dias
-    - Ainda não expiraram
 
-    Execução: A cada 30 minutos
+    A API do FastDePix informa o status real (paid/expired/cancelled).
+    Execução: A cada 30 minutos via scheduler.
     """
     logger.info("[Sync PIX] Iniciando sincronização automática...")
 
-    # Buscar contas FastDePix ativas (campo encriptado é _api_key)
-    contas = ContaBancaria.objects.filter(
-        instituicao__tipo_integracao='fastdepix',
-        _api_key__isnull=False,
-        ativo=True
-    ).exclude(_api_key='')
+    # Cobranças pendentes FastDePix criadas há mais de 5 min, nos últimos 7 dias
+    desde = timezone.now() - timedelta(days=7)
+    ate = timezone.now() - timedelta(minutes=5)
 
-    if not contas.exists():
-        logger.info("[Sync PIX] Nenhuma conta FastDePix configurada")
+    cobrancas = CobrancaPix.objects.filter(
+        integracao='fastdepix',
+        status='pending',
+        criado_em__gte=desde,
+        criado_em__lte=ate
+        # Sem filtro expira_em - a API informa o status real
+    ).select_related('conta_bancaria', 'conta_bancaria__instituicao')
+
+    total_cobrancas = cobrancas.count()
+    logger.info(f"[Sync PIX] Encontradas {total_cobrancas} cobranças pendentes para verificar")
+
+    if total_cobrancas == 0:
+        logger.info("[Sync PIX] Nenhuma cobrança pendente encontrada")
         return
 
     total_verificadas = 0
     total_atualizadas = 0
     total_erros = 0
 
-    for conta in contas:
-        integration = get_payment_integration(conta)
-        if not integration:
-            logger.warning(f"[Sync PIX] Falha ao obter integração para conta {conta.id}")
+    for cobranca in cobrancas:
+        # Verificar se a conta bancária tem integração válida
+        if not cobranca.conta_bancaria or not cobranca.conta_bancaria.api_key:
+            logger.warning(f"[Sync PIX] Cobrança {cobranca.transaction_id} sem conta bancária válida")
+            total_erros += 1
             continue
 
-        # Cobranças pendentes há mais de 30 min, criadas nos últimos 7 dias
-        desde = timezone.now() - timedelta(days=7)
-        ate = timezone.now() - timedelta(minutes=30)
+        integration = get_payment_integration(cobranca.conta_bancaria)
+        if not integration:
+            logger.warning(f"[Sync PIX] Falha ao obter integração para cobrança {cobranca.transaction_id}")
+            total_erros += 1
+            continue
 
-        cobrancas = CobrancaPix.objects.filter(
-            conta_bancaria=conta,
-            status='pending',
-            criado_em__gte=desde,
-            criado_em__lte=ate,
-            expira_em__gt=timezone.now()  # Ainda não expirou
-        )
+        total_verificadas += 1
+        try:
+            status_api = integration.get_charge_status(cobranca.transaction_id)
 
-        for cobranca in cobrancas:
-            total_verificadas += 1
-            try:
-                status_api = integration.get_charge_status(cobranca.transaction_id)
+            if status_api == PaymentStatus.PAID:
+                # Buscar detalhes para obter data de pagamento e valores financeiros
+                try:
+                    details = integration.get_charge_details(cobranca.transaction_id)
+                    paid_at = None
+                    if details.get('paid_at'):
+                        paid_at = parse_datetime(details['paid_at'].replace('Z', '+00:00'))
 
-                if status_api == PaymentStatus.PAID:
-                    # Buscar detalhes para obter data de pagamento e valores financeiros
-                    try:
-                        details = integration.get_charge_details(cobranca.transaction_id)
-                        paid_at = None
-                        if details.get('paid_at'):
-                            paid_at = parse_datetime(details['paid_at'].replace('Z', '+00:00'))
+                    payer = details.get('payer', {})
 
-                        payer = details.get('payer', {})
+                    # Extrair valores financeiros - priorizar commission_amount do FastDePix
+                    valor_recebido = None
+                    valor_taxa = None
 
-                        # Extrair valores financeiros - priorizar commission_amount do FastDePix
-                        valor_recebido = None
-                        valor_taxa = None
+                    amount_received = (
+                        details.get('commission_amount') or
+                        details.get('amount_received') or
+                        details.get('net_amount')
+                    )
+                    fee = details.get('fee') or details.get('tax')
 
-                        amount_received = (
-                            details.get('commission_amount') or
-                            details.get('amount_received') or
-                            details.get('net_amount')
-                        )
-                        fee = details.get('fee') or details.get('tax')
+                    if amount_received:
+                        try:
+                            valor_recebido = Decimal(str(amount_received))
+                        except (ValueError, TypeError):
+                            pass
 
-                        if amount_received:
-                            try:
-                                valor_recebido = Decimal(str(amount_received))
-                            except (ValueError, TypeError):
-                                pass
+                    if fee:
+                        try:
+                            valor_taxa = Decimal(str(fee))
+                        except (ValueError, TypeError):
+                            pass
 
-                        if fee:
-                            try:
-                                valor_taxa = Decimal(str(fee))
-                            except (ValueError, TypeError):
-                                pass
+                    # Se não veio taxa explícita, calcular a partir do valor bruto
+                    if valor_taxa is None and details.get('amount') and valor_recebido:
+                        try:
+                            valor_taxa = Decimal(str(details['amount'])) - valor_recebido
+                        except (ValueError, TypeError):
+                            pass
 
-                        # Se não veio taxa explícita, calcular a partir do valor bruto
-                        if valor_taxa is None and details.get('amount') and valor_recebido:
-                            try:
-                                valor_taxa = Decimal(str(details['amount'])) - valor_recebido
-                            except (ValueError, TypeError):
-                                pass
+                    cobranca.mark_as_paid(
+                        paid_at=paid_at or timezone.now(),
+                        payer_name=payer.get('name') if isinstance(payer, dict) else None,
+                        payer_document=payer.get('cpf_cnpj') if isinstance(payer, dict) else None,
+                        webhook_data={'source': 'sync_automatico', 'data': details},
+                        valor_recebido=valor_recebido,
+                        valor_taxa=valor_taxa,
+                    )
+                except Exception:
+                    cobranca.mark_as_paid(paid_at=timezone.now())
 
-                        cobranca.mark_as_paid(
-                            paid_at=paid_at or timezone.now(),
-                            payer_name=payer.get('name') if isinstance(payer, dict) else None,
-                            payer_document=payer.get('cpf_cnpj') if isinstance(payer, dict) else None,
-                            webhook_data={'source': 'sync_automatico', 'data': details},
-                            valor_recebido=valor_recebido,
-                            valor_taxa=valor_taxa,
-                        )
-                    except Exception:
-                        cobranca.mark_as_paid(paid_at=timezone.now())
+                total_atualizadas += 1
+                logger.info(f"[Sync PIX] Cobrança {cobranca.transaction_id} marcada como PAGA")
 
-                    total_atualizadas += 1
-                    logger.info(f"[Sync PIX] Cobrança {cobranca.transaction_id} marcada como PAGA")
+            elif status_api == PaymentStatus.EXPIRED:
+                cobranca.mark_as_expired()
+                total_atualizadas += 1
+                logger.info(f"[Sync PIX] Cobrança {cobranca.transaction_id} marcada como EXPIRADA")
 
-                elif status_api == PaymentStatus.EXPIRED:
-                    cobranca.mark_as_expired()
-                    total_atualizadas += 1
-                    logger.info(f"[Sync PIX] Cobrança {cobranca.transaction_id} marcada como EXPIRADA")
+            elif status_api == PaymentStatus.CANCELLED:
+                cobranca.mark_as_cancelled()
+                total_atualizadas += 1
+                logger.info(f"[Sync PIX] Cobrança {cobranca.transaction_id} marcada como CANCELADA")
 
-                elif status_api == PaymentStatus.CANCELLED:
-                    cobranca.mark_as_cancelled()
-                    total_atualizadas += 1
-                    logger.info(f"[Sync PIX] Cobrança {cobranca.transaction_id} marcada como CANCELADA")
-
-            except Exception as e:
-                total_erros += 1
-                logger.error(f"[Sync PIX] Erro ao sincronizar {cobranca.transaction_id}: {e}")
+        except Exception as e:
+            total_erros += 1
+            logger.error(f"[Sync PIX] Erro ao sincronizar {cobranca.transaction_id}: {e}")
 
     logger.info(
         f"[Sync PIX] Concluído - "
