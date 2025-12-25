@@ -12366,6 +12366,98 @@ def integracoes_fastdepix_sincronizar(request):
     })
 
 
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def integracoes_fastdepix_revisar_valores(request):
+    """
+    Revisa TODAS as cobranças PAGAS do FastDePix e atualiza valores financeiros.
+
+    Busca todas as cobranças com status='paid', consulta a API FastDePix
+    e atualiza sempre que os valores forem diferentes dos retornados.
+    """
+    from nossopainel.services.payment_integrations import get_payment_integration
+    from decimal import Decimal
+
+    # Buscar TODAS as cobranças pagas do FastDePix
+    cobrancas = CobrancaPix.objects.filter(
+        usuario=request.user,
+        integracao='fastdepix',
+        status='paid'
+    ).select_related('conta_bancaria')
+
+    total = cobrancas.count()
+    atualizadas = 0
+    erros = 0
+    detalhes = []
+
+    for cobranca in cobrancas:
+        if not cobranca.conta_bancaria or not cobranca.conta_bancaria.api_key:
+            continue
+
+        integration = get_payment_integration(cobranca.conta_bancaria)
+        if not integration:
+            continue
+
+        try:
+            details = integration.get_charge_details(cobranca.transaction_id)
+
+            # Extrair valores - priorizar commission_amount
+            amount_received = (
+                details.get('commission_amount') or
+                details.get('amount_received') or
+                details.get('net_amount')
+            )
+            fee = details.get('fee') or details.get('tax')
+
+            valor_recebido = None
+            valor_taxa = None
+
+            if amount_received:
+                valor_recebido = Decimal(str(amount_received))
+            if fee:
+                valor_taxa = Decimal(str(fee))
+
+            # Calcular taxa se não veio
+            if valor_taxa is None and details.get('amount') and valor_recebido:
+                valor_taxa = Decimal(str(details['amount'])) - valor_recebido
+
+            # Atualizar cobrança se valores forem diferentes
+            updated = False
+            if valor_recebido and cobranca.valor_recebido != valor_recebido:
+                cobranca.valor_recebido = valor_recebido
+                updated = True
+            if valor_taxa and cobranca.valor_taxa != valor_taxa:
+                cobranca.valor_taxa = valor_taxa
+                updated = True
+
+            if updated:
+                cobranca.save(update_fields=['valor_recebido', 'valor_taxa'])
+                atualizadas += 1
+                detalhes.append({
+                    'transaction_id': cobranca.transaction_id[:8] + '...',
+                    'valor_recebido': str(valor_recebido),
+                    'valor_taxa': str(valor_taxa),
+                    'mensagem': 'Valores atualizados'
+                })
+
+        except Exception as e:
+            erros += 1
+            detalhes.append({
+                'transaction_id': cobranca.transaction_id[:8] + '...',
+                'erro': str(e)
+            })
+
+    return JsonResponse({
+        'success': True,
+        'message': f'{atualizadas} de {total} cobranças atualizadas.',
+        'total': total,
+        'atualizadas': atualizadas,
+        'erros': erros,
+        'detalhes': detalhes
+    })
+
+
 # =============================================================================
 # CONFIGURAÇÃO DE AGENDAMENTOS
 # =============================================================================
