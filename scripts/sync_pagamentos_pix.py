@@ -12,6 +12,7 @@ import os
 import sys
 import logging
 from datetime import timedelta
+from decimal import Decimal
 
 # Configurar Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
@@ -94,7 +95,7 @@ def sincronizar_pagamentos_pix_pendentes():
                 status_api = integration.get_charge_status(cobranca.transaction_id)
 
                 if status_api == PaymentStatus.PAID:
-                    # Buscar detalhes para obter data de pagamento
+                    # Buscar detalhes para obter data de pagamento e valores financeiros
                     try:
                         details = integration.get_charge_details(cobranca.transaction_id)
                         paid_at = None
@@ -102,11 +103,44 @@ def sincronizar_pagamentos_pix_pendentes():
                             paid_at = parse_datetime(details['paid_at'].replace('Z', '+00:00'))
 
                         payer = details.get('payer', {})
+
+                        # Extrair valores financeiros - priorizar commission_amount do FastDePix
+                        valor_recebido = None
+                        valor_taxa = None
+
+                        amount_received = (
+                            details.get('commission_amount') or
+                            details.get('amount_received') or
+                            details.get('net_amount')
+                        )
+                        fee = details.get('fee') or details.get('tax')
+
+                        if amount_received:
+                            try:
+                                valor_recebido = Decimal(str(amount_received))
+                            except (ValueError, TypeError):
+                                pass
+
+                        if fee:
+                            try:
+                                valor_taxa = Decimal(str(fee))
+                            except (ValueError, TypeError):
+                                pass
+
+                        # Se não veio taxa explícita, calcular a partir do valor bruto
+                        if valor_taxa is None and details.get('amount') and valor_recebido:
+                            try:
+                                valor_taxa = Decimal(str(details['amount'])) - valor_recebido
+                            except (ValueError, TypeError):
+                                pass
+
                         cobranca.mark_as_paid(
                             paid_at=paid_at or timezone.now(),
                             payer_name=payer.get('name') if isinstance(payer, dict) else None,
                             payer_document=payer.get('cpf_cnpj') if isinstance(payer, dict) else None,
-                            webhook_data={'source': 'sync_automatico', 'data': details}
+                            webhook_data={'source': 'sync_automatico', 'data': details},
+                            valor_recebido=valor_recebido,
+                            valor_taxa=valor_taxa,
                         )
                     except Exception:
                         cobranca.mark_as_paid(paid_at=timezone.now())

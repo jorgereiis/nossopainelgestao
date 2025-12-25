@@ -2757,8 +2757,8 @@ class CobrancaPix(models.Model):
 
             # Tentar extrair valor recebido (líquido)
             if valor_recebido is None:
-                # FastDePix pode usar: net_amount, amount_received, liquid_value
-                for key in ['net_amount', 'amount_received', 'liquid_value', 'valor_liquido']:
+                # FastDePix usa commission_amount como valor líquido real
+                for key in ['commission_amount', 'net_amount', 'amount_received', 'liquid_value', 'valor_liquido']:
                     if key in data and data[key] is not None:
                         try:
                             valor_recebido = Decimal(str(data[key]))
@@ -2768,7 +2768,7 @@ class CobrancaPix(models.Model):
 
             # Tentar extrair taxa
             if valor_taxa is None:
-                for key in ['fee', 'taxa', 'fee_amount', 'valor_taxa']:
+                for key in ['fee', 'tax', 'taxa', 'fee_amount', 'valor_taxa']:
                     if key in data and data[key] is not None:
                         try:
                             valor_taxa = Decimal(str(data[key]))
