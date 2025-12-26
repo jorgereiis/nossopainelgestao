@@ -12,7 +12,7 @@
                     </div>
                     <div class="flex-grow-1">
                         <h4 class="modal-title mb-0" id="modalEnviosWhatsappLabel">Envios WhatsApp</h4>
-                        <p class="text-muted small mb-0">Envie mensagens atraves da API WPPConnect</p>
+                        <p class="text-muted small mb-0">Envie mensagens através da API WPPConnect</p>
                     </div>
                     <!-- Badge de Status de Conexao -->
                     <div class="connection-badge" id="connection-badge">
@@ -34,7 +34,7 @@
                                     <i class="bi bi-wifi fs-5 text-whatsapp"></i>
                                 </div>
                                 <div class="stat-content">
-                                    <span class="stat-label">Status da Conexao</span>
+                                    <span class="stat-label">Status da Conexão</span>
                                     <div class="stat-value" id="status-conexao-texto">
                                         <span class="status-indicator status-checking"></span>
                                         Verificando...
@@ -62,7 +62,7 @@
                                 </div>
                             </div>
                             <small class="stat-message" id="contador-mensagem">
-                                <i class="bi bi-info-circle me-1"></i>Recomendamos nao exceder 150 envios/dia
+                                <i class="bi bi-info-circle me-1"></i>Recomendamos não exceder 150 envios/dia
                             </small>
                         </div>
                     </div>
@@ -72,11 +72,11 @@
                 <div class="alert alert-warning-soft d-flex align-items-center gap-2 mb-4" role="alert">
                     <i class="bi bi-exclamation-triangle-fill text-warning"></i>
                     <small>
-                        <strong>Atencao:</strong> API nao-oficial. Use com moderacao para evitar bloqueios.
+                        <strong>Atenção:</strong> API não-oficial. Use com moderação para evitar bloqueios.
                     </small>
                 </div>
 
-                <!-- Formulario de Envio -->
+                <!-- Formulário de Envio -->
                 <form method="post" action="{% url 'enviar-mensagem' %}" id="form-wpp-modal" class="form-envio-premium">
                     {% csrf_token %}
 
@@ -108,7 +108,7 @@
                                 <div class="upload-placeholder">
                                     <i class="bi bi-file-earmark-text fs-2 text-muted mb-2"></i>
                                     <span class="upload-text">Arraste um arquivo .txt ou clique para selecionar</span>
-                                    <small class="text-muted d-block mt-1">Um numero por linha (formato: 5511999999999)</small>
+                                    <small class="text-muted d-block mt-1">Um número por linha (formato: 5511999999999)</small>
                                 </div>
                                 <div class="upload-preview d-none">
                                     <i class="bi bi-file-earmark-check text-success me-2"></i>
@@ -187,7 +187,7 @@
                                 <div class="whatsapp-chat-body">
                                     <div class="whatsapp-message-bubble">
                                         <img class="preview-image d-none" id="preview-image" src="" alt="Imagem">
-                                        <p class="preview-text" id="preview-text">Sua mensagem aparecera aqui...</p>
+                                        <p class="preview-text" id="preview-text">Sua mensagem aparecerá aqui...</p>
                                         <span class="message-meta">
                                             <span class="message-time" id="preview-time">12:00</span>
                                             <span class="message-check"><i class="bi bi-check2-all"></i></span>
@@ -261,7 +261,7 @@
                     <!-- Footer do Console -->
                     <div class="logs-footer">
                         <button class="btn btn-outline-secondary w-100" type="button" id="botao-voltar-modal">
-                            <i class="bi bi-arrow-left me-2"></i>Voltar ao Formulario
+                            <i class="bi bi-arrow-left me-2"></i>Voltar ao Formulário
                         </button>
                     </div>
                 </div>
@@ -1076,7 +1076,7 @@
  * - Status de conexao em tempo real
  * - Preview de mensagem estilo WhatsApp
  * - Console de logs humanizado
- * - Integracao com templates
+ * - Integração com templates
  * - Envio com validacao client-side
  * - Polling de logs e status
  */
@@ -1141,13 +1141,13 @@
                 credentials: 'same-origin'
             });
 
-            if (!response.ok) throw new Error('Erro ao verificar conexao');
+            if (!response.ok) throw new Error('Erro ao verificar conexão');
 
             const data = await response.json();
             atualizarStatusConexao(data);
 
         } catch (error) {
-            console.error('Erro ao verificar conexao:', error);
+            console.error('Erro ao verificar conexão:', error);
             atualizarStatusConexao({ status: 'ERRO' });
         }
     }
@@ -1190,7 +1190,7 @@
             indicator.classList.add('status-disconnected');
             text.textContent = 'Desconectado';
             statusTexto.innerHTML = '<span class="status-indicator status-disconnected"></span> Desconectado';
-            sessaoInfo.textContent = 'Clique em "Conexao" no menu';
+            sessaoInfo.textContent = 'Clique em "Conexão" no menu';
             estadoConexao.conectado = false;
         }
     }
@@ -1229,7 +1229,7 @@
             iconWrapper.style.background = 'rgba(255, 193, 7, 0.1)';
             iconWrapper.style.color = '#ffc107';
             contadorIcone.className = 'bi bi-exclamation-triangle fs-5';
-            contadorMensagem.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Atencao: Limite recomendado excedido';
+            contadorMensagem.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Atenção: Limite recomendado excedido';
             contadorMensagem.className = 'stat-message text-warning';
         } else {
             progressBar.classList.add('danger');
@@ -1424,7 +1424,7 @@
         if (!templates || templates.length === 0) {
             templatesList.innerHTML = `
                 <div class="text-center text-muted py-3">
-                    <i class="bi bi-inbox"></i> Nenhum template disponivel
+                    <i class="bi bi-inbox"></i> Nenhum template disponível
                     <br><small>Crie templates em "Tarefas de Envio"</small>
                 </div>
             `;
@@ -1560,7 +1560,7 @@
     // VALIDACAO
     // ========================================
 
-    function validarFormulario(formData) {
+    function validarFormulário(formData) {
         const tipoEnvio = formData.get('options');
         const mensagem = formData.get('mensagem');
         const telefones = formData.get('telefones');
@@ -1589,7 +1589,7 @@
             Swal.fire({
                 icon: 'warning',
                 title: 'Mensagem muito longa',
-                text: 'A mensagem deve ter no maximo 4096 caracteres',
+                text: 'A mensagem deve ter no máximo 4096 caracteres',
                 confirmButtonColor: '#25d366'
             });
             return false;
@@ -1599,7 +1599,7 @@
             if (!telefones || telefones.size === 0) {
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Arquivo necessario',
+                    title: 'Arquivo necessário',
                     text: 'Para envio avulso, selecione um arquivo de telefones (.txt)',
                     confirmButtonColor: '#25d366'
                 });
@@ -1610,7 +1610,7 @@
             if (!fileName.toLowerCase().endsWith('.txt')) {
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Formato invalido',
+                    title: 'Formato inválido',
                     text: 'O arquivo de telefones deve ser .txt',
                     confirmButtonColor: '#25d366'
                 });
@@ -1618,7 +1618,7 @@
             }
         }
 
-        // Verifica conexao
+        // Verifica conexão
         if (!estadoConexao.conectado) {
             Swal.fire({
                 icon: 'warning',
@@ -1640,7 +1640,7 @@
         const form = document.getElementById('form-wpp-modal');
         const formData = new FormData(form);
 
-        if (!validarFormulario(formData)) return;
+        if (!validarFormulário(formData)) return;
 
         const btnEnviar = document.getElementById('botao-enviar-modal');
         const btnRetomar = document.getElementById('botao-retomar-modal');
@@ -1678,7 +1678,7 @@
                     Swal.fire({
                         icon: 'warning',
                         title: 'Envio em Progresso',
-                        text: 'Ja existe um envio em progresso. Aguarde ou pause o envio atual.',
+                        text: 'Já existe um envio em progresso. Aguarde ou pause o envio atual.',
                         confirmButtonColor: '#25d366'
                     });
                 } else {
@@ -1692,7 +1692,7 @@
                 return;
             }
 
-            // Garante loading minimo de 2s
+            // Garante loading mínimo de 2s
             const elapsed = Date.now() - startTime;
             if (elapsed < 2000) {
                 await new Promise(resolve => setTimeout(resolve, 2000 - elapsed));
@@ -1979,7 +1979,7 @@
             btnLimpar.addEventListener('click', async function() {
                 const result = await Swal.fire({
                     title: 'Limpar Logs?',
-                    text: 'Esta acao ira deletar o arquivo de log',
+                    text: 'Esta ação irá deletar o arquivo de log',
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#dc3545',
@@ -2063,7 +2063,7 @@
 
                 // Reset preview
                 const previewText = document.getElementById('preview-text');
-                if (previewText) previewText.textContent = 'Sua mensagem aparecera aqui...';
+                if (previewText) previewText.textContent = 'Sua mensagem aparecerá aqui...';
                 atualizarPreviewImagem(null);
 
                 // Reset upload areas
@@ -2100,7 +2100,7 @@
             });
 
             modal.addEventListener('shown.bs.modal', function() {
-                // Verifica conexao e sincroniza estado
+                // Verifica conexão e sincroniza estado
                 verificarConexao();
                 sincronizarEstado();
                 atualizarCamposVisiveis();

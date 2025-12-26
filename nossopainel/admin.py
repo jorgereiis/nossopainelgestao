@@ -109,12 +109,12 @@ class PlanoAdmin(admin.ModelAdmin):
 
 class ClienteAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "nome", "telefone", "uf", "servidor", "dispositivo", "sistema",
+        "id", "nome", "telefone", "uf", "pais", "servidor", "dispositivo", "sistema",
         "data_vencimento", "forma_pgto", "plano", "data_adesao",
         "data_cancelamento", "ultimo_pagamento", "indicado_por", "notas",
         "cancelado", "nao_enviar_msgs", "usuario",
     )
-    list_filter = ("servidor", "usuario", "forma_pgto", "data_vencimento", "cancelado", "sistema")
+    list_filter = ("servidor", "usuario", "forma_pgto", "data_vencimento", "cancelado", "sistema", "pais")
     search_fields = ("nome", "telefone")
     ordering = ("-data_adesao",)
 

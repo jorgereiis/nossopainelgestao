@@ -5,9 +5,9 @@
 
 <head>
   {% include 'partials/head.html' %}
-  <title>Formas de Pagamento | Nosso Painel - Gestao IPTV</title>
+  <title>Formas de Pagamento | Nosso Painel - Gestão IPTV</title>
   <style>
-    /* Cards de Instituicao */
+    /* Cards de Instituição */
     .instituicao-card {
       cursor: pointer;
       transition: all 0.3s ease;
@@ -466,7 +466,7 @@
       color: #ffc107;
     }
 
-    /* Limitacoes nas opcoes basicas */
+    /* Limitações nas opções básicas */
     .tipo-cobranca-limitacao {
       display: block;
       font-size: 0.7rem;
@@ -544,7 +544,7 @@
               <div class="card-header bg-warning bg-opacity-10 border-bottom-0">
                 <h5 class="card-title mb-0 text-warning">
                   <i class="bi bi-exclamation-triangle me-2"></i>
-                  Alertas de Configuracao FastDePix
+                  Alertas de Configuração FastDePix
                 </h5>
               </div>
               <div class="card-body">
@@ -612,7 +612,7 @@
                 <div class="step-connector"></div>
                 <div class="step" id="step2-indicator">
                   <span class="step-number">2</span>
-                  <span class="d-none d-sm-inline">Configuracao</span>
+                  <span class="d-none d-sm-inline">Configuração</span>
                 </div>
               </div>
 
@@ -675,11 +675,11 @@
                   </div>
                 </div>
 
-                <!-- STEP 2: Configuracao -->
+                <!-- STEP 2: Configuração -->
                 <div id="step2" class="d-none fade-in">
                   <!-- Voltar -->
                   <button type="button" class="btn btn-link text-muted mb-3 p-0" id="btnVoltar">
-                    <i class="bi bi-arrow-left me-2"></i>Voltar para selecao
+                    <i class="bi bi-arrow-left me-2"></i>Voltar para seleção
                   </button>
 
                   <!-- Header da Instituicao Selecionada -->
@@ -857,7 +857,7 @@
                   <div class="form-section d-none" id="configCobrancaFastDePix">
                     <h5 class="section-title">
                       <i class="bi bi-receipt"></i>
-                      Configuracao de Cobrancas
+                      Configuração de Cobranças
                     </h5>
 
                     <!-- Seleção do tipo de cobrança -->
@@ -884,7 +884,7 @@
                                 </span>
                                 <ul class="tipo-cobranca-features">
                                   <li><i class="bi bi-check2 text-success me-1"></i>Mensalidade em aberto em destaque</li>
-                                  <li><i class="bi bi-check2 text-success me-1"></i>Historico de mensalidades anteriores</li>
+                                  <li><i class="bi bi-check2 text-success me-1"></i>Histórico de mensalidades anteriores</li>
                                   <li><i class="bi bi-check2 text-success me-1"></i>Perfil com dados pessoais do cliente</li>
                                 </ul>
                               </div>
@@ -958,8 +958,8 @@
                     <div id="containerLinksPlanos" class="mt-4 d-none">
                       <div class="alert alert-info mb-3">
                         <i class="bi bi-info-circle me-2"></i>
-                        Configure um link FastDePix para cada Plano de Adesao cadastrado.
-                        Cada plano deve ter seu proprio link com o valor correspondente.
+                        Configure um link FastDePix para cada Plano de Adesão cadastrado.
+                        Cada plano deve ter seu próprio link com o valor correspondente.
                       </div>
 
                       <div id="listaLinksPlanos">
@@ -1124,7 +1124,7 @@
                     </div>
                   </div>
 
-                  <!-- Clientes Associados (visivel apos selecionar Tipo de Conta) -->
+                  <!-- Clientes Associados (visível após selecionar Tipo de Conta) -->
                   <div class="form-section d-none" id="secaoClientesAssociados">
                     <h5 class="section-title">
                       <i class="bi bi-people"></i>
@@ -1518,7 +1518,7 @@
               <span class="ms-2 text-muted">Verificando clientes associados...</span>
             </div>
 
-            <p class="text-muted small mb-0" id="avisoExclusao">Esta acao nao pode ser desfeita.</p>
+            <p class="text-muted small mb-0" id="avisoExclusao">Esta ação não pode ser desfeita.</p>
           </div>
           <div class="modal-footer border-0">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -1677,7 +1677,7 @@
                   <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
                   <div>
                     <strong>Forma de Pagamento Antiga</strong>
-                    <p class="mb-0 small">Esta forma de pagamento foi criada antes da implementacao do novo sistema. Preencha os campos abaixo para atualizar os dados.</p>
+                    <p class="mb-0 small">Esta forma de pagamento foi criada antes da implementação do novo sistema. Preencha os campos abaixo para atualizar os dados.</p>
                   </div>
                 </div>
               </div>
@@ -2210,9 +2210,9 @@
               </div>
 
               <div class="mb-3">
-                <label class="form-label fw-semibold">Margem de Seguranca (%)</label>
+                <label class="form-label fw-semibold">Margem de Segurança (%)</label>
                 <input type="number" class="form-control" id="limiteMargem" value="10" min="0" max="50">
-                <small class="text-muted">Alerta sera exibido ao atingir esse percentual (ex: 10 = alerta em 90%)</small>
+                <small class="text-muted">Alerta será exibido ao atingir esse percentual (ex: 10 = alerta em 90%)</small>
               </div>
 
               <div class="alert alert-info mb-0">
@@ -2239,7 +2239,7 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
             <button type="button" class="btn btn-primary" id="btnSalvarLimite">
-              <i class="bi bi-check-circle me-2"></i>Salvar Configuracao
+              <i class="bi bi-check-circle me-2"></i>Salvar Configuração
             </button>
           </div>
         </div>
@@ -2323,9 +2323,9 @@
 
   // ========== Selecao de Instituicao (Cards) ==========
   $('.instituicao-card').on('click', function() {
-    // Remover selecao anterior
+    // Remover seleção anterior
     $('.instituicao-card').removeClass('selected');
-    // Adicionar selecao atual
+    // Adicionar seleção atual
     $(this).addClass('selected');
 
     // Guardar dados
@@ -2366,7 +2366,7 @@
     $('#step2-indicator').removeClass('active');
     $('.step-connector').removeClass('completed');
 
-    // Limpar selecao
+    // Limpar seleção
     $('.instituicao-card').removeClass('selected');
     instituicaoSelecionada = null;
     tipoIntegracao = null;
@@ -2490,7 +2490,7 @@
     // Vamos sincronizar com o campo hidden no submit
   });
 
-  // ========== Gestao de Clientes Associados ==========
+  // ========== Gestão de Clientes Associados ==========
 
   // Variaveis de controle
   let clientesAtivos = [];
@@ -3144,7 +3144,7 @@
 
   // Carregar credenciais por tipo
   function carregarCredenciais(tipo, seletorSelect) {
-    // Usar cache se disponivel
+    // Usar cache se disponível
     if (credenciaisCache[tipo]) {
       preencherSelectCredenciais(seletorSelect, credenciaisCache[tipo]);
       return;
@@ -3241,7 +3241,7 @@
         const count = response.count || 0;
 
         if (count > 0) {
-          // Tem clientes: mostrar alerta e desabilitar botao
+          // Tem clientes: mostrar alerta e desabilitar botão
           $('#alertClientesAssociados').removeClass('d-none');
           $('#qtdClientesAssociados').text(count);
           $('#btnConfirmarExclusao').prop('disabled', true).addClass('disabled');
@@ -3297,7 +3297,7 @@
     });
   });
 
-  // ========== Funcao Utilitaria (disponivel para todos) ==========
+  // ========== Função Utilitária (disponível para todos) ==========
   function formatarMoedaBR(valor) {
     return 'R$ ' + valor.toLocaleString('pt-BR', {
       minimumFractionDigits: 2,
@@ -3380,7 +3380,7 @@
     });
   });
 
-  // Recarregar pagina ao fechar modal de instituicoes (para atualizar os cards)
+  // Recarregar página ao fechar modal de instituições (para atualizar os cards)
   $('#modalInstituicoes').on('hidden.bs.modal', function() {
     window.location.reload();
   });
@@ -3492,7 +3492,7 @@
       Swal.fire({
         icon: 'error',
         title: 'Erro',
-        text: 'Informe um valor anual MEI valido.'
+        text: 'Informe um valor anual MEI válido.'
       });
       return;
     }
@@ -3501,7 +3501,7 @@
       Swal.fire({
         icon: 'error',
         title: 'Erro',
-        text: 'Informe um valor anual Pessoa Fisica valido.'
+        text: 'Informe um valor anual Pessoa Física válido.'
       });
       return;
     }
@@ -3532,7 +3532,7 @@
           Swal.fire({
             icon: 'success',
             title: 'Sucesso!',
-            text: 'Configuracao de limite atualizada com sucesso!',
+            text: 'Configuração de limite atualizada com sucesso!',
             timer: 1500
           }).then(() => {
             bootstrap.Modal.getInstance(document.getElementById('modalLimites')).hide();
@@ -3685,7 +3685,7 @@
         $('#detalhesTipoChavePix').text(conta.tipo_chave_pix_display || '-');
         $('#detalhesChavePix').text(conta.chave_pix || '-');
       }
-      // Se nao atende as condicoes, o container ja esta oculto pelo reset inicial
+      // Se não atende as condições, o container já está oculto pelo reset inicial
 
       // Ocultar Beneficiário para Boleto e Cartão (não usam esses campos)
       const nomeFormaUpperDetalhes = forma.nome.toUpperCase();
@@ -3746,7 +3746,7 @@
   function abrirModalEditar(id) {
     formaPgtoIdAtual = id;
 
-    // Mostrar loading, esconder formulario
+    // Mostrar loading, esconder formulário
     $('#editarLoading').removeClass('d-none');
     $('#formEditar').addClass('d-none');
 
@@ -4710,7 +4710,7 @@
     // Ativar loading com pontos animados
     setButtonLoading(btn, true);
 
-    // Coletar dados do formulario
+    // Coletar dados do formulário
     const dados = {
       nome_identificacao: $('#editarNomeIdentificacao').val(),
       tipo_conta: $('#editarTipoConta').val(),
@@ -4804,7 +4804,7 @@
   });
 
   // ========== Handler de Submit do Formulário ==========
-  // ========== Configuracao de Cobrancas FastDePix ==========
+  // ========== Configuração de Cobranças FastDePix ==========
   let planosUsuario = [];
 
   // Carregar planos quando FastDePix é selecionado
@@ -4836,7 +4836,7 @@
         $('#listaLinksPlanos').html(`
           <div class="alert alert-danger">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            Erro ao carregar planos. Verifique sua conexao.
+            Erro ao carregar planos. Verifique sua conexão.
           </div>
         `);
       }
@@ -4852,7 +4852,7 @@
       container.html(`
         <div class="alert alert-warning">
           <i class="bi bi-exclamation-triangle me-2"></i>
-          Nenhum Plano de Adesao cadastrado.
+          Nenhum Plano de Adesão cadastrado.
           <a href="/planos/" class="alert-link">Cadastre planos primeiro</a>.
         </div>
       `);
@@ -4875,8 +4875,8 @@
     container.append(`
       <div class="alert alert-info mb-3">
         <i class="bi bi-info-circle me-2"></i>
-        Configure um link FastDePix para cada Plano de Adesao.
-        <strong>Todos os links sao obrigatorios.</strong>
+        Configure um link FastDePix para cada Plano de Adesão.
+        <strong>Todos os links são obrigatórios.</strong>
       </div>
     `);
 
@@ -4926,7 +4926,7 @@
     });
   }
 
-  // Toggle visibilidade do container de links conforme tipo de cobranca
+  // Toggle visibilidade do container de links conforme tipo de cobrança
   $('input[name="tipoCobrancaFastDePix"]').on('change', function() {
     if (this.value === 'link_fastdepix') {
       $('#containerLinksPlanos').removeClass('d-none');
@@ -4942,7 +4942,7 @@
       return true;
     }
 
-    // Verificar se é link FastDePix (unica opcao que precisa de links)
+    // Verificar se é link FastDePix (única opção que precisa de links)
     const tipoCobranca = $('input[name="tipoCobrancaFastDePix"]:checked').val();
     if (tipoCobranca !== 'link_fastdepix') {
       return true; // Painel do Cliente e QR Code nao precisam de links
@@ -4953,7 +4953,7 @@
       Swal.fire({
         icon: 'warning',
         title: 'Nenhum plano cadastrado',
-        text: 'Cadastre ao menos um Plano de Adesao antes de configurar links personalizados.'
+        text: 'Cadastre ao menos um Plano de Adesão antes de configurar links personalizados.'
       });
       return false;
     }
@@ -4970,7 +4970,7 @@
     if (camposVazios.length > 0) {
       Swal.fire({
         icon: 'warning',
-        title: 'Links obrigatorios',
+        title: 'Links obrigatórios',
         html: 'Informe o link FastDePix para os seguintes planos:<br><br><strong>' + camposVazios.join('<br>') + '</strong>'
       });
       return false;

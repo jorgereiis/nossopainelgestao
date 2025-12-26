@@ -66,7 +66,7 @@
         </div>
       </div>
       <h2 class="qrcode-title">Pagar com PIX</h2>
-      <p class="qrcode-subtitle">Gere o QR Code para realizar o pagamento instantaneo</p>
+      <p class="qrcode-subtitle">Gere o QR Code para realizar o pagamento instantâneo</p>
       <button id="btn-gerar-pix" class="btn btn-primary btn-gerar-qrcode" onclick="gerarPix()">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="7" height="7"></rect>
@@ -109,7 +109,7 @@
 
       <!-- Copy PIX Code -->
       <div class="pix-copy-section">
-        <label class="form-label">PIX Copia e Cola</label>
+        <label class="form-label">PIX Cópia e Cola</label>
         <div class="pix-copy-input">
           <input type="text" id="pix-copia-cola" class="form-input" readonly>
           <button type="button" id="btn-copiar" class="btn btn-primary" onclick="copiarPix()">
@@ -161,7 +161,7 @@
           <span class="detail-value">R$ {{ mensalidade.valor|floatformat:2 }}</span>
         </div>
         <div class="success-detail-item">
-          <span class="detail-label">Referencia</span>
+          <span class="detail-label">Referência</span>
           <span class="detail-value">{{ mensalidade.dt_vencimento|date:"F/Y" }}</span>
         </div>
       </div>
@@ -215,7 +215,7 @@
       </li>
       <li>
         <span class="step-number">3</span>
-        <span class="step-text">Escaneie o QR Code ou cole o codigo</span>
+        <span class="step-text">Escaneie o QR Code ou cole o código</span>
       </li>
       <li>
         <span class="step-number">4</span>
@@ -430,7 +430,7 @@
     margin: 0 0 var(--space-5) 0;
   }
 
-  /* Botao Gerar QR Code */
+  /* Botão Gerar QR Code */
   .btn-gerar-qrcode {
     display: inline-flex;
     align-items: center;
@@ -453,7 +453,7 @@
     box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
   }
 
-  /* Botao Voltar ao Dashboard (Sucesso) */
+  /* Botão Voltar ao Dashboard (Sucesso) */
   .btn-voltar-dashboard {
     display: inline-flex;
     align-items: center;
@@ -928,7 +928,7 @@
       btn.classList.remove('btn-primary');
       btn.classList.add('btn-success');
 
-      Toast.success('Codigo PIX copiado!');
+      Toast.success('Código PIX copiado!');
 
       setTimeout(() => {
         iconCopy.classList.remove('hidden');
@@ -941,7 +941,7 @@
       // Fallback
       input.select();
       document.execCommand('copy');
-      Toast.success('Codigo PIX copiado!');
+      Toast.success('Código PIX copiado!');
     });
   }
 

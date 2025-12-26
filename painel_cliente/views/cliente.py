@@ -17,6 +17,8 @@ from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils.decorators import method_decorator
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Q
@@ -43,6 +45,7 @@ from ..decorators import (
 from ..middleware import PainelClienteSessionMiddleware
 
 
+@method_decorator(ensure_csrf_cookie, name='get')
 class LoginView(View):
     """
     View de login do cliente.

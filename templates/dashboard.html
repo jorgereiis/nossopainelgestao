@@ -48,24 +48,19 @@
                     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 row-cols-xl-5 g-4 mt-6">
                         <div class="col objeto">
                             <!-- card superior 1 -->
-                            <div class="card ">
+                            <div class="card dashboard-stat-card">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center mb-3 objeto">
-                                        <div>
-                                            <h4 class="mb-0">Clientes</h4>
-                                        </div>
-                                        <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
-                                            <img class="bi bi-people fs-4" src="">
+                                    <div class="card-header-row">
+                                        <h4>Clientes</h4>
+                                        <div class="card-icon-badge">
+                                            <i class="bi bi-people-fill"></i>
                                         </div>
                                     </div>
-
-                                    <div>
-                                        <h1 class="fw-bold values1_h1" data-value="{{ total_clientes }}">{{ total_clientes }}</h1>
-                                        <span class="me-2 ms-auto">
-                                            <i class="bi bi-tv  me-2"></i>
-                                        <span class="text-dark me-2 fs-6 value_tela_span" data-value="{{ total_telas_ativas }}">{{ total_telas_ativas }}</span>
-                                            telas ativas
-                                        </span>
+                                    <div class="card-content">
+                                        <div class="stat-value values1_h1" data-value="{{ total_clientes }}">{{ total_clientes }}</div>
+                                        <div class="stat-info">
+                                            <span><i class="bi bi-tv me-1"></i><span class="text-dark value_tela_span" data-value="{{ total_telas_ativas }}">{{ total_telas_ativas }}</span> telas ativas</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -73,31 +68,23 @@
 
                         <div class="col objeto">
                             <!-- card superior 2 -->
-                            <div class="card ">
+                            <div class="card dashboard-stat-card">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center mb-3 objeto">
-                                        <div>
-                                            <h4 class="mb-0">Recebido no mês</h4>
-                                        </div>
-                                        <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
-                                            <img class="bi bi-wallet2 fs-4" src="">
+                                    <div class="card-header-row">
+                                        <h4>Recebido no mês</h4>
+                                        <div class="card-icon-badge">
+                                            <i class="bi bi-wallet2"></i>
                                         </div>
                                     </div>
-
-                                    <div>
-                                    <h1 class="fw-bold values2_h1" data-value="{{ valor_total_pago }}">{{ valor_total_pago }}</h1>
-                                        {% if valor_total_pago_qtd > 0 %}
-                                        <p class="mb-0">
-                                            <i class="bi bi-hand-thumbs-up text-success me-2"></i>
-                                        <span class="text-dark me-2 fs-6 values2_span" data-value="{{ valor_total_pago_qtd }}">{{ valor_total_pago_qtd }}</span>
-                                            pago(s) neste mês
-                                        </p>
-                                        {% else %}
-                                        <p class="mb-0">
-                                        <span class="text-dark me-2 fs-6 values2_span" data-value="{{ valor_total_pago_qtd }}">{{ valor_total_pago_qtd }}</span>
-                                            sem pagamentos
-                                        </p>
-                                        {% endif %}
+                                    <div class="card-content">
+                                        <div class="stat-value values2_h1" data-value="{{ valor_total_pago }}">{{ valor_total_pago }}</div>
+                                        <div class="stat-info">
+                                            {% if valor_total_pago_qtd > 0 %}
+                                            <span><i class="bi bi-hand-thumbs-up text-success me-1"></i><span class="text-dark values2_span" data-value="{{ valor_total_pago_qtd }}">{{ valor_total_pago_qtd }}</span> pago(s) neste mês</span>
+                                            {% else %}
+                                            <span><span class="text-dark values2_span" data-value="{{ valor_total_pago_qtd }}">{{ valor_total_pago_qtd }}</span> sem pagamentos</span>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -105,102 +92,76 @@
 
                         <div class="col objeto">
                             <!-- card superior 3 -->
-                            <div class="card ">
+                            <div class="card dashboard-stat-card">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center mb-3 objeto">
-                                        <div>
-                                            <h4 class="mb-0">À receber no mês</h4>
-                                        </div>
-                                        <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
-                                            <img class="bi bi-cash-coin fs-4" src="">
+                                    <div class="card-header-row">
+                                        <h4>À receber no mês</h4>
+                                        <div class="card-icon-badge">
+                                            <i class="bi bi-cash-coin"></i>
                                         </div>
                                     </div>
-
-                                    <div>
-                                    <h1 class="fw-bold values3_h1" data-value="{{ valor_total_receber }}">{{ valor_total_receber }}</h1>
-                                        {% if valor_total_receber_qtd > 0 %}
-                                        <span class="me-2 ms-auto">
-                                            <i class="bi bi-exclamation-triangle text-warning me-0"></i>
-                                        <span class="text-dark me-2 fs-6 values3_span" data-value="{{ valor_total_receber_qtd }}">{{ valor_total_receber_qtd }}</span> 
-                                            à vencer
-                                        </span>
-                                        {% else %}
-                                        <span class="me-2 ms-auto">
-                                        <span class="text-dark me-2 fs-6 values3_span" data-value="{{ valor_total_receber_qtd }}">{{ valor_total_receber_qtd }}</span> 
-                                            sem vencimentos
-                                        </span>
-                                        {% endif %}
-                                        {% if clientes_em_atraso > 0 %}
-                                        <span class="me-0 ms-auto">
-                                            <i class="bi bi-hand-thumbs-down text-danger me-0"></i>
-                                        <span class="text-dark me-2 fs-6 values1_span" data-value="{{ clientes_em_atraso }}">{{ clientes_em_atraso }}</span>
-                                            em atraso
-                                        </span>
-                                        {% else %}
-                                        <span class="me-0 ms-auto">
-                                        <span class="text-dark me-2 fs-6 values1_span" data-value="{{ clientes_em_atraso }}">{{ clientes_em_atraso }}</span>
-                                            sem atrasos
-                                        </span>
-                                        {% endif %}
+                                    <div class="card-content">
+                                        <div class="stat-value values3_h1" data-value="{{ valor_total_receber }}">{{ valor_total_receber }}</div>
+                                        <div class="stat-info">
+                                            {% if valor_total_receber_qtd > 0 %}
+                                            <span><i class="bi bi-exclamation-triangle text-warning me-1"></i><span class="text-dark values3_span" data-value="{{ valor_total_receber_qtd }}">{{ valor_total_receber_qtd }}</span> à vencer</span>
+                                            {% else %}
+                                            <span><span class="text-dark values3_span" data-value="{{ valor_total_receber_qtd }}">{{ valor_total_receber_qtd }}</span> sem vencimentos</span>
+                                            {% endif %}
+                                            {% if clientes_em_atraso > 0 %}
+                                            <span><i class="bi bi-hand-thumbs-down text-danger me-1"></i><span class="text-dark values1_span" data-value="{{ clientes_em_atraso }}">{{ clientes_em_atraso }}</span> em atraso</span>
+                                            {% else %}
+                                            <span><span class="text-dark values1_span" data-value="{{ clientes_em_atraso }}">{{ clientes_em_atraso }}</span> sem atrasos</span>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <div class="col objeto">
-                        <!-- card superior 4 -->
-                        <div class="card">
-                            <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-3 objeto">
-                                <div>
-                                <h4 class="mb-0">Resumo planos de adesão</h4>
-                                </div>
-                                <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
-                                <i class="bi bi-bar-chart-line fs-4"></i>
-                                </div>
-                            </div>
-
-                            <div class="d-flex">
-                                <div style="display:flex; flex-direction:column; font-size:12px;">
-                                {% for p in planos_resumo %}
-                                    <p class="mb-0 mt-0">
-                                    {{ p.qtd }}
-                                    <span class="ms-2 fw-bold text-primary">{{ p.nome|title }}</span>
-                                    ({{ p.pct|floatformat:0 }}%)
-                                    </p>
-                                {% empty %}
-                                    <p class="mb-0 mt-0 text-muted">Nenhum plano cadastrado.</p>
-                                {% endfor %}
+                            <!-- card superior 4 -->
+                            <div class="card dashboard-stat-card">
+                                <div class="card-body">
+                                    <div class="card-header-row">
+                                        <h4>Resumo planos</h4>
+                                        <div class="card-icon-badge">
+                                            <i class="bi bi-bar-chart-line-fill"></i>
+                                        </div>
+                                    </div>
+                                    <div class="card-content">
+                                        <div class="stat-plans">
+                                            {% for p in planos_resumo %}
+                                            <p>{{ p.qtd }} <span class="fw-bold text-primary">{{ p.nome|title }}</span> ({{ p.pct|floatformat:0 }}%)</p>
+                                            {% empty %}
+                                            <p class="text-muted">Nenhum plano cadastrado.</p>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-
-                            </div>
-                        </div>
                         </div>
 
                         <div class="col objeto">
                             <!-- card superior 5 -->
-                            <div class="card">
+                            <div class="card dashboard-stat-card">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center mb-3 objeto">
-                                        <div>
-                                            <h5 class="mb-0">Adesões e cancelamentos neste mês</h5>
-                                        </div>
-                                        <div class="icon-shape icon-md bg-light-primary text-primary rounded-2">
-                                            <img class="bi bi-graph-up-arrow fs-4" src="">
+                                    <div class="card-header-row">
+                                        <h5>Adesões / Cancelamentos</h5>
+                                        <div class="card-icon-badge">
+                                            <i class="bi bi-arrow-left-right"></i>
                                         </div>
                                     </div>
-
-                                    <div class="d-flex">
-                                        <div style="display: flex; flex-direction: column; mr-0">
-                                            <h2 class="fw-bold mb-0">{{novos_clientes_qtd}}</h2>
-                                            <h2 class="fw-bold mb-0">{{clientes_cancelados_qtd}}</h2>
-                                        </div>
-                                        <div style="display: flex; flex-direction: column;">
-                                            <p class="mb-5"><i class="bi bi-arrow-up-short text-success"></i><span
-                                                    class="text-success ms-2">Novos</span></p>
-                                            <p class="mb-0"><i class="bi bi-arrow-down-short text-danger"></i><span
-                                                    class="ms-2 text-danger">Cancelados</span></p>
+                                    <div class="card-content">
+                                        <div class="stat-dual">
+                                            <div class="stat-dual-values">
+                                                <h2>{{novos_clientes_qtd}}</h2>
+                                                <h2>{{clientes_cancelados_qtd}}</h2>
+                                            </div>
+                                            <div class="stat-dual-labels">
+                                                <p><i class="bi bi-arrow-up-short text-success"></i><span class="text-success">Novos</span></p>
+                                                <p><i class="bi bi-arrow-down-short text-danger"></i><span class="text-danger">Cancelados</span></p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -218,8 +179,12 @@
                                             <p class="text-muted small mb-0 fs-6">Passe o mouse sobre o mapa para explorar os estados.</p>
                                         </div>
                                         <div id="mapa-clientes-summary" class="d-flex flex-wrap gap-2 small text-muted">
-                                            <span class="mapa-summary-chip">Total: <strong>0</strong></span>
-                                            <span class="mapa-summary-chip">Fora do país: <strong>0</strong></span>
+                                            <span class="mapa-summary-chip mapa-total-chip" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modal-clientes-estados" title="Clique para ver detalhes">
+                                                Total: <strong>0</strong>
+                                            </span>
+                                            <span class="mapa-summary-chip mapa-exterior-chip" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modal-clientes-exterior" title="Clique para ver detalhes">
+                                                Exterior: <strong>0</strong>
+                                            </span>
                                         </div>
                                     </div>
                                     <div class="row g-3">
@@ -237,6 +202,51 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Modal Clientes por Estado -->
+                        <div class="modal fade" id="modal-clientes-estados" tabindex="-1" aria-labelledby="modal-clientes-estados-label" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modal-clientes-estados-label">
+                                            <i class="bi bi-geo-alt me-2"></i>Clientes por Estado
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                    </div>
+                                    <div class="modal-body p-0" style="max-height: 400px; overflow-y: auto;">
+                                        <div id="lista-clientes-estados">
+                                            <div class="text-center text-muted py-3">
+                                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                                Carregando...
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modal Clientes no Exterior -->
+                        <div class="modal fade" id="modal-clientes-exterior" tabindex="-1" aria-labelledby="modal-clientes-exterior-label" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modal-clientes-exterior-label">
+                                            <i class="bi bi-globe me-2"></i>Clientes no Exterior
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div id="lista-clientes-exterior">
+                                            <div class="text-center text-muted py-3">
+                                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                                Carregando...
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="col-12 col-lg-5 col-xl-5 objeto">
                             <div class="card clientes-servidor-card h-100">
                                 <div class="card-body d-flex flex-column">

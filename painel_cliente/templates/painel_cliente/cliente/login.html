@@ -4,12 +4,12 @@
 {% block title %}Login Cliente{% endblock %}
 
 {% block extra_head %}
-<!-- intl-tel-input CSS (com SRI para seguranca) -->
+<!-- intl-tel-input CSS (com SRI para segurança) -->
 <link rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/css/intlTelInput.min.css"
       integrity="sha384-0W+CYJBvPEFEj1zJRGJSs5b09qYE9+Ic/aQ6/7ZTxFLcf7EUpue5jVx7ZLS/YVJ3"
       crossorigin="anonymous">
-<!-- reCAPTCHA (Google nao suporta SRI) -->
+<!-- reCAPTCHA (Google não suporta SRI) -->
 {% if recaptcha_site_key %}
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 {% endif %}
@@ -132,10 +132,17 @@
   /* intl-tel-input styles */
   .iti {
     width: 100%;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Quando o dropdown está aberto, aumenta o z-index */
+  .iti--container {
+    z-index: 10000 !important;
   }
 
   .iti__country-list {
-    z-index: 10000;
+    z-index: 10000 !important;
     background-color: #111827 !important;
     border: 1px solid #374151 !important;
     border-radius: 8px;
@@ -238,17 +245,12 @@
     justify-content: center;
     margin-bottom: var(--space-5);
     position: relative;
-    z-index: 100;
+    z-index: 1;
     overflow: visible;
   }
 
   .g-recaptcha {
     transform-origin: center;
-  }
-
-  /* Iframe do reCAPTCHA precisa de z-index alto */
-  .g-recaptcha iframe {
-    z-index: 100;
   }
 
   /* Ajuste para telas menores */
@@ -518,6 +520,72 @@
     const telefoneInput = document.getElementById('telefone');
     const btn = document.getElementById('btn-login');
 
+    // Configurações de máscara e limite por país
+    const paisConfig = {
+      br: { maxLength: 11, mask: formatBR },   // (99) 99999-9999
+      us: { maxLength: 10, mask: formatUS },   // (999) 999-9999
+      pt: { maxLength: 9, mask: formatPT }     // 999 999 999
+    };
+
+    // Funções de formatação por país
+    function formatBR(value) {
+      if (value.length > 11) value = value.slice(0, 11);
+      if (value.length > 10) {
+        return value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+      } else if (value.length > 6) {
+        return value.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+      } else if (value.length > 2) {
+        return value.replace(/(\d{2})(\d{0,5})/, '($1) $2');
+      } else if (value.length > 0) {
+        return value.replace(/(\d{0,2})/, '($1');
+      }
+      return value;
+    }
+
+    function formatUS(value) {
+      if (value.length > 10) value = value.slice(0, 10);
+      if (value.length > 6) {
+        return value.replace(/(\d{3})(\d{3})(\d{0,4})/, '($1) $2-$3');
+      } else if (value.length > 3) {
+        return value.replace(/(\d{3})(\d{0,3})/, '($1) $2');
+      } else if (value.length > 0) {
+        return value.replace(/(\d{0,3})/, '($1');
+      }
+      return value;
+    }
+
+    function formatPT(value) {
+      if (value.length > 9) value = value.slice(0, 9);
+      if (value.length > 6) {
+        return value.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1 $2 $3');
+      } else if (value.length > 3) {
+        return value.replace(/(\d{3})(\d{0,3})/, '$1 $2');
+      }
+      return value;
+    }
+
+    // Aplica máscara ao input
+    function aplicarMascara() {
+      const countryData = iti.getSelectedCountryData();
+      const countryCode = countryData.iso2;
+      const config = paisConfig[countryCode];
+
+      let value = telefoneInput.value.replace(/\D/g, '');
+
+      if (config) {
+        // Limita caracteres
+        if (value.length > config.maxLength) {
+          value = value.slice(0, config.maxLength);
+        }
+        // Aplica máscara
+        telefoneInput.value = config.mask(value).trim();
+      } else {
+        // País não configurado - apenas números, max 15 dígitos
+        if (value.length > 15) value = value.slice(0, 15);
+        telefoneInput.value = value;
+      }
+    }
+
     // Inicializa intl-tel-input
     const iti = window.intlTelInput(telefoneInput, {
       preferredCountries: ["br", "us", "pt"],
@@ -528,6 +596,15 @@
       autoPlaceholder: "aggressive",
       placeholderNumberType: "MOBILE",
       utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/utils.js"
+    });
+
+    // Aplica máscara ao digitar
+    telefoneInput.addEventListener('input', aplicarMascara);
+
+    // Limpa e reaplicar máscara ao mudar país
+    telefoneInput.addEventListener('countrychange', function() {
+      telefoneInput.value = '';
+      telefoneInput.focus();
     });
 
     // Form submit - adiciona DDI ao telefone

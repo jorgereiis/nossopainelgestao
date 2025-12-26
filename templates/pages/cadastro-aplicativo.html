@@ -46,8 +46,44 @@
               <div class="mb-4 mb-lg-0">
                 <h4 class="mb-1">Crie aqui o seu Aplicativo</h4>
                 <p class="mb-0 fs-5 text-muted">(DuplexPlay, Clouddy, Smart STB, etc.)</p>
-              </div>
 
+                <!-- Card de Informação -->
+                <div class="card border-0 shadow-sm mt-4" style="background: linear-gradient(135deg, #e3f2fd 0%, #fce4ec 100%);">
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <h4 class="mb-0 fw-bold" style="color: #1565c0; font-size: 1.4rem;">📱 O que são Aplicativos?</h4>
+                    </div>
+
+                    <p class="text-muted small mb-3">
+                      Aplicativos são os <strong>softwares de streaming</strong> que seus clientes utilizam para assistir o conteúdo.
+                    </p>
+
+                    <div class="mb-3">
+                      <div class="d-flex align-items-start mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <p class="text-muted mb-0 small">DuplexPlay, Clouddy, Smart STB, XCIPTV</p>
+                      </div>
+                      <div class="d-flex align-items-start mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <p class="text-muted mb-0 small">Aplicativos com MAC ou E-mail para autenticação</p>
+                      </div>
+                      <div class="d-flex align-items-start">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <p class="text-muted mb-0 small">Vinculados às contas dos clientes</p>
+                      </div>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <div class="d-flex align-items-start">
+                      <i class="bi bi-info-circle-fill text-primary me-2 mt-1"></i>
+                      <p class="text-muted mb-0 small">
+                        <strong>Dica:</strong> Marque "Usa MAC/E-mail" se o aplicativo exigir Device ID ou credenciais para login.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="col-xl-4 col-lg-8 col-md-12 col-12">
@@ -95,7 +131,44 @@
                 </div>
                 </form>
 
+                <style>
+                  /* Loading com 3 pontos animados */
+                  .loading-dots {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 4px;
+                  }
+                  .loading-dots span {
+                    width: 8px;
+                    height: 8px;
+                    background-color: #fff;
+                    border-radius: 50%;
+                    animation: wave 1.2s ease-in-out infinite;
+                  }
+                  .loading-dots span:nth-child(2) {
+                    animation-delay: 0.2s;
+                  }
+                  .loading-dots span:nth-child(3) {
+                    animation-delay: 0.4s;
+                  }
+                  @keyframes wave {
+                    0%, 60%, 100% { transform: translateY(0); }
+                    30% { transform: translateY(-8px); }
+                  }
+                </style>
                 <script>
+                  function setButtonLoading(btn, loading, originalHTML) {
+                    if (!btn) return;
+                    if (loading) {
+                      btn.disabled = true;
+                      btn.dataset.originalHtml = btn.innerHTML;
+                      btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+                    } else {
+                      btn.disabled = false;
+                      btn.innerHTML = originalHTML || btn.dataset.originalHtml || 'Salvar';
+                    }
+                  }
                   (function() {
                     var form = document.querySelector('.cadastro-form-card form');
                     var btn = document.getElementById('btn-cadastrar');

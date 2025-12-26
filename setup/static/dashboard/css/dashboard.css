@@ -1,3 +1,129 @@
+/* Background principal do dashboard */
+.bg-primary {
+    background: linear-gradient(135deg, #624bff 0%, #4a37d9 100%) !important;
+}
+
+/* Card Icon Badge - Estilo gradiente roxo */
+.card-icon-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #624bff, #4a37d9);
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.card-icon-badge i {
+    font-size: 1.4rem;
+}
+
+/* Cards de estatísticas do topo - altura uniforme */
+.dashboard-stat-card {
+    min-height: 150px;
+}
+
+.dashboard-stat-card .card-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 1rem;
+}
+
+.dashboard-stat-card .card-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+    gap: 0.5rem;
+}
+
+.dashboard-stat-card .card-header-row h4,
+.dashboard-stat-card .card-header-row h5 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.3;
+    flex: 1;
+}
+
+.dashboard-stat-card .card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Valores principais */
+.dashboard-stat-card .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
+}
+
+/* Informações secundárias */
+.dashboard-stat-card .stat-info {
+    font-size: 0.75rem;
+    color: #495057;
+    line-height: 1.4;
+}
+
+.dashboard-stat-card .stat-info > span {
+    display: block;
+    margin-bottom: 0.125rem;
+}
+
+.dashboard-stat-card .stat-info > span > span {
+    display: inline;
+}
+
+.dashboard-stat-card .stat-info .text-dark {
+    font-weight: 600;
+}
+
+/* Card de planos */
+.dashboard-stat-card .stat-plans {
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.dashboard-stat-card .stat-plans p {
+    margin: 0 0 0.125rem 0;
+}
+
+/* Card de adesões/cancelamentos */
+.dashboard-stat-card .stat-dual {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.dashboard-stat-card .stat-dual-values {
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-stat-card .stat-dual-values h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.dashboard-stat-card .stat-dual-labels {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.8rem;
+}
+
+.dashboard-stat-card .stat-dual-labels p {
+    margin: 0;
+    line-height: 1.75;
+}
+
 .page-item.active .page-link {
         background-color: rgb(12, 20, 28);
         border-color: rgb(12, 20, 28);
@@ -319,6 +445,16 @@
         background: rgba(98, 75, 255, 0.08);
         color: #5746c9;
         font-weight: 600;
+    }
+    .mapa-total-chip,
+    .mapa-exterior-chip {
+        transition: all 0.2s ease;
+    }
+    .mapa-total-chip:hover,
+    .mapa-exterior-chip:hover {
+        background: rgba(98, 75, 255, 0.18);
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(98, 75, 255, 0.2);
     }
     .mapa-clientes-canvas {
         position: relative;

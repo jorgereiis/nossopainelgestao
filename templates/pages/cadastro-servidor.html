@@ -31,7 +31,44 @@
             <div class="col-xl-4 col-lg-4 col-md-12 col-12">
               <div class="mb-4 mb-lg-0">
                 <h4 class="mb-1">Crie aqui o seu Servidor</h4>
-                <p class="mb-0 fs-5 text-muted">Cadastre cada um dos servidores que você utiliza para fornecer listas aos seus clientes.</p>
+                <p class="mb-0 fs-5 text-muted">Cadastre cada um dos servidores que você utiliza.</p>
+
+                <!-- Card de Informação -->
+                <div class="card border-0 shadow-sm mt-4" style="background: linear-gradient(135deg, #e8f5e9 0%, #e3f2fd 100%);">
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <h4 class="mb-0 fw-bold" style="color: #2e7d32; font-size: 1.4rem;">🖥️ O que são Servidores?</h4>
+                    </div>
+
+                    <p class="text-muted small mb-3">
+                      Servidores são os <strong>painéis de streaming</strong> (provedores) que fornecem as listas de canais aos seus clientes.
+                    </p>
+
+                    <div class="mb-3">
+                      <div class="d-flex align-items-start mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <p class="text-muted mb-0 small">Cada servidor representa um painel/provedor</p>
+                      </div>
+                      <div class="d-flex align-items-start mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <p class="text-muted mb-0 small">Você pode ter múltiplos servidores cadastrados</p>
+                      </div>
+                      <div class="d-flex align-items-start">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <p class="text-muted mb-0 small">Clientes são associados a um servidor específico</p>
+                      </div>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <div class="d-flex align-items-start">
+                      <i class="bi bi-image-fill text-info me-2 mt-1"></i>
+                      <p class="text-muted mb-0 small">
+                        <strong>Dica:</strong> Adicione uma imagem para identificar visualmente cada servidor na listagem de clientes.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -76,7 +113,44 @@
                 </div>
                 </form>
 
+                <style>
+                  /* Loading com 3 pontos animados */
+                  .loading-dots {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 4px;
+                  }
+                  .loading-dots span {
+                    width: 8px;
+                    height: 8px;
+                    background-color: #fff;
+                    border-radius: 50%;
+                    animation: wave 1.2s ease-in-out infinite;
+                  }
+                  .loading-dots span:nth-child(2) {
+                    animation-delay: 0.2s;
+                  }
+                  .loading-dots span:nth-child(3) {
+                    animation-delay: 0.4s;
+                  }
+                  @keyframes wave {
+                    0%, 60%, 100% { transform: translateY(0); }
+                    30% { transform: translateY(-8px); }
+                  }
+                </style>
                 <script>
+                  function setButtonLoading(btn, loading, originalHTML) {
+                    if (!btn) return;
+                    if (loading) {
+                      btn.disabled = true;
+                      btn.dataset.originalHtml = btn.innerHTML;
+                      btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+                    } else {
+                      btn.disabled = false;
+                      btn.innerHTML = originalHTML || btn.dataset.originalHtml || 'Salvar';
+                    }
+                  }
                   (function() {
                     var form = document.querySelector('.cadastro-form-card form');
                     var btn = document.getElementById('btn-cadastrar');
