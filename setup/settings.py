@@ -178,7 +178,10 @@ if DEBUG:
         'http://local.nossopainel.com.br',
         'http://local.nossopainel.com.br:8001', # NossoPainel dev
         'http://local.jampabet.com.br:8002',    # JampaBet dev
-        'http://*.pagar.cc:8003',               # PainelCliente dev (todos subdomínios)
+        # PainelCliente dev - subdomínios específicos (wildcards não funcionam em DEBUG)
+        'http://megatv.pagar.cc:8003',
+        'http://megafilmes.pagar.cc:8003',
+        'http://demo.pagar.cc:8003',
     ]
 else:
     # Producao: adiciona wildcard para todos subdomínios pagar.cc
@@ -186,10 +189,14 @@ else:
         'https://*.pagar.cc',
         'http://*.pagar.cc',
     ]
-# Adiciona origem extra do .env (ex: ngrok para testes de webhook)
-extra_csrf_origin = os.getenv('EXTRA_CSRF_ORIGIN', '')
-if extra_csrf_origin:
-    CSRF_TRUSTED_ORIGINS.append(extra_csrf_origin)
+# Adiciona origens extras do .env (separadas por vírgula)
+# Ex: EXTRA_CSRF_ORIGINS=http://teste.pagar.cc:8003,http://outro.pagar.cc:8003
+extra_csrf_origins = os.getenv('EXTRA_CSRF_ORIGINS', os.getenv('EXTRA_CSRF_ORIGIN', ''))
+if extra_csrf_origins:
+    for origin in extra_csrf_origins.split(','):
+        origin = origin.strip()
+        if origin:
+            CSRF_TRUSTED_ORIGINS.append(origin)
 
 ROOT_URLCONF = "setup.urls"
 

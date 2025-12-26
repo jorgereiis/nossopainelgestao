@@ -5,7 +5,7 @@
 
 <head>
   {% include 'partials/head.html' %}
-  <title>Relatorio de Pagamentos | Nosso Painel</title>
+  <title>Relatório de Pagamentos | Nosso Painel</title>
   <style>
     /* Stats Cards */
     .stats-grid {
@@ -369,7 +369,7 @@
 
         {% if total_pix_recebido %}
         <div class="stat-card">
-          <div class="stat-label">Liquido PIX (apos taxas)</div>
+          <div class="stat-label">Líquido PIX (após taxas)</div>
           <div class="stat-value">R$ {{ total_pix_recebido|floatformat:2 }}</div>
           <div class="stat-count">Taxa total: R$ {{ total_pix_taxa|floatformat:2 }}</div>
         </div>
@@ -381,17 +381,17 @@
         <div class="stat-card pending">
           <div class="stat-label">Pendentes</div>
           <div class="stat-value">R$ {{ total_pendentes|floatformat:2 }}</div>
-          <div class="stat-count">{{ qtd_pendentes }} transacao{{ qtd_pendentes|pluralize:"oes" }}</div>
+          <div class="stat-count">{{ qtd_pendentes }} transação{{ qtd_pendentes|pluralize:"ões" }}</div>
         </div>
 
         <div class="stat-card expired">
           <div class="stat-label">Expiradas</div>
           <div class="stat-value">R$ {{ total_expiradas|floatformat:2 }}</div>
-          <div class="stat-count">{{ qtd_expiradas }} transacao{{ qtd_expiradas|pluralize:"oes" }}</div>
+          <div class="stat-count">{{ qtd_expiradas }} transação{{ qtd_expiradas|pluralize:"ões" }}</div>
         </div>
 
         <div class="stat-card taxa">
-          <div class="stat-label">Taxa por Transacao</div>
+          <div class="stat-label">Taxa por Transação</div>
           <div class="stat-value">R$ 1,00 + 3%</div>
           <div class="stat-count">Taxa fixa FastDePix</div>
         </div>
@@ -592,7 +592,7 @@
   {% include 'partials/scripts.html' %}
 
   <script>
-    // Dados dos pagamentos para o modal de transacao
+    // Dados dos pagamentos para o modal de transação
     const pagamentosData = [
       {% for pag in pagamentos %}
       {
@@ -621,9 +621,9 @@
       let html = '<div class="transacao-detalhes">';
 
       // Dados principais
-      html += `<div class="transacao-item"><span class="transacao-label">ID Transacao</span><span class="transacao-valor">${pag.transaction_id || '-'}</span></div>`;
+      html += `<div class="transacao-item"><span class="transacao-label">ID Transação</span><span class="transacao-valor">${pag.transaction_id || '-'}</span></div>`;
       html += `<div class="transacao-item"><span class="transacao-label">Data Pagamento</span><span class="transacao-valor">${pag.data}</span></div>`;
-      html += `<div class="transacao-item"><span class="transacao-label">Data Criacao</span><span class="transacao-valor">${pag.criado_em || '-'}</span></div>`;
+      html += `<div class="transacao-item"><span class="transacao-label">Data Criação</span><span class="transacao-valor">${pag.criado_em || '-'}</span></div>`;
       html += `<div class="transacao-item"><span class="transacao-label">Valor</span><span class="transacao-valor">R$ ${pag.valor}</span></div>`;
 
       if (pag.valor_recebido) {

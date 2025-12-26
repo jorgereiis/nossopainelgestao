@@ -6,7 +6,7 @@
       <div class="modal-header bg-warning bg-opacity-10 border-bottom-0">
         <h5 class="modal-title text-warning" id="modalAlertasFastDePixLabel">
           <i class="bi bi-exclamation-triangle me-2"></i>
-          Alertas de Configuracao FastDePix
+          Alertas de Configuração FastDePix
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
       </div>
@@ -17,7 +17,7 @@
             <i class="bi bi-x-circle me-2"></i>
             Planos sem Link de Pagamento
           </h6>
-          <p class="mb-2">Os seguintes planos nao possuem link FastDePix configurado. Sem o link, o sistema nao podera gerar cobrancas para clientes desses planos:</p>
+          <p class="mb-2">Os seguintes planos não possuem link FastDePix configurado. Sem o link, o sistema não poderá gerar cobranças para clientes desses planos:</p>
           <ul class="mb-0">
             {% for item in alertas_fastdepix.planos_sem_link %}
             <li>
@@ -35,7 +35,7 @@
             <i class="bi bi-arrow-left-right me-2"></i>
             Planos com Valor Alterado
           </h6>
-          <p class="mb-2">Os seguintes planos tiveram o valor alterado desde que o link foi configurado. Verifique se o link FastDePix esta com o valor correto para evitar cobrancas incorretas:</p>
+          <p class="mb-2">Os seguintes planos tiveram o valor alterado desde que o link foi configurado. Verifique se o link FastDePix está com o valor correto para evitar cobranças incorretas:</p>
           <ul class="mb-0">
             {% for item in alertas_fastdepix.planos_valor_divergente %}
             <li>
@@ -64,10 +64,10 @@
 
 <script>
 /**
- * Logica hibrida para exibicao do modal de alertas FastDePix:
+ * Lógica híbrida para exibição do modal de alertas FastDePix:
  * 1. Uma vez por dia (localStorage com timestamp)
  * 2. Quando houver novos alertas (comparar assinatura)
- * 3. A cada nova sessao do navegador (sessionStorage)
+ * 3. A cada nova sessão do navegador (sessionStorage)
  */
 document.addEventListener('DOMContentLoaded', function() {
   const modalElement = document.getElementById('modalAlertasFastDePix');
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const alertasAtuais = {
     planosSemLink: {{ alertas_fastdepix.planos_sem_link|length }},
     planosValorDivergente: {{ alertas_fastdepix.planos_valor_divergente|length }},
-    // IDs dos planos para detectar mudancas especificas
+    // IDs dos planos para detectar mudanças específicas
     idsSemLink: [{% for item in alertas_fastdepix.planos_sem_link %}{{ item.plano_id }}{% if not forloop.last %},{% endif %}{% endfor %}],
     idsDivergente: [{% for item in alertas_fastdepix.planos_valor_divergente %}{{ item.plano_id }}{% if not forloop.last %},{% endif %}{% endfor %}]
   };
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (novaSessao && passouUmDia) {
       // Nova sessao e passou mais de 24h - exibir
       deveExibir = true;
-      motivo = 'nova_sessao_apos_24h';
+      motivo = 'nova_sessão_após_24h';
     }
   }
 
@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('[AlertasFastDePix] Modal exibido. Motivo:', motivo);
   } else {
-    // Marcar sessao mesmo sem exibir (para nao exibir novamente nesta sessao)
+    // Marcar sessão mesmo sem exibir (para não exibir novamente nesta sessão)
     sessionStorage.setItem(sessionKey, 'true');
   }
 });

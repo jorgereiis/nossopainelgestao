@@ -1,0 +1,659 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  {% include 'partials/head.html' %}
+  <title>Nova Assinatura | Nosso Painel - Gestão Simplificada</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/css/intlTelInput.css">
+</head>
+
+<!-- body -->
+<body class="bg-light">
+  <div id="db-wrapper">
+    <!-- navbar vertical -->
+    {% include 'partials/navbar-vertical.html' %}
+    <!-- page content -->
+    <div id="page-content">
+      {% include 'partials/header.html' %}
+      <!-- Container fluid -->
+      <div class="container-fluid p-6">
+        <div class="row">
+          <div class="col-lg-12 col-md-12 col-12">
+            <!-- Page header -->
+            <div class="border-bottom pb-4 mb-4">
+              <h3 class="mb-0 fw-bold">Cadastro de Assinatura</h3>
+              <p class="text-muted mb-0">Crie uma assinatura para um cliente existente ou cadastre um novo cliente com assinatura.</p>
+            </div>
+          </div>
+          <!-- col -->
+          <div class="row mb-8">
+            <div class="col-xl-4 col-lg-4 col-md-12 col-12">
+              <div class="mb-4 mb-lg-0">
+                <h4 class="mb-1">Nova Assinatura</h4>
+                <p class="mb-0 fs-5 text-muted">Preencha os dados da assinatura.</p>
+
+                <!-- Card de Informação -->
+                <div class="card border-0 shadow-sm mt-4" style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);">
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <h4 class="mb-0 fw-bold" style="color: #7b1fa2; font-size: 1.4rem;">&#10067;&#10067; Como funciona?</h4>
+                    </div>
+
+                    <div class="mb-3">
+                      <div class="d-flex align-items-start mb-2">
+                        <span class="badge bg-primary rounded-circle me-2" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">1</span>
+                        <div>
+                          <strong class="text-dark">Cliente já cadastrado?</strong>
+                          <p class="text-muted mb-0 small">Selecione "Cliente existente" e escolha o cliente na lista.</p>
+                        </div>
+                      </div>
+                      <div class="d-flex align-items-start">
+                        <span class="badge bg-success rounded-circle me-2" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">2</span>
+                        <div>
+                          <strong class="text-dark">Cliente novo?</strong>
+                          <p class="text-muted mb-0 small">Selecione "Novo cliente" e preencha os dados básicos junto com a assinatura.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <div class="d-flex align-items-start">
+                      <i class="bi bi-whatsapp text-success me-2 mt-1"></i>
+                      <p class="text-muted mb-0 small">
+                        <strong>Importante:</strong> A mensagem de confirmação de pagamento será enviada automaticamente após criar a assinatura.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Link para cadastro básico -->
+                <div class="mt-3 p-3 bg-light rounded">
+                  <p class="text-muted small mb-2">
+                    <i class="bi bi-lightbulb-fill text-warning me-1"></i>
+                    <strong>Dica:</strong> Precisa cadastrar apenas os dados do cliente sem criar assinatura agora?
+                  </p>
+                  <a href="{% url 'cadastro-cliente' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-person-plus me-1"></i>Ir para Cadastro Cliente
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-7 col-lg-8 col-md-12 col-12" id="div-principal">
+              <!-- card -->
+              <div class="card shadow-sm border-0 cadastro-form-card">
+                <!-- card body -->
+                <div class="card-body p-4">
+                  <div class="mb-4 pb-3 border-bottom">
+                    <h4 class="mb-1 fw-bold d-flex align-items-center">
+                      <i class="bi bi-clipboard-check-fill text-primary me-2"></i>
+                      Formulário de Assinatura
+                    </h4>
+                    <small class="text-muted">Vincule um cliente e configure a assinatura</small>
+                  </div>
+
+                  {% if error_message %}
+                  <div class="alert alert-danger fade show mb-4" role="alert">
+                    <div class="d-flex align-items-start">
+                      <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                      <div>{{ error_message|safe }}</div>
+                    </div>
+                  </div>
+                  {% endif %}
+
+                  {% if success_message %}
+                  <div class="alert alert-success fade show mb-4" role="alert">
+                    <div class="d-flex align-items-start">
+                      <i class="bi bi-check-circle-fill me-2 mt-1"></i>
+                      <div>{{ success_message|safe }}</div>
+                    </div>
+                  </div>
+                  {% endif %}
+
+                  <form method="POST" id="cadastro-assinatura-form">
+                    {% csrf_token %}
+
+                    <!-- ===== SEÇÃO: SELEÇÃO DE CLIENTE ===== -->
+                    <div class="card mb-4" style="border-left: 4px solid #6c757d;">
+                      <div class="card-header bg-light">
+                        <h5 class="mb-0 fw-bold">
+                          <i class="bi bi-person-fill text-secondary me-2"></i>Cliente
+                        </h5>
+                      </div>
+                      <div class="card-body">
+                        <!-- Radio para selecionar modo -->
+                        <div class="mb-3">
+                          <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="modo" id="modo-existente" value="existente" checked>
+                            <label class="form-check-label" for="modo-existente">
+                              <i class="bi bi-search me-1"></i>Cliente existente
+                            </label>
+                          </div>
+                          <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="modo" id="modo-novo" value="novo">
+                            <label class="form-check-label" for="modo-novo">
+                              <i class="bi bi-person-plus me-1"></i>Novo cliente
+                            </label>
+                          </div>
+                        </div>
+
+                        <!-- Campos para cliente existente -->
+                        <div id="campos-existente">
+                          <div class="mb-3">
+                            <label for="cliente_id" class="form-label fw-semibold">
+                              <i class="bi bi-person-check-fill text-success me-2"></i>Selecione o cliente <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select form-select-lg" id="cliente_id" name="cliente_id">
+                              <option value="" selected disabled>Selecione um cliente sem assinatura</option>
+                              {% for cliente in clientes_sem_assinatura %}
+                              <option value="{{ cliente.id }}">{{ cliente.nome }} - {{ cliente.telefone }}</option>
+                              {% empty %}
+                              <option value="" disabled>Nenhum cliente sem assinatura encontrado</option>
+                              {% endfor %}
+                            </select>
+                            <small class="text-muted">Apenas clientes sem assinatura ativa</small>
+                          </div>
+                        </div>
+
+                        <!-- Campos para novo cliente -->
+                        <div id="campos-novo" style="display: none;">
+                          <div class="mb-3">
+                            <label for="nome" class="form-label fw-semibold">
+                              <i class="bi bi-person-fill text-primary me-2"></i>Nome do cliente <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control form-control-lg" placeholder="Digite o nome completo" id="nome" name="nome" autocomplete="off">
+                          </div>
+                          <div class="mb-3">
+                            <label for="telefone" class="form-label fw-semibold">
+                              <i class="bi bi-telephone-fill text-success me-2"></i>Telefone <span class="text-danger">*</span>
+                            </label>
+                            <input type="tel" id="telefone" name="telefone" class="form-control form-control-lg" autocomplete="off">
+                            <small class="text-muted">Número com DDD (precisa ter WhatsApp)</small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- ===== SEÇÃO: DADOS DA ASSINATURA ===== -->
+                    <div class="card mb-4" style="border-left: 4px solid #007bff;">
+                      <div class="card-header bg-light">
+                        <h5 class="mb-0 fw-bold">
+                          <i class="bi bi-clipboard-data-fill text-primary me-2"></i>Dados da Assinatura
+                        </h5>
+                      </div>
+                      <div class="card-body">
+                        <!-- Servidor -->
+                        <div class="mb-4">
+                          <label for="servidor" class="form-label fw-semibold">
+                            <i class="bi bi-hdd-network-fill text-primary me-2"></i>Servidor <span class="text-danger">*</span>
+                          </label>
+                          <select class="form-select form-select-lg" id="servidor" name="servidor" required>
+                            <option value="" selected disabled>Selecione um servidor</option>
+                            {% for servidor in servidores %}
+                            <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+
+                        <!-- Forma de pagamento -->
+                        <div class="mb-4">
+                          <label for="forma_pgto" class="form-label fw-semibold">
+                            <i class="bi bi-wallet2 text-success me-2"></i>Forma de pagamento <span class="text-danger">*</span>
+                          </label>
+                          <select class="form-select form-select-lg" id="forma_pgto" name="forma_pgto" required>
+                            <option value="" selected disabled>Selecione uma forma de pagamento</option>
+                            {% for forma_pgto in formas_pgtos %}
+                            <option value="{{ forma_pgto.id }}">{{ forma_pgto.nome }} ({% if forma_pgto.conta_bancaria and forma_pgto.conta_bancaria.nome_identificacao %}{{ forma_pgto.conta_bancaria.nome_identificacao }}{% else %}sem identificação{% endif %})</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+
+                        <!-- Planos -->
+                        <div class="mb-4">
+                          <label for="plano" class="form-label fw-semibold">
+                            <i class="bi bi-calendar-check-fill text-warning me-2"></i>Plano de Adesão <span class="text-danger">*</span>
+                          </label>
+                          <select class="form-select form-select-lg" id="plano" name="plano" required>
+                            <option value="" selected disabled>Selecione um plano de adesão</option>
+                            {% for plano in planos %}
+                            {% if plano.telas > 1 %}
+                            <option value="{{ plano.id }}" data-telas="{{ plano.telas }}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} telas</option>
+                            {% else %}
+                            <option value="{{ plano.id }}" data-telas="{{ plano.telas }}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela</option>
+                            {% endif %}
+                            {% endfor %}
+                          </select>
+                        </div>
+
+                        <!-- Indicado por -->
+                        <div class="mb-4">
+                          <label for="indicado_por" class="form-label fw-semibold">
+                            <i class="bi bi-people-fill text-info me-2"></i>Indicado por <span class="badge bg-light text-muted">Opcional</span>
+                          </label>
+                          <input type="text" class="form-control form-control-lg" placeholder="Selecione um cliente indicador" id="indicado_por"
+                            list="indicador-options" name="indicador_list" autocomplete="off">
+                          <datalist id="indicador-options">
+                            {% for indicador in indicadores %}
+                            <option value="{{ indicador.nome }}">
+                            {% endfor %}
+                          </datalist>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- ===== SEÇÃO: DISPOSITIVOS E APLICATIVOS ===== -->
+                    <div id="dispositivos-apps-container" class="mb-4">
+                      <!-- Os blocos serão gerados dinamicamente aqui -->
+                    </div>
+
+                    <!-- Anotações -->
+                    <div class="mb-4">
+                      <label for="notas" class="form-label fw-semibold">
+                        <i class="bi bi-sticky-fill text-warning me-2"></i>Anotações <span class="badge bg-light text-muted">Opcional</span>
+                      </label>
+                      <textarea class="form-control form-control-lg" placeholder="Observações sobre a assinatura..." id="notas" name="notas" rows="3"></textarea>
+                    </div>
+
+                    <!-- Botão -->
+                    <div class="d-grid gap-2 mt-5">
+                      <button type="submit" class="btn btn-primary btn-lg" id="btn-criar-assinatura">
+                        <i class="bi bi-check-circle me-2"></i>Criar Assinatura
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'partials/scripts.html' %}
+  <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/intlTelInput.min.js"></script>
+
+  <script>
+    // Toggle entre cliente existente e novo
+    document.addEventListener('DOMContentLoaded', function() {
+      const modoExistente = document.getElementById('modo-existente');
+      const modoNovo = document.getElementById('modo-novo');
+      const camposExistente = document.getElementById('campos-existente');
+      const camposNovo = document.getElementById('campos-novo');
+      const clienteIdSelect = document.getElementById('cliente_id');
+      const nomeInput = document.getElementById('nome');
+      const telefoneInput = document.getElementById('telefone');
+
+      function toggleModo() {
+        if (modoExistente.checked) {
+          camposExistente.style.display = 'block';
+          camposNovo.style.display = 'none';
+          clienteIdSelect.required = true;
+          nomeInput.required = false;
+          telefoneInput.required = false;
+        } else {
+          camposExistente.style.display = 'none';
+          camposNovo.style.display = 'block';
+          clienteIdSelect.required = false;
+          nomeInput.required = true;
+          telefoneInput.required = true;
+        }
+      }
+
+      modoExistente.addEventListener('change', toggleModo);
+      modoNovo.addEventListener('change', toggleModo);
+
+      // Inicializar telefone internacional
+      if (telefoneInput) {
+        const iti = window.intlTelInput(telefoneInput, {
+          initialCountry: "br",
+          preferredCountries: ["br", "us", "pt"],
+          separateDialCode: true,
+          utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/utils.js",
+        });
+
+        // Máscaras de telefone por país
+        function aplicarMascaraTelefone(input, countryCode) {
+          let value = input.value.replace(/\D/g, '');
+
+          if (countryCode === 'br') {
+            // Brasil: (99) 99999-9999 ou (99) 9999-9999
+            if (value.length > 11) value = value.slice(0, 11);
+            if (value.length > 10) {
+              value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+            } else if (value.length > 6) {
+              value = value.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+            } else if (value.length > 2) {
+              value = value.replace(/(\d{2})(\d{0,5})/, '($1) $2');
+            } else if (value.length > 0) {
+              value = value.replace(/(\d{0,2})/, '($1');
+            }
+          } else if (countryCode === 'us') {
+            // EUA: (999) 999-9999
+            if (value.length > 10) value = value.slice(0, 10);
+            if (value.length > 6) {
+              value = value.replace(/(\d{3})(\d{3})(\d{0,4})/, '($1) $2-$3');
+            } else if (value.length > 3) {
+              value = value.replace(/(\d{3})(\d{0,3})/, '($1) $2');
+            } else if (value.length > 0) {
+              value = value.replace(/(\d{0,3})/, '($1');
+            }
+          } else if (countryCode === 'pt') {
+            // Portugal: 999 999 999
+            if (value.length > 9) value = value.slice(0, 9);
+            if (value.length > 6) {
+              value = value.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1 $2 $3');
+            } else if (value.length > 3) {
+              value = value.replace(/(\d{3})(\d{0,3})/, '$1 $2');
+            }
+          }
+
+          input.value = value.trim();
+        }
+
+        // Aplicar máscara ao digitar
+        telefoneInput.addEventListener('input', function() {
+          const countryData = iti.getSelectedCountryData();
+          aplicarMascaraTelefone(this, countryData.iso2);
+        });
+
+        // Limpar e reaplicar máscara ao mudar de país
+        telefoneInput.addEventListener('countrychange', function() {
+          const countryData = iti.getSelectedCountryData();
+          const rawValue = this.value.replace(/\D/g, '');
+          this.value = rawValue;
+          aplicarMascaraTelefone(this, countryData.iso2);
+        });
+
+        document.getElementById('cadastro-assinatura-form').addEventListener('submit', function(e) {
+          if (modoNovo.checked) {
+            const fullNumber = iti.getNumber();
+            if (fullNumber) {
+              telefoneInput.value = fullNumber;
+            }
+          }
+
+          // Mostrar loading no botão
+          const btn = document.getElementById('btn-criar-assinatura');
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+          }
+        });
+      }
+    });
+
+    // Geração dinâmica de blocos de dispositivo/app
+    $(document).ready(function() {
+      const dispositivos = {{ dispositivos_json|safe }};
+      const sistemas = {{ sistemas_json|safe }};
+      const container = $('#dispositivos-apps-container');
+
+      function gerarBloco(index) {
+        let dispositivosOptions = '<option value="" selected disabled>Selecione um dispositivo</option>';
+        dispositivos.forEach(dispositivo => {
+          dispositivosOptions += `<option value="${dispositivo.nome}">${dispositivo.nome}</option>`;
+        });
+
+        let sistemasOptions = '<option value="" selected disabled>Selecione um aplicativo</option>';
+        sistemas.forEach(sistema => {
+          const macValue = sistema.device_has_mac ? '1' : '0';
+          sistemasOptions += `<option value="${sistema.nome}" data-mac="${macValue}">${sistema.nome}</option>`;
+        });
+
+        return `
+          <div class="card mb-3 bloco-dispositivo-app" data-index="${index}" style="border-left: 4px solid #17a2b8;">
+            <div class="card-header bg-light">
+              <h5 class="mb-0 fw-bold">
+                <i class="bi bi-tv-fill text-info me-2"></i>Tela ${index + 1}
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label for="dispositivo_${index}" class="form-label fw-semibold">
+                    <i class="bi bi-tablet-fill text-info me-2"></i>Dispositivo <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-select" id="dispositivo_${index}" name="dispositivo_${index}" required>
+                    ${dispositivosOptions}
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label for="aplicativo_${index}" class="form-label fw-semibold">
+                    <i class="bi bi-phone-fill text-primary me-2"></i>Aplicativo <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-select aplicativo-select" id="aplicativo_${index}" name="aplicativo_${index}" data-index="${index}" required>
+                    ${sistemasOptions}
+                  </select>
+                </div>
+              </div>
+              <div id="conta-fields-${index}"></div>
+            </div>
+          </div>
+        `;
+      }
+
+      $('#plano').change(function() {
+        const selectedOption = $(this).find('option:selected');
+        if (!selectedOption.val()) return;
+
+        const qtdTelas = parseInt(selectedOption.data('telas')) || 1;
+
+        container.empty();
+        for (let i = 0; i < qtdTelas; i++) {
+          container.append(gerarBloco(i));
+        }
+
+        $('.aplicativo-select').change(function() {
+          const index = $(this).data('index');
+          const selectedOption = $(this).find('option:selected');
+          const hasMac = selectedOption.data('mac') === 1;
+          const appName = selectedOption.val().toLowerCase().replace(/\s/g, "");
+          const contaContainer = $(`#conta-fields-${index}`);
+
+          contaContainer.empty();
+
+          if (hasMac) {
+            if (appName === 'clouddy') {
+              contaContainer.html(`
+                <div class="mb-3">
+                  <label for="email_${index}" class="form-label fw-semibold">
+                    <i class="bi bi-envelope-fill text-success me-2"></i>E-mail do Aplicativo <span class="text-danger">*</span>
+                  </label>
+                  <input type="email" class="form-control" placeholder="Digite o e-mail" id="email_${index}" name="email_${index}" required>
+                </div>
+                <div class="mb-3">
+                  <label for="senha_${index}" class="form-label fw-semibold">
+                    <i class="bi bi-key-fill text-warning me-2"></i>Senha do Aplicativo <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" class="form-control" placeholder="Digite a senha" id="senha_${index}" name="senha_${index}" minlength="6" required>
+                </div>
+              `);
+            } else if (appName.includes('xcloud')) {
+              contaContainer.html(`
+                <div class="mb-3">
+                  <label for="device_id_${index}" class="form-label fw-semibold">
+                    <i class="bi bi-upc-scan text-success me-2"></i>Device ID <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" class="form-control" placeholder="Ex: AAAAAA" id="device_id_${index}" name="device_id_${index}" minlength="6" maxlength="6" style="text-transform: uppercase;" required>
+                </div>
+                <div class="mb-3">
+                  <label for="senha_${index}" class="form-label fw-semibold">
+                    <i class="bi bi-key-fill text-warning me-2"></i>Device Key (Senha)
+                  </label>
+                  <input type="text" class="form-control" placeholder="Opcional" id="senha_${index}" name="senha_${index}">
+                </div>
+              `);
+            } else {
+              contaContainer.html(`
+                <div class="mb-3">
+                  <label for="device_id_${index}" class="form-label fw-semibold">
+                    <i class="bi bi-upc-scan text-success me-2"></i>Device ID (MAC Address) <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" class="form-control device-id-input" placeholder="AA:BB:CC:DD:EE:FF" id="device_id_${index}" name="device_id_${index}" maxlength="17" required>
+                </div>
+                <div class="mb-3">
+                  <label for="senha_${index}" class="form-label fw-semibold">
+                    <i class="bi bi-key-fill text-warning me-2"></i>Device Key (Senha)
+                  </label>
+                  <input type="text" class="form-control" placeholder="Opcional" id="senha_${index}" name="senha_${index}">
+                </div>
+              `);
+
+              $(`#device_id_${index}`).on('input', function() {
+                let deviceId = this.value.replace(/[^0-9A-Fa-f]/g, '');
+                if (deviceId.length > 0) {
+                  this.value = deviceId.match(/.{1,2}/g).join(':').toUpperCase();
+                }
+              });
+            }
+          }
+        });
+      });
+    });
+  </script>
+
+  <style>
+    .iti { width: 100%; }
+    .iti__country-list { z-index: 10000; }
+
+    /* Loading com 3 pontos animados */
+    .loading-dots {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .loading-dots span {
+      width: 8px;
+      height: 8px;
+      background-color: #fff;
+      border-radius: 50%;
+      animation: wave 1.2s ease-in-out infinite;
+    }
+    .loading-dots span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    .loading-dots span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+    @keyframes wave {
+      0%, 60%, 100% {
+        transform: translateY(0);
+      }
+      30% {
+        transform: translateY(-8px);
+      }
+    }
+  </style>
+
+  {% if assinatura_criada %}
+  <!-- Modal: Assinatura Criada -->
+  <div class="modal fade" id="modal-assinatura-criada" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-body text-center p-5">
+          <!-- Ícone de Sucesso -->
+          <div class="mb-4">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                 style="width: 80px; height: 80px; background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+              <i class="bi bi-check-circle-fill text-success" style="font-size: 2.5rem;"></i>
+            </div>
+          </div>
+
+          <h4 class="fw-bold mb-2">Assinatura Registrada!</h4>
+          <p class="text-muted mb-4">
+            A assinatura de <strong>{{ cliente_nome }}</strong> foi criada com sucesso.
+          </p>
+
+          {% if is_fastdepix and link_painel_cliente %}
+          <!-- Versão FastDePix -->
+          <div class="alert alert-info text-start mb-4" style="background: linear-gradient(135deg, #e7f3ff 0%, #cce5ff 100%); border: none;">
+            <div class="d-flex align-items-start">
+              <i class="bi bi-info-circle-fill text-primary me-2 mt-1"></i>
+              <div>
+                <strong>Próximo passo:</strong><br>
+                Envie o link abaixo para o cliente realizar o pagamento da mensalidade pelo Painel do Cliente.
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold text-start d-block">
+              <i class="bi bi-link-45deg text-primary me-1"></i>Link do Painel do Cliente
+            </label>
+            <div class="input-group">
+              <input type="text" class="form-control" id="link-painel-cliente" value="{{ link_painel_cliente }}" readonly>
+              <button class="btn btn-outline-primary" type="button" onclick="copiarLinkPainel()">
+                <i class="bi bi-clipboard"></i> Copiar
+              </button>
+            </div>
+            <small class="text-muted">O cliente poderá acessar e pagar a mensalidade por este link</small>
+          </div>
+
+          {% else %}
+          <!-- Versão Manual (sem FastDePix) -->
+          <div class="alert alert-warning text-start mb-4" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border: none;">
+            <div class="d-flex align-items-start">
+              <i class="bi bi-exclamation-triangle-fill text-warning me-2 mt-1"></i>
+              <div>
+                <strong>Próximo passo:</strong><br>
+                Aguarde o cliente confirmar que realizou o pagamento e depois registre manualmente na tela de mensalidades.
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 justify-content-center mb-3">
+            <a href="{% url 'editar-cliente' cliente_id %}" class="btn btn-outline-primary">
+              <i class="bi bi-person-lines-fill me-1"></i>Ver Cliente
+            </a>
+          </div>
+          {% endif %}
+
+          <hr class="my-4">
+
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+              <i class="bi bi-plus-circle me-1"></i>Cadastrar outra assinatura
+            </button>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+              <i class="bi bi-people me-1"></i>Ver Clientes
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var modal = new bootstrap.Modal(document.getElementById('modal-assinatura-criada'));
+      modal.show();
+    });
+
+    function copiarLinkPainel() {
+      var input = document.getElementById('link-painel-cliente');
+      input.select();
+      input.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(input.value).then(function() {
+        // Feedback visual
+        var btn = event.target.closest('button');
+        var originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> Copiado!';
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-success');
+        setTimeout(function() {
+          btn.innerHTML = originalHTML;
+          btn.classList.remove('btn-success');
+          btn.classList.add('btn-outline-primary');
+        }, 2000);
+      });
+    }
+  </script>
+  {% endif %}
+
+</body>
+</html>

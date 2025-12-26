@@ -35,7 +35,13 @@
 
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link {% if page == 'cadastro-cliente' %} active {% endif %}" href="{% url 'cadastro-cliente' %}">Novo</a>
+                            <a class="nav-link {% if page == 'cadastro-cliente' %} active {% endif %}" href="{% url 'cadastro-cliente' %}">Novo Cliente</a>
+                        </li>
+                    </ul>
+
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'cadastro-assinatura' %} active {% endif %}" href="{% url 'cadastro-assinatura' %}">Nova Assinatura</a>
                         </li>
                     </ul>
 
@@ -135,7 +141,7 @@
                             <a class="nav-link {% if page == 'relatorio_pagamentos' %}active{% endif %}" href="{% url 'relatorio-pagamentos' %}">Pagamentos</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if page == 'relatorio1' %}active{% endif %}" style="cursor: pointer;" onclick="modal_dns()">DNS'es</a>
+                            <a class="nav-link {% if page == 'relatorio1' %}active{% endif %}" style="cursor: pointer;" onclick="modal_dns()">DNS's</a>
                         </li>
                     </ul>
                 </div>

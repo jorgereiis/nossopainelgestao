@@ -104,14 +104,14 @@
               <div class="identity-right">
                 <!-- Nome de Exibicao -->
                 <div class="form-group">
-                  <label for="nome_exibicao" class="form-label">Nome de Exibição</label>
+                  <label for="nome_exibicao" class="form-label">Nome de Exibição
                   <input
                     type="text"
                     class="form-input"
                     id="nome_exibicao"
                     name="nome_exibicao"
                     value="{{ config.nome_exibicao }}"
-                    placeholder="Meu Negocio"
+                    placeholder="Meu Negócio"
                   >
                   <p class="form-hint">Nome exibido no cabeçalho do painel</p>
                 </div>
@@ -120,7 +120,7 @@
                 <div class="colors-row">
                   <!-- Cor Primaria -->
                   <div class="form-group">
-                    <label for="cor_primaria" class="form-label">Cor Primária</label>
+                    <label for="cor_primaria" class="form-label">Cor Primária
                     <div class="color-input-group">
                       <input
                         type="color"
@@ -143,7 +143,7 @@
 
                   <!-- Cor Secundaria -->
                   <div class="form-group">
-                    <label for="cor_secundaria" class="form-label">Cor Secundária</label>
+                    <label for="cor_secundaria" class="form-label">Cor Secundária
                     <div class="color-input-group">
                       <input
                         type="color"
@@ -165,7 +165,7 @@
                   </div>
                 </div>
 
-                <!-- Botao Restaurar Cores -->
+                <!-- Botão Restaurar Cores -->
                 <button type="button" class="btn btn-ghost btn-sm reset-colors-btn" id="btn-reset-cores">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
@@ -207,14 +207,14 @@
 
               <!-- Mensagem Padrao -->
               <div class="form-group">
-                <label for="mensagem_suporte" class="form-label">Mensagem Padrão</label>
+                <label for="mensagem_suporte" class="form-label">Mensagem Padrão
                 <input
                   type="text"
                   class="form-input"
                   id="mensagem_suporte"
                   name="mensagem_suporte"
                   value="{{ config.mensagem_suporte }}"
-                  placeholder="Ola, preciso de ajuda..."
+                  placeholder="Olá, preciso de ajuda..."
                 >
                 <p class="form-hint">Mensagem enviada ao clicar no botão do WhatsApp</p>
               </div>
@@ -704,7 +704,7 @@
 
     if (nomeExibicaoInput && previewLogoText) {
       nomeExibicaoInput.addEventListener('input', function() {
-        previewLogoText.textContent = this.value || 'Meu Negocio';
+        previewLogoText.textContent = this.value || 'Meu Negócio';
       });
     }
 
@@ -734,13 +734,13 @@
     function handleLogoFile(file) {
       // Valida tamanho (max 2MB)
       if (file.size > 2 * 1024 * 1024) {
-        alert('A imagem deve ter no maximo 2MB');
+        alert('A imagem deve ter no máximo 2MB');
         return;
       }
 
       // Valida tipo
       if (!file.type.match(/image\/(png|jpeg|jpg|webp|gif)/)) {
-        alert('Formato invalido. Use PNG, JPG, WebP ou GIF');
+        alert('Formato inválido. Use PNG, JPG, WebP ou GIF');
         return;
       }
 
@@ -786,7 +786,7 @@
       }
     });
 
-    // Botao Trocar Logo
+    // Botão Trocar Logo
     if (btnTrocarLogo) {
       btnTrocarLogo.addEventListener('click', function() {
         logoPreviewContainer.style.display = 'none';
@@ -795,7 +795,7 @@
       });
     }
 
-    // Botao Remover Logo
+    // Botão Remover Logo
     if (btnRemoverLogo) {
       btnRemoverLogo.addEventListener('click', function() {
         if (!confirm('Tem certeza que deseja remover a logo?')) {
@@ -826,7 +826,7 @@
               previewLogoText.style.display = 'block';
             }
 
-            // Remove botao de remover (ja nao tem mais logo salva)
+            // Remove botão de remover (já não tem mais logo salva)
             btnRemoverLogo.remove();
           }
         })

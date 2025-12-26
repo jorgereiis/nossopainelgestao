@@ -24,13 +24,41 @@ def _log_event(level, instance, func_name, message, exc_info=None):
 
 @receiver(post_save, sender=Mensalidade)
 def atualiza_ultimo_pagamento(sender, instance, **kwargs):
-    """Atualiza o campo `ultimo_pagamento` do cliente ao registrar um pagamento válido."""
+    """
+    Atualiza o campo `ultimo_pagamento` do cliente ao registrar um pagamento válido.
+    Também verifica se é a primeira mensalidade paga para enviar mensagem de boas-vindas.
+    """
     cliente = instance.cliente
 
     if instance.dt_pagamento and instance.pgto:
         if not cliente.ultimo_pagamento or instance.dt_pagamento > cliente.ultimo_pagamento:
             cliente.ultimo_pagamento = instance.dt_pagamento
             cliente.save()
+
+        # Verificar se é a primeira mensalidade paga do cliente (pagamento manual)
+        # Só envia se NÃO foi via PIX (CobrancaPix já envia via _enviar_notificacoes_pagamento)
+        try:
+            from nossopainel.models import CobrancaPix
+            # Verificar se existe uma CobrancaPix paga para esta mensalidade
+            cobranca_pix_existe = CobrancaPix.objects.filter(
+                mensalidade=instance,
+                status='paid'
+            ).exists()
+
+            if not cobranca_pix_existe:
+                # É pagamento manual - verificar se é primeira mensalidade
+                qtd_mensalidades_pagas = Mensalidade.objects.filter(
+                    cliente=cliente,
+                    pgto=True
+                ).count()
+
+                if qtd_mensalidades_pagas == 1:
+                    # Primeira mensalidade paga manualmente - enviar boas-vindas
+                    logger.info(f"[Signal] Primeira mensalidade paga manualmente para {cliente.nome}")
+                    from nossopainel.utils import envio_apos_novo_cadastro
+                    envio_apos_novo_cadastro(cliente)
+        except Exception as e:
+            logger.error(f"[Signal] Erro ao verificar/enviar mensagem de boas-vindas: {e}")
 
 
 @receiver(pre_save, sender=Mensalidade)
@@ -96,7 +124,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         elif "anual" in plano_nome:
             nova_data_vencimento += relativedelta(years=1)
 
-        # ⭐ FASE 2.5: Calcular valor considerando campanhas promocionais (Simplificado)
+        # Calcular valor considerando campanhas promocionais (Simplificado)
         from nossopainel.utils import calcular_valor_mensalidade
         from .models import AssinaturaCliente
 
@@ -126,7 +154,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         except AssinaturaCliente.DoesNotExist:
             pass  # No subscription record
 
-        # ⭐ FASE 2.5: Calcular valor com rastreamento detalhado de campanha e descontos
+        # Calcular valor com rastreamento detalhado de campanha e descontos
         from decimal import Decimal
         from nossopainel.utils import calcular_desconto_progressivo_total
 
@@ -178,7 +206,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
             # Se tem campanha, não aplica desconto progressivo
             desconto_progressivo = Decimal("0.00")
 
-        # ⭐ FASE 2.5: Criar mensalidade com rastreamento completo
+        # Criar mensalidade com rastreamento completo
         Mensalidade.objects.create(
             cliente=cliente,
             valor=valor_final,
@@ -459,7 +487,7 @@ def gerenciar_desconto_progressivo_indicacao(sender, instance, created, **kwargs
                         plano_progressivo
                     )
 
-            # 4.2: Criar desconto para novo indicador (se informado)
+            # Criar desconto para novo indicador (se informado)
             if indicador_atual_id and instance.indicado_por:
                 # Verificar se já não existe um desconto ativo para evitar duplicação
                 desconto_existente = DescontoProgressivoIndicacao.objects.filter(
@@ -653,7 +681,7 @@ def log_user_login_failure(sender, credentials, request, **kwargs):
 
 
 # ============================================================================
-# FASE 1: MVP - SIGNALS PARA ASSINATURA E CONTROLE DE RECURSOS
+# MVP - SIGNALS PARA ASSINATURA E CONTROLE DE RECURSOS
 # ============================================================================
 
 @receiver(post_save, sender=Cliente)
@@ -661,11 +689,11 @@ def criar_assinatura_cliente(sender, instance, created, **kwargs):
     """
     Cria automaticamente AssinaturaCliente ao cadastrar novo cliente.
 
-    FASE 1: MVP - Controle de Dispositivos e Apps
+    MVP - Controle de Dispositivos e Apps
 
     A AssinaturaCliente serve como camada de controle entre Cliente e Plano,
     rastreando recursos utilizados e preparando para funcionalidades futuras
-    (ofertas e valores progressivos nas Fases 2 e 3).
+    (ofertas e valores progressivos).
     """
     if created:
         try:
@@ -687,7 +715,7 @@ def criar_assinatura_cliente(sender, instance, created, **kwargs):
 
 
 # ============================================================================
-# FASE 1: Sincronização de contadores de dispositivos
+# Sincronização de contadores de dispositivos
 # ============================================================================
 
 @receiver(post_delete, sender='nossopainel.ContaDoAplicativo')
@@ -695,7 +723,7 @@ def decrementar_contador_dispositivos(sender, instance, **kwargs):
     """
     Decrementa contador de dispositivos quando ContaDoAplicativo é excluída.
 
-    FASE 1: MVP - Controle de Dispositivos
+    MVP - Controle de Dispositivos
 
     Mantém sincronizado o contador dispositivos_usados em AssinaturaCliente
     quando um dispositivo/conta de aplicativo é removido do sistema.

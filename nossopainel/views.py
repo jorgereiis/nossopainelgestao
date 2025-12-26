@@ -55,7 +55,7 @@ from django.conf import settings
 import matplotlib.pyplot as plt
 from plotly.offline import plot
 from django.views import View
-from .models import DDD_UF_MAP
+from .models import DDD_UF_MAP, extrair_pais_do_telefone
 from .forms import LoginForm
 from typing import Optional
 import plotly.express as px
@@ -81,7 +81,7 @@ from .models import (
     HorarioEnvios, NotificationRead,
     UserActionLog, ClientePlanoHistorico,
     ContaReseller, TarefaMigracaoDNS,
-    DispositivoMigracaoDNS,
+    DispositivoMigracaoDNS, AssinaturaCliente,
     # Integração Bancária
     InstituicaoBancaria,
     ContaBancaria,
@@ -108,6 +108,7 @@ from .utils import (
     get_or_create_dispositivo,
     get_or_create_aplicativo,
     get_or_create_servidor,
+    enroll_client_in_campaign_if_eligible,
 )
 from .wpp_views import (
     cancelar_sessao_wpp,
@@ -2435,6 +2436,88 @@ def adesoes_cancelamentos_api(request):
 
 
 @login_required
+def api_listar_todos_clientes(request):
+    """
+    API para listar todos os clientes do usuário ordenados por data de adesão (mais recente primeiro).
+    Retorna: nome, telefone, tem_assinatura, cancelado, data_adesao, logo_servidor
+    """
+    usuario = request.user
+    clientes = Cliente.objects.filter(usuario=usuario).select_related('servidor').order_by('-data_adesao')
+
+    resultado = []
+    for cliente in clientes:
+        # Obter logo do servidor ou default
+        if cliente.servidor:
+            logo_url = cliente.servidor.get_imagem_url(usuario)
+        else:
+            logo_url = '/static/assets/images/logo-apps/default.png'
+
+        resultado.append({
+            'id': cliente.id,
+            'nome': cliente.nome,
+            'telefone': cliente.telefone,
+            'tem_assinatura': cliente.tem_assinatura,
+            'cancelado': cliente.cancelado,
+            'data_adesao': cliente.data_adesao.strftime('%d/%m/%Y') if cliente.data_adesao else None,
+            'logo_servidor': logo_url,
+            'servidor_nome': cliente.servidor.nome if cliente.servidor else None,
+        })
+
+    return JsonResponse({
+        'clientes': resultado,
+        'total': len(resultado)
+    })
+
+
+@login_required
+def api_remover_cliente_sem_assinatura(request, cliente_id):
+    """
+    Remove um cliente que NÃO possui assinatura/mensalidade.
+    Apenas clientes sem assinatura podem ser removidos por esta API.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método não permitido'}, status=405)
+
+    usuario = request.user
+
+    try:
+        cliente = Cliente.objects.get(id=cliente_id, usuario=usuario)
+
+        # Verificar se o cliente tem assinatura
+        if cliente.tem_assinatura:
+            return JsonResponse({
+                'success': False,
+                'error': 'Este cliente possui assinatura e não pode ser removido por aqui.'
+            }, status=400)
+
+        # Verificar se tem mensalidades
+        if Mensalidade.objects.filter(cliente=cliente).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'Este cliente possui mensalidades e não pode ser removido.'
+            }, status=400)
+
+        nome_cliente = cliente.nome
+        cliente.delete()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Cliente "{nome_cliente}" removido com sucesso.'
+        })
+
+    except Cliente.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Cliente não encontrado.'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Erro ao remover cliente: {str(e)}'
+        }, status=500)
+
+
+@login_required
 def generate_graphic_columns_per_year(request):
     ano = request.GET.get("ano", timezone.now().year)
     usuario = request.user
@@ -2606,6 +2689,66 @@ def mapa_clientes_data(request):
 
     max_clientes = int(max(mapa["clientes"]) if mapa["clientes"].any() else 0)
 
+    # Conta clientes por país (excluindo Brasil)
+    clientes_por_pais = list(
+        Cliente.objects.filter(cancelado=False, usuario=usuario)
+        .exclude(pais='BR')
+        .exclude(pais__isnull=True)
+        .values('pais')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+
+    # Mapa de códigos de país para nomes legíveis
+    PAIS_NOMES = {
+        'US': 'Estados Unidos', 'PT': 'Portugal', 'ES': 'Espanha',
+        'IT': 'Itália', 'FR': 'França', 'DE': 'Alemanha',
+        'GB': 'Reino Unido', 'AR': 'Argentina', 'CL': 'Chile',
+        'CH': 'Suíça', 'NL': 'Países Baixos', 'IE': 'Irlanda',
+        'AU': 'Austrália', 'JP': 'Japão', 'MX': 'México',
+        'CO': 'Colômbia', 'PE': 'Peru', 'VE': 'Venezuela',
+        'UY': 'Uruguai', 'PY': 'Paraguai', 'BO': 'Bolívia',
+        'EC': 'Equador', 'PA': 'Panamá', 'CR': 'Costa Rica',
+        'CA': 'Canadá', 'BE': 'Bélgica', 'AT': 'Áustria',
+        'SE': 'Suécia', 'NO': 'Noruega', 'DK': 'Dinamarca',
+        'FI': 'Finlândia', 'PL': 'Polônia', 'CZ': 'República Tcheca',
+        'RU': 'Rússia', 'CN': 'China', 'KR': 'Coreia do Sul',
+        'IN': 'Índia', 'ZA': 'África do Sul', 'AE': 'Emirados Árabes',
+        'IL': 'Israel', 'TR': 'Turquia', 'GR': 'Grécia',
+        'NZ': 'Nova Zelândia', 'SG': 'Singapura', 'HK': 'Hong Kong',
+        'TW': 'Taiwan', 'TH': 'Tailândia', 'MY': 'Malásia',
+        'PH': 'Filipinas', 'ID': 'Indonésia', 'VN': 'Vietnã',
+        'EG': 'Egito', 'MA': 'Marrocos', 'NG': 'Nigéria',
+        'AO': 'Angola', 'MZ': 'Moçambique', 'CV': 'Cabo Verde',
+    }
+
+    # Adiciona nome legível a cada país
+    for item in clientes_por_pais:
+        item['nome'] = PAIS_NOMES.get(item['pais'], item['pais'])
+
+    # Lista de estados com clientes (ordenada por quantidade)
+    UF_NOMES = {
+        'AC': 'Acre', 'AL': 'Alagoas', 'AP': 'Amapá', 'AM': 'Amazonas',
+        'BA': 'Bahia', 'CE': 'Ceará', 'DF': 'Distrito Federal', 'ES': 'Espírito Santo',
+        'GO': 'Goiás', 'MA': 'Maranhão', 'MT': 'Mato Grosso', 'MS': 'Mato Grosso do Sul',
+        'MG': 'Minas Gerais', 'PA': 'Pará', 'PB': 'Paraíba', 'PR': 'Paraná',
+        'PE': 'Pernambuco', 'PI': 'Piauí', 'RJ': 'Rio de Janeiro', 'RN': 'Rio Grande do Norte',
+        'RS': 'Rio Grande do Sul', 'RO': 'Rondônia', 'RR': 'Roraima', 'SC': 'Santa Catarina',
+        'SP': 'São Paulo', 'SE': 'Sergipe', 'TO': 'Tocantins',
+    }
+
+    clientes_por_estado = list(
+        Cliente.objects.filter(cancelado=False, usuario=usuario, uf__isnull=False)
+        .values('uf')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+
+    # Adiciona nome legível e percentual a cada estado
+    for item in clientes_por_estado:
+        item['nome'] = UF_NOMES.get(item['uf'], item['uf'])
+        item['percentual'] = round((item['total'] / total_geral) * 100, 1) if total_geral > 0 else 0
+
     return JsonResponse(
         {
             "features": geojson_data.get("features", []),
@@ -2613,6 +2756,8 @@ def mapa_clientes_data(request):
                 "total_geral": int(total_geral),
                 "fora_pais": int(clientes_internacionais),
                 "max_clientes": max_clientes,
+                "por_pais": clientes_por_pais,
+                "por_estado": clientes_por_estado,
             },
         }
     )
@@ -3355,9 +3500,10 @@ def edit_customer(request, cliente_id):
                         ),
                     }, status=500)
                 # Se chegou aqui, está tudo certo (ou é ele mesmo)
-            # Atualiza telefone e UF
+            # Atualiza telefone, UF e País
             cliente.telefone = telefone_novo
             cliente.uf = extrair_uf_do_telefone(telefone_novo)
+            cliente.pais = extrair_pais_do_telefone(telefone_novo)
 
         # Indicação
         indicado_nome = post.get("indicado_por")
@@ -5829,12 +5975,13 @@ def create_customer(request):
                     logger.error("Erro ao criar ContaDoAplicativo: %s", e, exc_info=True)
                     raise Exception("Falha ao criar as contas dos aplicativos.<p>Algum dos dados não pôde ser salvo.</p>")
 
-                # ENVIO DE MENSAGEM
-                try:
-                    envio_apos_novo_cadastro(cliente)
-                except Exception as e:
-                    logger.error("Erro ao enviar mensagem para o cliente: %s", e, exc_info=True)
-                    raise Exception("Erro ao realizar cadastro!<p>Talvez você ainda não tenha conectado a sessão do WhatsApp.</p>")
+                # ENVIO DE MENSAGEM - Removido: agora a mensagem é enviada apenas após
+                # o pagamento da primeira mensalidade (via _enviar_notificacoes_pagamento)
+                # try:
+                #     envio_apos_novo_cadastro(cliente)
+                # except Exception as e:
+                #     logger.error("Erro ao enviar mensagem para o cliente: %s", e, exc_info=True)
+                #     raise Exception("Erro ao realizar cadastro!<p>Talvez você ainda não tenha conectado a sessão do WhatsApp.</p>")
 
                 # ⭐ FASE 2: Auto-enroll in campaign if eligible (DEVE ser antes da criação da mensalidade)
                 try:
@@ -5910,6 +6057,427 @@ def create_customer(request):
         'page_group': page_group,
         'page': page,
     })
+
+
+# =============================================================================
+# CADASTRO BÁSICO DE CLIENTE (SEM ASSINATURA)
+# =============================================================================
+
+@login_required
+def cadastrar_cliente_basico(request):
+    """
+    Cadastra apenas os dados básicos do cliente, SEM criar assinatura.
+
+    Campos: nome, telefone, email, cpf, notas
+    NÃO cria mensalidade nem envia mensagem de confirmação.
+    O cliente fica com tem_assinatura=False até criar uma assinatura.
+    """
+    usuario = request.user
+    token = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
+    page_group = "clientes"
+    page = "cadastro-cliente"
+
+    if request.method == 'POST':
+        post = request.POST
+        nome = post.get('nome', '').strip()
+        telefone = post.get('telefone', '').strip()
+        email = post.get('email', '').strip() or None
+        cpf = post.get('cpf', '').strip() or None
+        notas = post.get('notas', '').strip() or None
+
+        # Validações básicas
+        if not nome:
+            return render(request, "pages/cadastro-cliente.html", {
+                "error_message": "O campo nome é obrigatório.",
+                'page_group': page_group,
+                'page': page,
+            })
+
+        if not telefone:
+            return render(request, "pages/cadastro-cliente.html", {
+                "error_message": "O campo telefone é obrigatório.",
+                'page_group': page_group,
+                'page': page,
+            })
+
+        # Validar WhatsApp (se houver sessão ativa)
+        if token:
+            resultado_wpp = validar_tel_whatsapp(telefone, token.token, user=usuario)
+
+            if not resultado_wpp.get("wpp"):
+                return render(request, "pages/cadastro-cliente.html", {
+                    "error_message": (
+                        "O telefone informado não possui um WhatsApp.<br>"
+                        "Cada cliente precisa estar cadastrado no WhatsApp."
+                    ),
+                    'page_group': page_group,
+                    'page': page,
+                })
+
+            # Verificar duplicidade
+            if resultado_wpp.get("cliente_existe_telefone"):
+                telefone_existente = resultado_wpp.get("cliente_existe_telefone")
+                cliente_existente = Cliente.objects.filter(telefone=telefone_existente, usuario=usuario).first()
+                if cliente_existente:
+                    return render(request, "pages/cadastro-cliente.html", {
+                        "error_message": (
+                            "Já existe um cliente cadastrado com este telefone!<br><br>"
+                            f"<strong>Nome:</strong> {cliente_existente.nome}<br>"
+                            f"<strong>Telefone:</strong> {cliente_existente.telefone}"
+                        ),
+                        'page_group': page_group,
+                        'page': page,
+                    })
+
+            # Usar telefone normalizado
+            telefone = resultado_wpp.get("telefone_validado_wpp")
+
+        try:
+            # Criar cliente apenas com dados básicos (SEM assinatura)
+            cliente = Cliente.objects.create(
+                nome=nome,
+                telefone=telefone,
+                email=email,
+                cpf=cpf,
+                notas=notas,
+                usuario=usuario,
+                tem_assinatura=False,  # Não possui assinatura ainda
+                # Campos de assinatura ficam NULL
+                servidor=None,
+                plano=None,
+                forma_pgto=None,
+                dispositivo=None,
+                sistema=None,
+                indicado_por=None,
+            )
+
+            # Log de auditoria
+            log_user_action(
+                request=request,
+                action=UserActionLog.ACTION_CREATE,
+                instance=cliente,
+                message="Cliente cadastrado (sem assinatura).",
+                extra={
+                    "telefone": cliente.telefone,
+                    "tem_assinatura": False,
+                },
+            )
+
+            return render(request, "pages/cadastro-cliente.html", {
+                "success_message": (
+                    f"Cliente <strong>{cliente.nome}</strong> cadastrado com sucesso!<br>"
+                    "Agora você pode criar uma assinatura para este cliente."
+                ),
+                'page_group': page_group,
+                'page': page,
+            })
+
+        except Exception as e:
+            logger.exception(f"[ERRO][CADASTRO CLIENTE BÁSICO] {e}")
+            return render(request, "pages/cadastro-cliente.html", {
+                "error_message": f"Erro ao cadastrar cliente: {str(e)}",
+                'page_group': page_group,
+                'page': page,
+            })
+
+    # GET - Renderiza formulário
+    return render(request, "pages/cadastro-cliente.html", {
+        'page_group': page_group,
+        'page': page,
+    })
+
+
+# =============================================================================
+# CADASTRO DE ASSINATURA
+# =============================================================================
+
+@login_required
+def cadastrar_assinatura(request):
+    """
+    Cria assinatura para um cliente.
+
+    Dois modos:
+    1. Vincular cliente existente (busca por ID)
+    2. Criar novo cliente + assinatura (fluxo completo)
+
+    Ao criar assinatura:
+    - Preenche campos de assinatura no Cliente
+    - Cria primeira Mensalidade
+    - Envia mensagem de confirmação de pagamento
+    - Processa indicação e descontos progressivos
+    """
+    usuario = request.user
+    token = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
+    page_group = "clientes"
+    page = "cadastro-assinatura"
+
+    # Querysets para preencher os selects do formulário
+    plano_queryset = Plano.objects.filter(usuario=usuario).order_by('nome', 'telas', 'valor')
+    forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=usuario).select_related('conta_bancaria__instituicao')
+    servidor_queryset = Servidor.objects.filter(usuario=usuario).order_by('nome')
+    sistema_queryset = Aplicativo.objects.filter(usuario=usuario).order_by('nome')
+    dispositivo_queryset = Dispositivo.objects.filter(usuario=usuario).order_by('nome')
+    indicador_queryset = Cliente.objects.filter(usuario=usuario, cancelado=False).order_by('nome')
+
+    # Clientes sem assinatura (para vincular)
+    clientes_sem_assinatura = Cliente.objects.filter(
+        usuario=usuario,
+        tem_assinatura=False,
+        cancelado=False
+    ).order_by('nome')
+
+    # Serializar para JavaScript
+    dispositivos_json = json.dumps([{'nome': d.nome} for d in dispositivo_queryset])
+    sistemas_json = json.dumps([
+        {'nome': a.nome, 'device_has_mac': a.device_has_mac}
+        for a in sistema_queryset
+    ])
+
+    context = {
+        'servidores': servidor_queryset,
+        'dispositivos': dispositivo_queryset,
+        'dispositivos_json': dispositivos_json,
+        'sistemas': sistema_queryset,
+        'sistemas_json': sistemas_json,
+        'indicadores': indicador_queryset,
+        'formas_pgtos': forma_pgto_queryset,
+        'planos': plano_queryset,
+        'clientes_sem_assinatura': clientes_sem_assinatura,
+        'page_group': page_group,
+        'page': page,
+    }
+
+    if request.method == 'POST':
+        post = request.POST
+        modo = post.get('modo', 'existente')  # 'existente' ou 'novo'
+        cliente_id = post.get('cliente_id', '').strip()
+
+        # Verifica sessão WhatsApp
+        if not token:
+            context['error_message'] = (
+                "Você precisa conectar sua conta ao WhatsApp antes de criar uma assinatura.<br>"
+                "Vá até a tela de integração com o WhatsApp e faça a conexão."
+            )
+            return render(request, "pages/cadastro-assinatura.html", context)
+
+        try:
+            with transaction.atomic():
+                # ===== MODO 1: Cliente existente =====
+                if modo == 'existente':
+                    if not cliente_id:
+                        context['error_message'] = "Selecione um cliente existente."
+                        return render(request, "pages/cadastro-assinatura.html", context)
+
+                    cliente = Cliente.objects.get(pk=int(cliente_id), usuario=usuario)
+
+                    if cliente.tem_assinatura:
+                        context['error_message'] = f"O cliente {cliente.nome} já possui uma assinatura ativa."
+                        return render(request, "pages/cadastro-assinatura.html", context)
+
+                # ===== MODO 2: Novo cliente =====
+                else:
+                    nome = post.get('nome', '').strip()
+                    telefone = post.get('telefone', '').strip()
+
+                    if not nome or not telefone:
+                        context['error_message'] = "Nome e telefone são obrigatórios para novo cliente."
+                        return render(request, "pages/cadastro-assinatura.html", context)
+
+                    # Validar WhatsApp
+                    resultado_wpp = validar_tel_whatsapp(telefone, token.token, user=usuario)
+
+                    if not resultado_wpp.get("wpp"):
+                        context['error_message'] = "O telefone informado não possui WhatsApp."
+                        return render(request, "pages/cadastro-assinatura.html", context)
+
+                    if resultado_wpp.get("cliente_existe_telefone"):
+                        telefone_existente = resultado_wpp.get("cliente_existe_telefone")
+                        cliente_existente = Cliente.objects.filter(telefone=telefone_existente, usuario=usuario).first()
+                        if cliente_existente:
+                            context['error_message'] = f"Já existe cliente com este telefone: {cliente_existente.nome}"
+                            return render(request, "pages/cadastro-assinatura.html", context)
+
+                    telefone = resultado_wpp.get("tel")
+
+                    # Criar cliente básico
+                    cliente = Cliente.objects.create(
+                        nome=nome,
+                        telefone=telefone,
+                        usuario=usuario,
+                        tem_assinatura=False,
+                    )
+
+                # ===== Processar dados da assinatura =====
+                servidor_nome = normalizar_servidor(post.get('servidor', '').strip())
+                forma_pgto_input = post.get('forma_pgto', '').strip()
+                plano_id = post.get('plano', '').strip()
+                indicador_nome = post.get('indicador_list', '').strip()
+                notas = post.get('notas', '').strip()
+
+                # Validar e buscar plano pelo ID
+                if not plano_id or not plano_id.isdigit():
+                    context['error_message'] = "Selecione um plano válido."
+                    return render(request, "pages/cadastro-assinatura.html", context)
+
+                plano = Plano.objects.filter(id=int(plano_id), usuario=usuario).first()
+                if not plano:
+                    context['error_message'] = "Plano não encontrado."
+                    return render(request, "pages/cadastro-assinatura.html", context)
+
+                # Servidor
+                servidor, _ = Servidor.objects.get_or_create(
+                    nome=servidor_nome,
+                    usuario=usuario
+                )
+
+                # Forma de pagamento
+                forma_pgto = None
+                if forma_pgto_input:
+                    if forma_pgto_input.isdigit():
+                        forma_pgto = Tipos_pgto.objects.filter(pk=int(forma_pgto_input), usuario=usuario).first()
+                    else:
+                        forma_pgto = Tipos_pgto.objects.filter(nome__iexact=forma_pgto_input, usuario=usuario).first()
+
+                # Indicador
+                indicador = None
+                if indicador_nome:
+                    indicador = Cliente.objects.filter(nome__iexact=indicador_nome, usuario=usuario).first()
+
+                # Coletar dados de dispositivos/apps
+                telas_data = []
+                for i in range(plano.telas):
+                    disp_nome = post.get(f'dispositivo_{i}', '').strip()
+                    app_nome = post.get(f'aplicativo_{i}', '').strip()
+                    device_id = post.get(f'device_id_{i}', '').strip()
+                    email_app = post.get(f'email_{i}', '').strip()
+                    senha_app = post.get(f'senha_{i}', '').strip()
+
+                    if disp_nome and app_nome:
+                        dispositivo, _ = Dispositivo.objects.get_or_create(
+                            nome=normalizar_dispositivo(disp_nome),
+                            usuario=usuario
+                        )
+                        sistema, _ = Aplicativo.objects.get_or_create(
+                            nome=normalizar_aplicativo(app_nome),
+                            usuario=usuario
+                        )
+                        telas_data.append({
+                            'dispositivo': dispositivo,
+                            'sistema': sistema,
+                            'device_id': device_id,
+                            'email': email_app,
+                            'senha': senha_app,
+                        })
+
+                if not telas_data:
+                    context['error_message'] = "Preencha pelo menos um dispositivo e aplicativo."
+                    return render(request, "pages/cadastro-assinatura.html", context)
+
+                # ===== Atualizar cliente com dados da assinatura =====
+                cliente.servidor = servidor
+                cliente.plano = plano
+                cliente.forma_pgto = forma_pgto
+                cliente.dispositivo = telas_data[0]['dispositivo']
+                cliente.sistema = telas_data[0]['sistema']
+                cliente.indicado_por = indicador
+                cliente.data_adesao = date.today()
+                cliente.tem_assinatura = True
+                cliente.notas = notas if notas else cliente.notas
+                cliente.save()
+
+                # Criar contas de aplicativo
+                for idx, tela in enumerate(telas_data):
+                    ContaDoAplicativo.objects.create(
+                        dispositivo=tela['dispositivo'],
+                        app=tela['sistema'],
+                        device_id=tela['device_id'],
+                        email=tela['email'],
+                        device_key=tela['senha'],
+                        cliente=cliente,
+                        usuario=usuario,
+                        is_principal=(idx == 0),
+                    )
+
+                # Atualizar AssinaturaCliente
+                assinatura, _ = AssinaturaCliente.objects.get_or_create(
+                    cliente=cliente,
+                    defaults={
+                        'plano': plano,
+                        'data_inicio_assinatura': date.today(),
+                        'dispositivos_usados': len(telas_data)
+                    }
+                )
+                assinatura.plano = plano
+                assinatura.dispositivos_usados = len(telas_data)
+                assinatura.save()
+
+                # ===== Enviar mensagem de confirmação de pagamento =====
+                # Removido: agora a mensagem é enviada apenas após o pagamento
+                # da primeira mensalidade (via _enviar_notificacoes_pagamento)
+                # envio_apos_novo_cadastro(cliente.telefone, cliente.nome, usuario, token.token)
+
+                # Inscrever em campanha se elegível
+                enroll_client_in_campaign_if_eligible(cliente)
+
+                # Criar primeira mensalidade
+                criar_mensalidade(cliente)
+
+                # Histórico de planos
+                historico_iniciar(cliente, cliente.plano)
+
+                # Log de auditoria
+                log_user_action(
+                    request=request,
+                    action=UserActionLog.ACTION_CREATE,
+                    instance=cliente,
+                    message="Assinatura criada para cliente.",
+                    extra={
+                        "telefone": cliente.telefone,
+                        "plano": cliente.plano.nome,
+                        "servidor": cliente.servidor.nome,
+                        "forma_pgto": cliente.forma_pgto.nome if cliente.forma_pgto else None,
+                    },
+                )
+
+                # Verificar se a forma de pagamento é FastDePix
+                is_fastdepix = False
+                link_painel_cliente = None
+
+                if cliente.forma_pgto and cliente.forma_pgto.conta_bancaria:
+                    conta = cliente.forma_pgto.conta_bancaria
+                    if conta.instituicao and conta.instituicao.tipo_integracao == 'fastdepix':
+                        is_fastdepix = True
+                        # Buscar subdomínio do painel do cliente
+                        from painel_cliente.models import SubdominioPainelCliente
+                        subdominio = SubdominioPainelCliente.objects.filter(
+                            admin_responsavel=usuario,
+                            ativo=True
+                        ).first()
+                        if subdominio:
+                            link_painel_cliente = f"https://{subdominio.dominio_completo}"
+
+                context['assinatura_criada'] = True
+                context['cliente_id'] = cliente.id
+                context['cliente_nome'] = cliente.nome
+                context['is_fastdepix'] = is_fastdepix
+                context['link_painel_cliente'] = link_painel_cliente
+
+                context['success_message'] = (
+                    f"Assinatura criada com sucesso para <strong>{cliente.nome}</strong>!<br>"
+                    f"Plano: {plano.nome} - R$ {plano.valor}"
+                )
+                return render(request, "pages/cadastro-assinatura.html", context)
+
+        except Cliente.DoesNotExist:
+            context['error_message'] = "Cliente não encontrado."
+            return render(request, "pages/cadastro-assinatura.html", context)
+        except Exception as e:
+            logger.exception(f"[ERRO][CADASTRO ASSINATURA] {e}")
+            context['error_message'] = f"Erro ao criar assinatura: {str(e)}"
+            return render(request, "pages/cadastro-assinatura.html", context)
+
+    # GET - Renderiza formulário
+    return render(request, "pages/cadastro-assinatura.html", context)
 
 
 # AÇÃO PARA CRIAR NOVO OBJETO PLANO MENSAL
@@ -6186,7 +6754,9 @@ def create_payment_method_admin(request):
     def get_context(extra=None):
         from django.conf import settings as django_settings
         # Recarregar dados atualizados
-        formas_pgto = Tipos_pgto.objects.filter(usuario=usuario).annotate(clientes_count=Count('cliente')).order_by('nome').select_related('conta_bancaria', 'conta_bancaria__instituicao')
+        formas_pgto = Tipos_pgto.objects.filter(usuario=usuario).annotate(
+            clientes_count=Count('cliente', filter=Q(cliente__cancelado=False))
+        ).order_by('nome').select_related('conta_bancaria', 'conta_bancaria__instituicao')
         instituicoes = InstituicaoBancaria.objects.filter(ativo=True).order_by('nome')  # Para cards de seleção
         todas_instituicoes = InstituicaoBancaria.objects.all().order_by('nome')  # Para modal de gerenciamento
         contas_bancarias = ContaBancaria.objects.filter(usuario=usuario, ativo=True).select_related('instituicao')
@@ -8386,10 +8956,10 @@ def delete_payment_method(request, pk):
     try:
         formapgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
 
-        # Verificar se existem clientes usando esta forma de pagamento
-        clientes_count = Cliente.objects.filter(forma_pgto=formapgto, usuario=request.user).count()
+        # Verificar se existem clientes ATIVOS usando esta forma de pagamento
+        clientes_count = Cliente.objects.filter(forma_pgto=formapgto, usuario=request.user, cancelado=False).count()
         if clientes_count > 0:
-            error_msg = f'Esta Forma de Pagamento não pode ser excluída pois possui {clientes_count} cliente(s) associado(s). Transfira os clientes para outra forma de pagamento antes de excluir.'
+            error_msg = f'Esta Forma de Pagamento não pode ser excluída pois possui {clientes_count} cliente(s) ativo(s) associado(s). Transfira os clientes para outra forma de pagamento antes de excluir.'
             return JsonResponse({'error_delete': error_msg}, status=400)
 
         # Guardar referência à conta bancária antes de excluir
@@ -11268,12 +11838,13 @@ def api_forma_pagamento_detalhes(request, pk):
 @login_required
 @require_http_methods(["GET"])
 def api_forma_pagamento_clientes_count(request, pk):
-    """Retorna quantidade de clientes associados a uma forma de pagamento (ativos e cancelados)."""
+    """Retorna quantidade de clientes ATIVOS associados a uma forma de pagamento."""
     try:
         forma_pgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
         count = Cliente.objects.filter(
             forma_pgto=forma_pgto,
-            usuario=request.user
+            usuario=request.user,
+            cancelado=False
         ).count()
         return JsonResponse({'success': True, 'count': count})
     except Tipos_pgto.DoesNotExist:

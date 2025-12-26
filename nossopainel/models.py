@@ -53,6 +53,263 @@ DDD_UF_MAP = {
     '98': 'MA', '99': 'MA',
 }
 
+# Mapeamento de DDIs (códigos internacionais) para código de país ISO 3166-1 alpha-2.
+DDI_PAIS_MAP = {
+    # América do Sul
+    '55': 'BR',    # Brasil
+    '54': 'AR',    # Argentina
+    '56': 'CL',    # Chile
+    '57': 'CO',    # Colômbia
+    '58': 'VE',    # Venezuela
+    '51': 'PE',    # Peru
+    '591': 'BO',   # Bolívia
+    '593': 'EC',   # Equador
+    '595': 'PY',   # Paraguai
+    '598': 'UY',   # Uruguai
+    '592': 'GY',   # Guiana
+    '594': 'GF',   # Guiana Francesa
+    '597': 'SR',   # Suriname
+
+    # América Central e Caribe
+    '52': 'MX',    # México
+    '506': 'CR',   # Costa Rica
+    '507': 'PA',   # Panamá
+    '502': 'GT',   # Guatemala
+    '503': 'SV',   # El Salvador
+    '504': 'HN',   # Honduras
+    '505': 'NI',   # Nicarágua
+    '501': 'BZ',   # Belize
+    '53': 'CU',    # Cuba
+    '509': 'HT',   # Haiti
+    '1809': 'DO',  # República Dominicana
+    '1787': 'PR',  # Porto Rico
+    '1876': 'JM',  # Jamaica
+    '1868': 'TT',  # Trinidad e Tobago
+
+    # América do Norte
+    '1': 'US',     # Estados Unidos / Canadá
+
+    # Europa Ocidental
+    '351': 'PT',   # Portugal
+    '34': 'ES',    # Espanha
+    '33': 'FR',    # França
+    '39': 'IT',    # Itália
+    '44': 'GB',    # Reino Unido
+    '49': 'DE',    # Alemanha
+    '31': 'NL',    # Países Baixos
+    '32': 'BE',    # Bélgica
+    '41': 'CH',    # Suíça
+    '43': 'AT',    # Áustria
+    '353': 'IE',   # Irlanda
+    '352': 'LU',   # Luxemburgo
+    '377': 'MC',   # Mônaco
+    '376': 'AD',   # Andorra
+
+    # Europa do Norte
+    '45': 'DK',    # Dinamarca
+    '46': 'SE',    # Suécia
+    '47': 'NO',    # Noruega
+    '358': 'FI',   # Finlândia
+    '354': 'IS',   # Islândia
+
+    # Europa do Leste
+    '48': 'PL',    # Polônia
+    '420': 'CZ',   # República Tcheca
+    '421': 'SK',   # Eslováquia
+    '36': 'HU',    # Hungria
+    '40': 'RO',    # Romênia
+    '359': 'BG',   # Bulgária
+    '380': 'UA',   # Ucrânia
+    '375': 'BY',   # Bielorrússia
+    '373': 'MD',   # Moldávia
+    '7': 'RU',     # Rússia / Cazaquistão
+
+    # Bálticos
+    '370': 'LT',   # Lituânia
+    '371': 'LV',   # Letônia
+    '372': 'EE',   # Estônia
+
+    # Balcãs
+    '385': 'HR',   # Croácia
+    '386': 'SI',   # Eslovênia
+    '381': 'RS',   # Sérvia
+    '387': 'BA',   # Bósnia
+    '389': 'MK',   # Macedônia do Norte
+    '382': 'ME',   # Montenegro
+    '383': 'XK',   # Kosovo
+    '355': 'AL',   # Albânia
+    '30': 'GR',    # Grécia
+
+    # Ásia Oriental
+    '81': 'JP',    # Japão
+    '82': 'KR',    # Coreia do Sul
+    '86': 'CN',    # China
+    '852': 'HK',   # Hong Kong
+    '853': 'MO',   # Macau
+    '886': 'TW',   # Taiwan
+    '850': 'KP',   # Coreia do Norte
+    '976': 'MN',   # Mongólia
+
+    # Sudeste Asiático
+    '66': 'TH',    # Tailândia
+    '84': 'VN',    # Vietnã
+    '62': 'ID',    # Indonésia
+    '60': 'MY',    # Malásia
+    '65': 'SG',    # Singapura
+    '63': 'PH',    # Filipinas
+    '95': 'MM',    # Mianmar
+    '855': 'KH',   # Camboja
+    '856': 'LA',   # Laos
+    '673': 'BN',   # Brunei
+    '670': 'TL',   # Timor-Leste
+
+    # Sul da Ásia
+    '91': 'IN',    # Índia
+    '92': 'PK',    # Paquistão
+    '880': 'BD',   # Bangladesh
+    '94': 'LK',    # Sri Lanka
+    '977': 'NP',   # Nepal
+    '975': 'BT',   # Butão
+    '960': 'MV',   # Maldivas
+    '93': 'AF',    # Afeganistão
+
+    # Ásia Central
+    '998': 'UZ',   # Uzbequistão
+    '996': 'KG',   # Quirguistão
+    '992': 'TJ',   # Tajiquistão
+    '993': 'TM',   # Turcomenistão
+
+    # Oriente Médio
+    '90': 'TR',    # Turquia
+    '972': 'IL',   # Israel
+    '970': 'PS',   # Palestina
+    '961': 'LB',   # Líbano
+    '962': 'JO',   # Jordânia
+    '963': 'SY',   # Síria
+    '964': 'IQ',   # Iraque
+    '98': 'IR',    # Irã
+    '966': 'SA',   # Arábia Saudita
+    '971': 'AE',   # Emirados Árabes
+    '974': 'QA',   # Catar
+    '973': 'BH',   # Bahrein
+    '965': 'KW',   # Kuwait
+    '968': 'OM',   # Omã
+    '967': 'YE',   # Iêmen
+    '357': 'CY',   # Chipre
+
+    # África do Norte
+    '20': 'EG',    # Egito
+    '212': 'MA',   # Marrocos
+    '213': 'DZ',   # Argélia
+    '216': 'TN',   # Tunísia
+    '218': 'LY',   # Líbia
+
+    # África Ocidental
+    '234': 'NG',   # Nigéria
+    '233': 'GH',   # Gana
+    '225': 'CI',   # Costa do Marfim
+    '221': 'SN',   # Senegal
+    '223': 'ML',   # Mali
+    '226': 'BF',   # Burkina Faso
+    '227': 'NE',   # Níger
+    '228': 'TG',   # Togo
+    '229': 'BJ',   # Benin
+    '220': 'GM',   # Gâmbia
+    '224': 'GN',   # Guiné
+    '232': 'SL',   # Serra Leoa
+    '231': 'LR',   # Libéria
+    '238': 'CV',   # Cabo Verde
+    '245': 'GW',   # Guiné-Bissau
+
+    # África Oriental
+    '254': 'KE',   # Quênia
+    '255': 'TZ',   # Tanzânia
+    '256': 'UG',   # Uganda
+    '250': 'RW',   # Ruanda
+    '257': 'BI',   # Burundi
+    '251': 'ET',   # Etiópia
+    '252': 'SO',   # Somália
+    '253': 'DJ',   # Djibuti
+    '291': 'ER',   # Eritreia
+    '211': 'SS',   # Sudão do Sul
+    '249': 'SD',   # Sudão
+
+    # África Austral
+    '27': 'ZA',    # África do Sul
+    '263': 'ZW',   # Zimbábue
+    '260': 'ZM',   # Zâmbia
+    '265': 'MW',   # Malawi
+    '258': 'MZ',   # Moçambique
+    '267': 'BW',   # Botswana
+    '264': 'NA',   # Namíbia
+    '266': 'LS',   # Lesoto
+    '268': 'SZ',   # Essuatíni
+    '261': 'MG',   # Madagascar
+
+    # África Central
+    '237': 'CM',   # Camarões
+    '243': 'CD',   # Congo (RDC)
+    '242': 'CG',   # Congo
+    '241': 'GA',   # Gabão
+    '236': 'CF',   # República Centro-Africana
+    '235': 'TD',   # Chade
+    '244': 'AO',   # Angola
+    '240': 'GQ',   # Guiné Equatorial
+    '239': 'ST',   # São Tomé e Príncipe
+
+    # Oceania
+    '61': 'AU',    # Austrália
+    '64': 'NZ',    # Nova Zelândia
+    '675': 'PG',   # Papua Nova Guiné
+    '679': 'FJ',   # Fiji
+    '685': 'WS',   # Samoa
+    '676': 'TO',   # Tonga
+    '678': 'VU',   # Vanuatu
+    '677': 'SB',   # Ilhas Salomão
+    '686': 'KI',   # Kiribati
+    '691': 'FM',   # Micronésia
+    '692': 'MH',   # Ilhas Marshall
+    '680': 'PW',   # Palau
+    '674': 'NR',   # Nauru
+    '688': 'TV',   # Tuvalu
+}
+
+
+def extrair_pais_do_telefone(telefone: str) -> str | None:
+    """
+    Extrai o código do país (ISO 3166-1 alpha-2) a partir do DDI do telefone.
+
+    Args:
+        telefone: Número no formato internacional (+DDINNNNNNNN)
+
+    Returns:
+        Código do país (ex: 'BR', 'US', 'PT') ou None se não identificado
+
+    Exemplos:
+        extrair_pais_do_telefone('+5583996239140') → 'BR'
+        extrair_pais_do_telefone('+1555123456') → 'US'
+        extrair_pais_do_telefone('+351912345678') → 'PT'
+        extrair_pais_do_telefone('+18095551234') → 'DO' (Rep. Dominicana)
+    """
+    if not telefone:
+        return None
+
+    # Remove caracteres não numéricos
+    telefone_limpo = re.sub(r'\D', '', telefone)
+
+    if not telefone_limpo:
+        return None
+
+    # Tenta encontrar DDI do maior para o menor (4, 3, 2, 1 dígitos)
+    # DDIs de 4 dígitos: 1809 (Rep. Dominicana), 1787 (Porto Rico), etc.
+    for ddi_len in [4, 3, 2, 1]:
+        ddi = telefone_limpo[:ddi_len]
+        if ddi in DDI_PAIS_MAP:
+            return DDI_PAIS_MAP[ddi]
+
+    return None
+
+
 def default_vencimento():
     """Retorna a data de vencimento padrão: 30 dias a partir da data atual."""
     return timezone.now().date() + timedelta(days=30)
@@ -693,26 +950,36 @@ class Plano(models.Model):
 
 class Cliente(models.Model):
     """Modela o cliente da plataforma com todos os seus dados cadastrais e plano."""
-    servidor = models.ForeignKey(Servidor, on_delete=models.CASCADE)
+
+    # ===== DADOS BÁSICOS DO CLIENTE (Cadastro) =====
+    nome = models.CharField(max_length=255)
+    telefone = models.CharField(max_length=20)
+    email = models.EmailField(max_length=255, blank=True, null=True)
+    uf = models.CharField(max_length=2, blank=True, null=True)
+    pais = models.CharField("País", max_length=2, blank=True, null=True)
+    notas = models.TextField("Notas", blank=True, null=True)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    # ===== DADOS DA ASSINATURA (Opcionais - preenchidos ao criar assinatura) =====
+    servidor = models.ForeignKey(Servidor, on_delete=models.CASCADE, null=True, blank=True)
     # Campos opcionais - representam o dispositivo/aplicativo "principal" (primeiro cadastrado)
     dispositivo = models.ForeignKey(Dispositivo, on_delete=models.CASCADE, null=True, blank=True, default=None)
     sistema = models.ForeignKey(Aplicativo, on_delete=models.CASCADE, null=True, blank=True, default=None)
-    nome = models.CharField(max_length=255)
-    email = models.EmailField(max_length=255, blank=True, null=True)
-    telefone = models.CharField(max_length=20)
-    uf = models.CharField(max_length=2, blank=True, null=True)
-    indicado_por = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
-    data_vencimento = models.DateField("Data de vencimento inicial", blank=True, null=True)
+    plano = models.ForeignKey(Plano, on_delete=models.CASCADE, null=True, blank=True)
     forma_pgto = models.ForeignKey(Tipos_pgto, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Forma de pagamento")
-    plano = models.ForeignKey(Plano, on_delete=models.CASCADE, default=1)
+    indicado_por = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
+
+    # ===== DATAS E STATUS =====
     data_adesao = models.DateField("Data de adesão", default=date.today)
+    data_vencimento = models.DateField("Data de vencimento inicial", blank=True, null=True)
     data_cancelamento = models.DateField("Data de cancelamento", blank=True, null=True)
     ultimo_pagamento = models.DateField("Último pagamento realizado", blank=True, null=True)
     cancelado = models.BooleanField("Cancelado", default=False)
+    tem_assinatura = models.BooleanField("Possui assinatura", default=True)
+
+    # ===== FLAGS DE CONTROLE =====
     nao_enviar_msgs = models.BooleanField("Não enviar", default=False)
     enviado_oferta_promo = models.BooleanField("Oferta PROMO", default=False)
-    notas = models.TextField("Notas", blank=True, null=True)
-    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
 
     # Campos para o Painel do Cliente (painel_cliente app)
     dados_atualizados_painel = models.BooleanField(
@@ -739,21 +1006,30 @@ class Cliente(models.Model):
         ordering = ['-data_adesao']
 
     def save(self, *args, **kwargs):
-        """Garante vencimento inicial e sincroniza a UF a partir do telefone."""
+        """Garante vencimento inicial e sincroniza UF e País a partir do telefone."""
         if self.data_adesao and self.data_vencimento is None:
             self.data_vencimento = self.data_adesao
 
         self.definir_uf()
+        self.definir_pais()
         super().save(*args, **kwargs)
 
     def definir_uf(self):
         """Define a unidade federativa (UF) com base no DDD do telefone apenas se for nacional."""
-        if not self.telefone.startswith('+55') or len(self.telefone) < 5:
+        if not self.telefone or not self.telefone.startswith('+55') or len(self.telefone) < 5:
             self.uf = None
             return
 
         ddd = self.telefone[3:5]
         self.uf = DDD_UF_MAP.get(ddd)
+
+    def definir_pais(self):
+        """Define o país (código ISO 3166-1 alpha-2) com base no DDI do telefone."""
+        if not self.telefone:
+            self.pais = None
+            return
+
+        self.pais = extrair_pais_do_telefone(self.telefone)
 
     def __str__(self):
         return self.nome
@@ -2879,39 +3155,52 @@ class CobrancaPix(models.Model):
         # 2. Enviar mensagem WhatsApp de confirmação
         if cliente.telefone and not cliente.nao_enviar_msgs:
             try:
-                from nossopainel.services.wpp import send_message, MessageSendConfig, get_active_token, LogTemplates
+                # Verificar se é a primeira mensalidade paga do cliente
+                qtd_mensalidades_pagas = Mensalidade.objects.filter(
+                    cliente=cliente,
+                    pgto=True
+                ).count()
 
-                token = get_active_token(self.usuario.username)
-                if token:
-                    mensagem_wpp = (
-                        f"Obrigado, {primeiro_nome}. O seu pagamento foi confirmado!"
-                        f"\nConfira o seu acesso ao nosso sistema e nos informe se pudermos "
-                        f"ajudar com qualquer dificuldade!"
-                    )
-
-                    # Configurar log_writer e templates para MessageSendConfig
-                    log_writer = lambda msg: logger.info(f'[WhatsApp] {msg}')
-                    log_templates = LogTemplates(
-                        success="[{0}] Mensagem {1} enviada com sucesso para {3}",
-                        failure="[{0}] Falha ao enviar {1} para {3}: {6}",
-                        invalid="[{0}] Telefone inválido para {1} - {3}",
-                    )
-
-                    config = MessageSendConfig(
-                        usuario=self.usuario.username,
-                        token=token,
-                        telefone=cliente.telefone,
-                        mensagem=mensagem_wpp,
-                        tipo_envio='confirmacao_pagamento',
-                        cliente=cliente,
-                        log_writer=log_writer,
-                        log_templates=log_templates,
-                    )
-                    time.sleep(5)  # Aguarda 5 segundos antes de enviar a confirmação
-                    send_message(config)
-                    logger.info(f'[CobrancaPix] Mensagem WhatsApp enviada para {cliente.telefone}')
+                if qtd_mensalidades_pagas == 1:
+                    # Primeira mensalidade paga - enviar mensagem de boas-vindas
+                    logger.info(f'[CobrancaPix] Primeira mensalidade paga - enviando boas-vindas para {cliente.nome}')
+                    from nossopainel.utils import envio_apos_novo_cadastro
+                    envio_apos_novo_cadastro(cliente)
                 else:
-                    logger.warning(f'[CobrancaPix] Token WPP não encontrado para usuário {self.usuario.username}')
+                    # Mensalidades subsequentes - enviar confirmação padrão
+                    from nossopainel.services.wpp import send_message, MessageSendConfig, get_active_token, LogTemplates
+
+                    token = get_active_token(self.usuario.username)
+                    if token:
+                        mensagem_wpp = (
+                            f"Obrigado, {primeiro_nome}. O seu pagamento foi confirmado!"
+                            f"\nConfira o seu acesso ao nosso sistema e nos informe se pudermos "
+                            f"ajudar com qualquer dificuldade!"
+                        )
+
+                        # Configurar log_writer e templates para MessageSendConfig
+                        log_writer = lambda msg: logger.info(f'[WhatsApp] {msg}')
+                        log_templates = LogTemplates(
+                            success="[{0}] Mensagem {1} enviada com sucesso para {3}",
+                            failure="[{0}] Falha ao enviar {1} para {3}: {6}",
+                            invalid="[{0}] Telefone inválido para {1} - {3}",
+                        )
+
+                        config = MessageSendConfig(
+                            usuario=self.usuario.username,
+                            token=token,
+                            telefone=cliente.telefone,
+                            mensagem=mensagem_wpp,
+                            tipo_envio='confirmacao_pagamento',
+                            cliente=cliente,
+                            log_writer=log_writer,
+                            log_templates=log_templates,
+                        )
+                        time.sleep(5)  # Aguarda 5 segundos antes de enviar a confirmação
+                        send_message(config)
+                        logger.info(f'[CobrancaPix] Mensagem WhatsApp enviada para {cliente.telefone}')
+                    else:
+                        logger.warning(f'[CobrancaPix] Token WPP não encontrado para usuário {self.usuario.username}')
             except Exception as e:
                 logger.error(f'[CobrancaPix] Erro ao enviar WhatsApp: {e}')
 

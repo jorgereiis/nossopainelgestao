@@ -5,7 +5,7 @@
 
 <head>
   {% include 'partials/head.html' %}
-  <title>FastDePix | Integracoes API | Nosso Painel</title>
+  <title>FastDePix | Integrações API | Nosso Painel</title>
   <style>
     /* Page Header */
     .page-header-custom {
@@ -284,7 +284,7 @@
       <div class="container-fluid px-4 mt-4">
         <!-- Breadcrumb -->
         <div class="breadcrumb-custom mb-3">
-          <a href="{% url 'integracoes-api' %}">Integracoes API</a>
+          <a href="{% url 'integracoes-api' %}">Integrações API</a>
           <i data-feather="chevron-right" style="width: 16px; height: 16px;"></i>
           <span>FastDePix</span>
         </div>
@@ -313,18 +313,18 @@
         <div class="config-grid">
           <!-- Coluna Esquerda -->
           <div>
-            <!-- Status da Conexao -->
+            <!-- Status da Conexão -->
             <div class="config-card">
               <div class="config-card-header">
                 <i data-feather="wifi"></i>
-                <h3>Status da Conexao</h3>
+                <h3>Status da Conexão</h3>
                 <span id="status-conta-badge" class="badge bg-secondary ms-2 d-none"></span>
               </div>
               <div class="config-card-body" id="status-conexao-content">
                 <!-- Estado inicial: nenhuma conta selecionada -->
                 <div id="status-no-selection" class="text-center py-4">
                   <i data-feather="mouse-pointer" style="width: 40px; height: 40px; opacity: 0.4;"></i>
-                  <p class="mt-3 mb-0 text-muted">Selecione uma conta no card<br><strong>"Contas Configuradas"</strong><br>para conferir o status da conexao</p>
+                  <p class="mt-3 mb-0 text-muted">Selecione uma conta no card<br><strong>"Contas Configuradas"</strong><br>para conferir o status da conexão</p>
                 </div>
 
                 <!-- Estado: conta selecionada (oculto inicialmente) -->
@@ -366,7 +366,7 @@
                   <div class="mt-3" id="status-testar-btn-container">
                     <button type="button" class="btn btn-outline-primary btn-action w-100 justify-content-center" onclick="testarConexao()">
                       <i data-feather="refresh-cw"></i>
-                      <span id="btn-testar-text">Testar Conexao</span>
+                      <span id="btn-testar-text">Testar Conexão</span>
                       <span id="btn-testar-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
                     </button>
                   </div>
@@ -375,7 +375,7 @@
               </div>
             </div>
 
-            <!-- Configuracao Webhook -->
+            <!-- Configuração Webhook -->
             <div class="config-card">
               <div class="config-card-header">
                 <i data-feather="link"></i>
@@ -384,7 +384,7 @@
               <div class="config-card-body">
                 <div class="alert-box info mb-3">
                   <i data-feather="info"></i>
-                  <p class="mb-0">O webhook permite receber notificacoes de pagamento em tempo real.</p>
+                  <p class="mb-0">O webhook permite receber notificações de pagamento em tempo real.</p>
                 </div>
 
                 <div class="mt-3">
@@ -413,7 +413,7 @@
                     </button>
                   </div>
                   <small class="text-muted mt-1 d-block">
-                    Informe apenas a URL base do ngrok/localtunnel. O path <code>/api/pix/webhook/</code> sera adicionado automaticamente.
+                    Informe apenas a URL base do ngrok/localtunnel. O path <code>/api/pix/webhook/</code> será adicionado automaticamente.
                   </small>
                   <div id="webhook-url-preview" class="mt-2 p-2 bg-light rounded small" style="display: none;">
                     <strong>URL completa:</strong> <code id="webhook-url-full"></code>
@@ -453,7 +453,7 @@
                   {% else %}
                   <small class="text-muted d-block mt-2">
                     <i data-feather="info" style="width: 12px; height: 12px;"></i>
-                    Registre o webhook para receber notificacoes de pagamento automaticamente.
+                    Registre o webhook para receber notificações de pagamento automaticamente.
                   </small>
                   {% endif %}
                 </div>
@@ -463,11 +463,11 @@
 
           <!-- Coluna Direita -->
           <div>
-            <!-- Estatisticas -->
+            <!-- Estatísticas -->
             <div class="config-card">
               <div class="config-card-header">
                 <i data-feather="bar-chart-2"></i>
-                <h3>Estatisticas (Mês atual)</h3>
+                <h3>Estatísticas (Mês atual)</h3>
                 <span id="stats-conta-badge" class="badge bg-secondary ms-2">Todas as contas</span>
               </div>
               <div class="config-card-body">
@@ -570,7 +570,7 @@
                 </div>
                 <button type="button" id="btn-limpar-selecao" class="btn btn-outline-secondary btn-sm d-none" onclick="limparSelecao()">
                   <i data-feather="x" style="width: 14px; height: 14px;"></i>
-                  Limpar selecao
+                  Limpar seleção
                 </button>
               </div>
               <div class="config-card-body">
@@ -667,7 +667,7 @@
   {% include 'partials/scripts.html' %}
 
   <script>
-    // Testar conexao com API
+    // Testar conexão com API
     function testarConexao() {
       const btnText = document.getElementById('btn-testar-text');
       const btnSpinner = document.getElementById('btn-testar-spinner');
@@ -686,7 +686,7 @@
       })
       .then(response => response.json())
       .then(data => {
-        btnText.textContent = 'Testar Conexao';
+        btnText.textContent = 'Testar Conexão';
         btnSpinner.classList.add('d-none');
         resultado.classList.remove('d-none');
 
@@ -708,13 +708,13 @@
         feather.replace();
       })
       .catch(error => {
-        btnText.textContent = 'Testar Conexao';
+        btnText.textContent = 'Testar Conexão';
         btnSpinner.classList.add('d-none');
         resultado.classList.remove('d-none');
         resultado.innerHTML = `
           <div class="alert-box warning">
             <i data-feather="alert-circle"></i>
-            <p>Erro ao testar conexao: ${error.message}</p>
+            <p>Erro ao testar conexão: ${error.message}</p>
           </div>
         `;
         feather.replace();
@@ -815,7 +815,7 @@
       const customInput = document.getElementById('webhook-url-custom');
       if (customInput) {
         customInput.addEventListener('input', atualizarPreviewUrl);
-        atualizarPreviewUrl(); // Atualiza ao carregar se ja tem valor
+        atualizarPreviewUrl(); // Atualiza ao carregar se já tem valor
       }
     });
 
@@ -874,7 +874,7 @@
 
     // Remover webhook
     function removerWebhook() {
-      if (!confirm('Tem certeza que deseja remover o webhook? Voce deixara de receber notificacoes de pagamento.')) return;
+      if (!confirm('Tem certeza que deseja remover o webhook? Você deixará de receber notificações de pagamento.')) return;
 
       fetch('{% url "integracoes-fastdepix-webhook-remover" %}', {
         method: 'POST',
@@ -944,7 +944,7 @@
                 </div>
               </div>
             `;
-            // Atualiza estatisticas sem recarregar a pagina
+            // Atualiza estatísticas sem recarregar a página
             setTimeout(() => atualizarEstatisticas(), 1500);
           } else {
             resultado.innerHTML = `
@@ -1030,7 +1030,7 @@
             resultado.innerHTML = `
               <div class="alert-box info">
                 <i data-feather="info"></i>
-                <p class="mb-0">${data.total > 0 ? 'Todos os valores ja estao corretos.' : 'Nenhuma cobranca paga encontrada.'}</p>
+                <p class="mb-0">${data.total > 0 ? 'Todos os valores já estão corretos.' : 'Nenhuma cobrança paga encontrada.'}</p>
               </div>
             `;
           }
@@ -1085,14 +1085,14 @@
         }
       });
 
-      // Mostra botao de limpar selecao
+      // Mostra botão de limpar seleção
       document.getElementById('btn-limpar-selecao').classList.remove('d-none');
 
       // Busca dados da conta selecionada
       carregarDadosConta(contaId);
     }
 
-    // Limpa a selecao e volta ao estado inicial
+    // Limpa a seleção e volta ao estado inicial
     function limparSelecao() {
       contaSelecionadaId = null;
 
@@ -1103,10 +1103,10 @@
         if (checkIcon) checkIcon.classList.add('d-none');
       });
 
-      // Esconde botao de limpar
+      // Esconde botão de limpar
       document.getElementById('btn-limpar-selecao').classList.add('d-none');
 
-      // Volta ao estado inicial do Status da Conexao
+      // Volta ao estado inicial do Status da Conexão
       document.getElementById('status-no-selection').classList.remove('d-none');
       document.getElementById('status-with-selection').classList.add('d-none');
       document.getElementById('status-conta-badge').classList.add('d-none');
@@ -1143,7 +1143,7 @@
 
     // Atualiza a interface com os dados recebidos
     function atualizarUI(data, contaId) {
-      // Atualiza Estatisticas
+      // Atualiza Estatísticas
       const stats = data.stats;
       document.getElementById('stats-geradas').textContent = stats.total_cobrancas || 0;
       document.getElementById('stats-pagas').textContent = stats.total_pagas || 0;
@@ -1166,7 +1166,7 @@
         statsBadge.classList.add('bg-secondary');
       }
 
-      // Atualiza Status da Conexao
+      // Atualiza Status da Conexão
       if (contaId && data.conta) {
         const conta = data.conta;
 
@@ -1227,7 +1227,7 @@
       });
     }
 
-    // Atualiza estatisticas (chamado apos sincronizacao)
+    // Atualiza estatísticas (chamado após sincronização)
     function atualizarEstatisticas() {
       carregarDadosConta(contaSelecionadaId);
     }

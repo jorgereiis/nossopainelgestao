@@ -58,7 +58,6 @@ from .views import (
     desconectar_wpp,
     TabelaDashboard,
     get_session_wpp,
-    create_customer,
     cancel_customer,
     pay_monthly_fee,
     import_customers,
@@ -95,6 +94,8 @@ from .views import (
     notifications_count,
     evolucao_patrimonio,
     adesoes_cancelamentos_api,
+    api_listar_todos_clientes,
+    api_remover_cliente_sem_assinatura,
     clientes_servidor_data,
     internal_send_whatsapp,
     # Migração de clientes
@@ -184,6 +185,9 @@ from .views import (
     # Relatório de Pagamentos
     relatorio_pagamentos,
     api_cliente_mensalidades,
+    # Cadastro separado (Cliente básico + Assinatura)
+    cadastrar_cliente_basico,
+    cadastrar_assinatura,
 )
 
 urlpatterns = [
@@ -234,9 +238,12 @@ urlpatterns = [
     path("api/clientes-por-servidor/", clientes_servidor_data, name="clientes-por-servidor"),
     path("api/evolucao-patrimonio/", evolucao_patrimonio, name="evolucao-patrimonio"),
     path("api/adesoes-cancelamentos/", adesoes_cancelamentos_api, name="adesoes-cancelamentos"),
+    path("api/clientes/lista-todos/", api_listar_todos_clientes, name="api-listar-todos-clientes"),
+    path("api/clientes/<int:cliente_id>/remover/", api_remover_cliente_sem_assinatura, name="api-remover-cliente"),
 
     ############ Create ###########
-    path("cadastro-cliente/", create_customer, name="cadastro-cliente"),
+    path("cadastro-cliente/", cadastrar_cliente_basico, name="cadastro-cliente"),
+    path("cadastro-assinatura/", cadastrar_assinatura, name="cadastro-assinatura"),
     path("cadastro-servidor/", create_server, name="cadastro-servidor"),
     path("cadastro-aplicativo/", create_app, name="cadastro-aplicativo"),
     path("importar-clientes/", import_customers, name="importar-clientes"),

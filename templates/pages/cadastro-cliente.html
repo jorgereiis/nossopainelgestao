@@ -5,7 +5,7 @@
 
 <head>
   {% include 'partials/head.html' %}
-  <title>Novo cliente | Nosso Painel - Gestão Simplificada</title>
+  <title>Cadastrar Cliente | Nosso Painel - Gestão Simplificada</title>
 </head>
 
 <!-- body -->
@@ -21,17 +21,70 @@
         <div class="row">
           <div class="col-lg-12 col-md-12 col-12">
             <!-- Page header -->
-            <div class="border-bottom pb-4 mb-4">
-              <h3 class="mb-0 fw-bold">Cadastro de novos clientes</h3>
-
+            <div class="border-bottom pb-4 mb-4 d-flex justify-content-between align-items-start">
+              <div>
+                <h3 class="mb-0 fw-bold">Cadastro de Cliente</h3>
+                <p class="text-muted mb-0">Cadastre os dados básicos do cliente. A assinatura pode ser criada posteriormente.</p>
+              </div>
+              <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-todos-clientes">
+                <i class="bi bi-people me-1"></i>Ver todos os clientes
+              </button>
             </div>
           </div>
           <!-- col -->
           <div class="row mb-8">
             <div class="col-xl-4 col-lg-4 col-md-12 col-12">
               <div class="mb-4 mb-lg-0">
-                <h4 class="mb-1">Cadastre aqui o seu novo cliente</h4>
-                <p class="mb-0 fs-5 text-muted">Preencha todos os dados corretamente. </p>
+                <h4 class="mb-1">Dados Básicos</h4>
+                <p class="mb-0 fs-5 text-muted">Preencha os dados do cliente.</p>
+
+                <!-- Card de Informação -->
+                <div class="card border-0 shadow-sm mt-4" style="background: linear-gradient(135deg, #e8f5e9 0%, #e3f2fd 100%);">
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <h4 class="mb-0 fw-bold" style="color: #2e7d32; font-size: 1.4rem;">&#128100; Cadastro Básico</h4>
+                    </div>
+
+                    <p class="text-muted small mb-3">
+                      Este formulário permite cadastrar apenas os <strong>dados básicos</strong> do cliente, sem criar uma assinatura imediatamente.
+                    </p>
+
+                    <div class="mb-3">
+                      <div class="d-flex align-items-start mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <p class="text-muted mb-0 small">Nome, telefone, e-mail, CPF e anotações</p>
+                      </div>
+                      <div class="d-flex align-items-start mb-2">
+                        <i class="bi bi-x-circle-fill text-danger me-2 mt-1"></i>
+                        <p class="text-muted mb-0 small"><strong>Não</strong> cria mensalidade</p>
+                      </div>
+                      <div class="d-flex align-items-start">
+                        <i class="bi bi-x-circle-fill text-danger me-2 mt-1"></i>
+                        <p class="text-muted mb-0 small"><strong>Não</strong> envia mensagem de confirmação</p>
+                      </div>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <div class="d-flex align-items-start">
+                      <i class="bi bi-arrow-right-circle-fill text-primary me-2 mt-1"></i>
+                      <p class="text-muted mb-0 small">
+                        Após o cadastro, você pode criar uma assinatura para este cliente na página de <strong>Cadastro Assinatura</strong>.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Link para cadastro de assinatura -->
+                <div class="mt-3 p-3 bg-light rounded">
+                  <p class="text-muted small mb-2">
+                    <i class="bi bi-lightning-fill text-warning me-1"></i>
+                    <strong>Dica:</strong> Precisa cadastrar o cliente já com a assinatura completa?
+                  </p>
+                  <a href="{% url 'cadastro-assinatura' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-clipboard-check me-1"></i>Ir para Cadastro Assinatura
+                  </a>
+                </div>
               </div>
             </div>
 
@@ -42,542 +95,642 @@
                 <div class="card-body p-4">
                   <div class="mb-4 pb-3 border-bottom">
                     <h4 class="mb-1 fw-bold d-flex align-items-center">
-                      <i class="bi bi-plus-circle-fill text-primary me-2"></i>
-                      Formulário de cadastro
+                      <i class="bi bi-person-plus-fill text-primary me-2"></i>
+                      Dados do Cliente
                     </h4>
-                    <small class="text-muted">Preencha os dados do novo cliente</small>
+                    <small class="text-muted">Apenas dados básicos - sem assinatura</small>
                   </div>
 
-              <form method="POST" id="cadastro-cliente-form">
-                {% csrf_token %}
-                <input type="hidden" name="cadastrar" value="1">
+                  {% if error_message %}
+                  <div class="alert alert-danger fade show mb-4" role="alert">
+                    <div class="d-flex align-items-start">
+                      <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                      <div>{{ error_message|safe }}</div>
+                    </div>
+                  </div>
+                  {% endif %}
 
-                <!-- Nome -->
-                <div class="mb-4">
-                  <label for="nome" class="form-label fw-semibold">
-                    <i class="bi bi-person-fill text-primary me-2"></i>Nome do cliente <span class="text-danger">*</span>
-                  </label>
-                  <input type="text" class="form-control form-control-lg" placeholder="Digite o nome completo do cliente" id="nome" name="nome"
-                    autocomplete="off" required>
-                  <small class="text-muted">Nome completo do cliente</small>
-                </div>
+                  {% if success_message %}
+                  <div class="alert alert-success fade show mb-4" role="alert">
+                    <div class="d-flex align-items-start">
+                      <i class="bi bi-check-circle-fill me-2 mt-1"></i>
+                      <div>{{ success_message|safe }}</div>
+                    </div>
+                  </div>
+                  {% endif %}
 
-                <!-- Telefone -->
-                <div class="mb-4">
-                  <label for="telefone" class="form-label fw-semibold">
-                    <i class="bi bi-telephone-fill text-success me-2"></i>Telefone <span class="text-danger">*</span>
-                  </label>
-                  <input type="tel" id="telefone" name="telefone" class="form-control form-control-lg" autocomplete="off" required>
-                  <small class="text-muted">Número de telefone com DDD</small>
-                </div>
+                  <form method="POST" id="cadastro-cliente-form">
+                    {% csrf_token %}
 
-                <!-- Indicado por -->
-                <div class="mb-4">
-                  <label for="indicado_por" class="form-label fw-semibold">
-                    <i class="bi bi-people-fill text-info me-2"></i>Indicado por <span class="badge bg-light text-muted">Opcional</span>
-                  </label>
-                  <input type="text" class="form-control form-control-lg" placeholder="Selecione um cliente indicador" id="indicado_por"
-                    list="indicador-options" name="indicador_list" autocomplete="off">
-                  <datalist id="indicador-options">
-                    {% for indicador in indicadores %}
-                    <option value="{{ indicador.nome }}">
-                    {% endfor %}
-                  </datalist>
-                  <small class="text-muted">Cliente que indicou este novo cliente</small>
-                </div>
+                    <!-- Nome -->
+                    <div class="mb-4">
+                      <label for="nome" class="form-label fw-semibold">
+                        <i class="bi bi-person-fill text-primary me-2"></i>Nome do cliente <span class="text-danger">*</span>
+                      </label>
+                      <input type="text" class="form-control form-control-lg" placeholder="Digite o nome completo do cliente" id="nome" name="nome"
+                        autocomplete="off" required>
+                      <small class="text-muted">Nome completo do cliente</small>
+                    </div>
 
-                <!-- Servidor -->
-                <div class="mb-4">
-                  <label for="servidor" class="form-label fw-semibold">
-                    <i class="bi bi-hdd-network-fill text-primary me-2"></i>Servidor <span class="text-danger">*</span>
-                  </label>
-                  <select class="form-select form-select-lg" id="servidor" name="servidor" required>
-                    <option value="" selected disabled>Selecione um servidor</option>
-                    {% for servidor in servidores %}
-                    <option value="{{ servidor.nome }}">{{ servidor.nome }}</option>
-                    {% endfor %}
-                  </select>
-                  <small class="text-muted">Servidor de streaming que será utilizado</small>
-                </div>
+                    <!-- Telefone -->
+                    <div class="mb-4">
+                      <label for="telefone" class="form-label fw-semibold">
+                        <i class="bi bi-telephone-fill text-success me-2"></i>Telefone <span class="text-danger">*</span>
+                      </label>
+                      <input type="tel" id="telefone" name="telefone" class="form-control form-control-lg" autocomplete="off" required>
+                      <small class="text-muted">Número de telefone com DDD (precisa ter WhatsApp)</small>
+                    </div>
 
-                <!-- Forma de pagamento -->
-                <div class="mb-4">
-                  <label for="forma_pgto" class="form-label fw-semibold">
-                    <i class="bi bi-wallet2 text-success me-2"></i>Forma de pagamento <span class="text-danger">*</span>
-                  </label>
-                  <select class="form-select form-select-lg" id="forma_pgto" name="forma_pgto" required>
-                    <option value="" selected disabled>Selecione uma forma de pagamento</option>
-                    {% for forma_pgto in formas_pgtos %}
-                    <option value="{{ forma_pgto.id }}">{{ forma_pgto.nome }} ({% if forma_pgto.conta_bancaria and forma_pgto.conta_bancaria.nome_identificacao %}{{ forma_pgto.conta_bancaria.nome_identificacao }}{% else %}sem identificação{% endif %})</option>
-                    {% endfor %}
-                  </select>
-                  <small class="text-muted">Método de pagamento escolhido pelo cliente</small>
-                </div>
+                    <!-- Email -->
+                    <div class="mb-4">
+                      <label for="email" class="form-label fw-semibold">
+                        <i class="bi bi-envelope-fill text-info me-2"></i>E-mail <span class="badge bg-light text-muted">Opcional</span>
+                      </label>
+                      <input type="email" class="form-control form-control-lg" placeholder="email@exemplo.com" id="email" name="email"
+                        autocomplete="off">
+                      <small class="text-muted">E-mail do cliente (opcional)</small>
+                    </div>
 
-                <!-- Planos -->
-                <div class="mb-4">
-                  <label for="plano" class="form-label fw-semibold">
-                    <i class="bi bi-calendar-check-fill text-warning me-2"></i>Plano de Adesão <span class="text-danger">*</span>
-                  </label>
-                  <select class="form-select form-select-lg" id="plano" name="plano" required>
-                    <option value="" selected disabled>Selecione um plano de adesão</option>
-                      {% for plano in planos %}
-                          {% if plano.telas > 1 %}
-                      <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas}}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} telas</option>
-                          {% else %}
-                      <option value="{{ plano.nome }} - {{ plano.valor }} - {{ plano.telas}}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela</option>
-                          {% endif %}
-                      {% endfor %}
-                  </select>
-                  <small class="text-muted">Plano e valor da assinatura</small>
-                </div>
+                    <!-- CPF -->
+                    <div class="mb-4">
+                      <label for="cpf" class="form-label fw-semibold">
+                        <i class="bi bi-card-text text-secondary me-2"></i>CPF <span class="badge bg-light text-muted">Opcional</span>
+                      </label>
+                      <input type="text" class="form-control form-control-lg" placeholder="000.000.000-00" id="cpf" name="cpf"
+                        autocomplete="off" maxlength="14">
+                      <small class="text-muted">CPF do cliente (opcional)</small>
+                    </div>
 
-                <!-- Container Dinâmico para Dispositivos e Aplicativos -->
-                <div id="dispositivos-apps-container" class="mb-4">
-                  <!-- Os blocos serão gerados dinamicamente aqui -->
-                </div>
+                    <!-- Anotações -->
+                    <div class="mb-4">
+                      <label for="notas" class="form-label fw-semibold">
+                        <i class="bi bi-sticky-fill text-warning me-2"></i>Anotações <span class="badge bg-light text-muted">Opcional</span>
+                      </label>
+                      <textarea class="form-control form-control-lg" placeholder="Observações sobre o cliente..." id="notas" name="notas" rows="3"></textarea>
+                      <small class="text-muted">Observações importantes sobre o cliente</small>
+                    </div>
 
-                <!-- Anotações -->
-                <div class="mb-4">
-                  <label for="notas" class="form-label fw-semibold">
-                    <i class="bi bi-sticky-fill text-warning me-2"></i>Anotações <span class="badge bg-light text-muted">Opcional</span>
-                  </label>
-                  <textarea class="form-control form-control-lg" placeholder="Detalhes adicionais sobre o cliente..." id="notas" name="notas" rows="3"></textarea>
-                  <small class="text-muted">Observações importantes sobre o cliente</small>
-                </div>
+                    <!-- Botão -->
+                    <div class="d-grid gap-2 mt-5">
+                      <button type="submit" class="btn btn-primary btn-lg" id="btn-cadastrar-cliente">
+                        <i class="bi bi-check-lg me-2"></i>Cadastrar Cliente
+                      </button>
+                    </div>
 
-                <!-- Botão -->
-                <div class="d-grid gap-2 mt-5">
-                  <button type="submit" class="btn btn-primary btn-lg btn-loading-ready" name="cadastrar" id="cadastrar">
-                    <i class="bi bi-check-circle me-2"></i>Cadastrar Cliente
-                  </button>
+                  </form>
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Modais Globais -->
-    {% include 'partials/modais_globais.html' %}
-
-    <!-- Offcanvas de Configurações -->
-    {% include 'partials/offcanvas_configuracoes.html' %}
-
-    <!-- Scripts -->
-    {% include 'partials/modal_whatsapp.html' %}
-    {% include 'partials/modal_adminlogs.html' %}
-    {% include 'partials/modal_userlogs.html' %}
-    {% include 'partials/modal_dns.html' %}
-    {% include 'partials/footer.html' %}
-    {% include 'partials/scripts.html' %}
-
-    <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        var form = document.getElementById('cadastro-cliente-form');
-        var submitButton = document.getElementById('cadastrar');
-
-        if (!form || !submitButton) {
-          return;
-        }
-
-        var defaultButtonContent = submitButton.innerHTML;
-        var resetButtonState = function () {
-          submitButton.disabled = false;
-          submitButton.innerHTML = defaultButtonContent;
-        };
-
-        resetButtonState();
-
-        form.addEventListener('submit', function () {
-          if (submitButton.disabled) {
-            return;
-          }
-
-          setButtonLoading(submitButton, true);
-        });
-
-        window.addEventListener('pageshow', function () {
-          resetButtonState();
-        });
-      });
-    </script>
-
-    {% if success_message %}
-    <script>
-      console.log(window.location.origin)
-      $(document).ready(function () {
-        var currentUrl = window.location.origin;
-        var newPath = '/cadastro-cliente/';
-        var newUrl = currentUrl + newPath;
-        swal.fire({
-          icon: 'success',
-          title: 'Cadastro realizado',
-          html: '{{success_message|safe}}',
-          didClose: function () {
-            window.location.href = newUrl;
-          }
-        });
-      });
-    </script>
-
-    {% elif success_update == True %}
-    <script>
-      console.log(window.location.origin)
-      $(document).ready(function () {
-        var currentUrl = window.location.origin;
-        var newPath = '/cadastro-cliente/';
-        var newUrl = currentUrl + newPath;
-        swal.fire({
-          icon: 'success',
-          title: 'Cadastro atualizado',
-          text: 'Aplicativo editado com sucesso!',
-          didClose: function () {
-            window.location.href = newUrl;
-          }
-        });
-      });
-    </script>
-
-    <!-- Alert error -->
-    {% elif error_message %}
-    <script>
-      console.log(window.location.origin)
-      $(document).ready(function () {
-        var currentUrl = window.location.origin;
-        var newPath = '/cadastro-cliente/';
-        var newUrl = currentUrl + newPath;
-        swal.fire({
-          icon: 'error',
-          title: 'Oops...',
-          html: '{{error_message|safe}}',
-          didClose: function () {
-            window.location.href = newUrl;
-          }
-        });
-      });
-    </script>
-    {% endif %}
-
-    <!--
-    <script>
-      $(document).ready(function () {
-        var currentUrl = window.location.origin;
-        var newPath = '/cadastro-cliente/';
-        var newUrl = currentUrl + newPath;
-
-        // Verifica se já passou 30 minutos desde a última visualização
-        var lastViewed = localStorage.getItem('lastViewed');
-        if (lastViewed && (Date.now() - lastViewed < 1800000)) {
-          return;
-        }
-
-        // Exibe o swal.fire e atualiza o armazenamento local
-        swal.fire({
-          icon: 'info',
-          title: 'Atenção!!',
-          html: 'Preencha todos os dados com atenção. <br><br>Ao informar o número de telefone, informe apenas os números no seguinte formato:<br>Ex. 5511988887777',
-          didClose: function () {
-            localStorage.setItem('lastViewed', Date.now());
-            window.location.href = newUrl;
-          }
-        });
-      });
-    </script>
-    -->
-</body>
-
-</html>
-
-<script>
-  const input1 = document.querySelector('input[name="indicado_list"]');
-  input1.addEventListener('change', (event) => {
-    const value = event.target.value;
-    input1.value = value;
-  });
-</script>
-
-<script>
-  // GERAÇÃO DINÂMICA DE BLOCOS DE DISPOSITIVO + APLICATIVO + CONTA baseado na quantidade de telas
-  $(document).ready(function () {
-    // Usar variáveis JSON serializadas do backend
-    const dispositivos = {{ dispositivos_json|safe }};
-    const sistemas = {{ sistemas_json|safe }};
-    const container = $('#dispositivos-apps-container');
-
-    // Função para gerar um bloco de dispositivo/app/conta
-    function gerarBloco(index) {
-      // Gerar options dinamicamente com JavaScript puro
-      let dispositivosOptions = '<option value="" selected disabled>Selecione um dispositivo</option>';
-      dispositivos.forEach(dispositivo => {
-        dispositivosOptions += `<option value="${dispositivo.nome}">${dispositivo.nome}</option>`;
-      });
-
-      let sistemasOptions = '<option value="" selected disabled>Selecione um aplicativo</option>';
-      sistemas.forEach(sistema => {
-        const macValue = sistema.device_has_mac ? '1' : '0';
-        sistemasOptions += `<option value="${sistema.nome}" data-mac="${macValue}">${sistema.nome}</option>`;
-      });
-
-      const blocoHtml = `
-        <div class="card mb-3 bloco-dispositivo-app" data-index="${index}" style="border-left: 4px solid #007bff;">
-          <div class="card-header bg-light">
-            <h5 class="mb-0 fw-bold">
-              <i class="bi bi-tv-fill text-primary me-2"></i>Tela ${index + 1}
-            </h5>
-          </div>
-          <div class="card-body">
-            <!-- Linha 1: Dispositivo e Aplicativo lado a lado -->
-            <div class="row mb-3">
-              <div class="col-md-6">
-                <label for="dispositivo_${index}" class="form-label fw-semibold">
-                  <i class="bi bi-tablet-fill text-info me-2"></i>Dispositivo <span class="text-danger">*</span>
-                </label>
-                <select class="form-select" id="dispositivo_${index}" name="dispositivo_${index}" required>
-                  ${dispositivosOptions}
-                </select>
-                <small class="text-muted">Tipo de dispositivo</small>
-              </div>
-
-              <div class="col-md-6">
-                <label for="sistema_${index}" class="form-label fw-semibold">
-                  <i class="bi bi-phone-fill text-primary me-2"></i>Aplicativo <span class="text-danger">*</span>
-                </label>
-                <select class="form-select aplicativo-select" id="sistema_${index}" name="sistema_${index}" data-index="${index}" required>
-                  ${sistemasOptions}
-                </select>
-                <small class="text-muted">Aplicativo de streaming</small>
-              </div>
+  <!-- Modal: Ver todos os clientes -->
+  <div class="modal fade" id="modal-todos-clientes" tabindex="-1" aria-labelledby="modal-todos-clientes-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0" style="background: linear-gradient(135deg, #624bff 0%, #4a37d9 100%);">
+          <h5 class="modal-title text-white" id="modal-todos-clientes-label">
+            <i class="bi bi-people-fill me-2"></i>Todos os Clientes
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body p-0">
+          <!-- Campo de pesquisa -->
+          <div class="p-3 bg-white border-bottom sticky-top shadow-sm">
+            <div class="input-group input-group-lg">
+              <span class="input-group-text bg-light border-end-0 rounded-start-pill">
+                <i class="bi bi-search text-muted"></i>
+              </span>
+              <input type="text" class="form-control border-start-0 rounded-end-pill bg-light" id="pesquisa-clientes"
+                     placeholder="Pesquisar por nome ou telefone..." autocomplete="off">
             </div>
-
-            <!-- Container para campos condicionais de conta -->
-            <div id="conta-fields-${index}">
-              <!-- Campos de conta serão inseridos aqui dinamicamente -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <span class="badge bg-primary rounded-pill px-3 py-2" id="contador-clientes">
+                <i class="bi bi-people me-1"></i>Carregando...
+              </span>
+              <small class="text-muted">
+                <i class="bi bi-sort-down me-1"></i>Mais recentes primeiro
+              </small>
+            </div>
+          </div>
+          <!-- Lista de clientes -->
+          <div id="lista-todos-clientes" style="max-height: 450px; overflow-y: auto;">
+            <div class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+              </div>
+              <p class="text-muted mt-2 mb-0">Carregando clientes...</p>
             </div>
           </div>
         </div>
-      `;
-      return blocoHtml;
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmar Remoção de Cliente -->
+  <div class="modal fade" id="modal-confirmar-remocao" tabindex="-1" aria-labelledby="modal-confirmar-remocao-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-body text-center p-4">
+          <!-- Ícone de alerta -->
+          <div class="mb-3">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                 style="width: 64px; height: 64px; background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);">
+              <i class="bi bi-exclamation-triangle text-warning" style="font-size: 1.8rem;"></i>
+            </div>
+          </div>
+
+          <!-- Título -->
+          <h5 class="fw-bold mb-2">Remover Cliente</h5>
+
+          <!-- Mensagem -->
+          <p class="text-muted mb-1">Tem certeza que deseja remover</p>
+          <p class="fw-semibold mb-3" id="nome-cliente-remover"></p>
+
+          <small class="text-danger d-block mb-4">
+            <i class="bi bi-info-circle me-1"></i>Esta ação não pode ser desfeita.
+          </small>
+
+          <!-- Botões -->
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-light flex-fill" data-bs-dismiss="modal">
+              Cancelar
+            </button>
+            <button type="button" class="btn btn-danger flex-fill" id="btn-confirmar-remocao">
+              <i class="bi bi-trash me-1"></i>Remover
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Cliente Cadastrado com Sucesso -->
+  <div class="modal fade" id="modal-cliente-cadastrado" tabindex="-1" aria-labelledby="modal-cliente-cadastrado-label"
+       aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body text-center pt-0 px-4 pb-4">
+          <!-- Ícone de sucesso -->
+          <div class="mb-4">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                 style="width: 80px; height: 80px; background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+              <i class="bi bi-check-lg text-success" style="font-size: 2.5rem;"></i>
+            </div>
+          </div>
+
+          <!-- Título -->
+          <h4 class="fw-bold text-success mb-3">Cliente Cadastrado!</h4>
+
+          <!-- Mensagem -->
+          <p class="text-muted mb-4">
+            O cliente foi cadastrado com sucesso. Para que ele possa ser <strong>gerenciado pelo sistema</strong>,
+            é necessário criar uma <strong>assinatura</strong>, associando-o a um servidor e definindo seu plano.
+          </p>
+
+          <!-- Informação adicional -->
+          <div class="bg-light rounded-3 p-3 mb-4">
+            <div class="d-flex align-items-start text-start">
+              <i class="bi bi-info-circle-fill text-primary me-2 mt-1"></i>
+              <small class="text-muted">
+                Sem uma assinatura, o cliente ficará apenas com os dados básicos cadastrados,
+                sem mensalidades ou acesso ao serviço.
+              </small>
+            </div>
+          </div>
+
+          <!-- Botão de ação -->
+          <a href="{% url 'cadastro-assinatura' %}" class="btn btn-primary btn-lg w-100">
+            <i class="bi bi-clipboard-check me-2"></i>Criar Assinatura para o Cliente
+          </a>
+
+          <button type="button" class="btn btn-link text-muted mt-2" data-bs-dismiss="modal">
+            Cadastrar outro cliente
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    /* Loading com 3 pontos animados */
+    .loading-dots {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .loading-dots span {
+      width: 8px;
+      height: 8px;
+      background-color: #fff;
+      border-radius: 50%;
+      animation: wave 1.2s ease-in-out infinite;
+    }
+    .loading-dots span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    .loading-dots span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+    @keyframes wave {
+      0%, 60%, 100% {
+        transform: translateY(0);
+      }
+      30% {
+        transform: translateY(-8px);
+      }
     }
 
-    // Listener para mudança no plano
-    $('#plano').change(function () {
-      const selectedValue = $(this).val();
-      if (!selectedValue) return;
+    /* Estilos do modal de clientes */
+    #modal-todos-clientes .cliente-item {
+      transition: all 0.2s ease;
+      border-left: 3px solid transparent;
+    }
+    #modal-todos-clientes .cliente-item:hover {
+      background-color: #f8f9ff;
+      border-left-color: #624bff;
+    }
+    #modal-todos-clientes .cliente-logo {
+      width: 44px;
+      height: 44px;
+      object-fit: cover;
+      border-radius: 50%;
+      background: #f8f9fa;
+      padding: 2px;
+      border: 2px solid #e9ecef;
+    }
+    #modal-todos-clientes .cliente-nome {
+      font-weight: 600;
+      color: #212529;
+      margin-bottom: 2px;
+    }
+    #modal-todos-clientes .cliente-telefone {
+      font-size: 0.8rem;
+      color: #6c757d;
+    }
+    #modal-todos-clientes .cliente-data {
+      font-size: 0.75rem;
+      color: #adb5bd;
+    }
+    #modal-todos-clientes .status-badge {
+      font-size: 0.7rem;
+      padding: 0.35em 0.65em;
+      font-weight: 600;
+    }
+    #pesquisa-clientes:focus {
+      box-shadow: none;
+      background-color: #fff !important;
+    }
+    #modal-todos-clientes .btn-remover-cliente {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      opacity: 0.7;
+      transition: all 0.2s ease;
+    }
+    #modal-todos-clientes .btn-remover-cliente:hover {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+    #modal-todos-clientes .cliente-item:hover .btn-remover-cliente {
+      opacity: 1;
+    }
+  </style>
 
-      // Extrair quantidade de telas do formato "nome - valor - telas"
-      const parts = selectedValue.split(' - ');
-      const qtdTelas = parseInt(parts[2]);
+  {% include 'partials/scripts.html' %}
 
-      // Limpar container
-      container.empty();
+  <!-- Formatação de telefone -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/css/intlTelInput.css">
+  <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/intlTelInput.min.js"></script>
 
-      // Gerar blocos
-      for (let i = 0; i < qtdTelas; i++) {
-        container.append(gerarBloco(i));
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Exibir modal de sucesso se cliente foi cadastrado
+      {% if success_message %}
+      const modalClienteCadastrado = new bootstrap.Modal(document.getElementById('modal-cliente-cadastrado'));
+      modalClienteCadastrado.show();
+      {% endif %}
+
+      // Inicializar telefone internacional
+      const telefoneInput = document.querySelector("#telefone");
+      if (telefoneInput) {
+        const iti = window.intlTelInput(telefoneInput, {
+          initialCountry: "br",
+          preferredCountries: ["br", "us", "pt"],
+          separateDialCode: true,
+          utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/utils.js",
+        });
+
+        // Máscaras de telefone por país
+        function aplicarMascaraTelefone(input, countryCode) {
+          let value = input.value.replace(/\D/g, '');
+
+          if (countryCode === 'br') {
+            // Brasil: (99) 99999-9999 ou (99) 9999-9999
+            if (value.length > 11) value = value.slice(0, 11);
+            if (value.length > 10) {
+              value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+            } else if (value.length > 6) {
+              value = value.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+            } else if (value.length > 2) {
+              value = value.replace(/(\d{2})(\d{0,5})/, '($1) $2');
+            } else if (value.length > 0) {
+              value = value.replace(/(\d{0,2})/, '($1');
+            }
+          } else if (countryCode === 'us') {
+            // EUA: (999) 999-9999
+            if (value.length > 10) value = value.slice(0, 10);
+            if (value.length > 6) {
+              value = value.replace(/(\d{3})(\d{3})(\d{0,4})/, '($1) $2-$3');
+            } else if (value.length > 3) {
+              value = value.replace(/(\d{3})(\d{0,3})/, '($1) $2');
+            } else if (value.length > 0) {
+              value = value.replace(/(\d{0,3})/, '($1');
+            }
+          } else if (countryCode === 'pt') {
+            // Portugal: 999 999 999
+            if (value.length > 9) value = value.slice(0, 9);
+            if (value.length > 6) {
+              value = value.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1 $2 $3');
+            } else if (value.length > 3) {
+              value = value.replace(/(\d{3})(\d{0,3})/, '$1 $2');
+            }
+          }
+
+          input.value = value.trim();
+        }
+
+        // Aplicar máscara ao digitar
+        telefoneInput.addEventListener('input', function() {
+          const countryData = iti.getSelectedCountryData();
+          aplicarMascaraTelefone(this, countryData.iso2);
+        });
+
+        // Limpar e reaplicar máscara ao mudar de país
+        telefoneInput.addEventListener('countrychange', function() {
+          const countryData = iti.getSelectedCountryData();
+          const rawValue = this.value.replace(/\D/g, '');
+          this.value = rawValue;
+          aplicarMascaraTelefone(this, countryData.iso2);
+        });
+
+        // Ao submeter, formatar telefone e mostrar loading
+        document.getElementById('cadastro-cliente-form').addEventListener('submit', function(e) {
+          const fullNumber = iti.getNumber();
+          if (fullNumber) {
+            telefoneInput.value = fullNumber;
+          }
+
+          // Mostrar loading no botão
+          const btn = document.getElementById('btn-cadastrar-cliente');
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+          }
+        });
       }
 
-      // Adicionar listeners para os selects de aplicativo
-      $('.aplicativo-select').change(function () {
-        const index = $(this).data('index');
-        const selectedOption = $(this).find('option:selected');
-        const hasMac = selectedOption.data('mac') === 1;
-        const appName = selectedOption.val().toLowerCase().replace(/\s/g, "");
-        const contaContainer = $(`#conta-fields-${index}`);
-
-        // Limpar campos anteriores
-        contaContainer.empty();
-
-        if (hasMac) {
-          if (appName === 'clouddy') {
-            contaContainer.html(`
-              <div class="mb-3">
-                <label for="email_${index}" class="form-label fw-semibold">
-                  <i class="bi bi-envelope-fill text-success me-2"></i>E-mail do Aplicativo <span class="text-danger">*</span>
-                </label>
-                <input type="email" class="form-control" placeholder="Digite o e-mail" id="email_${index}" name="email_${index}" required>
-              </div>
-              <div class="mb-3">
-                <label for="senha_${index}" class="form-label fw-semibold">
-                  <i class="bi bi-key-fill text-warning me-2"></i>Senha do Aplicativo <span class="text-danger">*</span>
-                </label>
-                <input type="text" class="form-control" placeholder="Digite a senha" id="senha_${index}" name="senha_${index}" minlength="6" required>
-              </div>
-            `);
-          } else if (appName.includes('xcloud')) {
-            // XCLOUD TV e XCLOUD Mobile: código alfanumérico de 6 caracteres
-            contaContainer.html(`
-              <div class="mb-3">
-                <label for="device_id_${index}" class="form-label fw-semibold">
-                  <i class="bi bi-upc-scan text-success me-2"></i>Device ID <span class="text-danger">*</span>
-                </label>
-                <input type="text" class="form-control" placeholder="Ex: AAAAAA, AER144" id="device_id_${index}" name="device_id_${index}" minlength="6" maxlength="6" style="text-transform: uppercase;" required>
-                <small class="text-muted">Código de 6 caracteres alfanuméricos</small>
-              </div>
-              <div class="mb-3">
-                <label for="senha_${index}" class="form-label fw-semibold">
-                  <i class="bi bi-key-fill text-warning me-2"></i>Device Key (Senha)
-                </label>
-                <input type="text" class="form-control" placeholder="Digite a senha (opcional)" id="senha_${index}" name="senha_${index}" minlength="6">
-                <small class="text-muted">Opcional</small>
-              </div>
-            `);
-          } else {
-            // Outros aplicativos: MAC Address com formatação automática
-            contaContainer.html(`
-              <div class="mb-3">
-                <label for="device_id_${index}" class="form-label fw-semibold">
-                  <i class="bi bi-upc-scan text-success me-2"></i>Device ID (MAC Address) <span class="text-danger">*</span>
-                </label>
-                <input type="text" class="form-control device-id-input" placeholder="AA:BB:CC:DD:EE:FF" id="device_id_${index}" name="device_id_${index}" minlength="6" maxlength="17" required>
-                <small class="text-muted">Formato: AA:BB:CC:DD:EE:FF</small>
-              </div>
-              <div class="mb-3">
-                <label for="senha_${index}" class="form-label fw-semibold">
-                  <i class="bi bi-key-fill text-warning me-2"></i>Device Key (Senha)
-                </label>
-                <input type="text" class="form-control" placeholder="Digite a senha (opcional)" id="senha_${index}" name="senha_${index}" minlength="6">
-                <small class="text-muted">Opcional</small>
-              </div>
-            `);
-
-            // Adicionar formatação automática para MAC address
-            $(`#device_id_${index}`).on('input', function() {
-              let deviceId = this.value.replace(/[^0-9A-Fa-f]/g, '');
-              let formattedDeviceId = '';
-
-              if (deviceId.length > 0) {
-                formattedDeviceId = deviceId.match(/.{1,2}/g).join(':');
-                if (formattedDeviceId.startsWith(':')) {
-                  formattedDeviceId = formattedDeviceId.substring(1);
-                }
-                if (formattedDeviceId.endsWith(':')) {
-                  formattedDeviceId = formattedDeviceId.substring(0, formattedDeviceId.length - 1);
-                }
-              }
-
-              this.value = formattedDeviceId;
-            });
+      // Formatação de CPF
+      const cpfInput = document.getElementById('cpf');
+      if (cpfInput) {
+        cpfInput.addEventListener('input', function(e) {
+          let value = e.target.value.replace(/\D/g, '');
+          if (value.length > 11) value = value.slice(0, 11);
+          if (value.length > 9) {
+            value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+          } else if (value.length > 6) {
+            value = value.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+          } else if (value.length > 3) {
+            value = value.replace(/(\d{3})(\d{1,3})/, '$1.$2');
           }
+          e.target.value = value;
+        });
+      }
+
+      // ========== Modal: Ver todos os clientes ==========
+      const modalClientes = document.getElementById('modal-todos-clientes');
+      let todosClientes = [];
+      let clientesCarregados = false;
+
+      if (modalClientes) {
+        modalClientes.addEventListener('show.bs.modal', function() {
+          if (!clientesCarregados) {
+            carregarClientes();
+          }
+        });
+      }
+
+      async function carregarClientes() {
+        try {
+          const response = await fetch('/api/clientes/lista-todos/', {
+            credentials: 'same-origin'
+          });
+          if (!response.ok) throw new Error('Erro ao carregar clientes');
+          const data = await response.json();
+          todosClientes = data.clientes || [];
+          clientesCarregados = true;
+          renderizarClientes(todosClientes);
+        } catch (error) {
+          console.error('Erro ao carregar clientes:', error);
+          document.getElementById('lista-todos-clientes').innerHTML = `
+            <div class="text-center py-5 text-danger">
+              <i class="bi bi-exclamation-triangle fs-1"></i>
+              <p class="mt-2 mb-0">Erro ao carregar clientes</p>
+            </div>
+          `;
+        }
+      }
+
+      function renderizarClientes(clientes) {
+        const container = document.getElementById('lista-todos-clientes');
+        const contador = document.getElementById('contador-clientes');
+
+        if (clientes.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-5 text-muted">
+              <i class="bi bi-search fs-1 d-block mb-3 opacity-50"></i>
+              <p class="mb-1 fw-semibold">Nenhum cliente encontrado</p>
+              <small>Tente outro termo de pesquisa</small>
+            </div>
+          `;
+          contador.innerHTML = '<i class="bi bi-people me-1"></i>0 clientes';
+          return;
+        }
+
+        contador.innerHTML = `<i class="bi bi-people me-1"></i>${clientes.length} cliente${clientes.length !== 1 ? 's' : ''}`;
+
+        let html = '<div class="list-group list-group-flush">';
+        clientes.forEach(cliente => {
+          let statusClass, statusBg, statusText;
+          if (cliente.cancelado) {
+            statusClass = 'text-white';
+            statusBg = 'bg-danger';
+            statusText = 'Cancelado';
+          } else if (cliente.tem_assinatura) {
+            statusClass = 'text-white';
+            statusBg = 'bg-success';
+            statusText = 'Ativo';
+          } else {
+            statusClass = 'text-dark';
+            statusBg = 'bg-warning';
+            statusText = 'Sem assinatura';
+          }
+
+          const dataAdesao = cliente.data_adesao ? cliente.data_adesao : '-';
+          const servidorNome = cliente.servidor_nome ? cliente.servidor_nome : '';
+
+          // Botão de remover só aparece para clientes sem assinatura e não cancelados
+          const podeRemover = !cliente.tem_assinatura && !cliente.cancelado;
+          const btnRemover = podeRemover ? `
+            <button type="button" class="btn btn-outline-danger btn-sm btn-remover-cliente"
+                    data-id="${cliente.id}" data-nome="${cliente.nome}" title="Remover cliente">
+              <i class="bi bi-trash"></i>
+            </button>
+          ` : '';
+
+          html += `
+            <div class="list-group-item cliente-item d-flex align-items-center py-3 px-3" data-cliente-id="${cliente.id}">
+              <img src="${cliente.logo_servidor}" alt="Logo" class="cliente-logo me-3"
+                   onerror="this.src='/static/assets/images/logo-apps/default.png'">
+              <div class="flex-grow-1 min-width-0">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <span class="cliente-nome text-truncate">${cliente.nome}</span>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="status-badge ${statusBg} ${statusClass} rounded-pill">${statusText}</span>
+                    ${btnRemover}
+                  </div>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                  <span class="cliente-telefone">
+                    <i class="bi bi-whatsapp text-success me-1"></i>${cliente.telefone}
+                  </span>
+                  ${servidorNome ? `<span class="cliente-telefone"><i class="bi bi-hdd me-1"></i>${servidorNome}</span>` : ''}
+                </div>
+                <span class="cliente-data">
+                  <i class="bi bi-calendar3 me-1"></i>Adesão: ${dataAdesao}
+                </span>
+              </div>
+            </div>
+          `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+
+        // Bind eventos de remover
+        bindEventosRemover();
+      }
+
+      // Variáveis para o modal de confirmação
+      let clienteParaRemover = null;
+      let btnClienteParaRemover = null;
+      const modalConfirmarRemocao = new bootstrap.Modal(document.getElementById('modal-confirmar-remocao'));
+
+      function bindEventosRemover() {
+        document.querySelectorAll('.btn-remover-cliente').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            clienteParaRemover = this.dataset.id;
+            btnClienteParaRemover = this;
+
+            // Atualizar nome no modal
+            document.getElementById('nome-cliente-remover').textContent = `"${this.dataset.nome}"?`;
+
+            // Exibir modal de confirmação
+            modalConfirmarRemocao.show();
+          });
+        });
+      }
+
+      // Handler para confirmar remoção
+      document.getElementById('btn-confirmar-remocao').addEventListener('click', function() {
+        if (clienteParaRemover && btnClienteParaRemover) {
+          modalConfirmarRemocao.hide();
+          removerCliente(clienteParaRemover, btnClienteParaRemover);
         }
       });
-    });
-  });
-</script>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const telefoneInput = document.getElementById('telefone');
+      async function removerCliente(clienteId, btnElement) {
+        const itemElement = btnElement.closest('.cliente-item');
 
-    const iti = window.intlTelInput(telefoneInput, {
-      preferredCountries: ["br", "us", "pt"],
-      initialCountry: "br",
-      formatOnDisplay: false,
-      nationalMode: true,
-      utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/utils.js"
-    });
+        // Desabilitar botão e mostrar loading
+        btnElement.disabled = true;
+        btnElement.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
-    telefoneInput.addEventListener('input', function () {
-      const countryCode = iti.getSelectedCountryData().iso2;
-      const allowedCountries = ["br", "us", "pt"];
+        try {
+          const response = await fetch(`/api/clientes/${clienteId}/remover/`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+              'Content-Type': 'application/json'
+            }
+          });
 
-      if (!allowedCountries.includes(countryCode)) return;
+          const data = await response.json();
 
-      let numero = this.value.replace(/\D/g, '');
+          if (data.success) {
+            // Animação de remoção
+            itemElement.style.transition = 'all 0.3s ease';
+            itemElement.style.opacity = '0';
+            itemElement.style.transform = 'translateX(-20px)';
 
-      // --- Brasil ---
-      if (countryCode === "br") {
-        numero = numero.substring(0, 11); // 2 DDD + até 9 dígitos locais
-        let formatted = '';
+            setTimeout(() => {
+              itemElement.remove();
+              // Atualizar contador
+              const total = document.querySelectorAll('.cliente-item').length;
+              document.getElementById('contador-clientes').innerHTML =
+                `<i class="bi bi-people me-1"></i>${total} cliente${total !== 1 ? 's' : ''}`;
 
-        if (numero.length >= 2) {
-          formatted += '(' + numero.substring(0, 2) + ') ';
+              // Atualizar array local
+              todosClientes = todosClientes.filter(c => c.id != clienteId);
 
-          const local = numero.substring(2); // Parte após o DDD
-          if (local.length === 9) {
-            // Celular: 5+4
-            formatted += local.substring(0, 5) + '-' + local.substring(5);
-          } else if (local.length >= 5) {
-            // Fixo: 4+4 ou incompleto
-            formatted += local.substring(0, 4) + '-' + local.substring(4);
+              // Mostrar mensagem se lista ficou vazia
+              if (total === 0) {
+                document.getElementById('lista-todos-clientes').innerHTML = `
+                  <div class="text-center py-5 text-muted">
+                    <i class="bi bi-people fs-1 d-block mb-3 opacity-50"></i>
+                    <p class="mb-1 fw-semibold">Nenhum cliente cadastrado</p>
+                  </div>
+                `;
+              }
+            }, 300);
           } else {
-            formatted += local;
+            alert(data.error || 'Erro ao remover cliente');
+            btnElement.disabled = false;
+            btnElement.innerHTML = '<i class="bi bi-trash"></i>';
           }
-        } else {
-          formatted += numero;
+        } catch (error) {
+          console.error('Erro ao remover cliente:', error);
+          alert('Erro ao remover cliente. Tente novamente.');
+          btnElement.disabled = false;
+          btnElement.innerHTML = '<i class="bi bi-trash"></i>';
         }
-
-        this.value = formatted;
       }
 
-      // --- Estados Unidos ---
-      else if (countryCode === "us") {
-        numero = numero.substring(0, 10);
-        let formatted = '';
-        if (numero.length >= 3) {
-          formatted += '(' + numero.substring(0, 3) + ') ';
-          if (numero.length >= 6) {
-            formatted += numero.substring(3, 6) + '-' + numero.substring(6);
-          } else if (numero.length > 3) {
-            formatted += numero.substring(3);
+      // Pesquisa em tempo real
+      const inputPesquisa = document.getElementById('pesquisa-clientes');
+      if (inputPesquisa) {
+        inputPesquisa.addEventListener('input', function() {
+          const termo = this.value.toLowerCase().trim();
+          if (!termo) {
+            renderizarClientes(todosClientes);
+            return;
           }
-        } else {
-          formatted += numero;
-        }
-        this.value = formatted;
-      }
-
-      // --- Portugal ---
-      else if (countryCode === "pt") {
-        numero = numero.substring(0, 9);
-        let formatted = '';
-        if (numero.length >= 3) {
-          formatted += numero.substring(0, 3) + ' ';
-          if (numero.length >= 6) {
-            formatted += numero.substring(3, 6) + ' ' + numero.substring(6);
-          } else if (numero.length > 3) {
-            formatted += numero.substring(3);
-          }
-        } else {
-          formatted += numero;
-        }
-        this.value = formatted;
+          const filtrados = todosClientes.filter(c =>
+            c.nome.toLowerCase().includes(termo) ||
+            c.telefone.includes(termo)
+          );
+          renderizarClientes(filtrados);
+        });
       }
     });
+  </script>
 
-    // --- Antes do envio, garantir que o número BR tenha formato esperado pelo backend ---
-    const form = telefoneInput.closest('form');
-    form.addEventListener('submit', function (e) {
-      const countryCode = iti.getSelectedCountryData().iso2;
-
-      if (countryCode === 'br') {
-        let numero = telefoneInput.value.replace(/\D/g, '');
-
-        // Remove DDI duplicado: se já começa com 55, não adiciona novamente
-        if (numero.startsWith('55') && numero.length >= 12) {
-          // Já tem DDI, apenas formata com +
-          telefoneInput.value = '+' + numero;
-        } else if (numero.length >= 10) {
-          // Não tem DDI, adiciona +55
-          telefoneInput.value = '+55' + numero;
-        }
-
-      } else {
-        // Para outros países, usa o formato internacional padrão com DDI
-        telefoneInput.value = iti.getNumber();
-      }
-    });
-  });
-</script>
-
-<style>
-  /* Estilo para o campo de telefone */
-  .iti {
-    width: 100%;
-  }
-
-  .iti__country-list {
-    z-index: 10000;
-  }
-</style>
+</body>
+</html>

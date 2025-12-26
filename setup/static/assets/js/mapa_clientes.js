@@ -296,4 +296,101 @@
     document.querySelectorAll(".mapa-clientes-svg path.is-hover")
       .forEach(el => el.classList.remove("is-hover"));
   }
+
+  // Renderiza lista de países no modal de clientes no exterior
+  function renderExteriorModal() {
+    const container = document.getElementById('lista-clientes-exterior');
+    if (!container) return;
+
+    const porPais = state.summary?.por_pais || [];
+
+    if (porPais.length === 0) {
+      container.innerHTML = `
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-globe fs-1 d-block mb-2 opacity-50"></i>
+          <p class="mb-0">Nenhum cliente no exterior</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Converte código de país para emoji de bandeira
+    const countryToFlag = (code) => {
+      if (!code || code.length !== 2) return '🌍';
+      const codePoints = [...code.toUpperCase()].map(
+        char => 127397 + char.charCodeAt(0)
+      );
+      return String.fromCodePoint(...codePoints);
+    };
+
+    let html = '<div class="list-group list-group-flush">';
+    porPais.forEach(item => {
+      const flag = countryToFlag(item.pais);
+      html += `
+        <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+          <span class="d-flex align-items-center">
+            <span class="me-2" style="font-size: 1.4rem;">${flag}</span>
+            <span>${item.nome || item.pais}</span>
+          </span>
+          <span class="badge bg-primary rounded-pill">${formatNumber(item.total)}</span>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // Renderiza lista de estados no modal
+  function renderEstadosModal() {
+    const container = document.getElementById('lista-clientes-estados');
+    if (!container) return;
+
+    const porEstado = state.summary?.por_estado || [];
+
+    if (porEstado.length === 0) {
+      container.innerHTML = `
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-geo-alt fs-1 d-block mb-2 opacity-50"></i>
+          <p class="mb-0">Nenhum cliente cadastrado</p>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '<div class="list-group list-group-flush">';
+    porEstado.forEach((item, index) => {
+      const isTop3 = index < 3;
+      const badgeClass = isTop3 ? 'bg-primary' : 'bg-secondary';
+      const icon = isTop3 ? '<i class="bi bi-trophy-fill text-warning me-1"></i>' : '';
+
+      html += `
+        <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+          <span class="d-flex align-items-center">
+            ${icon}
+            <span class="fw-semibold me-2">${item.uf}</span>
+            <span class="text-muted">${item.nome}</span>
+          </span>
+          <span>
+            <span class="badge ${badgeClass} rounded-pill me-2">${formatNumber(item.total)}</span>
+            <small class="text-muted">${item.percentual}%</small>
+          </span>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // Listeners para quando os modais forem abertos
+  document.addEventListener('DOMContentLoaded', () => {
+    const modalExterior = document.getElementById('modal-clientes-exterior');
+    if (modalExterior) {
+      modalExterior.addEventListener('show.bs.modal', renderExteriorModal);
+    }
+
+    const modalEstados = document.getElementById('modal-clientes-estados');
+    if (modalEstados) {
+      modalEstados.addEventListener('show.bs.modal', renderEstadosModal);
+    }
+  });
 })();

@@ -9,7 +9,7 @@
 
 'use strict';
 
-const CACHE_VERSION = 'v1.1.0';
+const CACHE_VERSION = 'v1.2.0';
 const STATIC_CACHE = `painel-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `painel-dynamic-${CACHE_VERSION}`;
 const API_CACHE = `painel-api-${CACHE_VERSION}`;
