@@ -5,6 +5,7 @@ Inclui entidades como Cliente, Plano, Mensalidade, Aplicativo, Sessão WhatsApp,
 
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Optional
 import re
 import os
 import time
@@ -275,7 +276,7 @@ DDI_PAIS_MAP = {
 }
 
 
-def extrair_pais_do_telefone(telefone: str) -> str | None:
+def extrair_pais_do_telefone(telefone: str) -> Optional[str]:
     """
     Extrai o código do país (ISO 3166-1 alpha-2) a partir do DDI do telefone.
 
