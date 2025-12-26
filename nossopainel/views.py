@@ -12793,146 +12793,370 @@ def integracoes_fastdepix_webhook_remover(request):
 @require_http_methods(["POST"])
 def integracoes_fastdepix_sincronizar(request):
     """
-    Sincroniza o status das cobranças pendentes com o FastDePix.
+    Sincroniza cobranças do FastDePix com o sistema local.
 
-    Consulta a API para cada cobrança pendente e atualiza o status local
-    se houver mudança (pago, expirado, cancelado).
+    Esta função realiza duas operações principais:
+    1. Busca na API todas as transações do primeiro dia do mês até hoje
+    2. Para cada transação:
+       - Se não existe no sistema: cria registro (se estiver paga)
+       - Se existe com status diferente: atualiza o status
+
+    Funciona com TODAS as contas FastDePix configuradas.
     """
     from nossopainel.services.payment_integrations import get_payment_integration, PaymentStatus
     from django.utils import timezone
-    from datetime import timedelta
+    from decimal import Decimal
 
-    # Buscar conta ativa FastDePix (campo encriptado é _api_key)
-    conta_ativa = ContaBancaria.objects.filter(
+    # Buscar TODAS as contas FastDePix ativas
+    contas_fastdepix = ContaBancaria.objects.filter(
         instituicao__tipo_integracao='fastdepix',
         _api_key__isnull=False
-    ).exclude(_api_key='').first()
+    ).exclude(_api_key='').select_related('instituicao', 'usuario')
 
-    if not conta_ativa:
+    if not contas_fastdepix.exists():
         return JsonResponse({
             'success': False,
             'message': 'Nenhuma conta FastDePix configurada.'
         })
 
-    integration = get_payment_integration(conta_ativa)
-    if not integration:
-        return JsonResponse({
-            'success': False,
-            'message': 'Erro ao inicializar integração.'
-        })
+    # Definir período: primeiro dia do mês até hoje
+    hoje = timezone.now().date()
+    primeiro_dia_mes = hoje.replace(day=1)
 
-    # Buscar cobranças pendentes dos últimos 30 dias
-    desde = timezone.now() - timedelta(days=30)
-    cobrancas_pendentes = CobrancaPix.objects.filter(
-        usuario=request.user,
-        integracao='fastdepix',
-        status='pending',
-        criado_em__gte=desde
-    )
-
-    total = cobrancas_pendentes.count()
-    atualizadas = 0
-    erros = 0
+    # Contadores gerais
+    total_verificadas_api = 0
+    total_pendentes_atualizadas = 0
+    total_novas_encontradas = 0
+    total_erros = 0
     detalhes = []
+    contas_processadas = 0
 
-    for cobranca in cobrancas_pendentes:
+    for conta in contas_fastdepix:
+        integration = get_payment_integration(conta)
+        if not integration:
+            detalhes.append({
+                'conta': conta.nome_identificacao or f'Conta {conta.id}',
+                'erro': 'Erro ao inicializar integração'
+            })
+            total_erros += 1
+            continue
+
+        contas_processadas += 1
+        conta_nome = conta.nome_identificacao or f'Conta {conta.id}'
+
+        # ===== PARTE 1: Buscar transações da API =====
         try:
-            # Consultar status na API
-            status_api = integration.get_charge_status(cobranca.transaction_id)
+            # Buscar todas as páginas de transações do período
+            page = 1
+            per_page = 100
+            transacoes_api = []
 
-            # Se status mudou, atualizar
-            if status_api == PaymentStatus.PAID and cobranca.status != 'paid':
-                # Buscar detalhes completos para obter data de pagamento e taxas
-                try:
-                    from decimal import Decimal
-                    details = integration.get_charge_details(cobranca.transaction_id)
-                    paid_at = None
-                    if details.get('paid_at'):
+            while True:
+                response = integration.list_transactions(
+                    start_date=datetime.combine(primeiro_dia_mes, datetime.min.time()),
+                    end_date=datetime.combine(hoje, datetime.max.time()),
+                    page=page,
+                    per_page=per_page
+                )
+
+                # Extrair transações da resposta
+                data = response.get('data', response)
+                if isinstance(data, list):
+                    transacoes = data
+                else:
+                    transacoes = data.get('transactions', data.get('items', []))
+
+                if not transacoes:
+                    break
+
+                transacoes_api.extend(transacoes)
+
+                # Verificar se há mais páginas
+                meta = response.get('meta', {})
+                total_pages = meta.get('total_pages', meta.get('last_page', 1))
+                if page >= total_pages:
+                    break
+                page += 1
+
+            total_verificadas_api += len(transacoes_api)
+
+            # Processar cada transação da API
+            for tx in transacoes_api:
+                tx_id = str(tx.get('id', tx.get('transaction_id', '')))
+                if not tx_id:
+                    continue
+
+                tx_status = tx.get('status', 'pending').lower()
+                tx_amount = Decimal(str(tx.get('amount', 0)))
+
+                # Verificar se já existe no sistema
+                cobranca_existente = CobrancaPix.objects.filter(
+                    transaction_id=tx_id
+                ).first()
+
+                if cobranca_existente:
+                    # ===== Cobrança existe: verificar se precisa atualizar status =====
+                    status_map = {
+                        'pending': 'pending',
+                        'paid': 'paid',
+                        'expired': 'expired',
+                        'cancelled': 'cancelled',
+                        'canceled': 'cancelled',
+                        'refunded': 'refunded',
+                    }
+                    novo_status = status_map.get(tx_status, 'pending')
+
+                    if cobranca_existente.status != novo_status:
+                        if novo_status == 'paid':
+                            # Buscar detalhes para pagamento
+                            try:
+                                details = integration.get_charge_details(tx_id)
+                                paid_at = None
+                                if details.get('paid_at'):
+                                    try:
+                                        paid_at = timezone.datetime.fromisoformat(
+                                            details['paid_at'].replace('Z', '+00:00')
+                                        )
+                                    except (ValueError, AttributeError):
+                                        paid_at = timezone.now()
+
+                                payer = details.get('payer', {})
+                                valor_recebido = None
+                                valor_taxa = None
+
+                                for key in ['commission_amount', 'net_amount', 'amount_received']:
+                                    if key in details and details[key] is not None:
+                                        try:
+                                            valor_recebido = Decimal(str(details[key]))
+                                            break
+                                        except (ValueError, TypeError):
+                                            pass
+
+                                for key in ['fee', 'tax', 'taxa', 'fee_amount']:
+                                    if key in details and details[key] is not None:
+                                        try:
+                                            valor_taxa = Decimal(str(details[key]))
+                                            break
+                                        except (ValueError, TypeError):
+                                            pass
+
+                                cobranca_existente.mark_as_paid(
+                                    paid_at=paid_at,
+                                    payer_name=payer.get('name') if isinstance(payer, dict) else None,
+                                    payer_document=payer.get('cpf_cnpj') if isinstance(payer, dict) else None,
+                                    webhook_data={'data': details},
+                                    valor_recebido=valor_recebido,
+                                    valor_taxa=valor_taxa,
+                                )
+                            except Exception:
+                                cobranca_existente.mark_as_paid(paid_at=timezone.now())
+
+                            total_pendentes_atualizadas += 1
+                            detalhes.append({
+                                'conta': conta_nome,
+                                'transaction_id': tx_id,
+                                'acao': 'ATUALIZADA',
+                                'status': 'paid',
+                                'mensagem': 'Cobrança existente marcada como PAGA'
+                            })
+
+                        elif novo_status == 'expired':
+                            cobranca_existente.mark_as_expired()
+                            total_pendentes_atualizadas += 1
+                            detalhes.append({
+                                'conta': conta_nome,
+                                'transaction_id': tx_id,
+                                'acao': 'ATUALIZADA',
+                                'status': 'expired',
+                                'mensagem': 'Cobrança existente marcada como EXPIRADA'
+                            })
+
+                        elif novo_status == 'cancelled':
+                            cobranca_existente.mark_as_cancelled()
+                            total_pendentes_atualizadas += 1
+                            detalhes.append({
+                                'conta': conta_nome,
+                                'transaction_id': tx_id,
+                                'acao': 'ATUALIZADA',
+                                'status': 'cancelled',
+                                'mensagem': 'Cobrança existente marcada como CANCELADA'
+                            })
+
+                else:
+                    # ===== Cobrança NÃO existe: criar se estiver paga =====
+                    if tx_status == 'paid':
                         try:
-                            paid_at = timezone.datetime.fromisoformat(
-                                details['paid_at'].replace('Z', '+00:00')
-                            )
-                        except (ValueError, AttributeError):
+                            details = integration.get_charge_details(tx_id)
+
+                            # Extrair dados do pagamento
                             paid_at = timezone.now()
+                            if details.get('paid_at'):
+                                try:
+                                    paid_at = timezone.datetime.fromisoformat(
+                                        details['paid_at'].replace('Z', '+00:00')
+                                    )
+                                except (ValueError, AttributeError):
+                                    pass
 
-                    payer = details.get('payer', {})
+                            # Extrair data de criação
+                            created_at = timezone.now()
+                            if details.get('created_at'):
+                                try:
+                                    created_at = timezone.datetime.fromisoformat(
+                                        details['created_at'].replace('Z', '+00:00')
+                                    )
+                                except (ValueError, AttributeError):
+                                    pass
 
-                    # Extrair valores financeiros
-                    valor_recebido = None
-                    valor_taxa = None
+                            # Extrair expiração
+                            expires_at = timezone.now() + timedelta(hours=24)
+                            if details.get('qr_code_expires_at') or details.get('expires_at'):
+                                exp_str = details.get('qr_code_expires_at') or details.get('expires_at')
+                                try:
+                                    expires_at = timezone.datetime.fromisoformat(
+                                        exp_str.replace('Z', '+00:00')
+                                    )
+                                except (ValueError, AttributeError):
+                                    pass
 
-                    # Tentar extrair valor recebido (líquido) - priorizar commission_amount do FastDePix
-                    for key in ['commission_amount', 'net_amount', 'amount_received', 'liquid_value', 'valor_liquido']:
-                        if key in details and details[key] is not None:
-                            try:
-                                valor_recebido = Decimal(str(details[key]))
-                            except (ValueError, TypeError):
-                                pass
-                            break
+                            payer = details.get('payer', {})
+                            valor_recebido = None
+                            valor_taxa = None
 
-                    # Tentar extrair taxa
-                    for key in ['fee', 'tax', 'taxa', 'fee_amount', 'valor_taxa']:
-                        if key in details and details[key] is not None:
-                            try:
-                                valor_taxa = Decimal(str(details[key]))
-                            except (ValueError, TypeError):
-                                pass
-                            break
+                            for key in ['commission_amount', 'net_amount', 'amount_received']:
+                                if key in details and details[key] is not None:
+                                    try:
+                                        valor_recebido = Decimal(str(details[key]))
+                                        break
+                                    except (ValueError, TypeError):
+                                        pass
 
-                    cobranca.mark_as_paid(
-                        paid_at=paid_at,
-                        payer_name=payer.get('name') if isinstance(payer, dict) else None,
-                        payer_document=payer.get('cpf_cnpj') if isinstance(payer, dict) else None,
-                        webhook_data={'data': details},
-                        valor_recebido=valor_recebido,
-                        valor_taxa=valor_taxa,
-                    )
-                except Exception:
-                    # Se falhar ao buscar detalhes, marca como pago com data atual
-                    cobranca.mark_as_paid(paid_at=timezone.now())
+                            for key in ['fee', 'tax', 'taxa', 'fee_amount']:
+                                if key in details and details[key] is not None:
+                                    try:
+                                        valor_taxa = Decimal(str(details[key]))
+                                        break
+                                    except (ValueError, TypeError):
+                                        pass
 
-                atualizadas += 1
-                detalhes.append({
-                    'transaction_id': cobranca.transaction_id,
-                    'novo_status': 'paid',
-                    'mensagem': 'Marcada como PAGA'
-                })
-                logger.info(f'[Sync PIX] Cobrança {cobranca.transaction_id} marcada como PAGA')
+                            # Criar nova cobrança
+                            nova_cobranca = CobrancaPix.objects.create(
+                                transaction_id=tx_id,
+                                usuario=conta.usuario,
+                                conta_bancaria=conta,
+                                valor=tx_amount,
+                                descricao=details.get('description', f'Cobrança sincronizada - {tx_id}'),
+                                status='paid',
+                                integracao='fastdepix',
+                                qr_code=details.get('qr_code_text', ''),
+                                qr_code_url=details.get('qr_code', ''),
+                                pix_copia_cola=details.get('qr_code_text', ''),
+                                expira_em=expires_at,
+                                pago_em=paid_at,
+                                pagador_nome=payer.get('name', '') if isinstance(payer, dict) else '',
+                                pagador_documento=payer.get('cpf_cnpj', '') if isinstance(payer, dict) else '',
+                                valor_recebido=valor_recebido,
+                                valor_taxa=valor_taxa,
+                                raw_response=details,
+                                webhook_data={'synced': True, 'data': details},
+                            )
 
-            elif status_api == PaymentStatus.EXPIRED and cobranca.status != 'expired':
-                cobranca.mark_as_expired()
-                atualizadas += 1
-                detalhes.append({
-                    'transaction_id': cobranca.transaction_id,
-                    'novo_status': 'expired',
-                    'mensagem': 'Marcada como EXPIRADA'
-                })
-                logger.info(f'[Sync PIX] Cobrança {cobranca.transaction_id} marcada como EXPIRADA')
+                            total_novas_encontradas += 1
+                            detalhes.append({
+                                'conta': conta_nome,
+                                'transaction_id': tx_id,
+                                'acao': 'CRIADA',
+                                'status': 'paid',
+                                'valor': str(tx_amount),
+                                'mensagem': f'Nova cobrança PAGA encontrada na API (R$ {tx_amount})'
+                            })
+                            logger.info(f'[Sync PIX] Nova cobrança criada: {tx_id} - R$ {tx_amount}')
 
-            elif status_api == PaymentStatus.CANCELLED and cobranca.status != 'cancelled':
-                cobranca.mark_as_cancelled()
-                atualizadas += 1
-                detalhes.append({
-                    'transaction_id': cobranca.transaction_id,
-                    'novo_status': 'cancelled',
-                    'mensagem': 'Marcada como CANCELADA'
-                })
-                logger.info(f'[Sync PIX] Cobrança {cobranca.transaction_id} marcada como CANCELADA')
+                        except Exception as e:
+                            total_erros += 1
+                            detalhes.append({
+                                'conta': conta_nome,
+                                'transaction_id': tx_id,
+                                'erro': f'Erro ao criar cobrança: {str(e)}'
+                            })
+                            logger.warning(f'[Sync PIX] Erro ao criar cobrança {tx_id}: {e}')
 
         except Exception as e:
-            erros += 1
-            logger.warning(f'[Sync PIX] Erro ao sincronizar cobrança {cobranca.transaction_id}: {e}')
+            total_erros += 1
             detalhes.append({
-                'transaction_id': cobranca.transaction_id,
-                'erro': str(e)
+                'conta': conta_nome,
+                'erro': f'Erro ao buscar transações: {str(e)}'
             })
+            logger.exception(f'[Sync PIX] Erro ao processar conta {conta_nome}: {e}')
+
+    # ===== PARTE 2: Sincronizar cobranças pendentes locais =====
+    # (Para cobranças que existem no sistema mas podem ter mudado de status)
+    cobrancas_pendentes_locais = CobrancaPix.objects.filter(
+        integracao='fastdepix',
+        status='pending',
+        criado_em__gte=timezone.make_aware(datetime.combine(primeiro_dia_mes, datetime.min.time()))
+    ).select_related('conta_bancaria')
+
+    for cobranca in cobrancas_pendentes_locais:
+        if not cobranca.conta_bancaria or not cobranca.conta_bancaria.api_key:
+            continue
+
+        integration = get_payment_integration(cobranca.conta_bancaria)
+        if not integration:
+            continue
+
+        try:
+            status_api = integration.get_charge_status(cobranca.transaction_id)
+
+            if status_api == PaymentStatus.PAID:
+                details = integration.get_charge_details(cobranca.transaction_id)
+                paid_at = timezone.now()
+                if details.get('paid_at'):
+                    try:
+                        paid_at = timezone.datetime.fromisoformat(
+                            details['paid_at'].replace('Z', '+00:00')
+                        )
+                    except (ValueError, AttributeError):
+                        pass
+
+                payer = details.get('payer', {})
+                cobranca.mark_as_paid(
+                    paid_at=paid_at,
+                    payer_name=payer.get('name') if isinstance(payer, dict) else None,
+                    payer_document=payer.get('cpf_cnpj') if isinstance(payer, dict) else None,
+                    webhook_data={'data': details},
+                )
+                total_pendentes_atualizadas += 1
+
+            elif status_api == PaymentStatus.EXPIRED:
+                cobranca.mark_as_expired()
+                total_pendentes_atualizadas += 1
+
+            elif status_api == PaymentStatus.CANCELLED:
+                cobranca.mark_as_cancelled()
+                total_pendentes_atualizadas += 1
+
+        except Exception as e:
+            logger.warning(f'[Sync PIX] Erro ao verificar pendente {cobranca.transaction_id}: {e}')
+
+    # Resumo final
+    mensagem = f'Sincronização concluída. '
+    if total_novas_encontradas > 0:
+        mensagem += f'{total_novas_encontradas} cobrança(s) NOVA(S) encontrada(s) na API. '
+    if total_pendentes_atualizadas > 0:
+        mensagem += f'{total_pendentes_atualizadas} atualizada(s). '
+    if total_erros > 0:
+        mensagem += f'{total_erros} erro(s).'
 
     return JsonResponse({
         'success': True,
-        'message': f'Sincronização concluída. {atualizadas} de {total} cobranças atualizadas.',
-        'total_verificadas': total,
-        'atualizadas': atualizadas,
-        'erros': erros,
+        'message': mensagem,
+        'periodo': f'{primeiro_dia_mes.strftime("%d/%m/%Y")} até {hoje.strftime("%d/%m/%Y")}',
+        'contas_processadas': contas_processadas,
+        'total_verificadas_api': total_verificadas_api,
+        'novas_encontradas': total_novas_encontradas,
+        'atualizadas': total_pendentes_atualizadas,
+        'erros': total_erros,
         'detalhes': detalhes
     })
 
