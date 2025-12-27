@@ -893,6 +893,9 @@ def verificar_limite_apos_mudanca_plano(sender, instance, created, **kwargs):
     if plano_anterior_id == plano_atual_id:
         return  # Plano não mudou
 
+    # Identificar se é novo cliente (primeira atribuição de plano) ou mudança
+    is_novo_cliente = plano_anterior_id is None
+
     # Mapear pagamentos por ano
     PAGAMENTOS_POR_ANO = {
         'Mensal': 12,
@@ -922,14 +925,24 @@ def verificar_limite_apos_mudanca_plano(sender, instance, created, **kwargs):
         f"Impacto anual: R$ {impacto_valor:+.2f}"
     )
 
-    # Criar notificação de mudança de plano
+    # Obter informações da conta bancária (via forma de pagamento do cliente)
+    conta_info = None
+    if instance.forma_pgto and instance.forma_pgto.conta_bancaria:
+        conta = instance.forma_pgto.conta_bancaria
+        conta_info = f"{conta.nome_identificacao} ({conta.instituicao.nome})"
+
+    # Criar notificação de mudança/criação de plano
     try:
         NotificacaoSistema.criar_alerta_mudanca_plano(
             usuario=instance.usuario,
             cliente=instance,
-            plano_antigo=f"{plano_anterior_nome} (R$ {plano_anterior_valor})",
+            plano_antigo=f"{plano_anterior_nome} (R$ {plano_anterior_valor})" if not is_novo_cliente else None,
             plano_novo=f"{plano_atual_nome} (R$ {plano_atual_valor})",
-            impacto_valor=impacto_valor
+            impacto_valor=impacto_valor,
+            valor_anual_anterior=valor_anual_anterior,
+            valor_anual_atual=valor_anual_atual,
+            conta_info=conta_info,
+            is_novo_cliente=is_novo_cliente
         )
     except Exception as e:
         logger.error(f"[LIMITE_MEI] Erro ao criar notificação de mudança de plano: {e}")

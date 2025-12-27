@@ -134,28 +134,66 @@
                     </div>
                 </td>
                 {% endif %}
-                {% if cliente.forma_pgto.nome == "PIX" %}
+                {% if cliente.forma_pgto %}
                 <td class="text-center">
+                    {% with instituicao_nome=cliente.forma_pgto.conta_bancaria.instituicao.nome|default:"Não definida" %}
+                    {% if cliente.forma_pgto.conta_bancaria and cliente.forma_pgto.conta_bancaria.instituicao.tipo_integracao == 'fastdepix' %}
+                    <!-- FastDePix -->
                     <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border"
                          style="width: 36px; height: 36px;"
-                         title="PIX">
-                        <img src="{% static 'assets/images/svg/pix.png' %}" style="width: 20px; height: 20px;">
+                         data-bs-toggle="tooltip"
+                         data-bs-placement="top"
+                         title="{{ instituicao_nome }}">
+                        <img src="{% static 'assets/images/logo-apps/depix-logo.jpeg' %}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
                     </div>
-                </td>
-                {% elif cliente.forma_pgto.nome == "Cartão de Crédito" %}
-                <td class="text-center">
+                    {% elif cliente.forma_pgto.conta_bancaria %}
+                    <!-- PIX Moderno (com conta bancária) -->
                     <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border"
                          style="width: 36px; height: 36px;"
-                         title="Cartão de Crédito">
+                         data-bs-toggle="tooltip"
+                         data-bs-placement="top"
+                         title="{{ instituicao_nome }}">
+                        <img src="{% static 'assets/images/logo-apps/pix-logo.png' %}" style="width: 20px; height: 20px;">
+                    </div>
+                    {% elif cliente.forma_pgto.dados_bancarios %}
+                    <!-- PIX Legado (com dados bancários antigos) -->
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border"
+                         style="width: 36px; height: 36px;"
+                         data-bs-toggle="tooltip"
+                         data-bs-placement="top"
+                         title="PIX">
+                        <img src="{% static 'assets/images/logo-apps/pix-logo.png' %}" style="width: 20px; height: 20px;">
+                    </div>
+                    {% elif "cart" in cliente.forma_pgto.nome|lower %}
+                    <!-- Cartão de Crédito -->
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border"
+                         style="width: 36px; height: 36px;"
+                         data-bs-toggle="tooltip"
+                         data-bs-placement="top"
+                         title="{{ cliente.forma_pgto.nome }}">
                         <i class="bi bi-credit-card text-warning" style="font-size: 1.1rem;"></i>
                     </div>
+                    {% elif "boleto" in cliente.forma_pgto.nome|lower %}
+                    <!-- Boleto -->
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border"
+                         style="width: 36px; height: 36px;"
+                         data-bs-toggle="tooltip"
+                         data-bs-placement="top"
+                         title="{{ cliente.forma_pgto.nome }}">
+                        <i class="bi bi-upc-scan text-danger" style="font-size: 1.1rem;"></i>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
                 </td>
-                {% elif cliente.forma_pgto.nome == "Boleto" %}
+                {% else %}
+                <!-- Sem forma de pagamento -->
                 <td class="text-center">
                     <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border"
                          style="width: 36px; height: 36px;"
-                         title="Boleto">
-                        <i class="bi bi-upc-scan text-danger" style="font-size: 1.1rem;"></i>
+                         data-bs-toggle="tooltip"
+                         data-bs-placement="top"
+                         title="Sem forma de pagamento">
+                        <img src="{% static 'assets/images/logo-apps/default.png' %}" style="width: 20px; height: 20px;">
                     </div>
                 </td>
                 {% endif %}

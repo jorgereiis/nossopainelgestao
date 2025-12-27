@@ -1396,8 +1396,10 @@
                       <tr>
                         <td class="ps-4">
                           <div class="d-flex align-items-center">
-                            {% if 'PIX' in forma_pgto.nome|upper %}
-                              <img src="{% static 'assets/images/svg/pix.png' %}" width="28" height="28" class="me-2">
+                            {% if forma_pgto.conta_bancaria and forma_pgto.conta_bancaria.instituicao.tipo_integracao == 'fastdepix' %}
+                              <img src="{% static 'assets/images/logo-apps/depix-logo.jpeg' %}" width="28" height="28" class="me-2 rounded-circle" style="object-fit: cover;">
+                            {% elif 'PIX' in forma_pgto.nome|upper %}
+                              <img src="{% static 'assets/images/logo-apps/pix-logo.png' %}" width="28" height="28" class="me-2">
                             {% elif 'CART' in forma_pgto.nome|upper %}
                               <i class="bi bi-credit-card text-warning me-2" style="font-size: 1.5rem;"></i>
                             {% elif 'BOLETO' in forma_pgto.nome|upper %}
@@ -1533,7 +1535,7 @@
     <!-- Modal Ver Detalhes -->
     <div class="modal fade" id="modalVerDetalhes" tabindex="-1">
       <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content border-0 shadow">
           <div class="modal-header border-0 pb-0">
             <h5 class="modal-title fw-bold">
               <i class="bi bi-info-circle text-primary me-2"></i>Detalhes da Forma de Pagamento
@@ -1549,89 +1551,126 @@
 
             <!-- Conteudo -->
             <div id="detalhesConteudo" class="d-none">
-              <!-- Header com badge da instituicao -->
-              <div class="d-flex align-items-center mb-4 p-3 bg-light rounded-3">
-                <div id="detalhesIcone" class="me-3"></div>
-                <div>
-                  <h5 class="mb-1 fw-bold" id="detalhesNome"></h5>
-                  <span id="detalhesInstituicaoBadge"></span>
+              <!-- Alerta para formas legadas -->
+              <div id="detalhesAlertaLegado" class="alert alert-warning d-none mb-4">
+                <div class="d-flex align-items-center">
+                  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                  <div>
+                    <strong>Forma de Pagamento Antiga</strong>
+                    <p class="mb-0 small">Esta forma de pagamento utiliza o sistema legado. Considere atualizar para o novo sistema.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Header com logo e info principal -->
+              <div id="detalhesHeader" class="d-flex align-items-center mb-4 p-4 rounded-3">
+                <div id="detalhesIcone" class="me-4 d-flex align-items-center justify-content-center" style="width: 72px; height: 72px;"></div>
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <h4 class="mb-0 fw-bold" id="detalhesTitulo"></h4>
+                    <span id="detalhesStatusBadge"></span>
+                  </div>
+                  <p class="mb-0 text-muted" id="detalhesSubtitulo"></p>
                 </div>
               </div>
 
               <div class="row g-4">
                 <!-- Dados da Conta -->
-                <div class="col-md-6">
-                  <div class="card h-100 border-0 bg-light">
+                <div class="col-md-6" id="detalhesContaContainer">
+                  <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body">
-                      <h6 class="fw-bold mb-3"><i class="bi bi-person me-2 text-primary"></i>Dados da Conta</h6>
-                      <div class="mb-2">
-                        <small class="text-muted d-block">Nome de Identificacao</small>
-                        <span id="detalhesNomeIdentificacao" class="fw-semibold">-</span>
+                      <h6 class="fw-bold mb-3 text-primary">
+                        <i class="bi bi-building me-2"></i>Dados da Conta
+                      </h6>
+                      <div class="mb-3" id="detalhesNomeIdentificacaoContainer">
+                        <small class="text-muted d-block mb-1">Nome de Identificacao</small>
+                        <span id="detalhesNomeIdentificacao" class="fw-semibold fs-6">-</span>
                       </div>
-                      <div class="mb-2" id="detalhesBeneficiarioContainer">
-                        <small class="text-muted d-block">Beneficiario</small>
+                      <div class="mb-3" id="detalhesBeneficiarioContainer">
+                        <small class="text-muted d-block mb-1">Beneficiario</small>
                         <span id="detalhesBeneficiario" class="fw-semibold">-</span>
                       </div>
-                      <div class="mb-2">
-                        <small class="text-muted d-block">Tipo de Conta</small>
+                      <div class="mb-3" id="detalhesTipoContaContainer">
+                        <small class="text-muted d-block mb-1">Tipo de Conta</small>
                         <span id="detalhesTipoConta" class="fw-semibold">-</span>
                       </div>
-                      <div id="detalhesLimiteMeiContainer" class="mb-2 d-none">
-                        <small class="text-muted d-block">Limite Mensal (MEI)</small>
+                      <div id="detalhesLimiteMeiContainer" class="mb-3 d-none">
+                        <small class="text-muted d-block mb-1">Limite Mensal (MEI)</small>
                         <span id="detalhesLimiteMei" class="fw-semibold">-</span>
                       </div>
+                      <div id="detalhesInstituicaoLegadoContainer" class="mb-3 d-none">
+                        <small class="text-muted d-block mb-1">Instituicao</small>
+                        <span id="detalhesInstituicaoLegado" class="fw-semibold">-</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Dados PIX (oculto por padrao, mostrado apenas quando aplicavel) -->
+                <!-- Dados PIX (para PIX manual e legado) -->
                 <div class="col-md-6 d-none" id="detalhesPixContainer">
-                  <div class="card h-100 border-0 bg-light">
+                  <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body">
-                      <h6 class="fw-bold mb-3"><img src="{% static 'assets/images/svg/pix.png' %}" width="20" class="me-2">Dados PIX</h6>
-                      <div class="mb-2">
-                        <small class="text-muted d-block">Tipo de Chave</small>
+                      <h6 class="fw-bold mb-3 text-success">
+                        <img src="{% static 'assets/images/logo-apps/pix-logo.png' %}" width="20" class="me-2">Dados PIX
+                      </h6>
+                      <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Tipo de Chave</small>
                         <span id="detalhesTipoChavePix" class="fw-semibold">-</span>
                       </div>
-                      <div class="mb-2">
-                        <small class="text-muted d-block">Chave PIX</small>
-                        <span id="detalhesChavePix" class="fw-semibold font-monospace">-</span>
+                      <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Chave PIX</small>
+                        <div class="d-flex align-items-center gap-2">
+                          <code id="detalhesChavePix" class="bg-light px-2 py-1 rounded">-</code>
+                          <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCopiarChavePix" title="Copiar chave">
+                            <i class="bi bi-clipboard"></i>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Dados API (oculto por padrao, mostrado apenas para instituicoes com API) -->
-                <div class="col-12 d-none" id="detalhesApiContainer">
-                  <div class="card border-0 bg-light">
+                <!-- Dados API (para instituicoes com API) -->
+                <div class="col-md-6 d-none" id="detalhesApiContainer">
+                  <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body">
-                      <h6 class="fw-bold mb-3"><i class="bi bi-key me-2 text-warning"></i>Credenciais API</h6>
-                      <div class="row">
-                        <div class="col-md-6 mb-2">
-                          <small class="text-muted d-block">Integracao</small>
-                          <span id="detalhesIntegracao" class="fw-semibold">-</span>
-                        </div>
-                        <div class="col-md-6 mb-2">
-                          <small class="text-muted d-block">Ambiente</small>
-                          <span id="detalhesAmbiente" class="fw-semibold">-</span>
-                        </div>
-                        <div class="col-md-6 mb-2" id="detalhesApiKeyContainer">
-                          <small class="text-muted d-block">API Key</small>
-                          <span id="detalhesApiKey" class="fw-semibold font-monospace">***configurada***</span>
-                        </div>
-                        <div class="col-md-6 mb-2" id="detalhesClientIdContainer">
-                          <small class="text-muted d-block">Client ID</small>
-                          <span id="detalhesClientId" class="fw-semibold font-monospace">***configurado***</span>
-                        </div>
+                      <h6 class="fw-bold mb-3 text-warning">
+                        <i class="bi bi-lightning-charge-fill me-2"></i>Integracao API
+                      </h6>
+                      <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Plataforma</small>
+                        <span id="detalhesIntegracao" class="fw-semibold">-</span>
                       </div>
+                      <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Ambiente</small>
+                        <span id="detalhesAmbiente" class="fw-semibold">-</span>
+                      </div>
+                      <div class="mb-3" id="detalhesApiKeyContainer">
+                        <small class="text-muted d-block mb-1">API Key</small>
+                        <span id="detalhesApiKey" class="fw-semibold">-</span>
+                      </div>
+                      <div class="mb-3 d-none" id="detalhesClientIdContainer">
+                        <small class="text-muted d-block mb-1">Client ID</small>
+                        <span id="detalhesClientId" class="fw-semibold">-</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Info Cartao/Boleto (sem dados bancarios) -->
+                <div class="col-12 d-none" id="detalhesInfoSimples">
+                  <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center py-4">
+                      <i class="bi bi-info-circle text-muted mb-2" style="font-size: 2rem;"></i>
+                      <p class="text-muted mb-0">Esta forma de pagamento nao possui dados bancarios associados.</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <div class="modal-footer border-0">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+          <div class="modal-footer border-0 pt-0">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Fechar</button>
             <button type="button" class="btn btn-primary" id="btnEditarFromDetalhes">
               <i class="bi bi-pencil me-2"></i>Editar
             </button>
@@ -3602,15 +3641,24 @@
     const forma = data.forma_pgto;
     const conta = data.conta_bancaria;
     const inst = data.instituicao;
+    const dadosBancarios = data.dados_bancarios; // PIX legado
 
-    // Resetar visibilidade dos containers para evitar dados de requisicoes anteriores
+    // Resetar todos os containers
+    $('#detalhesAlertaLegado').addClass('d-none');
     $('#detalhesPixContainer').addClass('d-none');
     $('#detalhesApiContainer').addClass('d-none');
+    $('#detalhesContaContainer').removeClass('d-none');
+    $('#detalhesInfoSimples').addClass('d-none');
     $('#detalhesLimiteMeiContainer').addClass('d-none');
-    $('#detalhesBeneficiarioContainer').removeClass('d-none'); // Mostrar por padrao, ocultar se for API
+    $('#detalhesBeneficiarioContainer').removeClass('d-none');
+    $('#detalhesInstituicaoLegadoContainer').addClass('d-none');
+    $('#detalhesTipoContaContainer').removeClass('d-none');
+    $('#detalhesNomeIdentificacaoContainer').removeClass('d-none');
 
-    // Resetar TODOS os valores de texto para evitar dados de requisicoes anteriores
-    $('#detalhesNome').text('-');
+    // Resetar valores de texto
+    $('#detalhesTitulo').text('-');
+    $('#detalhesSubtitulo').text('');
+    $('#detalhesStatusBadge').html('');
     $('#detalhesNomeIdentificacao').text('-');
     $('#detalhesBeneficiario').text('-');
     $('#detalhesTipoConta').text('-');
@@ -3621,90 +3669,138 @@
     $('#detalhesAmbiente').text('-');
     $('#detalhesApiKey').text('-');
     $('#detalhesClientId').text('-');
-    $('#detalhesInstituicaoBadge').html('');
+    $('#detalhesInstituicaoLegado').text('-');
     $('#detalhesIcone').html('');
 
-    // Icone do tipo de pagamento
+    // Determinar tipo de forma de pagamento
+    const nomeUpper = forma.nome.toUpperCase();
+    const isPix = nomeUpper.includes('PIX');
+    const isCartao = nomeUpper.includes('CART');
+    const isBoleto = nomeUpper.includes('BOLETO');
+    const isFastDePix = inst && inst.tipo_integracao === 'fastdepix';
+    const isMercadoPago = inst && inst.tipo_integracao === 'mercado_pago';
+    const isEfiBank = inst && inst.tipo_integracao === 'efi_bank';
+    const isManual = !inst || inst.tipo_integracao === 'manual';
+    const isLegado = !conta && dadosBancarios;
+
+    // Configurar header baseado no tipo
     let iconeHtml = '';
-    if (forma.nome.toUpperCase().includes('PIX')) {
-      iconeHtml = '<img src="{% static 'assets/images/svg/pix.png' %}" width="48" height="48">';
-    } else if (forma.nome.toUpperCase().includes('CART')) {
-      iconeHtml = '<i class="bi bi-credit-card text-warning" style="font-size: 3rem;"></i>';
-    } else if (forma.nome.toUpperCase().includes('BOLETO')) {
-      iconeHtml = '<i class="bi bi-upc-scan text-danger" style="font-size: 3rem;"></i>';
+    let headerBg = 'bg-light';
+    let titulo = forma.nome;
+    let subtitulo = '';
+
+    if (isFastDePix) {
+      // FastDePix
+      iconeHtml = '<img src="{% static "assets/images/logo-apps/depix-logo.jpeg" %}" class="rounded-circle" style="width: 64px; height: 64px; object-fit: cover;">';
+      titulo = 'FastDePix';
+      subtitulo = conta ? conta.nome_identificacao : '';
+      $('#detalhesStatusBadge').html('<span class="badge bg-success"><i class="bi bi-lightning-charge-fill me-1"></i>API Ativa</span>');
+    } else if (isMercadoPago) {
+      // Mercado Pago
+      iconeHtml = '<img src="{% static "assets/images/logo-apps/mercadopago-logo.png" %}" style="width: 64px; height: 64px; object-fit: contain;">';
+      titulo = 'Mercado Pago';
+      subtitulo = conta ? conta.nome_identificacao : '';
+      $('#detalhesStatusBadge').html('<span class="badge bg-info"><i class="bi bi-shop me-1"></i>API Ativa</span>');
+    } else if (isEfiBank) {
+      // Efi Bank
+      iconeHtml = '<img src="{% static "assets/images/logo-apps/efi-logo.png" %}" style="width: 64px; height: 64px; object-fit: contain;">';
+      titulo = 'Efi Bank';
+      subtitulo = conta ? conta.nome_identificacao : '';
+      $('#detalhesStatusBadge').html('<span class="badge bg-warning text-dark"><i class="bi bi-bank me-1"></i>API Ativa</span>');
+    } else if (isLegado && isPix) {
+      // PIX Legado
+      iconeHtml = '<img src="{% static "assets/images/logo-apps/pix-logo.png" %}" style="width: 64px; height: 64px; object-fit: contain;">';
+      titulo = 'PIX';
+      subtitulo = 'Sistema Legado';
+      $('#detalhesStatusBadge').html('<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Legado</span>');
+      $('#detalhesAlertaLegado').removeClass('d-none');
+    } else if (isPix) {
+      // PIX Manual
+      iconeHtml = '<img src="{% static "assets/images/logo-apps/pix-logo.png" %}" style="width: 64px; height: 64px; object-fit: contain;">';
+      titulo = 'PIX';
+      subtitulo = conta ? conta.nome_identificacao : (inst ? inst.nome : 'Manual');
+      $('#detalhesStatusBadge').html('<span class="badge bg-secondary"><i class="bi bi-gear me-1"></i>Manual</span>');
+    } else if (isCartao) {
+      // Cartao (forma antiga)
+      iconeHtml = '<div class="bg-light rounded-circle d-flex align-items-center justify-content-center border" style="width: 64px; height: 64px;"><i class="bi bi-credit-card text-warning" style="font-size: 2rem;"></i></div>';
+      titulo = 'Cartao de Credito';
+      subtitulo = conta ? conta.nome_identificacao : '';
+      $('#detalhesStatusBadge').html('<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Legado</span>');
+      $('#detalhesAlertaLegado').removeClass('d-none');
+    } else if (isBoleto) {
+      // Boleto (forma antiga)
+      iconeHtml = '<div class="bg-light rounded-circle d-flex align-items-center justify-content-center border" style="width: 64px; height: 64px;"><i class="bi bi-upc-scan text-danger" style="font-size: 2rem;"></i></div>';
+      titulo = 'Boleto';
+      subtitulo = conta ? conta.nome_identificacao : '';
+      $('#detalhesStatusBadge').html('<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Legado</span>');
+      $('#detalhesAlertaLegado').removeClass('d-none');
     } else {
-      iconeHtml = '<i class="bi bi-wallet2 text-success" style="font-size: 3rem;"></i>';
+      // Outro
+      iconeHtml = '<div class="bg-light rounded-circle d-flex align-items-center justify-content-center border" style="width: 64px; height: 64px;"><i class="bi bi-wallet2 text-secondary" style="font-size: 2rem;"></i></div>';
+      titulo = forma.nome;
     }
+
     $('#detalhesIcone').html(iconeHtml);
+    $('#detalhesHeader').removeClass('bg-success bg-info bg-warning bg-danger').addClass('bg-light');
+    $('#detalhesTitulo').text(titulo);
+    $('#detalhesSubtitulo').text(subtitulo);
 
-    // Nome e badge
-    $('#detalhesNome').text(forma.nome + (conta ? ' - ' + conta.nome_identificacao : ''));
+    // Preencher dados conforme tipo
+    if (isLegado && dadosBancarios) {
+      // Forma legada (PIX, Cartao ou Boleto) - mostrar dados_bancarios
+      $('#detalhesNomeIdentificacaoContainer').addClass('d-none');
+      $('#detalhesTipoContaContainer').addClass('d-none');
+      $('#detalhesBeneficiario').text(dadosBancarios.beneficiario || '-');
+      $('#detalhesInstituicaoLegadoContainer').removeClass('d-none');
+      $('#detalhesInstituicaoLegado').text(dadosBancarios.instituicao || '-');
 
-    let badgeClass = 'manual';
-    let badgeIcon = 'bi-building';
-    let badgeText = inst ? inst.nome : 'Manual';
-
-    if (inst) {
-      if (inst.tipo_integracao === 'fastdepix') {
-        badgeClass = 'fastdepix';
-        badgeIcon = 'bi-lightning-charge-fill';
-        badgeText = 'FastDePix';
-      } else if (inst.tipo_integracao === 'mercado_pago') {
-        badgeClass = 'mercado-pago';
-        badgeIcon = 'bi-shop';
-        badgeText = 'Mercado Pago';
-      } else if (inst.tipo_integracao === 'efi_bank') {
-        badgeClass = 'efi-bank';
-        badgeIcon = 'bi-bank';
-        badgeText = 'Efi Bank';
+      // Dados PIX legado (apenas se for PIX)
+      if (isPix) {
+        $('#detalhesPixContainer').removeClass('d-none');
+        $('#detalhesTipoChavePix').text(dadosBancarios.tipo_chave || '-');
+        $('#detalhesChavePix').text(dadosBancarios.chave || '-');
       }
-    }
-    $('#detalhesInstituicaoBadge').html(
-      '<span class="instituicao-badge ' + badgeClass + '">' +
-        '<i class="bi ' + badgeIcon + '"></i> ' + badgeText +
-      '</span>'
-    );
 
-    // Dados da conta
-    if (conta) {
+    } else if ((isCartao || isBoleto) && dadosBancarios) {
+      // Cartao/Boleto antigo com dados_bancarios
+      $('#detalhesNomeIdentificacaoContainer').addClass('d-none');
+      $('#detalhesTipoContaContainer').addClass('d-none');
+      $('#detalhesBeneficiario').text(dadosBancarios.beneficiario || '-');
+      $('#detalhesInstituicaoLegadoContainer').removeClass('d-none');
+      $('#detalhesInstituicaoLegado').text(dadosBancarios.instituicao || '-');
+
+    } else if (conta) {
+      // Conta bancaria moderna
       $('#detalhesNomeIdentificacao').text(conta.nome_identificacao || '-');
-      $('#detalhesBeneficiario').text(conta.beneficiario || '-');
       $('#detalhesTipoConta').text(conta.tipo_conta_display || '-');
 
+      // Limite MEI
       if (conta.tipo_conta === 'mei' && conta.limite_mensal) {
         $('#detalhesLimiteMeiContainer').removeClass('d-none');
-        $('#detalhesLimiteMei').text('R$ ' + conta.limite_mensal.toLocaleString('pt-BR', {minimumFractionDigits: 2}));
-      } else {
-        $('#detalhesLimiteMeiContainer').addClass('d-none');
+        $('#detalhesLimiteMei').text('R$ ' + parseFloat(conta.limite_mensal).toLocaleString('pt-BR', {minimumFractionDigits: 2}));
       }
 
-      // Dados PIX (apenas para instituicoes manuais - APIs gerenciam isso internamente)
-      const isManualInst = !inst || inst.tipo_integracao === 'manual';
-      if (forma.nome.toUpperCase().includes('PIX') && isManualInst && conta.chave_pix) {
+      // Beneficiario (ocultar para APIs e Cartao/Boleto)
+      if (isFastDePix || isMercadoPago || isEfiBank || isCartao || isBoleto) {
+        $('#detalhesBeneficiarioContainer').addClass('d-none');
+      } else {
+        $('#detalhesBeneficiario').text(conta.beneficiario || '-');
+      }
+
+      // Dados PIX (apenas para manual)
+      if (isPix && isManual && conta.chave_pix) {
         $('#detalhesPixContainer').removeClass('d-none');
         $('#detalhesTipoChavePix').text(conta.tipo_chave_pix_display || '-');
         $('#detalhesChavePix').text(conta.chave_pix || '-');
       }
-      // Se não atende as condições, o container já está oculto pelo reset inicial
 
-      // Ocultar Beneficiário para Boleto e Cartão (não usam esses campos)
-      const nomeFormaUpperDetalhes = forma.nome.toUpperCase();
-      const isBoletoOuCartaoDetalhes = nomeFormaUpperDetalhes.includes('BOLETO') || nomeFormaUpperDetalhes.includes('CART');
-      if (isBoletoOuCartaoDetalhes) {
-        $('#detalhesBeneficiarioContainer').addClass('d-none');
-      }
-
-      // Dados API (apenas para instituicoes com integracao)
-      if (inst && inst.tipo_integracao !== 'manual') {
-        // Para instituicoes com API, ocultar campos que sao gerenciados pela API
-        $('#detalhesBeneficiarioContainer').addClass('d-none');
-
+      // Dados API
+      if (isFastDePix || isMercadoPago || isEfiBank) {
         $('#detalhesApiContainer').removeClass('d-none');
-        $('#detalhesIntegracao').text(badgeText);
+        $('#detalhesIntegracao').text(titulo);
         $('#detalhesAmbiente').html('<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Producao</span>');
 
-        // Mostrar campos de credenciais conforme integracao
-        if (inst.tipo_integracao === 'fastdepix') {
+        if (isFastDePix) {
           $('#detalhesApiKeyContainer').removeClass('d-none');
           $('#detalhesClientIdContainer').addClass('d-none');
           $('#detalhesApiKey').html(conta.has_api_key
@@ -3719,15 +3815,30 @@
             : '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Nao configurado</span>'
           );
         }
-      } else {
-        $('#detalhesApiContainer').addClass('d-none');
       }
+
+    } else if (isCartao || isBoleto) {
+      // Cartao/Boleto sem nenhum dado
+      $('#detalhesContaContainer').addClass('d-none');
+      $('#detalhesInfoSimples').removeClass('d-none');
     }
 
     // Esconder loading, mostrar conteudo
     $('#detalhesLoading').addClass('d-none');
     $('#detalhesConteudo').removeClass('d-none');
   }
+
+  // Botao copiar chave PIX
+  $('#btnCopiarChavePix').on('click', function() {
+    const chave = $('#detalhesChavePix').text();
+    if (chave && chave !== '-') {
+      navigator.clipboard.writeText(chave).then(() => {
+        const btn = $(this);
+        btn.html('<i class="bi bi-check"></i>');
+        setTimeout(() => btn.html('<i class="bi bi-clipboard"></i>'), 1500);
+      });
+    }
+  });
 
   // Botao Editar no modal de detalhes
   $('#btnEditarFromDetalhes').on('click', function() {

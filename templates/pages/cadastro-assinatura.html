@@ -63,7 +63,7 @@
                     <div class="d-flex align-items-start">
                       <i class="bi bi-whatsapp text-success me-2 mt-1"></i>
                       <p class="text-muted mb-0 small">
-                        <strong>Importante:</strong> A mensagem de confirmação de pagamento será enviada automaticamente após criar a assinatura.
+                        <strong>Importante:</strong> Uma mensagem de boas-vindas será enviada automaticamente ao cliente após a primeira mensalidade dele ter sido paga e confirmada.
                       </p>
                     </div>
                   </div>
@@ -576,22 +576,26 @@
               <i class="bi bi-info-circle-fill text-primary me-2 mt-1"></i>
               <div>
                 <strong>Próximo passo:</strong><br>
-                Envie o link abaixo para o cliente realizar o pagamento da mensalidade pelo Painel do Cliente.
+                Copie a mensagem abaixo e envie ao cliente para que ele realize o pagamento.
               </div>
             </div>
           </div>
 
           <div class="mb-4">
             <label class="form-label fw-semibold text-start d-block">
-              <i class="bi bi-link-45deg text-primary me-1"></i>Link do Painel do Cliente
+              <i class="bi bi-whatsapp text-success me-1"></i>Mensagem para enviar ao cliente
             </label>
-            <div class="input-group">
-              <input type="text" class="form-control" id="link-painel-cliente" value="{{ link_painel_cliente }}" readonly>
-              <button class="btn btn-outline-primary" type="button" onclick="copiarLinkPainel()">
-                <i class="bi bi-clipboard"></i> Copiar
+            <textarea class="form-control" id="mensagem-cliente" rows="6" readonly style="font-size: 0.9rem; background-color: #f8f9fa;">▫️  *PAGAMENTO COM PIX:*
+
+📱 Acesse o link abaixo, faça login para visualizar sua mensalidade e efetuar o pagamento:
+
+🔗 {{ link_painel_cliente }}/</textarea>
+            <div class="d-grid mt-2">
+              <button class="btn btn-success" type="button" onclick="copiarMensagemCliente()">
+                <i class="bi bi-whatsapp me-1"></i> Copiar Mensagem
               </button>
             </div>
-            <small class="text-muted">O cliente poderá acessar e pagar a mensalidade por este link</small>
+            <small class="text-muted mt-2 d-block">Cole esta mensagem no WhatsApp para enviar ao cliente</small>
           </div>
 
           {% else %}
@@ -634,21 +638,17 @@
       modal.show();
     });
 
-    function copiarLinkPainel() {
-      var input = document.getElementById('link-painel-cliente');
-      input.select();
-      input.setSelectionRange(0, 99999);
-      navigator.clipboard.writeText(input.value).then(function() {
+    function copiarMensagemCliente() {
+      var textarea = document.getElementById('mensagem-cliente');
+      textarea.select();
+      textarea.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(textarea.value).then(function() {
         // Feedback visual
         var btn = event.target.closest('button');
         var originalHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-check"></i> Copiado!';
-        btn.classList.remove('btn-outline-primary');
-        btn.classList.add('btn-success');
+        btn.innerHTML = '<i class="bi bi-check-circle"></i> Copiado!';
         setTimeout(function() {
           btn.innerHTML = originalHTML;
-          btn.classList.remove('btn-success');
-          btn.classList.add('btn-outline-primary');
         }, 2000);
       });
     }

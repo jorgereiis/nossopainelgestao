@@ -11807,9 +11807,9 @@ def api_forma_pagamento_detalhes(request, pk):
                 'tipo_chave': dados_bancarios.tipo_chave,
                 'chave': dados_bancarios.chave,
             }
-        elif not conta and 'PIX' in forma_pgto.nome.upper():
-            # Se nao tem dados_bancarios vinculado E é forma PIX antiga (sem conta_bancaria),
-            # buscar DadosBancarios do usuario para pre-preencher
+        elif not conta:
+            # Se nao tem dados_bancarios vinculado E é forma antiga (sem conta_bancaria),
+            # buscar DadosBancarios do usuario para pre-preencher (PIX, Cartao ou Boleto antigos)
             dados_usuario = DadosBancarios.objects.filter(usuario=request.user).first()
             if dados_usuario:
                 data['dados_bancarios'] = {
@@ -13467,8 +13467,14 @@ def relatorio_pagamentos(request):
 
     # Calcular taxa média e percentual
     total_pix_valor = stats_pix['total'] or 0
+    total_pix_recebido = stats_pix['total_recebido'] or 0
     total_pix_taxa = stats_pix['total_taxa'] or 0
     qtd_pix = stats_pix['qtd'] or 0
+
+    # Se não temos valor_taxa mas temos valor_pago e valor_recebido, calcular
+    if total_pix_taxa == 0 and total_pix_valor > 0 and total_pix_recebido > 0:
+        total_pix_taxa = total_pix_valor - total_pix_recebido
+
     taxa_media = total_pix_taxa / qtd_pix if qtd_pix > 0 else 0
     taxa_percentual = (total_pix_taxa / total_pix_valor * 100) if total_pix_valor > 0 else 0
 
@@ -13544,14 +13550,14 @@ def relatorio_pagamentos(request):
         'pagamentos': pagamentos_lista,
 
         # Estatísticas - Pagamentos confirmados
-        'total_pix': stats_pix['total'] or 0,
-        'total_pix_recebido': stats_pix['total_recebido'] or 0,
-        'total_pix_taxa': stats_pix['total_taxa'] or 0,
-        'qtd_pix': stats_pix['qtd'] or 0,
+        'total_pix': total_pix_valor,
+        'total_pix_recebido': total_pix_recebido,
+        'total_pix_taxa': total_pix_taxa,
+        'qtd_pix': qtd_pix,
         'total_manual': stats_manual['total'] or 0,
         'qtd_manual': stats_manual['qtd'] or 0,
-        'total_geral': (stats_pix['total'] or 0) + (stats_manual['total'] or 0),
-        'qtd_total': (stats_pix['qtd'] or 0) + (stats_manual['qtd'] or 0),
+        'total_geral': total_pix_valor + (stats_manual['total'] or 0),
+        'qtd_total': qtd_pix + (stats_manual['qtd'] or 0),
 
         # Estatísticas - Pendentes e Expiradas
         'total_pendentes': stats_pendentes['total'] or 0,

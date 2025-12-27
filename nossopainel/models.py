@@ -2634,24 +2634,54 @@ class NotificacaoSistema(models.Model):
         )
 
     @classmethod
-    def criar_alerta_mudanca_plano(cls, usuario, cliente, plano_antigo, plano_novo, impacto_valor):
-        """Cria uma notificação de mudança de plano que afeta o limite."""
+    def criar_alerta_mudanca_plano(cls, usuario, cliente, plano_antigo, plano_novo, impacto_valor,
+                                   valor_anual_anterior=0, valor_anual_atual=0, conta_info=None,
+                                   is_novo_cliente=False):
+        """Cria uma notificação de mudança ou criação de plano que afeta o limite."""
         direcao = 'aumentou' if impacto_valor > 0 else 'diminuiu'
+
+        if is_novo_cliente:
+            # Novo cliente adicionado com plano
+            titulo = f'Novo cliente: {cliente.nome}'
+            mensagem = f'O cliente "{cliente.nome}" foi adicionado com o plano {plano_novo}. '
+
+            if conta_info:
+                mensagem += (
+                    f'O faturamento anual previsto para a conta "{conta_info}" aumentou '
+                    f'em R$ {valor_anual_atual:,.2f}.'
+                )
+            else:
+                mensagem += f'O faturamento anual previsto aumentou em R$ {valor_anual_atual:,.2f}.'
+        else:
+            # Cliente existente mudou de plano
+            titulo = f'Mudança de plano: {cliente.nome}'
+            mensagem = f'O cliente "{cliente.nome}" mudou do plano {plano_antigo} para {plano_novo}. '
+
+            if conta_info:
+                mensagem += (
+                    f'O faturamento anual previsto para a conta "{conta_info}" {direcao} '
+                    f'em R$ {abs(impacto_valor):,.2f}, saindo de R$ {valor_anual_anterior:,.2f} '
+                    f'para R$ {valor_anual_atual:,.2f}.'
+                )
+            else:
+                mensagem += f'O faturamento anual previsto {direcao} em R$ {abs(impacto_valor):,.2f}.'
+
         return cls.objects.create(
             usuario=usuario,
             tipo='mudanca_plano',
             prioridade='alta' if impacto_valor > 0 else 'baixa',
-            titulo=f'Mudança de plano: {cliente.nome}',
-            mensagem=(
-                f'O cliente "{cliente.nome}" mudou do plano {plano_antigo} para {plano_novo}. '
-                f'O valor anual projetado {direcao} em R$ {abs(impacto_valor):,.2f}.'
-            ),
+            titulo=titulo,
+            mensagem=mensagem,
             dados_extras={
                 'cliente_id': cliente.id,
                 'cliente_nome': cliente.nome,
                 'plano_antigo': plano_antigo,
                 'plano_novo': plano_novo,
                 'impacto_valor': float(impacto_valor),
+                'valor_anual_anterior': float(valor_anual_anterior),
+                'valor_anual_atual': float(valor_anual_atual),
+                'conta_info': conta_info,
+                'is_novo_cliente': is_novo_cliente,
             }
         )
 
