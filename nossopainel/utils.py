@@ -1111,6 +1111,20 @@ def envio_apos_novo_cadastro(cliente):
     if cliente.indicado_por and planos_desconto_dinheiro:
         envio_apos_nova_indicacao(usuario, cliente, cliente.indicado_por)
 
+    # Verifica se há plano de desconto progressivo ativo e envia notificação ao indicador
+    plano_progressivo = PlanoIndicacao.objects.filter(
+        usuario=usuario,
+        tipo_plano="desconto_progressivo",
+        ativo=True,
+        status=True
+    ).exists()
+
+    if cliente.indicado_por and plano_progressivo:
+        try:
+            envio_desconto_progressivo_indicacao(usuario, cliente, cliente.indicado_por)
+        except Exception as e:
+            logger.error(f"[WPP] Falha ao enviar notificação de desconto progressivo: {e}", exc_info=True)
+
 
 def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     """
