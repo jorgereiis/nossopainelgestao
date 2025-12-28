@@ -6439,9 +6439,10 @@ def cadastrar_assinatura(request):
                     },
                 )
 
-                # Verificar se a forma de pagamento é FastDePix
+                # Verificar se a forma de pagamento é FastDePix ou PIX Manual
                 is_fastdepix = False
                 link_painel_cliente = None
+                pix_manual_dados = None
 
                 if cliente.forma_pgto and cliente.forma_pgto.conta_bancaria:
                     conta = cliente.forma_pgto.conta_bancaria
@@ -6455,12 +6456,33 @@ def cadastrar_assinatura(request):
                         ).first()
                         if subdominio:
                             link_painel_cliente = f"https://{subdominio.dominio_completo}"
+                    elif conta.instituicao and conta.instituicao.tipo_integracao == 'manual':
+                        # PIX Manual com dados preenchidos
+                        if conta.chave_pix:
+                            pix_manual_dados = {
+                                'tipo_chave': conta.get_tipo_chave_pix_display() if conta.tipo_chave_pix else '',
+                                'chave': conta.chave_pix,
+                                'banco': conta.instituicao.nome,
+                                'beneficiario': conta.beneficiario or '',
+                            }
+
+                # Fallback para dados bancários legados
+                if not is_fastdepix and not pix_manual_dados and cliente.forma_pgto:
+                    dados = cliente.forma_pgto.dados_bancarios
+                    if dados and dados.chave:
+                        pix_manual_dados = {
+                            'tipo_chave': dados.tipo_chave,
+                            'chave': dados.chave,
+                            'banco': dados.instituicao,
+                            'beneficiario': dados.beneficiario,
+                        }
 
                 context['assinatura_criada'] = True
                 context['cliente_id'] = cliente.id
                 context['cliente_nome'] = cliente.nome
                 context['is_fastdepix'] = is_fastdepix
                 context['link_painel_cliente'] = link_painel_cliente
+                context['pix_manual_dados'] = pix_manual_dados
 
                 context['success_message'] = (
                     f"Assinatura criada com sucesso para <strong>{cliente.nome}</strong>!<br>"

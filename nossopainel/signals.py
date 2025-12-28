@@ -392,12 +392,8 @@ def gerenciar_desconto_progressivo_indicacao(sender, instance, created, **kwargs
             # Atualizar mensalidade em aberto do indicador
             atualizar_mensalidade_indicador_com_desconto(instance.indicado_por, plano_progressivo)
 
-            # Enviar mensagem WhatsApp (será implementado na próxima etapa)
-            from nossopainel.utils import envio_desconto_progressivo_indicacao
-            try:
-                envio_desconto_progressivo_indicacao(instance.usuario, instance, instance.indicado_por)
-            except Exception as e:
-                _log_event(logging.WARNING, instance, func_name, f"Falha ao enviar mensagem WhatsApp: {e}")
+            # NOTA: A mensagem WhatsApp para o indicador será enviada apenas após
+            # o pagamento ser confirmado (via envio_apos_novo_cadastro em utils.py)
 
         except Exception as error:
             _log_event(logging.ERROR, instance, func_name, "Erro ao criar desconto progressivo.", exc_info=error)
@@ -519,12 +515,18 @@ def gerenciar_desconto_progressivo_indicacao(sender, instance, created, **kwargs
                         plano_progressivo
                     )
 
-                    # Enviar WhatsApp para novo indicador
-                    from nossopainel.utils import envio_desconto_progressivo_indicacao
-                    try:
-                        envio_desconto_progressivo_indicacao(instance.usuario, instance, instance.indicado_por)
-                    except Exception as e:
-                        _log_event(logging.WARNING, instance, func_name, f"Falha ao enviar WhatsApp: {e}")
+                    # Enviar WhatsApp para novo indicador APENAS se o cliente já pagou alguma mensalidade
+                    qtd_mensalidades_pagas = Mensalidade.objects.filter(
+                        cliente=instance,
+                        pgto=True
+                    ).count()
+
+                    if qtd_mensalidades_pagas > 0:
+                        from nossopainel.utils import envio_desconto_progressivo_indicacao
+                        try:
+                            envio_desconto_progressivo_indicacao(instance.usuario, instance, instance.indicado_por)
+                        except Exception as e:
+                            _log_event(logging.WARNING, instance, func_name, f"Falha ao enviar WhatsApp: {e}")
 
     # Limpar cache do estado anterior após processar
     if instance.pk in _clientes_cancelado_anterior:

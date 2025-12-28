@@ -600,6 +600,38 @@
 
           {% else %}
           <!-- Versão Manual (sem FastDePix) -->
+          {% if pix_manual_dados %}
+          <!-- PIX Manual com dados para cópia -->
+          <div class="alert alert-info text-start mb-4" style="background: linear-gradient(135deg, #e7f3ff 0%, #cce5ff 100%); border: none;">
+            <div class="d-flex align-items-start">
+              <i class="bi bi-info-circle-fill text-primary me-2 mt-1"></i>
+              <div>
+                <strong>Próximo passo:</strong><br>
+                Copie a mensagem abaixo com os dados de pagamento e envie ao cliente.
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold text-start d-block">
+              <i class="bi bi-whatsapp text-success me-1"></i>Mensagem para enviar ao cliente
+            </label>
+            <textarea class="form-control" id="mensagem-cliente-pix" rows="7" readonly style="font-size: 0.9rem; background-color: #f8f9fa;">▫️ *PAGAMENTO COM PIX:*
+
+🔑 *Tipo:* {{ pix_manual_dados.tipo_chave }}
+🔢 *Chave:* {{ pix_manual_dados.chave }}
+🏦 *Banco:* {{ pix_manual_dados.banco }}
+👤 *Beneficiário:* {{ pix_manual_dados.beneficiario }}</textarea>
+            <div class="d-grid mt-2">
+              <button class="btn btn-success" type="button" onclick="copiarMensagemClientePix()">
+                <i class="bi bi-whatsapp me-1"></i> Copiar Mensagem
+              </button>
+            </div>
+            <small class="text-muted mt-2 d-block">Cole esta mensagem no WhatsApp para enviar ao cliente</small>
+          </div>
+
+          {% else %}
+          <!-- Sem dados PIX - mostrar alerta original -->
           <div class="alert alert-warning text-start mb-4" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border: none;">
             <div class="d-flex align-items-start">
               <i class="bi bi-exclamation-triangle-fill text-warning me-2 mt-1"></i>
@@ -615,6 +647,7 @@
               <i class="bi bi-person-lines-fill me-1"></i>Ver Cliente
             </a>
           </div>
+          {% endif %}
           {% endif %}
 
           <hr class="my-4">
@@ -640,6 +673,21 @@
 
     function copiarMensagemCliente() {
       var textarea = document.getElementById('mensagem-cliente');
+      textarea.select();
+      textarea.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(textarea.value).then(function() {
+        // Feedback visual
+        var btn = event.target.closest('button');
+        var originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check-circle"></i> Copiado!';
+        setTimeout(function() {
+          btn.innerHTML = originalHTML;
+        }, 2000);
+      });
+    }
+
+    function copiarMensagemClientePix() {
+      var textarea = document.getElementById('mensagem-cliente-pix');
       textarea.select();
       textarea.setSelectionRange(0, 99999);
       navigator.clipboard.writeText(textarea.value).then(function() {
