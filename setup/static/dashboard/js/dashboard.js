@@ -1357,22 +1357,11 @@ function ensureEditTelefoneITI() {
             if (!editClienteTelefoneIti) {
                 return;
             }
-            const countryCode = editClienteTelefoneIti.getSelectedCountryData()?.iso2;
-            if (!countryCode) {
-                return;
-            }
-            if (countryCode === 'br') {
-                let numero = telefoneInput.value.replace(/\D/g, '');
-                // Remove DDI duplicado: se já começa com 55, não adiciona novamente
-                if (numero.startsWith('55') && numero.length >= 12) {
-                    // Já tem DDI, apenas formata com +
-                    telefoneInput.value = '+' + numero;
-                } else if (numero.length >= 10) {
-                    // Não tem DDI, adiciona +55
-                    telefoneInput.value = '+55' + numero;
-                }
-            } else {
-                telefoneInput.value = editClienteTelefoneIti.getNumber();
+            // Sempre usa getNumber() que retorna o número completo com DDI
+            // Funciona corretamente para qualquer país (BR, FR, US, etc.)
+            const fullNumber = editClienteTelefoneIti.getNumber();
+            if (fullNumber) {
+                telefoneInput.value = fullNumber;
             }
         });
         form.dataset.telefoneSubmitHandlerAttached = "true";

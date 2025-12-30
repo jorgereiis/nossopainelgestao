@@ -202,13 +202,15 @@ class LoginView(View):
 
         Para telefones brasileiros (+55), tenta com e sem o 9 adicional.
         O cliente deve pertencer ao admin_responsavel do subdominio.
+
+        IMPORTANTE: O telefone deve vir com DDI do frontend (intl-tel-input).
         """
         # Normaliza: mantém + e dígitos
         telefone_normalizado = ''.join(c for c in telefone if c.isdigit() or c == '+')
 
-        # Se não tiver DDI, assume Brasil
+        # Garante que tenha o prefixo +
         if not telefone_normalizado.startswith('+'):
-            telefone_normalizado = '+55' + telefone_normalizado
+            telefone_normalizado = '+' + telefone_normalizado
 
         logger.debug(f"[PainelCliente LOGIN] Telefone normalizado: {telefone_normalizado}")
 

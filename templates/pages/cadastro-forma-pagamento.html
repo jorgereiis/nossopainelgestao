@@ -1160,27 +1160,28 @@
                       </div>
                     </div>
 
-                    <!-- Resumo para Pessoa Física (sem Limite) - visível apenas para PF -->
-                    <div class="alert alert-success mb-3 d-none" id="alertPessoaFisica">
+                    <!-- Resumo para Pessoa Física (com Limite) - visível apenas para PF -->
+                    <div class="alert alert-info mb-3 d-none" id="alertPessoaFisica">
                       <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
-                          <strong><i class="bi bi-person-check me-1"></i>Pessoa Física</strong>
-                          <small class="text-muted ms-2">(sem limite de valores)</small>
+                          <strong><i class="bi bi-person me-1"></i>Limite Anual Pessoa Física:</strong>
+                          <span id="limiteTotalDisplayPf">R$ 60.000,00</span>
                         </div>
                         <div>
-                          <strong>Total Selecionado:</strong>
+                          <strong>Selecionado:</strong>
                           <span id="valorSelecionadoDisplayPf">R$ 0,00</span>
+                          (<span id="percentualSelecionadoPf">0</span>%)
                         </div>
                       </div>
-                      <!-- Slider Interativo para PF (baseado em quantidade, não valor) -->
+                      <!-- Slider Interativo para PF (baseado em valor, igual MEI) -->
                       <div class="slider-container position-relative">
                         <input type="range" class="form-range slider-clientes-pf" id="sliderClientesPf"
-                               min="0" max="100" value="0" step="1"
+                               min="0" max="99" value="0" step="1"
                                style="height: 20px; cursor: grab;">
                         <div class="d-flex justify-content-between mt-1">
                           <small class="text-muted">0%</small>
                           <small class="text-muted fw-semibold" id="sliderValueDisplayPf">Arraste para selecionar clientes</small>
-                          <small class="text-muted">100%</small>
+                          <small class="text-muted">99%</small>
                         </div>
                       </div>
                     </div>
@@ -1932,27 +1933,28 @@
                     </div>
                   </div>
 
-                  <!-- Resumo PF (sem limite) com Slider -->
-                  <div class="alert alert-success mb-3 d-none" id="editarAlertPessoaFisica">
+                  <!-- Resumo PF (com limite) com Slider -->
+                  <div class="alert alert-info mb-3 d-none" id="editarAlertPessoaFisica">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                       <div>
-                        <strong><i class="bi bi-person-check me-1"></i>Pessoa Física</strong>
-                        <small class="text-muted ms-2">(sem limite de valores)</small>
+                        <strong><i class="bi bi-person me-1"></i>Limite Anual Pessoa Física:</strong>
+                        <span id="editarLimiteTotalDisplayPf">R$ 60.000,00</span>
                       </div>
                       <div>
-                        <strong>Total Selecionado:</strong>
+                        <strong>Selecionado:</strong>
                         <span id="editarValorTotalPf">R$ 0,00</span>
+                        (<span id="editarPercentualPf">0</span>%)
                       </div>
                     </div>
                     <!-- Slider Interativo para PF -->
                     <div class="slider-container position-relative">
                       <input type="range" class="form-range slider-clientes-pf-editar" id="sliderClientesPfEditar"
-                             min="0" max="100" value="0" step="1"
+                             min="0" max="99" value="0" step="1"
                              style="height: 20px; cursor: grab;">
                       <div class="d-flex justify-content-between mt-1">
                         <small class="text-muted">0%</small>
                         <small class="text-muted fw-semibold" id="sliderValueDisplayPfEditar">Arraste para selecionar clientes</small>
-                        <small class="text-muted">100%</small>
+                        <small class="text-muted">99%</small>
                       </div>
                     </div>
                   </div>
@@ -2500,19 +2502,18 @@
         carregarClientesAtivos();
       }
 
-      // Mostrar alerta apropriado (MEI com limite ou PF sem limite)
+      // Mostrar alerta apropriado (MEI ou PF - ambos com limite)
+      // Carregar configuração de limite para ambos os tipos
+      carregarConfigLimite();
+
       if (tipoSelecionado === 'mei') {
         $('#alertLimiteMei').removeClass('d-none');
         $('#alertPessoaFisica').addClass('d-none');
         $('#colDisponivelCriacao').removeClass('d-none');
-        // Carregar configuração de limite
-        carregarConfigLimite();
       } else {
         $('#alertLimiteMei').addClass('d-none');
         $('#alertPessoaFisica').removeClass('d-none');
-        $('#colDisponivelCriacao').addClass('d-none');
-        // Sem limite para Pessoa Física
-        limiteMeiGlobal = Infinity;
+        $('#colDisponivelCriacao').removeClass('d-none');
       }
     } else {
       // Ocultar seção de clientes se nenhum tipo selecionado
@@ -2537,6 +2538,7 @@
   let clientesParaTransferir = new Set(); // Clientes que serão transferidos de outras contas
   let valorTotalSelecionado = 0;
   let limiteMeiGlobal = 81000;
+  let limitePfGlobal = 60000;
 
   // Carregar configuracao de limite
   function carregarConfigLimite() {
@@ -2546,16 +2548,26 @@
       success: function(response) {
         if (response.success) {
           limiteMeiGlobal = response.config.valor_anual;
+          limitePfGlobal = response.config.valor_anual_pf || 60000;
+
+          // Atualizar displays MEI
           $('#limiteTotalDisplay').text(formatarMoedaBR(limiteMeiGlobal));
           $('#valorDisponivelDisplay').text(formatarMoedaBR(limiteMeiGlobal));
+
+          // Atualizar displays PF
+          $('#limiteTotalDisplayPf').text(formatarMoedaBR(limitePfGlobal));
+          $('#valorDisponivelDisplayPf').text(formatarMoedaBR(limitePfGlobal));
         }
       },
       error: function(xhr, status, error) {
         // Usar limite padrão em caso de erro
         console.warn('Erro ao carregar config limite, usando padrão:', error);
         limiteMeiGlobal = 81000;
+        limitePfGlobal = 60000;
         $('#limiteTotalDisplay').text(formatarMoedaBR(limiteMeiGlobal));
         $('#valorDisponivelDisplay').text(formatarMoedaBR(limiteMeiGlobal));
+        $('#limiteTotalDisplayPf').text(formatarMoedaBR(limitePfGlobal));
+        $('#valorDisponivelDisplayPf').text(formatarMoedaBR(limitePfGlobal));
       }
     });
   }
@@ -2732,9 +2744,10 @@
         cancelButtonColor: '#6c757d'
       }).then((result) => {
         if (result.isConfirmed) {
-          // Verificar se pode adicionar (limite)
+          // Verificar se pode adicionar (limite conforme tipo de conta)
           const novoTotal = valorTotalSelecionado + valorAnual;
-          const percentual = (novoTotal / limiteMeiGlobal) * 100;
+          const limiteAtual = tipoContaAtual === 'mei' ? limiteMeiGlobal : limitePfGlobal;
+          const percentual = (novoTotal / limiteAtual) * 100;
 
           if (percentual >= 99) {
             Swal.fire({
@@ -2799,9 +2812,10 @@
     const row = $(this).closest('tr');
 
     if ($(this).is(':checked')) {
-      // Verificar se pode adicionar
+      // Verificar se pode adicionar (limite conforme tipo de conta)
       const novoTotal = valorTotalSelecionado + valorAnual;
-      const percentual = (novoTotal / limiteMeiGlobal) * 100;
+      const limiteAtual = tipoContaAtual === 'mei' ? limiteMeiGlobal : limitePfGlobal;
+      const percentual = (novoTotal / limiteAtual) * 100;
 
       if (percentual >= 99) {
         Swal.fire({
@@ -2858,7 +2872,8 @@
         totalPotencial += c.valor_anual;
       });
 
-      if ((totalPotencial / limiteMeiGlobal) * 100 >= 99) {
+      const limiteAtual = tipoContaAtual === 'mei' ? limiteMeiGlobal : limitePfGlobal;
+      if ((totalPotencial / limiteAtual) * 100 >= 99) {
         Swal.fire({
           icon: 'warning',
           title: 'Limite Excedido',
@@ -2937,15 +2952,25 @@
       // Sincronizar slider MEI
       atualizarSliderVisualMei(percentual);
     } else {
-      // Pessoa Física: sem limite
-      $('#valorSelecionadoDisplayPf').text(formatarMoedaBR(valorTotalSelecionado));
+      // Pessoa Física: com limite
+      const percentual = (valorTotalSelecionado / limitePfGlobal) * 100;
+      const valorDisponivel = limitePfGlobal - valorTotalSelecionado;
 
-      // Sincronizar slider PF (baseado em quantidade de clientes)
-      const totalClientesDisponiveis = clientesAtivos.filter(c => !c.bloqueado).length;
-      const percentualClientes = totalClientesDisponiveis > 0
-        ? (clientesSelecionados.size / totalClientesDisponiveis) * 100
-        : 0;
-      atualizarSliderVisualPf(percentualClientes);
+      $('#valorSelecionadoDisplayPf').text(formatarMoedaBR(valorTotalSelecionado));
+      $('#percentualSelecionadoPf').text(percentual.toFixed(1));
+      $('#valorDisponivelDisplayPf').text(formatarMoedaBR(valorDisponivel));
+
+      // Cores de alerta para PF
+      if (percentual >= 90) {
+        $('#alertPessoaFisica').removeClass('alert-info alert-warning').addClass('alert-danger');
+      } else if (percentual >= 70) {
+        $('#alertPessoaFisica').removeClass('alert-info alert-danger').addClass('alert-warning');
+      } else {
+        $('#alertPessoaFisica').removeClass('alert-warning alert-danger').addClass('alert-info');
+      }
+
+      // Sincronizar slider PF (baseado em valor, igual MEI)
+      atualizarSliderVisualPf(percentual);
     }
   }
 
@@ -2977,19 +3002,20 @@
     }
   }
 
-  // Atualizar visual do slider PF (sem limite, baseado em quantidade)
+  // Atualizar visual do slider PF (com limite, baseado em valor)
   function atualizarSliderVisualPf(percentual) {
     const slider = $('#sliderClientesPf');
-    slider.val(Math.min(percentual, 100));
+    slider.val(Math.min(percentual, 99));
 
-    // Slider PF sempre usa cor verde (success)
-    slider.css('background', `linear-gradient(to right, #198754 ${percentual}%, #e9ecef ${percentual}%)`);
+    // Cores de alerta baseadas no percentual (igual MEI)
+    const cor = percentual >= 90 ? '#dc3545' : (percentual >= 70 ? '#ffc107' : '#0d6efd');
+    slider.css('background', `linear-gradient(to right, ${cor} ${percentual}%, #e9ecef ${percentual}%)`);
 
     // Atualizar texto do display
     if (clientesSelecionados.size === 0) {
       $('#sliderValueDisplayPf').text('Arraste para selecionar clientes');
     } else {
-      $('#sliderValueDisplayPf').text(`${clientesSelecionados.size} cliente(s) selecionado(s)`);
+      $('#sliderValueDisplayPf').text(`${clientesSelecionados.size} cliente(s) - ${percentual.toFixed(1)}%`);
     }
   }
 
@@ -3049,6 +3075,50 @@
     atualizarCampoHidden();
   }
 
+  // Selecionar clientes até atingir o valor alvo (para PF)
+  function selecionarClientesAteValorPf(valorAlvo) {
+    const clientesOrdenados = getClientesOrdenadosPorValor();
+
+    // Limpar seleção atual
+    clientesSelecionados.clear();
+    valorTotalSelecionado = 0;
+
+    // Selecionar clientes até o valor alvo (máx 99%)
+    const limiteMax = limitePfGlobal * 0.99;
+    const alvoFinal = Math.min(valorAlvo, limiteMax);
+
+    for (const cliente of clientesOrdenados) {
+      const novoTotal = valorTotalSelecionado + cliente.valor_anual;
+      if (novoTotal <= alvoFinal) {
+        clientesSelecionados.add(cliente.id);
+        valorTotalSelecionado = novoTotal;
+      } else if (valorTotalSelecionado < alvoFinal) {
+        const diferenca = alvoFinal - valorTotalSelecionado;
+        if (cliente.valor_anual <= diferenca * 1.5) {
+          clientesSelecionados.add(cliente.id);
+          valorTotalSelecionado += cliente.valor_anual;
+        }
+      }
+    }
+
+    // Atualizar UI (checkboxes e classes das linhas)
+    $('.checkbox-cliente').each(function() {
+      const id = parseInt($(this).data('id'));
+      const $row = $(this).closest('tr');
+
+      if ($row.hasClass('blocked-row')) {
+        return;
+      }
+
+      const isSelected = clientesSelecionados.has(id);
+      $(this).prop('checked', isSelected);
+      $row.toggleClass('selected', isSelected);
+    });
+
+    atualizarResumoClientes();
+    atualizarCampoHidden();
+  }
+
   // Handler do slider MEI (com limite de valor)
   $('#sliderClientesMei').on('input', function() {
     const percentual = parseFloat($(this).val());
@@ -3074,16 +3144,15 @@
     }
   });
 
-  // Handler do slider PF (sem limite, baseado em quantidade de clientes)
+  // Handler do slider PF (com limite de valor, igual MEI)
   $('#sliderClientesPf').on('input', function() {
     const percentual = parseFloat($(this).val());
-    const clientesDisponiveis = clientesAtivos.filter(c => !c.bloqueado);
-    const quantidadeAlvo = Math.round((percentual / 100) * clientesDisponiveis.length);
+    const valorAlvo = (percentual / 100) * limitePfGlobal;
 
     // Atualizar display durante o arrasto
-    $('#sliderValueDisplayPf').text(`Selecionando ${quantidadeAlvo} cliente(s)...`);
+    $('#sliderValueDisplayPf').text(`Selecionando até ${percentual.toFixed(0)}%...`);
 
-    selecionarClientesPorQuantidade(quantidadeAlvo);
+    selecionarClientesAteValorPf(valorAlvo);
   });
 
   $('#sliderClientesPf').on('mousedown touchstart', function() {
@@ -3092,10 +3161,11 @@
 
   $('#sliderClientesPf').on('mouseup touchend', function() {
     $(this).css('cursor', 'grab');
+    const percentual = (valorTotalSelecionado / limitePfGlobal) * 100;
     if (clientesSelecionados.size === 0) {
       $('#sliderValueDisplayPf').text('Arraste para selecionar clientes');
     } else {
-      $('#sliderValueDisplayPf').text(`${clientesSelecionados.size} cliente(s) selecionado(s)`);
+      $('#sliderValueDisplayPf').text(`${clientesSelecionados.size} cliente(s) - ${percentual.toFixed(1)}%`);
     }
   });
 
@@ -3897,6 +3967,7 @@
   let editarClientesDisponiveis = [];
   let editarClientesOrdenados = [];  // Lista ordenada por valor anual para o slider
   let editarLimiteMeiGlobal = 81000;
+  let editarLimitePfGlobal = 60000;
   let editarValorTotalSelecionado = 0;
   let editarTipoIntegracaoAtual = 'manual';
   let editarTipoContaAtual = 'pf';
@@ -4130,6 +4201,9 @@
   }
 
   function atualizarExibicaoLimiteMeiEditar() {
+    // Carregar configuração de limite para ambos os tipos
+    carregarLimiteGlobalEditar();
+
     if (editarTipoContaAtual === 'mei') {
       $('#editarLimiteMeiContainer').removeClass('d-none');
       $('#editarAlertLimiteMei').removeClass('d-none');
@@ -4139,7 +4213,7 @@
       $('#editarLimiteMeiContainer').addClass('d-none');
       $('#editarAlertLimiteMei').addClass('d-none');
       $('#editarAlertPessoaFisica').removeClass('d-none');
-      $('#colDisponivelEdicao').addClass('d-none');
+      $('#colDisponivelEdicao').removeClass('d-none');  // Mostrar também para PF
     }
     atualizarResumoClientesEditar();
   }
@@ -4151,18 +4225,26 @@
       success: function(response) {
         if (response.success) {
           editarLimiteMeiGlobal = response.config.valor_anual;
+          editarLimitePfGlobal = response.config.valor_anual_pf || 60000;
+
+          // Atualizar displays MEI
           $('#editarLimiteValor').text(formatarMoedaBR(editarLimiteMeiGlobal));
           $('#editarLimiteTotalDisplay').text(formatarMoedaBR(editarLimiteMeiGlobal));
           $('#editarValorDisponivel').text(formatarMoedaBR(editarLimiteMeiGlobal - editarValorTotalSelecionado));
+
+          // Atualizar displays PF
+          $('#editarLimiteTotalDisplayPf').text(formatarMoedaBR(editarLimitePfGlobal));
         }
       },
       error: function(xhr, status, error) {
         // Usar limite padrão em caso de erro
         console.warn('Erro ao carregar config limite para edição, usando padrão:', error);
         editarLimiteMeiGlobal = 81000;
+        editarLimitePfGlobal = 60000;
         $('#editarLimiteValor').text(formatarMoedaBR(editarLimiteMeiGlobal));
         $('#editarLimiteTotalDisplay').text(formatarMoedaBR(editarLimiteMeiGlobal));
         $('#editarValorDisponivel').text(formatarMoedaBR(editarLimiteMeiGlobal - editarValorTotalSelecionado));
+        $('#editarLimiteTotalDisplayPf').text(formatarMoedaBR(editarLimitePfGlobal));
       }
     });
   }
@@ -4353,43 +4435,37 @@
   }
 
   function atualizarSliderEditar() {
-    // Total de clientes selecionáveis (não bloqueados)
-    const clientesSelecionaveis = editarClientesOrdenados.filter(c => !c.bloqueado);
-    const totalSelecionaveis = clientesSelecionaveis.length;
-
     // Total de selecionados (incluindo já associados + novos + transferências)
     const totalSelecionados = editarClientesSelecionados.size + editarClientesParaTransferir.size;
 
-    // Percentual baseado em selecionados / total de selecionáveis
-    const percentual = totalSelecionaveis > 0 ? (totalSelecionados / totalSelecionaveis) * 100 : 0;
+    // Percentual baseado em VALOR / LIMITE (para ambos MEI e PF)
+    const limiteAtual = editarTipoContaAtual === 'mei' ? editarLimiteMeiGlobal : editarLimitePfGlobal;
+    const percentual = limiteAtual > 0 ? (editarValorTotalSelecionado / limiteAtual) * 100 : 0;
 
     if (editarTipoContaAtual === 'mei') {
       $('#sliderClientesMeiEditar').val(Math.min(percentual, 99));
       atualizarSliderVisualEditar('#sliderClientesMeiEditar', percentual, 'mei');
-      $('#sliderValueDisplayMeiEditar').text(`${totalSelecionados} cliente(s) selecionado(s)`);
+      $('#sliderValueDisplayMeiEditar').text(`${totalSelecionados} cliente(s) - ${percentual.toFixed(1)}%`);
     } else {
-      $('#sliderClientesPfEditar').val(percentual);
+      $('#sliderClientesPfEditar').val(Math.min(percentual, 99));
       atualizarSliderVisualEditar('#sliderClientesPfEditar', percentual, 'pf');
-      $('#sliderValueDisplayPfEditar').text(`${totalSelecionados} cliente(s) selecionado(s)`);
+      $('#sliderValueDisplayPfEditar').text(`${totalSelecionados} cliente(s) - ${percentual.toFixed(1)}%`);
     }
   }
 
   function atualizarSliderVisualEditar(selector, percentual, tipo) {
     const slider = $(selector);
-    if (tipo === 'mei') {
-      slider.removeClass('slider-warning slider-danger');
-      let cor = '#0d6efd';
-      if (percentual >= 90) {
-        slider.addClass('slider-danger');
-        cor = '#dc3545';
-      } else if (percentual >= 70) {
-        slider.addClass('slider-warning');
-        cor = '#ffc107';
-      }
-      slider.css('background', `linear-gradient(to right, ${cor} ${percentual}%, #e9ecef ${percentual}%)`);
-    } else {
-      slider.css('background', `linear-gradient(to right, #198754 ${percentual}%, #e9ecef ${percentual}%)`);
+    // Ambos os tipos (MEI e PF) usam a mesma lógica de cores
+    slider.removeClass('slider-warning slider-danger');
+    let cor = '#0d6efd';
+    if (percentual >= 90) {
+      slider.addClass('slider-danger');
+      cor = '#dc3545';
+    } else if (percentual >= 70) {
+      slider.addClass('slider-warning');
+      cor = '#ffc107';
     }
+    slider.css('background', `linear-gradient(to right, ${cor} ${percentual}%, #e9ecef ${percentual}%)`);
   }
 
   function atualizarResumoClientesEditar() {
@@ -4412,8 +4488,32 @@
       $('#editarValorUtilizado').text(formatarMoedaBR(editarValorTotalSelecionado));
       $('#editarPercentualUtilizado').text(percentual.toFixed(1));
       $('#editarValorDisponivel').text(formatarMoedaBR(editarLimiteMeiGlobal - editarValorTotalSelecionado));
+
+      // Cores de alerta para MEI
+      if (percentual >= 90) {
+        $('#editarAlertLimiteMei').removeClass('alert-info alert-warning').addClass('alert-danger');
+      } else if (percentual >= 70) {
+        $('#editarAlertLimiteMei').removeClass('alert-info alert-danger').addClass('alert-warning');
+      } else {
+        $('#editarAlertLimiteMei').removeClass('alert-warning alert-danger').addClass('alert-info');
+      }
     } else {
+      // Pessoa Física: com limite
+      const percentual = editarLimitePfGlobal > 0 ? (editarValorTotalSelecionado / editarLimitePfGlobal) * 100 : 0;
+      const valorDisponivel = editarLimitePfGlobal - editarValorTotalSelecionado;
+
       $('#editarValorTotalPf').text(formatarMoedaBR(editarValorTotalSelecionado));
+      $('#editarPercentualPf').text(percentual.toFixed(1));
+      $('#editarValorDisponivel').text(formatarMoedaBR(valorDisponivel));
+
+      // Cores de alerta para PF
+      if (percentual >= 90) {
+        $('#editarAlertPessoaFisica').removeClass('alert-info alert-warning').addClass('alert-danger');
+      } else if (percentual >= 70) {
+        $('#editarAlertPessoaFisica').removeClass('alert-info alert-danger').addClass('alert-warning');
+      } else {
+        $('#editarAlertPessoaFisica').removeClass('alert-warning alert-danger').addClass('alert-info');
+      }
     }
 
     // Atualizar campos hidden
@@ -4428,20 +4528,19 @@
     const row = $(this).closest('tr');
 
     if ($(this).is(':checked')) {
-      // Verificar limite MEI
-      if (editarTipoContaAtual === 'mei') {
-        const novoTotal = editarValorTotalSelecionado + valorAnual;
-        const percentual = (novoTotal / editarLimiteMeiGlobal) * 100;
+      // Verificar limite conforme tipo de conta (MEI ou PF)
+      const novoTotal = editarValorTotalSelecionado + valorAnual;
+      const limiteAtual = editarTipoContaAtual === 'mei' ? editarLimiteMeiGlobal : editarLimitePfGlobal;
+      const percentual = (novoTotal / limiteAtual) * 100;
 
-        if (percentual >= 99) {
-          Swal.fire({
-            icon: 'warning',
-            title: 'Limite Atingido',
-            text: 'Você atingiu 99% do limite MEI.'
-          });
-          $(this).prop('checked', false);
-          return;
-        }
+      if (percentual >= 99) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Limite Atingido',
+          text: 'Você atingiu 99% do limite. Não é possível adicionar mais clientes.'
+        });
+        $(this).prop('checked', false);
+        return;
       }
 
       editarClientesSelecionados.add(clienteId);
@@ -4465,20 +4564,19 @@
     const row = $(this).closest('tr');
 
     if ($(this).is(':checked')) {
-      // Verificar limite MEI
-      if (editarTipoContaAtual === 'mei') {
-        const novoTotal = editarValorTotalSelecionado + valorAnual;
-        const percentual = (novoTotal / editarLimiteMeiGlobal) * 100;
+      // Verificar limite conforme tipo de conta (MEI ou PF)
+      const novoTotal = editarValorTotalSelecionado + valorAnual;
+      const limiteAtual = editarTipoContaAtual === 'mei' ? editarLimiteMeiGlobal : editarLimitePfGlobal;
+      const percentual = (novoTotal / limiteAtual) * 100;
 
-        if (percentual >= 99) {
-          Swal.fire({
-            icon: 'warning',
-            title: 'Limite Atingido',
-            text: 'Você atingiu 99% do limite MEI.'
-          });
-          $(this).prop('checked', false);
-          return;
-        }
+      if (percentual >= 99) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Limite Atingido',
+          text: 'Você atingiu 99% do limite. Não é possível adicionar mais clientes.'
+        });
+        $(this).prop('checked', false);
+        return;
       }
 
       // Confirmar transferência
@@ -4555,21 +4653,19 @@
     selecionarClientesPorQuantidadeEditar(quantidadeAlvo, 'mei');
   });
 
-  // Slider PF na edição - baseado no TOTAL de clientes selecionáveis
+  // Slider PF na edição - baseado em VALOR (igual MEI)
   $('#sliderClientesPfEditar').on('input', function() {
     const percentualDesejado = parseInt($(this).val());
-    // Clientes selecionáveis = não bloqueados
-    const clientesSelecionaveis = editarClientesOrdenados.filter(c => !c.bloqueado);
-    const quantidadeAlvo = Math.round((percentualDesejado / 100) * clientesSelecionaveis.length);
+    const valorAlvo = (percentualDesejado / 100) * editarLimitePfGlobal;
 
     // Atualizar display durante arrasto
-    $('#sliderValueDisplayPfEditar').text(`Selecionando ${quantidadeAlvo} cliente(s)...`);
+    $('#sliderValueDisplayPfEditar').text(`Selecionando até ${percentualDesejado}%...`);
 
     // Atualizar visual do slider (cor)
     atualizarSliderVisualEditar('#sliderClientesPfEditar', percentualDesejado, 'pf');
 
-    // Selecionar clientes por quantidade
-    selecionarClientesPorQuantidadeEditar(quantidadeAlvo, 'pf');
+    // Selecionar clientes por valor (igual MEI)
+    selecionarClientesAteValorEditar(valorAlvo, 'pf');
   });
 
   // Handlers de interação visual para slider MEI na edição
@@ -4591,9 +4687,10 @@
 
   $('#sliderClientesPfEditar').on('mouseup touchend', function() {
     $(this).css('cursor', 'grab');
-    // Exibir soma: clientes já associados + novos selecionados
+    // Exibir soma: clientes já associados + novos selecionados + percentual
     const totalSelecionados = editarClientesSelecionados.size + editarClientesParaTransferir.size;
-    $('#sliderValueDisplayPfEditar').text(`${totalSelecionados} cliente(s) selecionado(s)`);
+    const percentual = editarLimitePfGlobal > 0 ? (editarValorTotalSelecionado / editarLimitePfGlobal) * 100 : 0;
+    $('#sliderValueDisplayPfEditar').text(`${totalSelecionados} cliente(s) - ${percentual.toFixed(1)}%`);
   });
 
   // Selecionar/deselecionar cliente ao clicar na linha (edição)
@@ -4705,34 +4802,63 @@
     // Clientes disponíveis (não bloqueados, ordenados por valor)
     const clientesDisponiveis = editarClientesOrdenados.filter(c => !c.bloqueado && !editarClientesParaTransferir.has(c.id));
 
-    if (tipo === 'mei') {
-      // Seleção baseada em valor até atingir o percentual do limite
-      const valorLimite = (percentualDesejado / 100) * editarLimiteMeiGlobal;
-      let valorAcumulado = editarValorTotalSelecionado;
+    // Ambos os tipos (MEI e PF) usam seleção baseada em valor
+    const limiteAtual = tipo === 'mei' ? editarLimiteMeiGlobal : editarLimitePfGlobal;
+    const valorLimite = (percentualDesejado / 100) * limiteAtual;
+    let valorAcumulado = editarValorTotalSelecionado;
 
-      for (const cliente of clientesDisponiveis) {
-        const valorAnual = cliente.valor_anual || 0;
-        if (valorAcumulado + valorAnual <= valorLimite) {
-          editarClientesSelecionados.add(cliente.id);
-          valorAcumulado += valorAnual;
-        }
-      }
-      editarValorTotalSelecionado = valorAcumulado;
-    } else {
-      // Seleção baseada em quantidade de clientes
-      const qtdDesejada = Math.floor((percentualDesejado / 100) * clientesDisponiveis.length);
-      for (let i = 0; i < qtdDesejada && i < clientesDisponiveis.length; i++) {
-        const cliente = clientesDisponiveis[i];
+    for (const cliente of clientesDisponiveis) {
+      const valorAnual = cliente.valor_anual || 0;
+      if (valorAcumulado + valorAnual <= valorLimite) {
         editarClientesSelecionados.add(cliente.id);
-        editarValorTotalSelecionado += cliente.valor_anual || 0;
+        valorAcumulado += valorAnual;
       }
     }
+    editarValorTotalSelecionado = valorAcumulado;
 
     // Re-renderizar preservando as seleções do slider
     const filtro = $('#buscaClienteEditar').val().trim();
     renderizarListaClientesEditar(editarClientesDisponiveis, filtro, true);
     atualizarResumoClientesEditar();
     // Não chamar atualizarSliderEditar() aqui - deixar o slider na posição do usuário
+  }
+
+  // Função para selecionar clientes até atingir um valor alvo (para slider PF na edição)
+  function selecionarClientesAteValorEditar(valorAlvo, tipo) {
+    // Resetar seleções (mantendo transferências)
+    editarClientesSelecionados.clear();
+    editarValorTotalSelecionado = 0;
+
+    // Recalcular valor de transferências
+    editarClientesParaTransferir.forEach(clienteId => {
+      const cliente = editarClientesDisponiveis.find(c => c.id === clienteId);
+      if (cliente) {
+        editarValorTotalSelecionado += cliente.valor_anual || 0;
+      }
+    });
+
+    // Clientes disponíveis (não bloqueados, ordenados por valor)
+    const clientesDisponiveis = editarClientesOrdenados.filter(c => !c.bloqueado && !editarClientesParaTransferir.has(c.id));
+
+    // Selecionar clientes até atingir o valor alvo (máx 99% do limite)
+    const limiteAtual = tipo === 'mei' ? editarLimiteMeiGlobal : editarLimitePfGlobal;
+    const limiteMax = limiteAtual * 0.99;
+    const alvoFinal = Math.min(valorAlvo, limiteMax);
+    let valorAcumulado = editarValorTotalSelecionado;
+
+    for (const cliente of clientesDisponiveis) {
+      const valorAnual = cliente.valor_anual || 0;
+      if (valorAcumulado + valorAnual <= alvoFinal) {
+        editarClientesSelecionados.add(cliente.id);
+        valorAcumulado += valorAnual;
+      }
+    }
+    editarValorTotalSelecionado = valorAcumulado;
+
+    // Re-renderizar preservando as seleções do slider
+    const filtro = $('#buscaClienteEditar').val().trim();
+    renderizarListaClientesEditar(editarClientesDisponiveis, filtro, true);
+    atualizarResumoClientesEditar();
   }
 
   // Função para selecionar clientes por QUANTIDADE (slider controla total de selecionados)

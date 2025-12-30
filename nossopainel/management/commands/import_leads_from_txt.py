@@ -13,16 +13,16 @@ from nossopainel.models import TelefoneLeads  # ajuste o caminho do seu app/mode
 PHONE_MAX_LEN = 20
 
 
-def normalize_phone(raw: str, default_ddi: str = "+55") -> Tuple[str, str]:
+def normalize_phone(raw: str, default_ddi: str = "") -> Tuple[str, str]:
     """
     Normaliza um telefone:
       - Remove espaços e símbolos, preservando + se houver.
       - '00' no início vira '+' (ex.: 0044... -> +44...).
-      - Se não tiver '+':
-          * se tiver 10-11 dígitos, assume BR e prefixa default_ddi (padrão +55).
-          * caso contrário, tenta apenas prefixar '+' (internacional sem 00).
+      - Se não tiver '+', apenas prefixa '+' (o DDI deve estar no número).
       - Retorna (telefone_normalizado_ou_vazio, motivo_skip_ou_vazio)
-    Regras pensadas para leads (flexível, mas garantindo padrão '+########').
+
+    IMPORTANTE: O telefone deve vir com DDI correto. Não adiciona DDI automaticamente.
+    Use --default-ddi=+55 se precisar adicionar DDI para números legados.
     """
 
     s = raw.strip()
@@ -37,13 +37,12 @@ def normalize_phone(raw: str, default_ddi: str = "+55") -> Tuple[str, str]:
         # Converte discagem internacional '00' para '+'
         if digits_only.startswith("00"):
             digits = "+" + digits_only[2:]
+        elif default_ddi:
+            # Apenas adiciona DDI se explicitamente configurado via --default-ddi
+            digits = f"{default_ddi}{digits_only}"
         else:
-            # Se não tem + e tiver 10–11 dígitos, assume BR por padrão
-            if 10 <= len(digits_only) <= 11 and default_ddi:
-                digits = f"{default_ddi}{digits_only}"
-            else:
-                # Como fallback, tente apenas prefixar '+'
-                digits = f"+{digits_only}" if digits_only else ""
+            # Apenas prefixa '+' - assume que o DDI já está no número
+            digits = f"+{digits_only}" if digits_only else ""
 
     if not digits:
         return "", "sem_digitos"
@@ -76,8 +75,8 @@ class Command(BaseCommand):
 
         parser.add_argument(
             "--default-ddi",
-            default="+55",
-            help="DDI padrão para números sem '+' com 10–11 dígitos (padrão: +55). Use '' para desabilitar.",
+            default="",
+            help="DDI a adicionar para números sem '+' (padrão: nenhum). Ex: --default-ddi=+55 para números BR legados.",
         )
         parser.add_argument(
             "--dry-run",

@@ -13,6 +13,13 @@
   <meta name="description" content="Gerencie suas mensalidades de forma simples e segura">
   <meta name="robots" content="noindex, nofollow">
 
+  <!-- Open Graph Meta Tags (WhatsApp/Social Media Preview - sem imagem) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{% block og_title %}Login Cliente | {{ config.nome_exibicao|default:'Pagamentos' }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Gerencie suas mensalidades de forma simples e segura{% endblock %}">
+  <meta property="og:site_name" content="{{ config.nome_exibicao|default:'Painel de Pagamentos' }}">
+  <meta property="og:locale" content="pt_BR">
+
   <!-- Theme Color (dynamic based on subdominio config) -->
   <meta name="theme-color" content="{{ config.cor_primaria|default:'#8B5CF6' }}" id="theme-color-meta">
   <meta name="msapplication-TileColor" content="{{ config.cor_primaria|default:'#8B5CF6' }}">
