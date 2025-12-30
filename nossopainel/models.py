@@ -2635,7 +2635,7 @@ class NotificacaoSistema(models.Model):
 
     @classmethod
     def criar_alerta_mudanca_plano(cls, usuario, cliente, plano_antigo, plano_novo, impacto_valor,
-                                   valor_anual_anterior=0, valor_anual_atual=0, conta_info=None,
+                                   faturamento_conta_anterior=0, faturamento_conta_atual=0, conta_info=None,
                                    is_novo_cliente=False):
         """Cria uma notificação de mudança ou criação de plano que afeta o limite."""
         direcao = 'aumentou' if impacto_valor > 0 else 'diminuiu'
@@ -2648,10 +2648,10 @@ class NotificacaoSistema(models.Model):
             if conta_info:
                 mensagem += (
                     f'O faturamento anual previsto para a conta "{conta_info}" aumentou '
-                    f'em R$ {valor_anual_atual:,.2f}.'
+                    f'para R$ {faturamento_conta_atual:,.2f}.'
                 )
             else:
-                mensagem += f'O faturamento anual previsto aumentou em R$ {valor_anual_atual:,.2f}.'
+                mensagem += f'O faturamento anual previsto aumentou em R$ {abs(impacto_valor):,.2f}.'
         else:
             # Cliente existente mudou de plano
             titulo = f'Mudança de plano: {cliente.nome}'
@@ -2660,8 +2660,8 @@ class NotificacaoSistema(models.Model):
             if conta_info:
                 mensagem += (
                     f'O faturamento anual previsto para a conta "{conta_info}" {direcao} '
-                    f'em R$ {abs(impacto_valor):,.2f}, saindo de R$ {valor_anual_anterior:,.2f} '
-                    f'para R$ {valor_anual_atual:,.2f}.'
+                    f'em R$ {abs(impacto_valor):,.2f}, saindo de R$ {faturamento_conta_anterior:,.2f} '
+                    f'para R$ {faturamento_conta_atual:,.2f}.'
                 )
             else:
                 mensagem += f'O faturamento anual previsto {direcao} em R$ {abs(impacto_valor):,.2f}.'
@@ -2678,8 +2678,8 @@ class NotificacaoSistema(models.Model):
                 'plano_antigo': plano_antigo,
                 'plano_novo': plano_novo,
                 'impacto_valor': float(impacto_valor),
-                'valor_anual_anterior': float(valor_anual_anterior),
-                'valor_anual_atual': float(valor_anual_atual),
+                'faturamento_conta_anterior': float(faturamento_conta_anterior),
+                'faturamento_conta_atual': float(faturamento_conta_atual),
                 'conta_info': conta_info,
                 'is_novo_cliente': is_novo_cliente,
             }
@@ -2800,6 +2800,16 @@ class ClienteContaBancaria(models.Model):
         Retorna: (nova_associacao, associacao_antiga ou None)
         """
         from .models import NotificacaoSistema
+        from decimal import Decimal
+
+        # Mapear pagamentos por ano
+        PAGAMENTOS_POR_ANO = {
+            'Mensal': 12,
+            'Bimestral': 6,
+            'Trimestral': 4,
+            'Semestral': 2,
+            'Anual': 1,
+        }
 
         # Buscar associação ativa existente
         associacao_antiga = cls.objects.filter(
@@ -2809,8 +2819,10 @@ class ClienteContaBancaria(models.Model):
 
         # Desativar associação antiga
         conta_antiga_nome = None
+        conta_antiga = None
         if associacao_antiga:
-            conta_antiga_nome = associacao_antiga.conta_bancaria.nome_identificacao
+            conta_antiga = associacao_antiga.conta_bancaria
+            conta_antiga_nome = conta_antiga.nome_identificacao
             associacao_antiga.ativo = False
             associacao_antiga.save(update_fields=['ativo', 'atualizado_em'])
 
@@ -2822,22 +2834,61 @@ class ClienteContaBancaria(models.Model):
         )
 
         # Criar notificação de transferência (se houver mudança)
-        if usuario and associacao_antiga and associacao_antiga.conta_bancaria != nova_conta:
+        if usuario and associacao_antiga and conta_antiga != nova_conta:
             try:
+                # Calcular valor anual do cliente
+                valor_cliente_anual = Decimal('0')
+                if cliente.plano:
+                    pagamentos = PAGAMENTOS_POR_ANO.get(cliente.plano.nome, 12)
+                    valor_cliente_anual = cliente.plano.valor * pagamentos
+
+                # Calcular faturamento da conta antiga (após remoção do cliente)
+                faturamento_conta_antiga = Decimal('0')
+                clientes_conta_antiga = cls.objects.filter(
+                    conta_bancaria=conta_antiga,
+                    ativo=True,
+                    cliente__cancelado=False
+                ).select_related('cliente__plano')
+                for cc in clientes_conta_antiga:
+                    if cc.cliente.plano:
+                        pagamentos = PAGAMENTOS_POR_ANO.get(cc.cliente.plano.nome, 12)
+                        faturamento_conta_antiga += cc.cliente.plano.valor * pagamentos
+
+                # Calcular faturamento da conta nova (após adição do cliente)
+                faturamento_conta_nova = Decimal('0')
+                clientes_conta_nova = cls.objects.filter(
+                    conta_bancaria=nova_conta,
+                    ativo=True,
+                    cliente__cancelado=False
+                ).select_related('cliente__plano')
+                for cc in clientes_conta_nova:
+                    if cc.cliente.plano:
+                        pagamentos = PAGAMENTOS_POR_ANO.get(cc.cliente.plano.nome, 12)
+                        faturamento_conta_nova += cc.cliente.plano.valor * pagamentos
+
+                mensagem = (
+                    f'O cliente "{cliente.nome}" foi transferido de '
+                    f'"{conta_antiga_nome}" para "{nova_conta.nome_identificacao}". '
+                    f'O faturamento anual da conta "{conta_antiga_nome}" diminuiu em '
+                    f'R$ {valor_cliente_anual:,.2f} e agora é R$ {faturamento_conta_antiga:,.2f}. '
+                    f'O faturamento anual da conta "{nova_conta.nome_identificacao}" aumentou em '
+                    f'R$ {valor_cliente_anual:,.2f} e agora é R$ {faturamento_conta_nova:,.2f}.'
+                )
+
                 NotificacaoSistema.objects.create(
                     usuario=usuario,
                     tipo='info',
                     prioridade='baixa',
                     titulo=f'Cliente transferido: {cliente.nome}',
-                    mensagem=(
-                        f'O cliente "{cliente.nome}" foi transferido de '
-                        f'"{conta_antiga_nome}" para "{nova_conta.nome_identificacao}".'
-                    ),
+                    mensagem=mensagem,
                     dados_extras={
                         'cliente_id': cliente.id,
                         'cliente_nome': cliente.nome,
                         'conta_antiga': conta_antiga_nome,
                         'conta_nova': nova_conta.nome_identificacao,
+                        'valor_cliente_anual': float(valor_cliente_anual),
+                        'faturamento_conta_antiga': float(faturamento_conta_antiga),
+                        'faturamento_conta_nova': float(faturamento_conta_nova),
                     }
                 )
             except Exception:

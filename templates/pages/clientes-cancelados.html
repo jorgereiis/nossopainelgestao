@@ -520,27 +520,18 @@
                 icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
             }
 
-            // Badge de tipo de conta
-            let badgeTipo = '';
-            if (isFastDePix) {
-                badgeTipo = '<span class="badge bg-success">FastDePix</span>';
-            } else if (forma.tipo_conta === 'mei') {
-                badgeTipo = '<span class="badge bg-primary">MEI</span>';
-            } else if (forma.tipo_conta === 'pf') {
-                badgeTipo = '<span class="badge bg-secondary">Pessoa Física</span>';
-            }
+            // Badge de tipo de conta removido conforme solicitação
+
+            // Percentual de utilização (usado tanto na info de limite quanto no display)
+            const percentual = forma.percentual_utilizado || 0;
 
             // Informações de limite
             let infoLimite = '';
             if (isFastDePix) {
-                infoLimite = `
-                    <div class="d-flex align-items-center gap-2 mt-2">
-                        <span class="badge bg-success">Sem limite de faturamento</span>
-                    </div>
-                `;
+                // FastDePix não tem limite - não mostrar badge
+                infoLimite = '';
             } else if (forma.limite_anual > 0) {
                 // Barra de progresso
-                const percentual = forma.percentual_utilizado;
                 let barraCorClass = 'bg-success';
                 if (percentual >= 99) {
                     barraCorClass = 'bg-danger';
@@ -593,14 +584,8 @@
                     </div>
                 `;
             } else {
-                badgeStatus = `
-                    <div class="text-end">
-                        <span class="badge bg-success px-3 py-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                            Disponível
-                        </span>
-                    </div>
-                `;
+                // Sem badge para status disponível
+                badgeStatus = '';
             }
 
             // Quantidade de clientes
@@ -624,11 +609,25 @@
 
                         <!-- Informações -->
                         <div class="flex-grow-1">
-                            <div class="d-flex align-items-center gap-2 mb-1">
+                            <div class="mb-1">
                                 <h6 class="mb-0 fw-bold">${forma.nome_identificacao || forma.nome}</h6>
-                                ${badgeTipo}
                             </div>
-                            ${forma.instituicao_nome ? `<div class="text-muted small">${forma.instituicao_nome}</div>` : ''}
+                            <div class="text-muted small">${forma.instituicao_nome || '-'}</div>
+                            ${isFastDePix ? `
+                                <div class="small text-success fw-semibold">
+                                    <i class="bi bi-infinity me-1"></i>Ilimitado
+                                </div>
+                                <div class="small text-muted">
+                                    Faturamento: <strong>${formatarMoeda(forma.total_projetado)}</strong>
+                                </div>
+                            ` : `
+                                <div class="small ${percentual >= 99 ? 'text-danger fw-semibold' : percentual >= 80 ? 'text-warning fw-semibold' : 'text-muted'}">
+                                    <strong>${percentual.toFixed(0)}%</strong>/100%
+                                </div>
+                                <div class="small ${forma.margem_disponivel > 0 ? 'text-success' : 'text-danger'}">
+                                    Disponível: <strong>${formatarMoeda(forma.margem_disponivel)}</strong>
+                                </div>
+                            `}
                             ${infoClientes}
                             ${infoLimite}
                         </div>

@@ -11649,7 +11649,8 @@ def api_formas_pagamento_disponiveis(request):
             usuario=request.user
         ).select_related(
             'conta_bancaria',
-            'conta_bancaria__instituicao'
+            'conta_bancaria__instituicao',
+            'dados_bancarios'
         ).order_by('nome_identificacao', 'nome')
 
         resultado = []
@@ -11659,6 +11660,13 @@ def api_formas_pagamento_disponiveis(request):
             instituicao = conta.instituicao if conta else None
             tipo_integracao = instituicao.tipo_integracao if instituicao else None
 
+            # Nome da instituição (prioriza conta_bancaria, fallback para dados_bancarios legado)
+            instituicao_nome = None
+            if instituicao:
+                instituicao_nome = instituicao.nome
+            elif forma.dados_bancarios and forma.dados_bancarios.instituicao:
+                instituicao_nome = forma.dados_bancarios.instituicao
+
             # Dados básicos
             item = {
                 'id': forma.id,
@@ -11667,7 +11675,7 @@ def api_formas_pagamento_disponiveis(request):
                 'tipo_conta': conta.tipo_conta if conta else forma.tipo_conta,
                 'tipo_conta_label': '',
                 'tipo_integracao': tipo_integracao,
-                'instituicao_nome': instituicao.nome if instituicao else None,
+                'instituicao_nome': instituicao_nome,
                 'tem_conta_bancaria': conta is not None,
                 'limite_anual': 0,
                 'total_projetado': 0,
@@ -11679,20 +11687,101 @@ def api_formas_pagamento_disponiveis(request):
                 'status': 'disponivel',  # disponivel, proximo_limite, bloqueado
             }
 
-            # Se não tem conta bancária, não tem controle de limite
+            # Se não tem conta bancária, calcular baseado nos clientes associados via forma_pgto
             if not conta:
-                item['tipo_conta_label'] = 'Sem conta vinculada'
-                item['status'] = 'disponivel'
+                # Usar limite PF como padrão para formas legadas
+                tipo_conta_forma = forma.tipo_conta if hasattr(forma, 'tipo_conta') and forma.tipo_conta else 'pf'
+                if tipo_conta_forma == 'mei':
+                    limite_aplicavel = limite_mei
+                    tipo_label = 'MEI'
+                else:
+                    limite_aplicavel = limite_pf
+                    tipo_label = 'Pessoa Física'
+
+                item['limite_anual'] = limite_aplicavel
+                item['tipo_conta_label'] = tipo_label
+
+                # Calcular total projetado dos clientes associados diretamente à forma de pagamento
+                from .models import Cliente
+                clientes_forma = Cliente.objects.filter(
+                    forma_pgto=forma,
+                    cancelado=False
+                ).select_related('plano')
+
+                total_projetado = Decimal('0')
+                clientes_count = 0
+                for cliente in clientes_forma:
+                    clientes_count += 1
+                    if cliente.plano:
+                        pagamentos = PAGAMENTOS_POR_ANO.get(cliente.plano.nome, 12)
+                        total_projetado += cliente.plano.valor * pagamentos
+
+                item['total_projetado'] = float(total_projetado)
+                item['clientes_ativos'] = clientes_count
+
+                # Calcular percentual e margem
+                if limite_aplicavel > 0:
+                    percentual = (float(total_projetado) / limite_aplicavel) * 100
+                    margem = limite_aplicavel - float(total_projetado)
+                else:
+                    percentual = 0
+                    margem = 0
+
+                item['percentual_utilizado'] = round(percentual, 1)
+                item['margem_disponivel'] = max(0, margem)
+
+                # Determinar status
+                if percentual >= 99:
+                    item['bloqueado'] = True
+                    item['motivo_bloqueio'] = f'Limite {tipo_label} atingido ({percentual:.1f}%)'
+                    item['status'] = 'bloqueado'
+                elif percentual >= 80:
+                    item['status'] = 'proximo_limite'
+                else:
+                    item['status'] = 'disponivel'
+
                 resultado.append(item)
                 continue
 
-            # FastDePix: sem limite de faturamento
+            # FastDePix: sem limite de faturamento, mas calcular total projetado
             if tipo_integracao == 'fastdepix':
                 item['limite_anual'] = 0
                 item['tipo_conta_label'] = 'FastDePix (Sem limite)'
                 item['bloqueado'] = False
                 item['motivo_bloqueio'] = None
                 item['status'] = 'disponivel'
+
+                # Calcular total projetado dos clientes associados
+                clientes_conta = ClienteContaBancaria.objects.filter(
+                    conta_bancaria=conta,
+                    ativo=True,
+                    cliente__cancelado=False
+                ).select_related('cliente__plano')
+
+                total_projetado = Decimal('0')
+                clientes_ids = set()
+                for cc in clientes_conta:
+                    clientes_ids.add(cc.cliente_id)
+                    if cc.cliente.plano:
+                        pagamentos = PAGAMENTOS_POR_ANO.get(cc.cliente.plano.nome, 12)
+                        total_projetado += cc.cliente.plano.valor * pagamentos
+
+                # Também buscar clientes associados via forma_pgto
+                from .models import Cliente
+                clientes_forma = Cliente.objects.filter(
+                    forma_pgto=forma,
+                    cancelado=False
+                ).exclude(id__in=clientes_ids).select_related('plano')
+
+                for cliente in clientes_forma:
+                    clientes_ids.add(cliente.id)
+                    if cliente.plano:
+                        pagamentos = PAGAMENTOS_POR_ANO.get(cliente.plano.nome, 12)
+                        total_projetado += cliente.plano.valor * pagamentos
+
+                item['total_projetado'] = float(total_projetado)
+                item['clientes_ativos'] = len(clientes_ids)
+
                 resultado.append(item)
                 continue
 
@@ -11709,6 +11798,7 @@ def api_formas_pagamento_disponiveis(request):
             item['tipo_conta_label'] = tipo_label
 
             # Calcular total projetado dos clientes ATIVOS associados
+            # Primeiro, buscar via ClienteContaBancaria
             clientes_conta = ClienteContaBancaria.objects.filter(
                 conta_bancaria=conta,
                 ativo=True,
@@ -11716,15 +11806,28 @@ def api_formas_pagamento_disponiveis(request):
             ).select_related('cliente__plano')
 
             total_projetado = Decimal('0')
-            clientes_count = 0
+            clientes_ids = set()
             for cc in clientes_conta:
-                clientes_count += 1
+                clientes_ids.add(cc.cliente_id)
                 if cc.cliente.plano:
                     pagamentos = PAGAMENTOS_POR_ANO.get(cc.cliente.plano.nome, 12)
                     total_projetado += cc.cliente.plano.valor * pagamentos
 
+            # Também buscar clientes associados diretamente via forma_pgto (que não estão em ClienteContaBancaria)
+            from .models import Cliente
+            clientes_forma = Cliente.objects.filter(
+                forma_pgto=forma,
+                cancelado=False
+            ).exclude(id__in=clientes_ids).select_related('plano')
+
+            for cliente in clientes_forma:
+                clientes_ids.add(cliente.id)
+                if cliente.plano:
+                    pagamentos = PAGAMENTOS_POR_ANO.get(cliente.plano.nome, 12)
+                    total_projetado += cliente.plano.valor * pagamentos
+
             item['total_projetado'] = float(total_projetado)
-            item['clientes_ativos'] = clientes_count
+            item['clientes_ativos'] = len(clientes_ids)
 
             # Calcular percentual utilizado e margem
             if limite_aplicavel > 0:

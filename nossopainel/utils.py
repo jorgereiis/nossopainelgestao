@@ -935,25 +935,22 @@ def gerar_variacoes_telefone2(telefone: str) -> list:
 
 
 def gerar_variacoes_telefone(telefone: str) -> set:
-    """Gera variações básicas (com/sem DDI) utilizadas na busca de clientes existentes."""
+    """
+    Gera variações básicas (com/sem +) utilizadas na busca de clientes existentes.
+
+    NÃO adiciona DDI automaticamente - preserva o DDI original do número.
+    """
     tel = re.sub(r'\D+', '', telefone)
     variacoes = set()
 
     # Base sempre com e sem +
-    if tel.startswith('55'):
-        variacoes.add(tel)
-        variacoes.add('+' + tel)
-    else:
-        variacoes.add(tel)
-        variacoes.add('55' + tel)
-        variacoes.add('+55' + tel)
+    variacoes.add(tel)
+    variacoes.add('+' + tel)
 
-    if len(tel) == 13 and tel[4] == '9':
+    # Variações específicas para números brasileiros (com 9º dígito)
+    # Formato BR com DDI: 55 + DDD(2) + 9 + número(8) = 13 dígitos
+    if len(tel) == 13 and tel.startswith('55') and tel[4] == '9':
         sem_nove = tel[:4] + tel[5:]
-        variacoes.add(sem_nove)
-        variacoes.add('+' + sem_nove)
-    elif len(tel) == 11 and tel[2] == '9':
-        sem_nove = tel[:2] + tel[3:]
         variacoes.add(sem_nove)
         variacoes.add('+' + sem_nove)
 
@@ -975,31 +972,34 @@ def existe_cliente_variacoes(telefone_variacoes, user):
 
     return cliente_telefone
 
-def normalizar_telefone_br(telefone: str) -> str:
+def normalizar_telefone(telefone: str) -> str:
     """
-    Normaliza telefone brasileiro removendo DDI duplicado e caracteres especiais.
+    Normaliza telefone removendo caracteres especiais e corrigindo DDI duplicado.
+
+    NÃO adiciona DDI automaticamente - o telefone deve vir com DDI do frontend
+    (intl-tel-input) ou da importação.
 
     Exemplos:
-        +55558396239140 -> 5583996239140 (remove 55 duplicado)
+        +55558396239140 -> 5583996239140 (remove 55 duplicado para BR)
         +5583996239140  -> 5583996239140
+        +33751085604    -> 33751085604 (preserva DDI internacional)
         5583996239140   -> 5583996239140
-        83996239140     -> 5583996239140 (adiciona DDI)
     """
     # Remove tudo exceto dígitos
     tel = re.sub(r'\D+', '', telefone)
 
-    # Corrige DDI duplicado: 5555... -> 55...
+    # Corrige DDI duplicado brasileiro: 5555... -> 55...
     # Telefone BR válido com DDI tem 12-13 dígitos (55 + DDD + número)
     # Se tem 14+ dígitos e começa com 5555, provavelmente é DDI duplicado
     if len(tel) >= 14 and tel.startswith('5555'):
         tel = tel[2:]  # Remove os primeiros 55
-        logger.debug("[normalizar_telefone_br] DDI duplicado corrigido: %s -> %s", telefone, tel)
-
-    # Se não tem DDI, adiciona
-    if len(tel) in [10, 11] and not tel.startswith('55'):
-        tel = '55' + tel
+        logger.debug("[normalizar_telefone] DDI duplicado corrigido: %s -> %s", telefone, tel)
 
     return tel
+
+
+# Alias para compatibilidade com código existente
+normalizar_telefone_br = normalizar_telefone
 
 
 def validar_tel_whatsapp(telefone: str, token: str, user=None) -> dict:

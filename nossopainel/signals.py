@@ -929,9 +929,27 @@ def verificar_limite_apos_mudanca_plano(sender, instance, created, **kwargs):
 
     # Obter informações da conta bancária (via forma de pagamento do cliente)
     conta_info = None
+    faturamento_conta_anterior = Decimal('0')
+    faturamento_conta_atual = Decimal('0')
+
     if instance.forma_pgto and instance.forma_pgto.conta_bancaria:
         conta = instance.forma_pgto.conta_bancaria
         conta_info = f"{conta.nome_identificacao} ({conta.instituicao.nome})"
+
+        # Calcular faturamento total da conta (soma de todos os clientes ativos)
+        clientes_conta = ClienteContaBancaria.objects.filter(
+            conta_bancaria=conta,
+            ativo=True,
+            cliente__cancelado=False
+        ).select_related('cliente__plano')
+
+        for cc in clientes_conta:
+            if cc.cliente.plano:
+                pagamentos = PAGAMENTOS_POR_ANO.get(cc.cliente.plano.nome, 12)
+                faturamento_conta_atual += cc.cliente.plano.valor * pagamentos
+
+        # Faturamento anterior = atual - impacto deste cliente
+        faturamento_conta_anterior = faturamento_conta_atual - Decimal(str(impacto_valor))
 
     # Criar notificação de mudança/criação de plano
     try:
@@ -941,8 +959,8 @@ def verificar_limite_apos_mudanca_plano(sender, instance, created, **kwargs):
             plano_antigo=f"{plano_anterior_nome} (R$ {plano_anterior_valor})" if not is_novo_cliente else None,
             plano_novo=f"{plano_atual_nome} (R$ {plano_atual_valor})",
             impacto_valor=impacto_valor,
-            valor_anual_anterior=valor_anual_anterior,
-            valor_anual_atual=valor_anual_atual,
+            faturamento_conta_anterior=float(faturamento_conta_anterior),
+            faturamento_conta_atual=float(faturamento_conta_atual),
             conta_info=conta_info,
             is_novo_cliente=is_novo_cliente
         )
