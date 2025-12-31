@@ -1186,9 +1186,33 @@
                       </div>
                     </div>
 
+                    <!-- Resumo para FastDePix (Ilimitado) - visível apenas para FastDePix -->
+                    <div class="alert alert-success mb-3 d-none" id="alertFastDePix">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                          <strong><i class="bi bi-infinity me-1"></i>FastDePix - Sem Limite de Faturamento</strong>
+                        </div>
+                        <div>
+                          <strong>Faturamento:</strong>
+                          <span id="valorSelecionadoDisplayFastDePix">R$ 0,00</span>
+                        </div>
+                      </div>
+                      <!-- Slider Interativo para FastDePix (sem limite, baseado em quantidade) -->
+                      <div class="slider-container position-relative">
+                        <input type="range" class="form-range slider-clientes-fastdepix" id="sliderClientesFastDePix"
+                               min="0" max="100" value="0" step="1"
+                               style="height: 20px; cursor: grab;">
+                        <div class="d-flex justify-content-between mt-1">
+                          <small class="text-muted">0%</small>
+                          <small class="text-muted fw-semibold" id="sliderValueDisplayFastDePix">Arraste para selecionar clientes</small>
+                          <small class="text-muted">100%</small>
+                        </div>
+                      </div>
+                    </div>
+
                     <!-- Estilos dos sliders e tabela -->
                     <style>
-                      .slider-clientes, .slider-clientes-pf {
+                      .slider-clientes, .slider-clientes-pf, .slider-clientes-fastdepix {
                         -webkit-appearance: none;
                         width: 100%;
                         height: 12px;
@@ -1234,6 +1258,35 @@
                       }
                       .slider-clientes-pf::-moz-range-thumb {
                         background: #198754;
+                      }
+                      /* Slider FastDePix usa cor success também */
+                      .slider-clientes-fastdepix::-webkit-slider-thumb {
+                        -webkit-appearance: none;
+                        width: 24px;
+                        height: 24px;
+                        border-radius: 50%;
+                        background: #198754;
+                        cursor: grab;
+                        border: 3px solid #fff;
+                        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                        transition: transform 0.15s ease, box-shadow 0.15s ease;
+                      }
+                      .slider-clientes-fastdepix::-webkit-slider-thumb:hover {
+                        transform: scale(1.1);
+                        box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                      }
+                      .slider-clientes-fastdepix::-webkit-slider-thumb:active {
+                        cursor: grabbing;
+                        transform: scale(1.15);
+                      }
+                      .slider-clientes-fastdepix::-moz-range-thumb {
+                        width: 24px;
+                        height: 24px;
+                        border-radius: 50%;
+                        background: #198754;
+                        cursor: grab;
+                        border: 3px solid #fff;
+                        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
                       }
                       /* Cores de alerta para MEI */
                       .slider-clientes.slider-warning {
@@ -1959,9 +2012,33 @@
                     </div>
                   </div>
 
+                  <!-- Resumo FastDePix (SEM limite) com Slider -->
+                  <div class="alert alert-success mb-3 d-none" id="editarAlertFastDePix">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <div>
+                        <strong><i class="bi bi-infinity me-1"></i>FastDePix - Sem Limite de Faturamento</strong>
+                      </div>
+                      <div>
+                        <strong>Faturamento:</strong>
+                        <span id="editarValorSelecionadoFastDePix">R$ 0,00</span>
+                      </div>
+                    </div>
+                    <!-- Slider Interativo para FastDePix (baseado em quantidade) -->
+                    <div class="slider-container position-relative">
+                      <input type="range" class="form-range slider-clientes-fastdepix-editar" id="sliderClientesFastDePixEditar"
+                             min="0" max="100" value="0" step="1"
+                             style="height: 20px; cursor: grab;">
+                      <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">0%</small>
+                        <small class="text-muted fw-semibold" id="sliderValueDisplayFastDePixEditar">Arraste para selecionar clientes</small>
+                        <small class="text-muted">100%</small>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Estilos dos sliders para edição -->
                   <style>
-                    .slider-clientes-editar, .slider-clientes-pf-editar {
+                    .slider-clientes-editar, .slider-clientes-pf-editar, .slider-clientes-fastdepix-editar {
                       -webkit-appearance: none;
                       width: 100%;
                       height: 12px;
@@ -2006,6 +2083,38 @@
                     }
                     .slider-clientes-pf-editar::-moz-range-thumb {
                       background: #198754;
+                    }
+                    /* Slider FastDePix editar usa cor success (verde) */
+                    .slider-clientes-fastdepix-editar {
+                      background: linear-gradient(to right, #198754 0%, #e9ecef 0%);
+                    }
+                    .slider-clientes-fastdepix-editar::-webkit-slider-thumb {
+                      -webkit-appearance: none;
+                      width: 24px;
+                      height: 24px;
+                      border-radius: 50%;
+                      background: #198754;
+                      cursor: grab;
+                      border: 3px solid #fff;
+                      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                      transition: transform 0.15s ease, box-shadow 0.15s ease;
+                    }
+                    .slider-clientes-fastdepix-editar::-webkit-slider-thumb:hover {
+                      transform: scale(1.1);
+                      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                    }
+                    .slider-clientes-fastdepix-editar::-webkit-slider-thumb:active {
+                      cursor: grabbing;
+                      transform: scale(1.15);
+                    }
+                    .slider-clientes-fastdepix-editar::-moz-range-thumb {
+                      width: 24px;
+                      height: 24px;
+                      border-radius: 50%;
+                      background: #198754;
+                      cursor: grab;
+                      border: 3px solid #fff;
+                      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
                     }
                     .slider-clientes-editar.slider-warning {
                       background: linear-gradient(to right, #ffc107 var(--slider-percent), #e9ecef var(--slider-percent));
@@ -2463,6 +2572,7 @@
 
   // ========== Variável para controle do modo de conta (PF ou MEI) ==========
   let tipoContaAtual = null;
+  let isFastDePixAtual = false; // Controla se a forma de pagamento atual é FastDePix
 
   // ========== Handler para mudança de Tipo de Conta ==========
   $(document).on('change', '.tipo-conta-select', function() {
@@ -2470,6 +2580,7 @@
     const instituicao = $(this).data('instituicao');
 
     tipoContaAtual = tipoSelecionado;
+    isFastDePixAtual = (instituicao === 'fastdepix');
 
     // Sincronizar com campo hidden
     $('#tipoConta').val(tipoSelecionado);
@@ -2502,17 +2613,26 @@
         carregarClientesAtivos();
       }
 
-      // Mostrar alerta apropriado (MEI ou PF - ambos com limite)
-      // Carregar configuração de limite para ambos os tipos
-      carregarConfigLimite();
-
+      // Mostrar alerta apropriado (MEI, PF com limite, ou FastDePix ilimitado)
       if (tipoSelecionado === 'mei') {
+        // MEI sempre tem limite
+        carregarConfigLimite();
         $('#alertLimiteMei').removeClass('d-none');
         $('#alertPessoaFisica').addClass('d-none');
+        $('#alertFastDePix').addClass('d-none');
         $('#colDisponivelCriacao').removeClass('d-none');
+      } else if (isFastDePixAtual) {
+        // FastDePix PF não tem limite
+        $('#alertLimiteMei').addClass('d-none');
+        $('#alertPessoaFisica').addClass('d-none');
+        $('#alertFastDePix').removeClass('d-none');
+        $('#colDisponivelCriacao').addClass('d-none');
       } else {
+        // Outras formas PF têm limite
+        carregarConfigLimite();
         $('#alertLimiteMei').addClass('d-none');
         $('#alertPessoaFisica').removeClass('d-none');
+        $('#alertFastDePix').addClass('d-none');
         $('#colDisponivelCriacao').removeClass('d-none');
       }
     } else {
@@ -2812,23 +2932,26 @@
     const row = $(this).closest('tr');
 
     if ($(this).is(':checked')) {
-      // Verificar se pode adicionar (limite conforme tipo de conta)
-      const novoTotal = valorTotalSelecionado + valorAnual;
-      const limiteAtual = tipoContaAtual === 'mei' ? limiteMeiGlobal : limitePfGlobal;
-      const percentual = (novoTotal / limiteAtual) * 100;
+      // FastDePix PF não tem limite
+      if (!isFastDePixAtual) {
+        // Verificar se pode adicionar (limite conforme tipo de conta)
+        const novoTotal = valorTotalSelecionado + valorAnual;
+        const limiteAtual = tipoContaAtual === 'mei' ? limiteMeiGlobal : limitePfGlobal;
+        const percentual = (novoTotal / limiteAtual) * 100;
 
-      if (percentual >= 99) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Limite Atingido',
-          text: 'Voce atingiu 99% do limite. Nao e possivel adicionar mais clientes.'
-        });
-        $(this).prop('checked', false);
-        return;
+        if (percentual >= 99) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Limite Atingido',
+            text: 'Voce atingiu 99% do limite. Nao e possivel adicionar mais clientes.'
+          });
+          $(this).prop('checked', false);
+          return;
+        }
       }
 
       clientesSelecionados.add(clienteId);
-      valorTotalSelecionado = novoTotal;
+      valorTotalSelecionado += valorAnual;
       row.addClass('selected');
     } else {
       clientesSelecionados.delete(clienteId);
@@ -2866,21 +2989,24 @@
     const clientesDisponiveis = clientesAtivos.filter(c => !c.bloqueado);
 
     if (checked) {
-      // Calcular se cabe todos os clientes disponíveis
-      let totalPotencial = 0;
-      clientesDisponiveis.forEach(function(c) {
-        totalPotencial += c.valor_anual;
-      });
-
-      const limiteAtual = tipoContaAtual === 'mei' ? limiteMeiGlobal : limitePfGlobal;
-      if ((totalPotencial / limiteAtual) * 100 >= 99) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Limite Excedido',
-          text: 'Selecionar todos os clientes disponíveis excederia o limite. Selecione individualmente ou use o slider.'
+      // FastDePix PF não tem limite
+      if (!isFastDePixAtual) {
+        // Calcular se cabe todos os clientes disponíveis
+        let totalPotencial = 0;
+        clientesDisponiveis.forEach(function(c) {
+          totalPotencial += c.valor_anual;
         });
-        $(this).prop('checked', false);
-        return;
+
+        const limiteAtual = tipoContaAtual === 'mei' ? limiteMeiGlobal : limitePfGlobal;
+        if ((totalPotencial / limiteAtual) * 100 >= 99) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Limite Excedido',
+            text: 'Selecionar todos os clientes disponíveis excederia o limite. Selecione individualmente ou use o slider.'
+          });
+          $(this).prop('checked', false);
+          return;
+        }
       }
 
       clientesSelecionados.clear();
@@ -2930,7 +3056,7 @@
       $('#colTransferencias').addClass('d-none');
     }
 
-    // Atualizar conforme tipo de conta (MEI ou PF)
+    // Atualizar conforme tipo de conta (MEI, PF com limite, ou FastDePix ilimitado)
     if (tipoContaAtual === 'mei') {
       // MEI: com limite
       const percentual = (valorTotalSelecionado / limiteMeiGlobal) * 100;
@@ -2951,6 +3077,14 @@
 
       // Sincronizar slider MEI
       atualizarSliderVisualMei(percentual);
+    } else if (isFastDePixAtual) {
+      // FastDePix: SEM limite
+      $('#valorSelecionadoDisplayFastDePix').text(formatarMoedaBR(valorTotalSelecionado));
+
+      // Sincronizar slider FastDePix (baseado em quantidade de clientes, não em valor)
+      const percentualClientes = clientesAtivos.length > 0 ?
+        (clientesSelecionados.size / clientesAtivos.length) * 100 : 0;
+      atualizarSliderVisualFastDePix(percentualClientes);
     } else {
       // Pessoa Física: com limite
       const percentual = (valorTotalSelecionado / limitePfGlobal) * 100;
@@ -3016,6 +3150,22 @@
       $('#sliderValueDisplayPf').text('Arraste para selecionar clientes');
     } else {
       $('#sliderValueDisplayPf').text(`${clientesSelecionados.size} cliente(s) - ${percentual.toFixed(1)}%`);
+    }
+  }
+
+  // Atualizar visual do slider FastDePix (sem limite, baseado em quantidade de clientes)
+  function atualizarSliderVisualFastDePix(percentual) {
+    const slider = $('#sliderClientesFastDePix');
+    slider.val(Math.min(percentual, 100));
+
+    // FastDePix usa cor success (verde)
+    slider.css('background', `linear-gradient(to right, #198754 ${percentual}%, #e9ecef ${percentual}%)`);
+
+    // Atualizar texto do display
+    if (clientesSelecionados.size === 0) {
+      $('#sliderValueDisplayFastDePix').text('Arraste para selecionar clientes');
+    } else {
+      $('#sliderValueDisplayFastDePix').text(`${clientesSelecionados.size} cliente(s) selecionado(s)`);
     }
   }
 
@@ -3168,6 +3318,67 @@
       $('#sliderValueDisplayPf').text(`${clientesSelecionados.size} cliente(s) - ${percentual.toFixed(1)}%`);
     }
   });
+
+  // Handler do slider FastDePix (SEM limite - baseado em quantidade de clientes)
+  $('#sliderClientesFastDePix').on('input', function() {
+    const percentualClientes = parseFloat($(this).val());
+    const totalDisponiveis = getClientesOrdenadosPorValor().length;
+    const quantidade = Math.round((percentualClientes / 100) * totalDisponiveis);
+
+    // Atualizar display durante o arrasto
+    $('#sliderValueDisplayFastDePix').text(`Selecionando ${quantidade} cliente(s)...`);
+
+    selecionarClientesPorQuantidadeFastDePix(percentualClientes);
+  });
+
+  $('#sliderClientesFastDePix').on('mousedown touchstart', function() {
+    $(this).css('cursor', 'grabbing');
+  });
+
+  $('#sliderClientesFastDePix').on('mouseup touchend', function() {
+    $(this).css('cursor', 'grab');
+    if (clientesSelecionados.size === 0) {
+      $('#sliderValueDisplayFastDePix').text('Arraste para selecionar clientes');
+    } else {
+      $('#sliderValueDisplayFastDePix').text(`${clientesSelecionados.size} cliente(s) selecionado(s)`);
+    }
+  });
+
+  // Selecionar clientes por percentual de quantidade (para FastDePix - sem limite)
+  function selecionarClientesPorQuantidadeFastDePix(percentualClientes) {
+    const clientesOrdenados = getClientesOrdenadosPorValor();
+    const totalDisponiveis = clientesOrdenados.length;
+    const quantidade = Math.round((percentualClientes / 100) * totalDisponiveis);
+
+    // Limpar seleção atual
+    clientesSelecionados.clear();
+    valorTotalSelecionado = 0;
+
+    // Selecionar os primeiros N clientes (ordenados por valor)
+    for (let i = 0; i < Math.min(quantidade, clientesOrdenados.length); i++) {
+      const cliente = clientesOrdenados[i];
+      clientesSelecionados.add(cliente.id);
+      valorTotalSelecionado += cliente.valor_anual;
+    }
+
+    // Atualizar UI (checkboxes e classes das linhas)
+    $('.checkbox-cliente').each(function() {
+      const id = parseInt($(this).data('id'));
+      const $row = $(this).closest('tr');
+
+      // Não alterar clientes bloqueados
+      if ($row.hasClass('blocked-row')) {
+        return;
+      }
+
+      const isSelected = clientesSelecionados.has(id);
+      $(this).prop('checked', isSelected);
+      $row.toggleClass('selected', isSelected);
+    });
+
+    atualizarResumoClientes();
+    atualizarCampoHidden();
+  }
 
   // Selecionar clientes por quantidade (para Pessoa Física)
   function selecionarClientesPorQuantidade(quantidade) {
@@ -3971,6 +4182,7 @@
   let editarValorTotalSelecionado = 0;
   let editarTipoIntegracaoAtual = 'manual';
   let editarTipoContaAtual = 'pf';
+  let editarIsFastDePixAtual = false;  // Controla se a forma de pagamento em edição é FastDePix
   let editarFormaPgtoIdAtual = null;  // ID da forma de pagamento sendo editada
   let editarFormaPgtoAntiga = false;  // Se é forma de pagamento antiga (sem conta bancária)
 
@@ -4042,6 +4254,7 @@
 
     // Tipo de integração
     editarTipoIntegracaoAtual = inst ? inst.tipo_integracao : 'manual';
+    editarIsFastDePixAtual = (editarTipoIntegracaoAtual === 'fastdepix');
     $('#editarTipoIntegracao').val(editarTipoIntegracaoAtual);
 
     // Header com cor da instituição
@@ -4145,6 +4358,7 @@
 
       // Definir tipo de integração como manual
       editarTipoIntegracaoAtual = 'manual';
+      editarIsFastDePixAtual = false;
       $('#editarTipoIntegracao').val('manual');
 
       // ===== MOSTRAR E PREENCHER DADOS BANCARIOS =====
@@ -4205,15 +4419,26 @@
     carregarLimiteGlobalEditar();
 
     if (editarTipoContaAtual === 'mei') {
+      // MEI: sempre tem limite
       $('#editarLimiteMeiContainer').removeClass('d-none');
       $('#editarAlertLimiteMei').removeClass('d-none');
       $('#editarAlertPessoaFisica').addClass('d-none');
+      $('#editarAlertFastDePix').addClass('d-none');
       $('#colDisponivelEdicao').removeClass('d-none');
+    } else if (editarIsFastDePixAtual) {
+      // FastDePix PF: SEM limite
+      $('#editarLimiteMeiContainer').addClass('d-none');
+      $('#editarAlertLimiteMei').addClass('d-none');
+      $('#editarAlertPessoaFisica').addClass('d-none');
+      $('#editarAlertFastDePix').removeClass('d-none');
+      $('#colDisponivelEdicao').addClass('d-none');
     } else {
+      // Outras formas PF: com limite
       $('#editarLimiteMeiContainer').addClass('d-none');
       $('#editarAlertLimiteMei').addClass('d-none');
       $('#editarAlertPessoaFisica').removeClass('d-none');
-      $('#colDisponivelEdicao').removeClass('d-none');  // Mostrar também para PF
+      $('#editarAlertFastDePix').addClass('d-none');
+      $('#colDisponivelEdicao').removeClass('d-none');
     }
     atualizarResumoClientesEditar();
   }
@@ -4468,6 +4693,41 @@
     slider.css('background', `linear-gradient(to right, ${cor} ${percentual}%, #e9ecef ${percentual}%)`);
   }
 
+  // Funções específicas de slider para cada tipo de conta na edição
+  function atualizarSliderEditarMei(percentual) {
+    const totalSelecionados = editarClientesSelecionados.size + editarClientesParaTransferir.size;
+    $('#sliderClientesMeiEditar').val(Math.min(percentual, 99));
+    atualizarSliderVisualEditar('#sliderClientesMeiEditar', percentual, 'mei');
+    if (totalSelecionados === 0) {
+      $('#sliderValueDisplayMeiEditar').text('Arraste para selecionar clientes');
+    } else {
+      $('#sliderValueDisplayMeiEditar').text(`${totalSelecionados} cliente(s) - ${percentual.toFixed(1)}%`);
+    }
+  }
+
+  function atualizarSliderEditarPf(percentual) {
+    const totalSelecionados = editarClientesSelecionados.size + editarClientesParaTransferir.size;
+    $('#sliderClientesPfEditar').val(Math.min(percentual, 99));
+    atualizarSliderVisualEditar('#sliderClientesPfEditar', percentual, 'pf');
+    if (totalSelecionados === 0) {
+      $('#sliderValueDisplayPfEditar').text('Arraste para selecionar clientes');
+    } else {
+      $('#sliderValueDisplayPfEditar').text(`${totalSelecionados} cliente(s) - ${percentual.toFixed(1)}%`);
+    }
+  }
+
+  function atualizarSliderEditarFastDePix(percentualClientes) {
+    const totalSelecionados = editarClientesSelecionados.size + editarClientesParaTransferir.size;
+    const slider = $('#sliderClientesFastDePixEditar');
+    slider.val(Math.min(percentualClientes, 100));
+    slider.css('background', `linear-gradient(to right, #198754 ${percentualClientes}%, #e9ecef ${percentualClientes}%)`);
+    if (totalSelecionados === 0) {
+      $('#sliderValueDisplayFastDePixEditar').text('Arraste para selecionar clientes');
+    } else {
+      $('#sliderValueDisplayFastDePixEditar').text(`${totalSelecionados} cliente(s) selecionado(s)`);
+    }
+  }
+
   function atualizarResumoClientesEditar() {
     const totalSelecionados = editarClientesSelecionados.size + editarClientesParaTransferir.size;
     $('#editarTotalSelecionados').text(totalSelecionados);
@@ -4497,6 +4757,16 @@
       } else {
         $('#editarAlertLimiteMei').removeClass('alert-warning alert-danger').addClass('alert-info');
       }
+      // Atualizar slider MEI
+      atualizarSliderEditarMei(percentual);
+    } else if (editarIsFastDePixAtual) {
+      // FastDePix: SEM limite
+      $('#editarValorSelecionadoFastDePix').text(formatarMoedaBR(editarValorTotalSelecionado));
+
+      // Sincronizar slider FastDePix (baseado em quantidade de clientes)
+      const percentualClientes = editarClientesOrdenados.length > 0 ?
+        ((editarClientesSelecionados.size + editarClientesParaTransferir.size) / editarClientesOrdenados.length) * 100 : 0;
+      atualizarSliderEditarFastDePix(percentualClientes);
     } else {
       // Pessoa Física: com limite
       const percentual = editarLimitePfGlobal > 0 ? (editarValorTotalSelecionado / editarLimitePfGlobal) * 100 : 0;
@@ -4514,6 +4784,8 @@
       } else {
         $('#editarAlertPessoaFisica').removeClass('alert-warning alert-danger').addClass('alert-info');
       }
+      // Atualizar slider PF
+      atualizarSliderEditarPf(percentual);
     }
 
     // Atualizar campos hidden
@@ -4528,19 +4800,22 @@
     const row = $(this).closest('tr');
 
     if ($(this).is(':checked')) {
-      // Verificar limite conforme tipo de conta (MEI ou PF)
-      const novoTotal = editarValorTotalSelecionado + valorAnual;
-      const limiteAtual = editarTipoContaAtual === 'mei' ? editarLimiteMeiGlobal : editarLimitePfGlobal;
-      const percentual = (novoTotal / limiteAtual) * 100;
+      // FastDePix PF não tem limite
+      if (!editarIsFastDePixAtual) {
+        // Verificar limite conforme tipo de conta (MEI ou PF)
+        const novoTotal = editarValorTotalSelecionado + valorAnual;
+        const limiteAtual = editarTipoContaAtual === 'mei' ? editarLimiteMeiGlobal : editarLimitePfGlobal;
+        const percentual = (novoTotal / limiteAtual) * 100;
 
-      if (percentual >= 99) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Limite Atingido',
-          text: 'Você atingiu 99% do limite. Não é possível adicionar mais clientes.'
-        });
-        $(this).prop('checked', false);
-        return;
+        if (percentual >= 99) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Limite Atingido',
+            text: 'Você atingiu 99% do limite. Não é possível adicionar mais clientes.'
+          });
+          $(this).prop('checked', false);
+          return;
+        }
       }
 
       editarClientesSelecionados.add(clienteId);
@@ -4564,19 +4839,22 @@
     const row = $(this).closest('tr');
 
     if ($(this).is(':checked')) {
-      // Verificar limite conforme tipo de conta (MEI ou PF)
-      const novoTotal = editarValorTotalSelecionado + valorAnual;
-      const limiteAtual = editarTipoContaAtual === 'mei' ? editarLimiteMeiGlobal : editarLimitePfGlobal;
-      const percentual = (novoTotal / limiteAtual) * 100;
+      // FastDePix PF não tem limite
+      if (!editarIsFastDePixAtual) {
+        // Verificar limite conforme tipo de conta (MEI ou PF)
+        const novoTotal = editarValorTotalSelecionado + valorAnual;
+        const limiteAtual = editarTipoContaAtual === 'mei' ? editarLimiteMeiGlobal : editarLimitePfGlobal;
+        const percentual = (novoTotal / limiteAtual) * 100;
 
-      if (percentual >= 99) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Limite Atingido',
-          text: 'Você atingiu 99% do limite. Não é possível adicionar mais clientes.'
-        });
-        $(this).prop('checked', false);
-        return;
+        if (percentual >= 99) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Limite Atingido',
+            text: 'Você atingiu 99% do limite. Não é possível adicionar mais clientes.'
+          });
+          $(this).prop('checked', false);
+          return;
+        }
       }
 
       // Confirmar transferência
@@ -4693,6 +4971,68 @@
     $('#sliderValueDisplayPfEditar').text(`${totalSelecionados} cliente(s) - ${percentual.toFixed(1)}%`);
   });
 
+  // Slider FastDePix na edição - baseado em QUANTIDADE de clientes (sem limite)
+  $('#sliderClientesFastDePixEditar').on('input', function() {
+    const percentualDesejado = parseInt($(this).val());
+    const clientesSelecionaveis = editarClientesOrdenados.filter(c => !c.bloqueado);
+    const quantidadeAlvo = Math.round((percentualDesejado / 100) * clientesSelecionaveis.length);
+
+    // Atualizar display durante arrasto
+    $('#sliderValueDisplayFastDePixEditar').text(`Selecionando ${quantidadeAlvo} cliente(s)...`);
+
+    // Atualizar visual do slider (cor verde)
+    const slider = $(this);
+    slider.css('background', `linear-gradient(to right, #198754 ${percentualDesejado}%, #e9ecef ${percentualDesejado}%)`);
+
+    // Selecionar clientes por quantidade (sem verificação de limite)
+    selecionarClientesPorQuantidadeEditarFastDePix(quantidadeAlvo);
+  });
+
+  // Handlers de interação visual para slider FastDePix na edição
+  $('#sliderClientesFastDePixEditar').on('mousedown touchstart', function() {
+    $(this).css('cursor', 'grabbing');
+  });
+
+  $('#sliderClientesFastDePixEditar').on('mouseup touchend', function() {
+    $(this).css('cursor', 'grab');
+    const totalSelecionados = editarClientesSelecionados.size + editarClientesParaTransferir.size;
+    if (totalSelecionados === 0) {
+      $('#sliderValueDisplayFastDePixEditar').text('Arraste para selecionar clientes');
+    } else {
+      $('#sliderValueDisplayFastDePixEditar').text(`${totalSelecionados} cliente(s) selecionado(s)`);
+    }
+  });
+
+  // Selecionar clientes por quantidade para FastDePix (sem verificação de limite)
+  function selecionarClientesPorQuantidadeEditarFastDePix(quantidade) {
+    const clientesSelecionaveis = editarClientesOrdenados.filter(c => !c.bloqueado);
+
+    // Limpar seleção atual (manter os que já eram associados)
+    editarClientesSelecionados.clear();
+    editarValorTotalSelecionado = 0;
+
+    // Selecionar os primeiros N clientes (ordenados por valor)
+    for (let i = 0; i < Math.min(quantidade, clientesSelecionaveis.length); i++) {
+      const cliente = clientesSelecionaveis[i];
+      editarClientesSelecionados.add(cliente.id);
+      editarValorTotalSelecionado += cliente.valor_anual;
+    }
+
+    // Atualizar UI (checkboxes)
+    $('.editar-checkbox-cliente').each(function() {
+      const id = parseInt($(this).data('id'));
+      const row = $(this).closest('tr');
+
+      if (!row.hasClass('blocked-row')) {
+        const isSelected = editarClientesSelecionados.has(id);
+        $(this).prop('checked', isSelected);
+        row.toggleClass('selected', isSelected);
+      }
+    });
+
+    atualizarResumoClientesEditar();
+  }
+
   // Selecionar/deselecionar cliente ao clicar na linha (edição)
   $(document).on('click', '#editarListaClientes tr', function(e) {
     // Se clicou diretamente no checkbox, deixa o comportamento padrão
@@ -4720,10 +5060,12 @@
         cancelButtonColor: '#6c757d'
       }).then((result) => {
         if (result.isConfirmed) {
-          // Verificar limite MEI
-          if (editarTipoContaAtual === 'mei') {
+          // FastDePix PF não tem limite
+          if (!editarIsFastDePixAtual) {
+            // Verificar limite conforme tipo de conta
             const novoTotal = editarValorTotalSelecionado + valorAnual;
-            const percentual = (novoTotal / editarLimiteMeiGlobal) * 100;
+            const limiteAtual = editarTipoContaAtual === 'mei' ? editarLimiteMeiGlobal : editarLimitePfGlobal;
+            const percentual = (novoTotal / limiteAtual) * 100;
 
             if (percentual >= 99) {
               Swal.fire({

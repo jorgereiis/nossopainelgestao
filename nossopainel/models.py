@@ -612,6 +612,7 @@ class Aplicativo(models.Model):
             'bobplayer.png': ['bobplayer', 'bob'],
             'webplayer.png': ['webplayer', 'dns'],
             'lazerplay.png': ['lazerplay', 'lazer'],
+            'phoenix.png': ['phoenixp2p', 'phoenix'],
             'metaplayer.png': ['metaplayer', 'meta'],
             'ninjaplayer.png': ['ninjaplayer', 'ninja'],
             'vuplayer.png': ['vuplayer', 'vuplay', 'vu'],
@@ -3154,35 +3155,70 @@ class CobrancaPix(models.Model):
         if self.mensalidade_id:
             # Buscar mensalidade fresca do banco com relacionamentos necessários
             # Isso garante que os signals tenham acesso a cliente.plano, etc.
+            # Usa select_for_update para evitar processamento duplicado (race condition)
             from nossopainel.models import Mensalidade
+            from django.db import transaction
+
             try:
-                mensalidade = Mensalidade.objects.select_related(
-                    'cliente',
-                    'cliente__plano',
-                    'usuario'
-                ).get(pk=self.mensalidade_id)
+                with transaction.atomic():
+                    # Bloqueia a mensalidade para evitar processamento duplicado
+                    try:
+                        mensalidade = Mensalidade.objects.select_for_update(nowait=True).select_related(
+                            'cliente',
+                            'cliente__plano',
+                            'usuario'
+                        ).get(pk=self.mensalidade_id)
+                    except Exception as lock_error:
+                        # Se não conseguiu obter lock, outra requisição está processando
+                        if 'lock' in str(lock_error).lower():
+                            logger.info(
+                                f'[CobrancaPix] Mensalidade {self.mensalidade_id} está sendo processada '
+                                f'por outra requisição. Ignorando (cobrança {self.id})'
+                            )
+                            return
+                        raise
 
-                # Verifica se a mensalidade ainda não foi paga
-                if not mensalidade.pgto:
-                    mensalidade.dt_pagamento = self.pago_em.date()
-                    mensalidade.pgto = True
-                    mensalidade.save()  # Dispara signals: criar_nova_mensalidade, atualiza_ultimo_pagamento
+                    # Verifica se a mensalidade ainda não foi paga
+                    if not mensalidade.pgto:
+                        # PROTEÇÃO ADICIONAL: Verificar se já existe mensalidade futura
+                        # Isso indica que o pagamento já foi processado por outra requisição
+                        mensalidade_futura_existe = Mensalidade.objects.filter(
+                            cliente=mensalidade.cliente,
+                            dt_vencimento__gt=mensalidade.dt_vencimento,
+                            pgto=False,
+                            cancelado=False
+                        ).exists()
 
-                    logger.info(
-                        f'[CobrancaPix] Mensalidade {mensalidade.id} marcada como PAGA '
-                        f'via PIX (cobrança {self.id}) - '
-                        f'Cliente: {mensalidade.cliente.nome} - '
-                        f'Signals de criação de nova mensalidade disparados'
-                    )
+                        if mensalidade_futura_existe:
+                            logger.warning(
+                                f'[CobrancaPix] Mensalidade futura já existe para cliente {mensalidade.cliente.nome}. '
+                                f'Pagamento já foi processado por outra requisição (cobrança {self.id})'
+                            )
+                            # Marca a mensalidade como paga mesmo assim para manter consistência
+                            mensalidade.dt_pagamento = self.pago_em.date()
+                            mensalidade.pgto = True
+                            mensalidade.save()
+                            return
 
-                    # === NOTIFICAÇÕES DE PAGAMENTO CONFIRMADO ===
-                    self._enviar_notificacoes_pagamento(mensalidade, logger)
+                        mensalidade.dt_pagamento = self.pago_em.date()
+                        mensalidade.pgto = True
+                        mensalidade.save()  # Dispara signals: criar_nova_mensalidade, atualiza_ultimo_pagamento
 
-                else:
-                    logger.warning(
-                        f'[CobrancaPix] Mensalidade {mensalidade.id} já estava paga, '
-                        f'ignorando atualização (cobrança {self.id})'
-                    )
+                        logger.info(
+                            f'[CobrancaPix] Mensalidade {mensalidade.id} marcada como PAGA '
+                            f'via PIX (cobrança {self.id}) - '
+                            f'Cliente: {mensalidade.cliente.nome} - '
+                            f'Signals de criação de nova mensalidade disparados'
+                        )
+
+                        # === NOTIFICAÇÕES DE PAGAMENTO CONFIRMADO ===
+                        self._enviar_notificacoes_pagamento(mensalidade, logger)
+
+                    else:
+                        logger.warning(
+                            f'[CobrancaPix] Mensalidade {mensalidade.id} já estava paga, '
+                            f'ignorando atualização (cobrança {self.id})'
+                        )
 
             except Mensalidade.DoesNotExist:
                 logger.error(

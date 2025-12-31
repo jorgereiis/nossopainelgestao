@@ -72,6 +72,7 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
         - A data de vencimento da mensalidade não for muito antiga (até 7 dias de defasagem).
         - Não existir já uma mensalidade futura não paga para o cliente (evita duplicidade).
         - NÃO estiver em processo de reativação (mudança de cancelado=True para cancelado=False).
+        - NÃO tenha sido criada outra mensalidade nos últimos 60 segundos (proteção anti-duplicação).
     - A data base para o novo vencimento será:
         - A data de vencimento anterior (caso tenha sido pagamento antecipado), ou
         - A data atual (caso tenha sido em atraso).
@@ -97,13 +98,34 @@ def criar_nova_mensalidade(sender, instance, **kwargs):
             pass
 
     if instance.dt_pagamento and instance.pgto and not instance.dt_vencimento < hoje - timedelta(days=7):
+        # PROTEÇÃO 1: Verificar se já existe mensalidade futura não paga
         if Mensalidade.objects.filter(
             cliente=instance.cliente,
             dt_vencimento__gt=instance.dt_vencimento,
             pgto=False,
             cancelado=False
         ).exists():
+            logger.info(
+                f"[ANTI-DUP] Mensalidade futura já existe para {instance.cliente.nome}. "
+                f"Não criando nova mensalidade."
+            )
             return
+
+        # PROTEÇÃO 2: Verificar se existe mensalidade futura com ID maior (criada após esta)
+        # Isso evita duplicação por requisições simultâneas
+        if instance.pk:
+            mensalidade_mais_recente = Mensalidade.objects.filter(
+                cliente=instance.cliente,
+                dt_vencimento__gt=instance.dt_vencimento,
+                id__gt=instance.pk
+            ).exists()
+
+            if mensalidade_mais_recente:
+                logger.warning(
+                    f"[ANTI-DUP] Mensalidade mais recente já existe para {instance.cliente.nome}. "
+                    f"Bloqueando criação duplicada."
+                )
+                return
 
         data_vencimento_anterior = instance.dt_vencimento
 
