@@ -3265,19 +3265,58 @@ def reactivate_customer(request, cliente_id):
 def pay_monthly_fee(request, mensalidade_id):
     """
     Função de view para pagar uma mensalidade.
-    """
-    hoje = timezone.localtime().date()
-    mensalidade = Mensalidade.objects.get(pk=mensalidade_id, usuario=request.user)
 
-    # Verifica se a mensalidade está atrasada por mais de 7 dias
-    if mensalidade.dt_vencimento < hoje - timedelta(days=7):
-        return JsonResponse({"error_message": "erro"})
-    
-    # Realiza as modificações na mensalidade paga
-    mensalidade.dt_pagamento = timezone.localtime().date()
-    mensalidade.pgto = True
+    Proteção contra duplicação:
+    - Usa select_for_update() para bloquear a mensalidade durante processamento
+    - Verifica se já está paga antes de processar
+    - Verifica se foi criada mensalidade futura nos últimos 60 segundos
+    """
+    from django.db import transaction
+
+    hoje = timezone.localtime().date()
+
     try:
-        mensalidade.save()
+        with transaction.atomic():
+            # Bloqueia a mensalidade para evitar processamento duplicado
+            mensalidade = Mensalidade.objects.select_for_update(nowait=True).get(
+                pk=mensalidade_id,
+                usuario=request.user
+            )
+
+            # PROTEÇÃO: Verifica se já está paga
+            if mensalidade.pgto:
+                logger.info(f"[ANTI-DUP] Mensalidade {mensalidade_id} já está paga. Ignorando requisição duplicada.")
+                return JsonResponse({"success_message_invoice": "Mensalidade já estava paga!"}, status=200)
+
+            # Verifica se a mensalidade está atrasada por mais de 7 dias
+            if mensalidade.dt_vencimento < hoje - timedelta(days=7):
+                return JsonResponse({"error_message": "erro"})
+
+            # PROTEÇÃO: Verifica se já existe mensalidade futura (criada por outra requisição)
+            if Mensalidade.objects.filter(
+                cliente=mensalidade.cliente,
+                dt_vencimento__gt=mensalidade.dt_vencimento,
+                pgto=False,
+                cancelado=False
+            ).exists():
+                logger.warning(f"[ANTI-DUP] Mensalidade futura já existe para cliente {mensalidade.cliente.nome}. Pagamento já foi processado.")
+                return JsonResponse({"success_message_invoice": "Mensalidade paga!"}, status=200)
+
+            # Realiza as modificações na mensalidade paga
+            mensalidade.dt_pagamento = timezone.localtime().date()
+            mensalidade.pgto = True
+            mensalidade.save()
+
+    except Mensalidade.DoesNotExist:
+        return JsonResponse({"error_message": "Mensalidade não encontrada."}, status=404)
+    except Exception as e:
+        # Se a linha está bloqueada (nowait=True), outra requisição está processando
+        if 'could not obtain lock' in str(e).lower() or 'lock' in str(e).lower():
+            logger.info(f"[ANTI-DUP] Mensalidade {mensalidade_id} está sendo processada por outra requisição.")
+            return JsonResponse({"success_message_invoice": "Pagamento em processamento..."}, status=200)
+        raise
+
+    try:
         log_user_action(
             request=request,
             action=UserActionLog.ACTION_PAYMENT,

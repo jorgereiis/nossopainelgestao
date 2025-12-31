@@ -137,16 +137,6 @@ class LoginView(View):
 
         logger.debug(f"[PainelCliente LOGIN] Cliente encontrado: ID={cliente.id}")
 
-        # Verifica se cliente esta cancelado
-        if cliente.cancelado:
-            logger.debug("[PainelCliente LOGIN] Cliente cancelado")
-            # Mensagem generica para evitar user enumeration
-            return self._render_error(
-                request,
-                self.MENSAGEM_LOGIN_FALHA,
-                tentativas_restantes=tentativas_restantes - 1
-            )
-
         # Registra tentativa bem-sucedida
         TentativaLogin.registrar(
             ip_address=ip_address,
@@ -217,8 +207,7 @@ class LoginView(View):
         # Primeira tentativa: busca exata
         cliente = Cliente.objects.select_related('plano').filter(
             telefone=telefone_normalizado,
-            usuario=config.admin_responsavel,
-            cancelado=False
+            usuario=config.admin_responsavel
         ).first()
 
         if cliente:
@@ -232,8 +221,7 @@ class LoginView(View):
                 logger.debug(f"[PainelCliente LOGIN] Tentando variacao brasileira")
                 cliente = Cliente.objects.select_related('plano').filter(
                     telefone=variacao,
-                    usuario=config.admin_responsavel,
-                    cancelado=False
+                    usuario=config.admin_responsavel
                 ).first()
                 if cliente:
                     logger.debug("[PainelCliente LOGIN] Cliente encontrado com variacao")
