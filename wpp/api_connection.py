@@ -24,6 +24,10 @@ MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
 # Timeout padrão para requisições à API WPPConnect (em segundos)
 REQUEST_TIMEOUT = 30
 
+# Delay entre operações de REMOVE e ADD de labels (em segundos)
+# Necessário devido a limitações do WhatsApp Web que não permite operações simultâneas
+LABEL_OPERATION_DELAY = 2
+
 ##################################################################
 ################ FUNÇÕES AUXILIARES DE REQUISIÇÃO ################
 ##################################################################
@@ -345,7 +349,12 @@ def get_all_labels(token, user):
 
 # --- Função para adicionar ou remover labels de um contato ---
 def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, token, user):
-    """Aplica a label desejada ao contato e remove labels anteriores."""
+    """Aplica a label desejada ao contato e remove labels anteriores.
+
+    NOTA: Devido a limitações do WhatsApp Web, as operações de REMOVE e ADD
+    são executadas sequencialmente com delay de LABEL_OPERATION_DELAY segundos.
+    Se REMOVE falhar, a operação é abortada e ADD não é executado.
+    """
 
     telefone = telefone.replace('+', '').replace('@c.us', '').replace('@lid', '').strip()
 
@@ -362,23 +371,61 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
         'Authorization': f'Bearer {token}'
     }
 
-    # Remove todas as labels anteriores e adiciona a nova
-    body = {
-        "chatIds": [telefone],
-        "options": [
-            {"labelId": label_id_1, "type": "add"}
-        ] + [
-            {"labelId": label, "type": "remove"} for label in labels_atual if label and label != label_id_1
-        ]
-    }
-  
     # Timeout maior para operações de label (podem ser lentas no WhatsApp)
     LABEL_TIMEOUT = 60
 
+    # PASSO 1: Remover labels antigas (se houver)
+    labels_para_remover = [label for label in labels_atual if label and label != label_id_1]
+
+    if labels_para_remover:
+        body_remove = {
+            "chatIds": [telefone],
+            "options": [{"labelId": label, "type": "remove"} for label in labels_para_remover]
+        }
+
+        try:
+            response_remove = requests.post(url, headers=headers, json=body_remove, timeout=LABEL_TIMEOUT)
+            logger.info(
+                "[add_or_remove_label_contact] %s | REMOVE status=%s labels=%s",
+                user,
+                response_remove.status_code,
+                labels_para_remover,
+            )
+
+            if response_remove.status_code not in [200, 201]:
+                logger.error(
+                    "[add_or_remove_label_contact] %s | REMOVE falhou para %s: %s - %s. Abortando operação.",
+                    user,
+                    telefone,
+                    response_remove.status_code,
+                    response_remove.text,
+                )
+                try:
+                    response_data = response_remove.json()
+                except ValueError:
+                    response_data = {"status": "error", "message": "Falha ao remover labels anteriores"}
+                return response_remove.status_code, response_data
+
+        except requests.Timeout:
+            logger.error("[add_or_remove_label_contact] %s | Timeout ao remover labels de %s. Abortando.", user, telefone)
+            return 504, {"status": "error", "message": "Timeout na remoção de labels"}
+        except requests.RequestException as exc:
+            logger.exception("[add_or_remove_label_contact] %s | Erro REMOVE: %s. Abortando.", user, exc)
+            return 500, {"status": "error", "message": str(exc)}
+
+        # Delay entre REMOVE e ADD conforme limitação do WhatsApp Web
+        time.sleep(LABEL_OPERATION_DELAY)
+
+    # PASSO 2: Adicionar nova label
+    body_add = {
+        "chatIds": [telefone],
+        "options": [{"labelId": label_id_1, "type": "add"}]
+    }
+
     try:
-        response = requests.post(url, headers=headers, json=body, timeout=LABEL_TIMEOUT)
+        response = requests.post(url, headers=headers, json=body_add, timeout=LABEL_TIMEOUT)
         logger.info(
-            "[add_or_remove_label_contact] %s | status=%s body=%s",
+            "[add_or_remove_label_contact] %s | ADD status=%s body=%s",
             user,
             response.status_code,
             response.text,
@@ -386,14 +433,14 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
 
         if response.status_code in [200, 201]:
             logger.info(
-                "[add_or_remove_label_contact] %s | Label aplicada: %s (%s)",
+                "[add_or_remove_label_contact] %s | Label aplicada com sucesso: %s (%s)",
                 user,
                 label_name,
                 label_id_1,
             )
         else:
             logger.error(
-                "[add_or_remove_label_contact] %s | Falha ao ajustar label de %s: %s - %s",
+                "[add_or_remove_label_contact] %s | Falha ao adicionar label em %s: %s - %s",
                 user,
                 telefone,
                 response.status_code,
@@ -407,10 +454,10 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
 
         return response.status_code, response_data
     except requests.Timeout:
-        logger.error("[add_or_remove_label_contact] %s | Timeout ao aplicar label em %s", user, telefone)
-        return 504, {"status": "error", "message": "Timeout na operação de label"}
+        logger.error("[add_or_remove_label_contact] %s | Timeout ao adicionar label em %s", user, telefone)
+        return 504, {"status": "error", "message": "Timeout na adição de label"}
     except requests.RequestException as exc:
-        logger.exception("[add_or_remove_label_contact] %s | Erro de requisição: %s", user, exc)
+        logger.exception("[add_or_remove_label_contact] %s | Erro ADD: %s", user, exc)
         return 500, {"status": "error", "message": str(exc)}
 
 
@@ -962,5 +1009,63 @@ def get_phone_from_lid(session: str, token: str, lid: str):
             phone = response.get("number", "")
             if phone:
                 return phone, status
+
+    return None, status
+
+
+def get_phone_from_pn_lid(session: str, token: str, pn_lid: str):
+    """
+    Obtém número de telefone real a partir de um PN-LID usando endpoint dedicado.
+
+    O formato @lid (Linked ID) é usado pelo WhatsApp quando a privacidade
+    está ativada em grupos/comunidades. Este endpoint converte o LID
+    para o número de telefone real.
+
+    Endpoint: GET /api/{session}/contact/pn-lid/{pnLid}
+
+    Args:
+        session: Nome da sessão
+        token: Token de autenticação
+        pn_lid: LID (ex: "82549456040174@lid" ou "82549456040174")
+
+    Returns:
+        tuple: (phone_number ou None, status_code)
+               phone_number no formato "5583994762XX" (sem @c.us)
+    """
+    # IMPORTANTE: Manter o @lid completo para obter o telefone real
+    # Se passar apenas o número, a API retorna o próprio LID como phoneNumber
+    # Se passar com @lid, a API retorna o telefone real
+    lid_param = pn_lid.strip()
+    if "@lid" not in lid_param:
+        lid_param = f"{lid_param}@lid"
+
+    url = f"{URL_API_WPP}/{session}/contact/pn-lid/{lid_param}"
+    headers = {"Authorization": f"Bearer {token}"}
+    data, status = _make_request("GET", url, headers=headers)
+
+    logger.info(
+        "[get_phone_from_pn_lid] session=%s lid=%s status=%s response=%s",
+        session, lid_param, status, data
+    )
+
+    if status == 200 and data:
+        # A resposta vem diretamente em data (não em data.response)
+        # Estrutura: {"phoneNumber": {"id": "558396239140", ...}, "lid": {...}, ...}
+        phone_number = data.get("phoneNumber")
+
+        if isinstance(phone_number, dict):
+            # Extrair 'id' do objeto phoneNumber (número limpo)
+            phone = phone_number.get("id", "")
+            if phone:
+                return phone, status
+
+            # Fallback: extrair de '_serialized' e remover @c.us
+            serialized = phone_number.get("_serialized", "")
+            if serialized:
+                return serialized.replace("@c.us", ""), status
+
+        elif isinstance(phone_number, str) and phone_number:
+            # Caso phoneNumber seja string direta
+            return phone_number.replace("@c.us", ""), status
 
     return None, status

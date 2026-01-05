@@ -489,9 +489,11 @@
             // Classes CSS baseadas no estado
             let borderClass = '';
             let bgClass = '';
+            let extraStyles = '';
             if (status === 'bloqueado') {
-                borderClass = 'border-danger';
-                bgClass = 'bg-danger bg-opacity-10';
+                borderClass = '';
+                bgClass = '';
+                extraStyles = 'border: 1px solid #e9a8ad; background: linear-gradient(135deg, #fdf2f3 0%, #fef7f7 100%);';
             } else if (status === 'proximo_limite') {
                 borderClass = 'border-warning';
                 bgClass = '';
@@ -500,7 +502,7 @@
                 bgClass = '';
             }
 
-            const classeOpacidade = bloqueado ? 'opacity-60' : '';
+            const classeOpacidade = bloqueado ? 'opacity-75' : '';
             const cursorStyle = bloqueado ? 'cursor: not-allowed;' : 'cursor: pointer;';
 
             // Ícone baseado no status
@@ -510,8 +512,8 @@
                 corIcone = '#198754'; // verde
                 icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`;
             } else if (status === 'bloqueado') {
-                corIcone = '#dc3545'; // vermelho
-                icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>`;
+                corIcone = '#b5838d'; // rosa acinzentado suave
+                icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
             } else if (status === 'proximo_limite') {
                 corIcone = '#ffc107'; // amarelo
                 icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`;
@@ -533,8 +535,10 @@
             } else if (forma.limite_anual > 0) {
                 // Barra de progresso
                 let barraCorClass = 'bg-success';
-                if (percentual >= 99) {
-                    barraCorClass = 'bg-danger';
+                let barraStyle = '';
+                if (percentual >= 98) {
+                    barraCorClass = '';
+                    barraStyle = 'background-color: #c9a8ad;'; // rosa acinzentado suave
                 } else if (percentual >= 80) {
                     barraCorClass = 'bg-warning';
                 }
@@ -545,16 +549,16 @@
                             <span class="text-muted">Utilizado: <strong>${formatarMoeda(forma.total_projetado)}</strong></span>
                             <span class="text-muted">Limite: <strong>${formatarMoeda(forma.limite_anual)}</strong></span>
                         </div>
-                        <div class="progress" style="height: 8px;">
+                        <div class="progress" style="height: 8px; background-color: #e9ecef;">
                             <div class="progress-bar ${barraCorClass}" role="progressbar"
-                                 style="width: ${Math.min(percentual, 100)}%;"
+                                 style="width: ${Math.min(percentual, 100)}%; ${barraStyle}"
                                  aria-valuenow="${percentual}" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
                         <div class="d-flex justify-content-between align-items-center small mt-1">
-                            <span class="${status === 'bloqueado' ? 'text-danger fw-bold' : status === 'proximo_limite' ? 'text-warning fw-bold' : 'text-success'}">
+                            <span class="fw-bold" style="color: ${status === 'bloqueado' ? '#8d6b75' : status === 'proximo_limite' ? '#b5850d' : '#198754'};">
                                 ${percentual.toFixed(1)}% utilizado
                             </span>
-                            <span class="${status === 'bloqueado' ? 'text-danger' : 'text-muted'}">
+                            <span style="color: ${status === 'bloqueado' ? '#8d6b75' : '#6c757d'};">
                                 ${status === 'bloqueado' ? 'Sem margem disponível' : 'Margem: ' + formatarMoeda(forma.margem_disponivel)}
                             </span>
                         </div>
@@ -567,11 +571,11 @@
             if (status === 'bloqueado') {
                 badgeStatus = `
                     <div class="text-end">
-                        <span class="badge bg-danger px-3 py-2">
+                        <span class="badge px-3 py-2" style="background-color: #e8d4d7; color: #6d4c5a;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                            Bloqueado
+                            Indisponível
                         </span>
-                        <div class="small text-danger mt-1">${forma.motivo_bloqueio || 'Limite atingido'}</div>
+                        <div class="small mt-1" style="color: #8d6b75;">${forma.motivo_bloqueio || 'Limite atingido'}</div>
                     </div>
                 `;
             } else if (status === 'proximo_limite') {
@@ -595,8 +599,8 @@
             }
 
             html += `
-                <div class="list-group-item ${borderClass} ${bgClass} ${classeOpacidade} rounded-3 border-2 p-3"
-                     style="${cursorStyle}" ${bloqueado ? '' : `onclick="selecionarFormaPagamento(${forma.id}, this)"`}>
+                <div class="list-group-item ${borderClass} ${bgClass} ${classeOpacidade} rounded-3 p-3"
+                     style="${cursorStyle} ${extraStyles}" ${bloqueado ? '' : `onclick="selecionarFormaPagamento(${forma.id}, this)"`}>
                     <div class="d-flex align-items-start gap-3">
                         <!-- Radio + Ícone -->
                         <div class="d-flex align-items-center gap-2">
@@ -621,10 +625,10 @@
                                     Faturamento: <strong>${formatarMoeda(forma.total_projetado)}</strong>
                                 </div>
                             ` : `
-                                <div class="small ${percentual >= 99 ? 'text-danger fw-semibold' : percentual >= 80 ? 'text-warning fw-semibold' : 'text-muted'}">
+                                <div class="small fw-semibold" style="color: ${percentual >= 98 ? '#8d6b75' : percentual >= 80 ? '#b5850d' : '#6c757d'};">
                                     <strong>${percentual.toFixed(0)}%</strong>/100%
                                 </div>
-                                <div class="small ${forma.margem_disponivel > 0 ? 'text-success' : 'text-danger'}">
+                                <div class="small" style="color: ${forma.margem_disponivel > 0 ? '#198754' : '#8d6b75'};">
                                     Disponível: <strong>${formatarMoeda(forma.margem_disponivel)}</strong>
                                 </div>
                             `}
@@ -647,13 +651,13 @@
                 <div class="small text-muted mb-2 fw-semibold">Legenda:</div>
                 <div class="d-flex align-items-center gap-4 flex-wrap small">
                     <span class="d-flex align-items-center gap-1">
-                        <span class="badge bg-success">Verde</span> Limite disponível
+                        <span class="badge bg-success">Verde</span> Disponível
                     </span>
                     <span class="d-flex align-items-center gap-1">
                         <span class="badge bg-warning text-dark">Amarelo</span> Próximo do limite (≥80%)
                     </span>
                     <span class="d-flex align-items-center gap-1">
-                        <span class="badge bg-danger">Vermelho</span> Bloqueado (≥99%)
+                        <span class="badge" style="background-color: #e8d4d7; color: #6d4c5a;">Rosa</span> Indisponível (≥98%)
                     </span>
                 </div>
             </div>

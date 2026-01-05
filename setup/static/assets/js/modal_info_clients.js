@@ -111,7 +111,15 @@ function carregarQuantidadeMensalidadesPagas(clienteId) {
                 var tdStatus = document.createElement('td');
                 tdStatus.className = 'text-center'; // Centralizar
 
-                var vencimentoJS = new Date(mensalidade.dt_vencimento);
+                // Parsing manual da data para evitar problemas de fuso horário
+                // new Date("2026-01-04") cria meia-noite UTC, que pode virar dia anterior no fuso local
+                var partesData = mensalidade.dt_vencimento.split('-');
+                var vencimentoJS = new Date(
+                    parseInt(partesData[0]),      // ano
+                    parseInt(partesData[1]) - 1,  // mês (0-indexed)
+                    parseInt(partesData[2])       // dia
+                );
+                vencimentoJS.setHours(0, 0, 0, 0);
 
                 // Container flex para múltiplos badges
                 var badgeContainer = document.createElement('div');

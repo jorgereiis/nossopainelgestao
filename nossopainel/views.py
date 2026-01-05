@@ -975,7 +975,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         # Variáveis para context do modal de edição do cadastro do cliente
         indicadores = Cliente.objects.filter(usuario=self.request.user).order_by('nome')
         servidores = Servidor.objects.filter(usuario=self.request.user).order_by('nome')
-        formas_pgtos = Tipos_pgto.objects.filter(usuario=self.request.user).select_related('conta_bancaria__instituicao')
+        formas_pgtos = Tipos_pgto.objects.filter(usuario=self.request.user).select_related('conta_bancaria__instituicao', 'dados_bancarios').order_by('nome')
         planos = Plano.objects.filter(usuario=self.request.user).order_by('nome', 'telas', 'valor')
         dispositivos = Dispositivo.objects.filter(usuario=self.request.user).order_by('nome')
         aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
@@ -3305,6 +3305,9 @@ def pay_monthly_fee(request, mensalidade_id):
             # Realiza as modificações na mensalidade paga
             mensalidade.dt_pagamento = timezone.localtime().date()
             mensalidade.pgto = True
+            # Registra a forma de pagamento usada (histórico imutável)
+            if not mensalidade.forma_pgto:
+                mensalidade.forma_pgto = mensalidade.cliente.forma_pgto
             mensalidade.save()
 
     except Mensalidade.DoesNotExist:
@@ -3561,6 +3564,16 @@ def edit_customer(request, cliente_id):
         if forma_pgto_id and forma_pgto_id.isdigit():
             forma_pgto = Tipos_pgto.objects.filter(pk=int(forma_pgto_id), usuario=user).first()
             if forma_pgto and cliente.forma_pgto != forma_pgto:
+                # Valida se a nova forma de pagamento não está bloqueada por limite
+                if forma_pgto.esta_bloqueada:
+                    return JsonResponse({
+                        "error": True,
+                        "error_message_edit": (
+                            "A forma de pagamento selecionada atingiu o limite de faturamento "
+                            "e não pode receber novos clientes.<br>"
+                            "Selecione outra forma de pagamento disponível."
+                        ),
+                    }, status=400)
                 cliente.forma_pgto = forma_pgto
 
         # Plano (agora usando ID ao invés de string formatada)
@@ -5787,7 +5800,7 @@ def create_customer(request):
 
     # Querysets para preencher os selects do formulário
     plano_queryset = Plano.objects.filter(usuario=usuario).order_by('nome', 'telas', 'valor')
-    forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=usuario).select_related('conta_bancaria__instituicao')
+    forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=usuario).select_related('conta_bancaria__instituicao', 'dados_bancarios').order_by('nome')
     servidor_queryset = Servidor.objects.filter(usuario=usuario).order_by('nome')
     sistema_queryset = Aplicativo.objects.filter(usuario=usuario).order_by('nome')
     indicador_por_queryset = Cliente.objects.filter(usuario=usuario, cancelado=False).order_by('nome')
@@ -6252,7 +6265,7 @@ def cadastrar_assinatura(request):
 
     # Querysets para preencher os selects do formulário
     plano_queryset = Plano.objects.filter(usuario=usuario).order_by('nome', 'telas', 'valor')
-    forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=usuario).select_related('conta_bancaria__instituicao')
+    forma_pgto_queryset = Tipos_pgto.objects.filter(usuario=usuario).select_related('conta_bancaria__instituicao', 'dados_bancarios').order_by('nome')
     servidor_queryset = Servidor.objects.filter(usuario=usuario).order_by('nome')
     sistema_queryset = Aplicativo.objects.filter(usuario=usuario).order_by('nome')
     dispositivo_queryset = Dispositivo.objects.filter(usuario=usuario).order_by('nome')
@@ -6376,6 +6389,15 @@ def cadastrar_assinatura(request):
                         forma_pgto = Tipos_pgto.objects.filter(pk=int(forma_pgto_input), usuario=usuario).first()
                     else:
                         forma_pgto = Tipos_pgto.objects.filter(nome__iexact=forma_pgto_input, usuario=usuario).first()
+
+                # Valida se a forma de pagamento não está bloqueada por limite
+                if forma_pgto and forma_pgto.esta_bloqueada:
+                    context['error_message'] = (
+                        "A forma de pagamento selecionada atingiu o limite de faturamento "
+                        "e não pode receber novos clientes. "
+                        "Selecione outra forma de pagamento disponível."
+                    )
+                    return render(request, "pages/cadastro-assinatura.html", context)
 
                 # Indicador
                 indicador = None
@@ -9232,6 +9254,236 @@ def evolucao_patrimonio(request):
     })
 
 
+@login_required
+@require_GET
+def api_receita_anual(request):
+    """
+    Retorna a receita anual por forma de pagamento.
+
+    - Ano atual: PROJEÇÃO baseada nos clientes ativos e seus planos
+    - Anos anteriores: DADOS REAIS das mensalidades pagas
+
+    GET /api/receita-anual/
+    Parâmetros:
+        - periodo: 'current' (ano atual, default), 'last5' (últimos 5 anos), 'all' (todos os anos)
+
+    Retorna JSON com:
+        - categories: lista de anos
+        - series: lista de formas de pagamento com valores por ano
+        - summary: resumo total por forma de pagamento
+        - meta: informações adicionais
+    """
+    from collections import defaultdict
+
+    periodo = (request.GET.get('periodo', 'current') or 'current').strip().lower()
+    if periodo not in {'current', 'last5', 'all'}:
+        periodo = 'current'
+
+    usuario = request.user
+    hoje = timezone.localdate()
+    ano_atual = hoje.year
+
+    # Mapeamento de tipo de plano para quantidade de pagamentos por ano
+    PAGAMENTOS_POR_ANO = {
+        'Mensal': 12,
+        'Bimestral': 6,
+        'Trimestral': 4,
+        'Semestral': 2,
+        'Anual': 1,
+    }
+
+    # Definir range de anos baseado no período
+    if periodo == 'current':
+        anos = [ano_atual]
+    elif periodo == 'last5':
+        anos = list(range(ano_atual - 4, ano_atual + 1))
+    else:  # 'all'
+        # Buscar ano mais antigo de pagamento ou adesão
+        primeiro_pagamento = Mensalidade.objects.filter(
+            usuario=usuario,
+            pgto=True,
+            dt_pagamento__isnull=False
+        ).aggregate(min_ano=Min('dt_pagamento__year'))['min_ano']
+
+        primeiro_adesao = Cliente.objects.filter(
+            usuario=usuario
+        ).aggregate(min_ano=Min('data_adesao__year'))['min_ano']
+
+        primeiro_ano = min(filter(None, [primeiro_pagamento, primeiro_adesao, ano_atual]))
+
+        if primeiro_ano:
+            anos = list(range(primeiro_ano, ano_atual + 1))
+        else:
+            anos = [ano_atual]
+
+    # Estrutura para acumular dados
+    # {forma_pgto_id: {ano: valor_total, 'nome': '...', 'instituicao': '...'}}
+    dados_por_forma = defaultdict(lambda: {'nome': '', 'instituicao': '', 'anos': defaultdict(Decimal)})
+
+    # Cache de formas de pagamento para evitar queries repetidas
+    formas_cache = {}
+
+    def get_forma_info(forma):
+        """Retorna nome e instituição formatados para uma forma de pagamento."""
+        if forma.id in formas_cache:
+            return formas_cache[forma.id]
+
+        if forma.conta_bancaria and forma.conta_bancaria.instituicao:
+            if forma.conta_bancaria.instituicao.tipo_integracao == 'fastdepix':
+                nome = forma.conta_bancaria.nome_identificacao or forma.nome
+            else:
+                nome = forma.nome
+            instituicao = forma.conta_bancaria.instituicao.nome
+        elif forma.dados_bancarios and forma.dados_bancarios.instituicao:
+            nome = forma.nome
+            instituicao = forma.dados_bancarios.instituicao
+        else:
+            nome = forma.nome
+            instituicao = ''
+
+        formas_cache[forma.id] = (nome, instituicao)
+        return nome, instituicao
+
+    # ========== ANOS ANTERIORES: DADOS REAIS ==========
+    anos_anteriores = [a for a in anos if a < ano_atual]
+
+    if anos_anteriores:
+        # Buscar mensalidades pagas em anos anteriores
+        mensalidades_pagas = Mensalidade.objects.filter(
+            usuario=usuario,
+            pgto=True,
+            dt_pagamento__year__in=anos_anteriores
+        ).select_related(
+            'forma_pgto',
+            'forma_pgto__conta_bancaria',
+            'forma_pgto__conta_bancaria__instituicao',
+            'forma_pgto__dados_bancarios',
+            'cliente',
+            'cliente__forma_pgto',
+            'cliente__forma_pgto__conta_bancaria',
+            'cliente__forma_pgto__conta_bancaria__instituicao',
+            'cliente__forma_pgto__dados_bancarios'
+        )
+
+        for mensalidade in mensalidades_pagas:
+            # Usar forma_pgto da mensalidade (histórico) ou fallback para cliente
+            forma = mensalidade.forma_pgto or (mensalidade.cliente.forma_pgto if mensalidade.cliente else None)
+
+            if not forma:
+                continue
+
+            ano = mensalidade.dt_pagamento.year
+            nome, instituicao = get_forma_info(forma)
+
+            dados_por_forma[forma.id]['nome'] = nome
+            dados_por_forma[forma.id]['instituicao'] = instituicao
+            dados_por_forma[forma.id]['anos'][ano] += mensalidade.valor
+
+    # ========== ANO ATUAL: PROJEÇÃO ==========
+    if ano_atual in anos:
+        # Buscar clientes ativos com forma de pagamento
+        clientes = Cliente.objects.filter(
+            usuario=usuario,
+            cancelado=False
+        ).select_related(
+            'plano',
+            'forma_pgto',
+            'forma_pgto__conta_bancaria',
+            'forma_pgto__conta_bancaria__instituicao',
+            'forma_pgto__dados_bancarios'
+        )
+
+        for cliente in clientes:
+            if not cliente.plano or not cliente.forma_pgto:
+                continue
+
+            forma = cliente.forma_pgto
+            nome, instituicao = get_forma_info(forma)
+
+            dados_por_forma[forma.id]['nome'] = nome
+            dados_por_forma[forma.id]['instituicao'] = instituicao
+
+            # Calcular receita anual projetada
+            valor_plano = cliente.plano.valor
+            tipo_plano = cliente.plano.nome
+            pagamentos_ano = PAGAMENTOS_POR_ANO.get(tipo_plano, 12)
+            receita_anual = valor_plano * pagamentos_ano
+
+            dados_por_forma[forma.id]['anos'][ano_atual] += receita_anual
+
+    # Construir series para o gráfico (ordenado por valor total desc)
+    series = []
+    summary_list = []
+
+    # Calcular total por forma para ordenação
+    totais_forma = []
+    for forma_id, data in dados_por_forma.items():
+        total = sum(data['anos'].values())
+        totais_forma.append((forma_id, data, float(total)))
+
+    # Ordenar por total (maior para menor)
+    totais_forma.sort(key=lambda x: x[2], reverse=True)
+
+    # Cores para o gráfico (barras empilhadas)
+    CORES = [
+        '#624bff', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+        '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1',
+        '#84cc16', '#22d3d8'
+    ]
+
+    for idx, (forma_id, data, total) in enumerate(totais_forma):
+        nome_display = data['nome']
+        if data['instituicao']:
+            nome_display = f"{data['nome']} ({data['instituicao']})"
+
+        # Valores por ano
+        valores = [float(data['anos'].get(ano, 0)) for ano in anos]
+
+        series.append({
+            'label': nome_display,
+            'data': valores,
+            'backgroundColor': CORES[idx % len(CORES)],
+        })
+
+        # Summary: valor conforme o período selecionado
+        if periodo == 'current':
+            # Apenas ano atual (projeção)
+            total_summary = float(data['anos'].get(ano_atual, 0))
+        else:
+            # Períodos com múltiplos anos: soma de todos os anos
+            total_summary = total
+
+        if total_summary > 0:
+            summary_list.append({
+                'nome': nome_display,
+                'valor': total_summary,
+            })
+
+    # Formatar categorias (anos como string) com indicador de projeção
+    categories = []
+    for ano in anos:
+        if ano == ano_atual:
+            categories.append(f"{ano} (projeção)")
+        else:
+            categories.append(str(ano))
+
+    # Calcular total geral (ano atual para summary)
+    total_geral = sum(item['valor'] for item in summary_list)
+
+    return JsonResponse({
+        'categories': categories,
+        'series': series,
+        'summary': summary_list,
+        'meta': {
+            'periodo': periodo,
+            'ano_atual': ano_atual,
+            'total_geral': total_geral,
+            'total_formas': len(summary_list),
+            'info': 'Anos anteriores: dados reais | Ano atual: projeção'
+        }
+    })
+
+
 @csrf_exempt
 @require_POST
 def internal_send_whatsapp(request):
@@ -11664,7 +11916,7 @@ def api_formas_pagamento_disponiveis(request):
     Retorna:
     - Lista de formas de pagamento com status de limite detalhado
     - FastDePix: nunca bloqueado (sem limite de faturamento)
-    - MEI/PF: bloqueado se percentual >= 99%
+    - MEI/PF: bloqueado se percentual >= 98%
     """
     try:
         from decimal import Decimal
@@ -11770,7 +12022,7 @@ def api_formas_pagamento_disponiveis(request):
                 item['margem_disponivel'] = max(0, margem)
 
                 # Determinar status
-                if percentual >= 99:
+                if percentual >= 98:
                     item['bloqueado'] = True
                     item['motivo_bloqueio'] = f'Limite {tipo_label} atingido ({percentual:.1f}%)'
                     item['status'] = 'bloqueado'
@@ -11880,7 +12132,7 @@ def api_formas_pagamento_disponiveis(request):
             item['margem_disponivel'] = max(0, margem)
 
             # Determinar status baseado no percentual
-            if percentual >= 99:
+            if percentual >= 98:
                 item['bloqueado'] = True
                 item['motivo_bloqueio'] = f'Limite {tipo_label} atingido ({percentual:.1f}%)'
                 item['status'] = 'bloqueado'

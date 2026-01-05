@@ -325,6 +325,14 @@
                                                 <span class="dashboard-tab-label">Ades&atilde;o e Cancelamentos</span>
                                             </button>
                                         </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="tab-receita-anual" data-bs-toggle="tab" data-bs-target="#pane-receita-anual" type="button" role="tab" aria-controls="pane-receita-anual" aria-selected="false">
+                                                <span class="dashboard-tab-icon tab-icon-receita">
+                                                    <i class="bi bi-cash-stack"></i>
+                                                </span>
+                                                <span class="dashboard-tab-label">Receita Anual</span>
+                                            </button>
+                                        </li>
                                     </ul>
                                 </div>
                                 <div class="dashboard-tab-content w-100">
@@ -407,6 +415,56 @@
                                                 <div id="adesao-cancel-summary" class="text-muted small text-center mt-3"></div>
                                             </div>
                                         </div>
+                                        <div class="tab-pane fade" id="pane-receita-anual" role="tabpanel" aria-labelledby="tab-receita-anual">
+                                            <div class="dashboard-tab-body">
+                                                <div class="d-flex flex-column flex-xl-row align-items-start align-items-xl-center gap-3 mb-4">
+                                                    <form id="receita-anual-filter" class="d-flex flex-column flex-sm-row align-items-sm-center gap-3 flex-wrap">
+                                                        <div class="d-flex flex-column">
+                                                            <label for="receita-anual-periodo" class="fw-semibold text-muted small text-uppercase mb-0">Per&iacute;odo</label>
+                                                            <select id="receita-anual-periodo" class="form-select form-select-sm">
+                                                                <option value="current" selected>Ano atual</option>
+                                                                <option value="last5">&Uacute;ltimos 5 anos</option>
+                                                                <option value="all">Todos os anos</option>
+                                                            </select>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-12 col-lg-8">
+                                                        <div class="d-flex align-items-center justify-content-center flex-column flex-md-row gap-4 position-relative" id="receita-anual-chart-wrapper" style="min-height: 320px;">
+                                                            <canvas id="receitaAnualChart" style="width:100%; height:320px"></canvas>
+                                                            <div id="receita-anual-empty" class="text-muted small d-none text-center">
+                                                                Nenhum dado dispon&iacute;vel para o per&iacute;odo selecionado.
+                                                            </div>
+                                                            <div id="receita-anual-loading" class="text-muted small text-center">
+                                                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                                                Carregando dados...
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12 col-lg-4 mt-4 mt-lg-0">
+                                                        <div class="card border-0 bg-light h-100">
+                                                            <div class="card-body">
+                                                                <h6 class="card-title text-muted text-uppercase small fw-semibold mb-3">
+                                                                    <i class="bi bi-list-ul me-2"></i>Resumo por Forma de Pagamento
+                                                                </h6>
+                                                                <div id="receita-anual-summary">
+                                                                    <div class="text-muted small text-center py-3">
+                                                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                                                        Carregando...
+                                                                    </div>
+                                                                </div>
+                                                                <hr class="my-3">
+                                                                <div id="receita-anual-total" class="d-flex justify-content-between align-items-center">
+                                                                    <span class="fw-semibold text-muted small text-uppercase">Total Geral</span>
+                                                                    <span class="fw-bold text-primary fs-5">-</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -422,6 +480,9 @@
 
 <!-- Dashboard principal -->
 <script src="{% static 'dashboard/js/dashboard.js' %}"></script>
+
+<!-- Receita Anual -->
+<script src="{% static 'assets/js/receita_anual.js' %}"></script>
 
 <!-- Inicialização do gerenciador da tabela -->
 <script>
