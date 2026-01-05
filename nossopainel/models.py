@@ -548,6 +548,122 @@ class Tipos_pgto(models.Model):
             return self.conta_bancaria.tem_integracao_api
         return False
 
+    def calcular_status_limite(self):
+        """
+        Calcula o status de limite da forma de pagamento.
+
+        Retorna um dicionário com:
+        - bloqueado: True se não pode receber novos clientes
+        - percentual_utilizado: percentual do limite já utilizado
+        - margem_disponivel: valor ainda disponível
+        - motivo_bloqueio: motivo do bloqueio (se houver)
+        - status: 'disponivel', 'proximo_limite' ou 'bloqueado'
+        """
+        from decimal import Decimal
+
+        # Mapeamento de tipo de plano para quantidade de pagamentos por ano
+        PAGAMENTOS_POR_ANO = {
+            'Mensal': 12,
+            'Bimestral': 6,
+            'Trimestral': 4,
+            'Semestral': 2,
+            'Anual': 1,
+        }
+
+        resultado = {
+            'bloqueado': False,
+            'percentual_utilizado': 0,
+            'margem_disponivel': 0,
+            'motivo_bloqueio': None,
+            'status': 'disponivel',
+        }
+
+        conta = self.conta_bancaria
+        instituicao = conta.instituicao if conta else None
+        tipo_integracao = instituicao.tipo_integracao if instituicao else None
+
+        # FastDePix não tem limite de faturamento
+        if tipo_integracao == 'fastdepix':
+            return resultado
+
+        # Obter configuração de limites
+        config = ConfiguracaoLimite.get_config()
+        limite_mei = float(config.valor_anual)
+        limite_pf = float(config.valor_anual_pf)
+
+        # Determinar limite aplicável
+        if conta:
+            tipo_conta = conta.tipo_conta
+        elif hasattr(self, 'tipo_conta') and self.tipo_conta:
+            tipo_conta = self.tipo_conta
+        else:
+            tipo_conta = 'pf'
+
+        if tipo_conta == 'mei':
+            limite_aplicavel = limite_mei
+            tipo_label = 'MEI'
+        else:
+            limite_aplicavel = limite_pf
+            tipo_label = 'Pessoa Física'
+
+        # Calcular total projetado dos clientes associados
+        total_projetado = Decimal('0')
+        clientes_ids = set()
+
+        # Buscar via ClienteContaBancaria (se tiver conta bancária)
+        if conta:
+            from nossopainel.models import ClienteContaBancaria
+            clientes_conta = ClienteContaBancaria.objects.filter(
+                conta_bancaria=conta,
+                ativo=True,
+                cliente__cancelado=False
+            ).select_related('cliente__plano')
+
+            for cc in clientes_conta:
+                clientes_ids.add(cc.cliente_id)
+                if cc.cliente.plano:
+                    pagamentos = PAGAMENTOS_POR_ANO.get(cc.cliente.plano.nome, 12)
+                    total_projetado += cc.cliente.plano.valor * pagamentos
+
+        # Também buscar clientes associados diretamente via forma_pgto
+        from nossopainel.models import Cliente
+        clientes_forma = Cliente.objects.filter(
+            forma_pgto=self,
+            cancelado=False
+        ).exclude(id__in=clientes_ids).select_related('plano')
+
+        for cliente in clientes_forma:
+            clientes_ids.add(cliente.id)
+            if cliente.plano:
+                pagamentos = PAGAMENTOS_POR_ANO.get(cliente.plano.nome, 12)
+                total_projetado += cliente.plano.valor * pagamentos
+
+        # Calcular percentual e margem
+        if limite_aplicavel > 0:
+            percentual = (float(total_projetado) / limite_aplicavel) * 100
+            margem = limite_aplicavel - float(total_projetado)
+        else:
+            percentual = 0
+            margem = 0
+
+        resultado['percentual_utilizado'] = round(percentual, 1)
+        resultado['margem_disponivel'] = max(0, margem)
+
+        # Determinar status baseado no percentual
+        if percentual >= 98:
+            resultado['bloqueado'] = True
+            resultado['motivo_bloqueio'] = f'Limite {tipo_label} atingido ({percentual:.1f}%)'
+            resultado['status'] = 'bloqueado'
+        elif percentual >= 80:
+            resultado['status'] = 'proximo_limite'
+
+        return resultado
+
+    @property
+    def esta_bloqueada(self):
+        """Atalho para verificar se a forma de pagamento está bloqueada."""
+        return self.calcular_status_limite()['bloqueado']
+
 
 class Dispositivo(models.Model):
     """Define o nome de um dispositivo utilizado por clientes."""
@@ -1097,6 +1213,14 @@ class Mensalidade(models.Model):
     dt_notif_wpp1 = models.DateField("Data envio notificação PROMO", null=True, blank=True)
     pgto = models.BooleanField("Pago", default=False)
     cancelado = models.BooleanField(default=False)
+    forma_pgto = models.ForeignKey(
+        'Tipos_pgto',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Forma de Pagamento",
+        help_text="Forma de pagamento registrada no momento do pagamento (histórico imutável)"
+    )
     notificacao_wpp1 = models.BooleanField("Notificação PROMO", default=False)
     recebeu_pix_indicacao = models.BooleanField("PIX R$50", default=False)
     isencao_anuidade = models.BooleanField("Isenção por bônus anuidade", default=False)
@@ -3197,11 +3321,17 @@ class CobrancaPix(models.Model):
                             # Marca a mensalidade como paga mesmo assim para manter consistência
                             mensalidade.dt_pagamento = self.pago_em.date()
                             mensalidade.pgto = True
+                            # Registra a forma de pagamento usada (histórico imutável)
+                            if not mensalidade.forma_pgto:
+                                mensalidade.forma_pgto = mensalidade.cliente.forma_pgto
                             mensalidade.save()
                             return
 
                         mensalidade.dt_pagamento = self.pago_em.date()
                         mensalidade.pgto = True
+                        # Registra a forma de pagamento usada (histórico imutável)
+                        if not mensalidade.forma_pgto:
+                            mensalidade.forma_pgto = mensalidade.cliente.forma_pgto
                         mensalidade.save()  # Dispara signals: criar_nova_mensalidade, atualiza_ultimo_pagamento
 
                         logger.info(

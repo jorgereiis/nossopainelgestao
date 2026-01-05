@@ -108,7 +108,7 @@
                                     <select class="form-select form-select-lg" id="edit-cliente-forma_pgto" name="forma_pgto" required>
                                         <option value="">Selecione uma forma</option>
                                         {% for forma_pgto in formas_pgtos %}
-                                        <option value="{{ forma_pgto.id }}">{{ forma_pgto.nome }} ({% if forma_pgto.conta_bancaria and forma_pgto.conta_bancaria.nome_identificacao %}{{ forma_pgto.conta_bancaria.nome_identificacao }}{% else %}sem identificação{% endif %})</option>
+                                        <option value="{{ forma_pgto.id }}" {% if forma_pgto.esta_bloqueada %}disabled title="Limite atingido - não é possível associar novos clientes"{% endif %}>{{ forma_pgto.nome }} ({% if forma_pgto.conta_bancaria %}{% if forma_pgto.conta_bancaria.instituicao.tipo_integracao == 'fastdepix' %}{{ forma_pgto.conta_bancaria.nome_identificacao }}{% else %}{{ forma_pgto.conta_bancaria.instituicao.nome }}{% endif %}{% elif forma_pgto.dados_bancarios and forma_pgto.dados_bancarios.instituicao %}{{ forma_pgto.dados_bancarios.instituicao }}{% else %}sem dados bancários{% endif %}){% if forma_pgto.esta_bloqueada %} - LIMITE ATINGIDO{% endif %}</option>
                                         {% endfor %}
                                     </select>
                                     <small class="text-muted">Como o cliente realiza o pagamento</small>

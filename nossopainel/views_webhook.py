@@ -310,14 +310,34 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
         )
         return
 
-    # Se for @lid, para aqui (limitação do WhatsApp - não é possível enviar mensagem)
+    # Se for @lid, tentar obter número real via endpoint pn-lid
     if "@lid" in caller:
         logger.info(
-            "Chamada @lid rejeitada (sem envio de mensagem - limitação WhatsApp) | session=%s caller=%s",
+            "Chamada com @lid detectada, tentando resolver número real | session=%s lid=%s",
             session,
             caller
         )
-        return
+
+        phone_from_lid, lid_status = api_connection.get_phone_from_pn_lid(session, token, caller)
+
+        if phone_from_lid:
+            logger.info(
+                "LID resolvido com sucesso | session=%s lid=%s phone=%s",
+                session,
+                caller,
+                phone_from_lid
+            )
+            # Usar número real para o processo pós-rejeição
+            caller = f"{phone_from_lid}@c.us"
+        else:
+            logger.warning(
+                "Não foi possível resolver LID para número | session=%s lid=%s status=%s",
+                session,
+                caller,
+                lid_status
+            )
+            # Não conseguiu resolver - não enviar mensagem
+            return
 
     # 2. Contato direto: executar envio + marcação em thread separada
     def _processo_pos_rejeicao():
@@ -332,31 +352,58 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
                 "Estaremos lhe atendendo em alguns instantes.\n\n"
                 "Enquanto isso, informe aqui como podemos ajudá-lo(a)."
             )
+            logger.info(
+                "Enviando mensagem pós-rejeição | session=%s phone=%s",
+                session,
+                phone
+            )
+
             msg_result, msg_status = api_connection.send_text_message(
                 session, token, phone, mensagem
             )
 
-            if msg_status not in (200, 201):
-                logger.error(
-                    "Falha ao enviar mensagem pós-chamada | session=%s phone=%s status=%s",
+            if msg_status in (200, 201):
+                logger.info(
+                    "Mensagem pós-chamada enviada com sucesso | session=%s phone=%s status=%s",
                     session,
                     phone,
                     msg_status
+                )
+            else:
+                logger.error(
+                    "Falha ao enviar mensagem pós-chamada | session=%s phone=%s status=%s result=%s",
+                    session,
+                    phone,
+                    msg_status,
+                    msg_result
                 )
 
             # Aguarda 10s antes de marcar como não lido
             time.sleep(10)
 
+            logger.info(
+                "Marcando conversa como não lida | session=%s phone=%s",
+                session,
+                phone
+            )
+
             unread_result, unread_status = api_connection.mark_chat_unread(
                 session, token, phone
             )
 
-            if unread_status not in (200, 201):
+            if unread_status in (200, 201):
+                logger.info(
+                    "Conversa marcada como não lida com sucesso | session=%s phone=%s",
+                    session,
+                    phone
+                )
+            else:
                 logger.error(
-                    "Falha ao marcar conversa como não lida | session=%s phone=%s status=%s",
+                    "Falha ao marcar conversa como não lida | session=%s phone=%s status=%s result=%s",
                     session,
                     phone,
-                    unread_status
+                    unread_status,
+                    unread_result
                 )
         except Exception as e:
             logger.error(

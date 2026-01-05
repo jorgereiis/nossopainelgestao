@@ -325,6 +325,11 @@
         --dashboard-tab-icon-color: #f97316;
     }
 
+    .tab-icon-receita {
+        --dashboard-tab-icon-bg: #d1fae5;
+        --dashboard-tab-icon-color: #059669;
+    }
+
     .clientes-servidor-card {
         border: none;
         background: linear-gradient(135deg, rgba(98, 75, 255, 0.06), rgba(255, 255, 255, 0.95));

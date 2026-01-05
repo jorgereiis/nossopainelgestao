@@ -960,7 +960,19 @@ function adicionarEventListenersContas() {
       form.querySelector("#edit-cliente-telefone").value = clienteTelefone;
       form.querySelector("#edit-cliente-indicado_por").value = clienteIndicadoPor;
       form.querySelector("#edit-cliente-servidor").value = clienteServidor;
-      form.querySelector("#edit-cliente-forma_pgto").value = clienteFormaPgto;
+
+      // Habilita temporariamente a opção da forma de pagamento atual do cliente
+      // (caso esteja bloqueada por limite atingido, permite manter a forma atual)
+      const selectFormaPgto = form.querySelector("#edit-cliente-forma_pgto");
+      if (clienteFormaPgto) {
+        const opcaoAtual = selectFormaPgto.querySelector(`option[value="${clienteFormaPgto}"]`);
+        if (opcaoAtual && opcaoAtual.disabled) {
+          opcaoAtual.disabled = false;
+          opcaoAtual.dataset.reabilitar = 'true'; // Marca para re-desabilitar se trocar
+        }
+      }
+      selectFormaPgto.value = clienteFormaPgto;
+
       form.querySelector("#edit-cliente-plano").value = clientePlano;
       form.querySelector("#edit-cliente-dt_pgto").value = clienteDataVencimento;
       form.querySelector("#edit-cliente-nao_enviar_msgs").checked = clienteNaoEnviarMsgs;

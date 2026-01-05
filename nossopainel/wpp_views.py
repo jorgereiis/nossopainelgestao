@@ -329,27 +329,121 @@ def check_connection_wpp(request):
     return JsonResponse(dados, status=status_code)
 
 
+def _verificar_sucesso_desconexao(resp_data: dict, resp_status: int) -> bool:
+    """
+    Verifica se a desconexão foi bem-sucedida em diferentes cenários.
+
+    A API WPPConnect pode retornar diferentes formatos de resposta:
+    - {"status": true, "message": "Session successfully closed"} (sucesso)
+    - {"status": "Disconnected", ...} (sessão já desconectada)
+    - HTTP 404 com mensagem de sessão inativa
+    - {"message": "...não está ativa..."} (sessão já inativa)
+
+    Returns:
+        True se a desconexão foi bem-sucedida ou a sessão já estava inativa
+    """
+    status = resp_data.get("status")
+    message = resp_data.get("message", "").lower()
+
+    return (
+        status is True or
+        status == "Disconnected" or
+        resp_status == 404 or
+        "não está ativa" in message or
+        "not active" in message or
+        "successfully closed" in message
+    )
+
+
 @login_required
 def desconectar_wpp(request):
-    """Solicita logout junto à API e marca a sessão local como inativa."""
-    if request.method == "POST":
-        usuario = request.user
-        session = usuario.username
+    """
+    Solicita logout junto à API e marca a sessão local como inativa.
 
-        sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
-        if not sessao:
-            return JsonResponse({"erro": "Sessão não encontrada"}, status=404)
+    Implementa tratamento resiliente para múltiplos cenários:
+    1. logout_session bem-sucedido
+    2. Sessão já desconectada externamente (no celular)
+    3. Fallback para close_session se logout falhar
 
-        token = sessao.token
-        resp_data, resp_status = logout_session(session, token)
+    A resposta é normalizada para {"status": true, "message": "Session successfully closed"}
+    em todos os casos de sucesso, garantindo compatibilidade com o frontend.
+    """
+    func_name = "desconectar_wpp"
 
-        if resp_data.get("status") is True:
-            sessao.is_active = False
-            sessao.save()
+    if request.method != "POST":
+        return JsonResponse({"erro": "Método não permitido."}, status=405)
 
-        return JsonResponse(resp_data, status=resp_status)
+    usuario = request.user
+    session = usuario.username
 
-    return JsonResponse({"erro": "Método não permitido."}, status=405)
+    sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
+    if not sessao:
+        # Sessão já inativa no banco - retornar sucesso normalizado
+        logger.info(
+            "Sessão já inativa no banco | func=%s usuario=%s",
+            func_name,
+            usuario
+        )
+        return JsonResponse({
+            "status": True,
+            "message": "Session successfully closed",
+            "detail": "Sessão já estava inativa"
+        }, status=200)
+
+    token = sessao.token
+
+    # Tentativa 1: logout_session (desconecta e remove vinculação)
+    resp_data, resp_status = logout_session(session, token)
+    logger.debug(
+        "Resposta logout_session | func=%s usuario=%s status=%d data=%s",
+        func_name,
+        usuario,
+        resp_status,
+        resp_data
+    )
+
+    sucesso = _verificar_sucesso_desconexao(resp_data, resp_status)
+
+    # Tentativa 2: Fallback com close_session se logout falhou
+    if not sucesso:
+        logger.info(
+            "logout_session falhou, tentando close_session | func=%s usuario=%s",
+            func_name,
+            usuario
+        )
+        resp_data, resp_status = close_session(session, token)
+        logger.debug(
+            "Resposta close_session | func=%s usuario=%s status=%d data=%s",
+            func_name,
+            usuario,
+            resp_status,
+            resp_data
+        )
+        sucesso = _verificar_sucesso_desconexao(resp_data, resp_status)
+
+    if sucesso:
+        sessao.is_active = False
+        sessao.save()
+        logger.info(
+            "Sessão desativada com sucesso | func=%s usuario=%s motivo=%s",
+            func_name,
+            usuario,
+            resp_data.get("message", "logout realizado")
+        )
+        # Normalizar resposta para o frontend
+        return JsonResponse({
+            "status": True,
+            "message": "Session successfully closed"
+        }, status=200)
+
+    # Se chegou aqui, é um erro real
+    logger.warning(
+        "Falha ao desconectar sessão | func=%s usuario=%s resp=%s",
+        func_name,
+        usuario,
+        resp_data
+    )
+    return JsonResponse(resp_data, status=resp_status)
 
 
 @login_required
