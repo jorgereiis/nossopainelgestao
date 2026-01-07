@@ -42,7 +42,7 @@ from scripts.mensagens_wpp import (
     obter_img_base64,
 )
 
-URL_API_WPP = os.getenv("URL_API_WPP")
+API_WPP_URL_PROD = os.getenv("API_WPP_URL_PROD")
 LOG_GRUPOS = "logs/Envios grupos/envios.log"
 TEMPLATE_LOG_MSG_GRUPO = os.getenv("TEMPLATE_LOG_MSG_GRUPO")
 TEMPLATE_LOG_MSG_GRUPO_FALHOU = os.getenv("TEMPLATE_LOG_MSG_GRUPO_FALHOU")
@@ -192,7 +192,7 @@ def enviar_mensagem_grupos(
         - `token` é o Bearer Token da sessão.
         - `data_envio` opcional no formato 'DD-MM-YYYY' para testar datas passadas.
     """
-    url_base = f"{URL_API_WPP}/{usuario}"
+    url_base = f"{API_WPP_URL_PROD}/{usuario}"
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

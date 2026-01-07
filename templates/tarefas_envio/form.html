@@ -859,7 +859,7 @@
                     <div class="collapse {% if form.filtro_estados.value or form.pausado_ate.value %}show{% endif %}" id="configAvancadas">
                         <div class="card-body">
                             <!-- Segmentacao por Estados -->
-                            <div class="mb-4">
+                            <div class="mb-4" id="secao-filtro-estados">
                                 <div class="section-header">
                                     <div class="section-icon icon-info">
                                         <i class="bi bi-geo-alt-fill"></i>
@@ -880,6 +880,31 @@
                                         </div>
                                     </div>
                                     {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Dias de Cancelamento (apenas para tipo cancelados) -->
+                            <div class="mb-4" id="secao-dias-cancelamento" style="display: none;">
+                                <div class="section-header">
+                                    <div class="section-icon icon-danger">
+                                        <i class="bi bi-calendar-x-fill"></i>
+                                    </div>
+                                    <div>
+                                        <p class="section-title">Dias desde Cancelamento</p>
+                                        <p class="section-subtitle">Clientes cancelados ha pelo menos X dias</p>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="input-group">
+                                            {{ form.dias_cancelamento }}
+                                            <span class="input-group-text">dias</span>
+                                        </div>
+                                        <small class="text-muted mt-1 d-block">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Apenas clientes cancelados ha mais de {{ form.dias_cancelamento.value|default:"10" }} dias serao incluidos
+                                        </small>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1088,6 +1113,30 @@ $(document).ready(function() {
     });
 
     // ============================================
+    // CONTROLE DE EXIBICAO POR TIPO DE ENVIO
+    // ============================================
+    function atualizarExibicaoPorTipo() {
+        const tipoEnvio = $('#id_tipo_envio').val();
+
+        // Card de configuracoes avancadas: ocultar para leads (avulso)
+        if (tipoEnvio === 'avulso') {
+            // Oculta todo o card de configuracoes avancadas
+            $('#secao-filtro-estados').hide();
+            $('#secao-dias-cancelamento').hide();
+        } else {
+            // Mostra segmentacao por estados para ativos e cancelados
+            $('#secao-filtro-estados').show();
+
+            // Mostra dias de cancelamento apenas para tipo cancelados
+            if (tipoEnvio === 'cancelados') {
+                $('#secao-dias-cancelamento').show();
+            } else {
+                $('#secao-dias-cancelamento').hide();
+            }
+        }
+    }
+
+    // ============================================
     // PREVIEW DE ALCANCE
     // ============================================
     function carregarAlcance() {
@@ -1098,10 +1147,19 @@ $(document).ready(function() {
             return;
         }
 
+        // Leads (avulso) nao tem preview de alcance
+        if (tipoEnvio === 'avulso') {
+            $('#alcance-numero').text('-');
+            $('#alcance-label').text('Leads importados');
+            return;
+        }
+
         const estados = [];
         $('.filtro-estado-check:checked').each(function() {
             estados.push($(this).val());
         });
+
+        const diasCancelamento = $('#id_dias_cancelamento').val() || 10;
 
         $('#alcance-badge').addClass('loading updating');
 
@@ -1112,7 +1170,8 @@ $(document).ready(function() {
                 method: 'GET',
                 data: {
                     tipo_envio: tipoEnvio,
-                    'filtro_estados[]': estados
+                    'filtro_estados[]': estados,
+                    dias_cancelamento: diasCancelamento
                 },
                 success: function(response) {
                     if (response.success) {
@@ -1128,13 +1187,16 @@ $(document).ready(function() {
     }
 
     $('#id_tipo_envio').on('change', function() {
+        atualizarExibicaoPorTipo();
         carregarAlcance();
         atualizarResumo();
     });
 
     $('.filtro-estado-check').on('change', carregarAlcance);
+    $('#id_dias_cancelamento').on('change', carregarAlcance);
 
-    // Carrega alcance inicial
+    // Carrega estado inicial
+    atualizarExibicaoPorTipo();
     carregarAlcance();
 
     // ============================================

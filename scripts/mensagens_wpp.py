@@ -63,10 +63,10 @@ from nossopainel.models import (
     Cliente, DadosBancarios, HorarioEnvios,
     MensagensLeads, TelefoneLeads, OfertaPromocionalEnviada,
     TarefaEnvio, HistoricoExecucaoTarefa,
-    ConfiguracaoAgendamento,
+    ConfiguracaoAgendamento, ConfiguracaoEnvio,
 )
 
-URL_API_WPP = os.getenv("URL_API_WPP")
+API_WPP_URL_PROD = os.getenv("API_WPP_URL_PROD")
 DIR_LOGS_AGENDADOS = os.getenv("DIR_LOGS_AGENDADOS")
 DIR_LOGS_INDICACOES = os.getenv("DIR_LOGS_INDICACOES")
 TEMPLATE_LOG_MSG_SUCESSO = os.getenv("TEMPLATE_LOG_MSG_SUCESSO")
@@ -1167,12 +1167,16 @@ def envia_mensagem_personalizada(
     nome_msg: str = None,
     mensagem_direta: str = None,
     image_path: str = None,
-    usuario_id: int = None
+    usuario_id: int = None,
+    filtro_estados: list = None,
+    filtro_cidades: list = None,
+    dias_cancelamento: int = 10,
+    limite_envios: int = None
 ) -> dict:
     """
     Envia mensagens via WhatsApp para grupos de clientes com base no tipo de envio:
     - 'ativos': clientes em dia.
-    - 'cancelados': clientes inativos há mais de 40 dias.
+    - 'cancelados': clientes inativos há mais de X dias (configurável).
     - 'avulso': números importados via arquivo externo.
 
     Parâmetros:
@@ -1182,6 +1186,10 @@ def envia_mensagem_personalizada(
         mensagem_direta (str): Mensagem direta a ser enviada (modo TarefaEnvio).
         image_path (str): Caminho completo da imagem (modo TarefaEnvio).
         usuario_id (int): ID do usuário para envio (modo TarefaEnvio).
+        filtro_estados (list): Lista de UFs para filtrar clientes (ex: ['BA', 'SE']).
+        filtro_cidades (list): Lista de cidades para filtrar clientes.
+        dias_cancelamento (int): Dias mínimos de cancelamento para tipo 'cancelados' (padrão: 10).
+        limite_envios (int): Limite máximo de envios por execução (padrão: ConfiguracaoEnvio).
 
     Retorna:
         dict: {'enviados': int, 'erros': int, 'detalhes': list}
@@ -1212,7 +1220,7 @@ def envia_mensagem_personalizada(
 
     # Determina se vai enviar imagem (modo legado ou modo TarefaEnvio)
     tem_imagem = image_name or image_path
-    url_envio = f"{URL_API_WPP}/{usuario}/send-{'image' if tem_imagem else 'message'}"
+    url_envio = f"{API_WPP_URL_PROD}/{usuario}/send-{'image' if tem_imagem else 'message'}"
 
     # Obtém a imagem em base64
     image_base64 = None
@@ -1227,39 +1235,63 @@ def envia_mensagem_personalizada(
         # Modo legado: carrega imagem por nome
         image_base64 = obter_img_base64(image_name, tipo_envio)
 
-    # Limite de 100 envios por execução
+    # Obtém configuração global de envio
+    config_envio = ConfiguracaoEnvio.get_config()
+
+    # Limite de envios por execução (parâmetro > configuração global > padrão 100)
     total_enviados = 0
-    LIMITE_ENVIO_DIARIO = 100
+    LIMITE_ENVIO_DIARIO = limite_envios or config_envio.limite_envios_por_execucao or 100
 
     destinatarios = []
 
     # Obtenção dos números com base no tipo
     if tipo_envio == 'ativos':
-        clientes = Cliente.objects.filter(usuario=usuario, cancelado=False, nao_enviar_msgs=False)
+        clientes = Cliente.objects.filter(
+            usuario=usuario,
+            cancelado=False,
+            nao_enviar_msgs=False
+        )
+        # Aplica filtro de estados se fornecido
+        if filtro_estados:
+            clientes = clientes.filter(uf__in=filtro_estados)
+        # Aplica filtro de cidades se fornecido
+        if filtro_cidades:
+            clientes = clientes.filter(cidade__in=filtro_cidades)
+
+        # Usa iterator() para otimizar memória em bases grandes
         destinatarios = [
             {
                 "telefone": cliente.telefone,
                 "cliente_id": cliente.id,
                 "cliente_nome": cliente.nome,
             }
-            for cliente in clientes
+            for cliente in clientes.iterator()
         ]
     elif tipo_envio == 'cancelados':
         clientes = Cliente.objects.filter(
             usuario=usuario,
             cancelado=True,
             nao_enviar_msgs=False,
-            data_cancelamento__lte=localtime() - timedelta(days=10)
+            data_cancelamento__lte=localtime() - timedelta(days=dias_cancelamento)
         )
+        # Aplica filtro de estados se fornecido
+        if filtro_estados:
+            clientes = clientes.filter(uf__in=filtro_estados)
+        # Aplica filtro de cidades se fornecido
+        if filtro_cidades:
+            clientes = clientes.filter(cidade__in=filtro_cidades)
+
+        # Usa iterator() para otimizar memória em bases grandes
         destinatarios = [
             {
                 "telefone": cliente.telefone,
                 "cliente_id": cliente.id,
                 "cliente_nome": cliente.nome,
             }
-            for cliente in clientes
+            for cliente in clientes.iterator()
         ]
     elif tipo_envio == 'avulso':
+        # Leads não possuem filtro geográfico (modelo não tem UF/cidade)
         telefones_str = processa_telefones(usuario)
         numeros = telefones_str.split(',') if telefones_str else []
         destinatarios = [
@@ -1390,13 +1422,18 @@ def envia_mensagem_personalizada(
                 "cliente_id": cliente_id,
             })
             if tipo_envio == 'avulso':
-                TelefoneLeads.objects.filter(telefone=telefone, usuario=usuario).delete()
+                # Marca lead como inválido ao invés de deletar (soft delete)
+                TelefoneLeads.objects.filter(telefone=telefone, usuario=usuario).update(
+                    valido=False,
+                    data_validacao=localtime()
+                )
                 logger.info(
-                    "Telefone deletado do banco (lead inválido) | telefone=%s usuario=%s",
+                    "Lead marcado como inválido | telefone=%s usuario=%s",
                     telefone,
                     usuario.username
                 )
-                registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - 🗑️ Deletado do banco (avulso)", usuario, DIR_LOGS_AGENDADOS)
+                registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Marcado como inválido (avulso)", usuario, DIR_LOGS_AGENDADOS)
+            resultado['erros'] += 1
             continue
 
         # Obter mensagem: usa mensagem_direta (TarefaEnvio) ou template (legado)
@@ -1453,11 +1490,16 @@ def envia_mensagem_personalizada(
             timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
 
             try:
-                response = requests.post(url_envio, headers={
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': f'Bearer {token}'
-                }, json=payload)
+                response = requests.post(
+                    url_envio,
+                    headers={
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Authorization': f'Bearer {token}'
+                    },
+                    json=payload,
+                    timeout=30  # Timeout de 30 segundos para evitar travamentos
+                )
                 status_code = response.status_code
 
                 try:
@@ -1488,6 +1530,11 @@ def envia_mensagem_personalizada(
                             data_envio=localtime().date()
                         ).first()
                         registro_criado = False
+                        logger.warning(
+                            "IntegrityError: Registro MensagemEnviadaWpp já existia (race condition) | telefone=%s usuario=%s",
+                            telefone,
+                            usuario.username
+                        )
                         logger.debug(
                             "Registro MensagemEnviadaWpp já existia (race condition tratada) | telefone=%s",
                             telefone
@@ -1602,14 +1649,23 @@ def processa_telefones(usuario: User = None) -> str:
         str: Telefones limpos separados por vírgula.
     """
     try:
-        queryset = TelefoneLeads.objects.all()
+        queryset = TelefoneLeads.objects.filter(valido=True)  # Apenas leads válidos
         if usuario:
             queryset = queryset.filter(usuario=usuario)
 
         telefones = queryset.values_list('telefone', flat=True)
-        numeros_limpos = [
-            re.sub(r'\D', '', t) for t in telefones if t and re.sub(r'\D', '', t)
-        ]
+
+        # Preserva o '+' no número (formato internacional)
+        # Remove apenas caracteres que não são dígitos ou '+', mantendo +5571999999999
+        numeros_limpos = []
+        for t in telefones:
+            if not t:
+                continue
+            # Mantém apenas + e dígitos
+            numero = re.sub(r'[^\d+]', '', t)
+            if numero:
+                numeros_limpos.append(numero)
+
         return ','.join(numeros_limpos) if numeros_limpos else None
 
     except Exception as e:
@@ -1679,6 +1735,7 @@ def run_scheduled_tasks_from_db():
     Esta função roda em paralelo com run_scheduled_tasks() que usa lógica hardcoded.
 
     Verifica a cada execução:
+    - Horário atual dentro da janela permitida (ConfiguracaoEnvio)
     - Tarefas ativas
     - Horário atual dentro da janela de execução (5 minutos de margem)
     - Se já executou hoje (evita duplicação)
@@ -1689,6 +1746,21 @@ def run_scheduled_tasks_from_db():
         hoje = agora.date()
         hora_atual = agora.hour
         minuto_atual = agora.minute
+        hora_atual_time = agora.time()
+
+        # ============================================================
+        # VERIFICAÇÃO DE HORÁRIO PERMITIDO
+        # ============================================================
+        config_envio = ConfiguracaoEnvio.get_config()
+        if config_envio.horario_inicio_permitido and config_envio.horario_fim_permitido:
+            if not (config_envio.horario_inicio_permitido <= hora_atual_time <= config_envio.horario_fim_permitido):
+                logger.debug(
+                    "Fora do horário permitido para envios | atual=%s permitido=%s-%s",
+                    hora_atual_time.strftime('%H:%M'),
+                    config_envio.horario_inicio_permitido.strftime('%H:%M'),
+                    config_envio.horario_fim_permitido.strftime('%H:%M')
+                )
+                return
 
         # Busca tarefas ativas que devem executar no horário atual (com margem de 5 min)
         tarefas = TarefaEnvio.objects.filter(
@@ -1728,43 +1800,47 @@ def run_scheduled_tasks_from_db():
                     continue
 
                 # ============================================================
-                # PROTEÇÃO CONTRA EXECUÇÃO PARALELA
+                # PROTEÇÃO CONTRA EXECUÇÃO PARALELA (com transação atômica)
                 # ============================================================
-                # Recarrega a tarefa do banco para obter estado atualizado
-                tarefa.refresh_from_db()
+                # Usa select_for_update para garantir lock exclusivo no banco
+                with transaction.atomic():
+                    # Tenta adquirir lock exclusivo na tarefa
+                    tarefa_locked = TarefaEnvio.objects.select_for_update(
+                        skip_locked=True
+                    ).filter(
+                        id=tarefa.id,
+                        em_execucao=False
+                    ).first()
 
-                # Verifica se já está em execução
-                if tarefa.em_execucao:
-                    # Verifica se está travada (execução > 2 horas)
-                    if tarefa.execucao_iniciada_em:
-                        tempo_execucao = agora - tarefa.execucao_iniciada_em
-                        if tempo_execucao.total_seconds() > 7200:  # 2 horas
-                            logger.warning(
-                                "TarefaEnvio travada detectada (>2h) - resetando | tarefa_id=%d nome=%s tempo=%s",
-                                tarefa.id,
-                                tarefa.nome,
-                                str(tempo_execucao)
-                            )
-                            tarefa.em_execucao = False
-                            tarefa.execucao_iniciada_em = None
-                            tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
-                            # Pula esta rodada - execução limpa será na próxima rodada do scheduler
-                            continue
+                    if not tarefa_locked:
+                        # Tarefa já está em execução ou foi bloqueada por outro processo
+                        # Verifica se está travada (execução > 2 horas)
+                        tarefa.refresh_from_db()
+                        if tarefa.em_execucao and tarefa.execucao_iniciada_em:
+                            tempo_execucao = agora - tarefa.execucao_iniciada_em
+                            if tempo_execucao.total_seconds() > 7200:  # 2 horas
+                                logger.warning(
+                                    "TarefaEnvio travada detectada (>2h) - resetando | tarefa_id=%d nome=%s tempo=%s",
+                                    tarefa.id,
+                                    tarefa.nome,
+                                    str(tempo_execucao)
+                                )
+                                tarefa.em_execucao = False
+                                tarefa.execucao_iniciada_em = None
+                                tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
                         else:
                             logger.debug(
-                                "TarefaEnvio já em execução | tarefa_id=%d nome=%s iniciada_em=%s",
+                                "TarefaEnvio já em execução ou bloqueada | tarefa_id=%d nome=%s",
                                 tarefa.id,
-                                tarefa.nome,
-                                tarefa.execucao_iniciada_em
+                                tarefa.nome
                             )
-                            continue
-                    else:
-                        logger.debug(
-                            "TarefaEnvio já em execução (sem timestamp) | tarefa_id=%d nome=%s",
-                            tarefa.id,
-                            tarefa.nome
-                        )
                         continue
+
+                    # Lock adquirido com sucesso - marca como em execução
+                    tarefa = tarefa_locked
+                    tarefa.em_execucao = True
+                    tarefa.execucao_iniciada_em = agora
+                    tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
 
                 logger.info(
                     "Iniciando execução de TarefaEnvio | tarefa_id=%d nome=%s tipo=%s usuario=%s",
@@ -1773,11 +1849,6 @@ def run_scheduled_tasks_from_db():
                     tarefa.tipo_envio,
                     tarefa.usuario.username
                 )
-
-                # Marca tarefa como em execução
-                tarefa.em_execucao = True
-                tarefa.execucao_iniciada_em = agora
-                tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
 
                 inicio = time.time()
 
@@ -1792,7 +1863,10 @@ def run_scheduled_tasks_from_db():
                         tipo_envio=tarefa.tipo_envio,
                         mensagem_direta=tarefa.mensagem_plaintext or tarefa.mensagem,
                         image_path=image_path,
-                        usuario_id=tarefa.usuario_id
+                        usuario_id=tarefa.usuario_id,
+                        filtro_estados=tarefa.filtro_estados or None,
+                        filtro_cidades=tarefa.filtro_cidades or None,
+                        dias_cancelamento=tarefa.dias_cancelamento or 10,
                     )
 
                     duracao = int(time.time() - inicio)

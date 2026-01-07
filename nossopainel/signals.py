@@ -269,33 +269,76 @@ LABELS_CORES_FIXAS = {
 @receiver(pre_save, sender=Cliente)
 def registrar_valores_anteriores(sender, instance, **kwargs):
     """Captura o estado atual do cliente para detectar mudanças relevantes após o save."""
+    update_fields = kwargs.get('update_fields')
+
+    # DEBUG: Log de entrada do pre_save
+    logger.debug(
+        f"[LABEL_DEBUG] PRE_SAVE chamado para cliente ID={instance.pk} | "
+        f"Nome={instance.nome} | update_fields={update_fields}"
+    )
+
     if instance.pk:
         try:
             cliente_existente = Cliente.objects.get(pk=instance.pk)
         except Cliente.DoesNotExist:
+            logger.debug(f"[LABEL_DEBUG] PRE_SAVE: Cliente ID={instance.pk} não existe no banco. Saindo.")
             return
+
+        # DEBUG: Log dos valores que serão armazenados
+        logger.debug(
+            f"[LABEL_DEBUG] PRE_SAVE armazenando para cliente ID={instance.pk} ({instance.nome}): "
+            f"servidor_anterior_id={cliente_existente.servidor_id} (banco) vs "
+            f"servidor_novo_id={instance.servidor_id} (instância) | "
+            f"Dicionário ANTES: {dict(_clientes_servidor_anterior)}"
+        )
 
         _clientes_servidor_anterior[instance.pk] = cliente_existente.servidor_id
         _clientes_cancelado_anterior[instance.pk] = cliente_existente.cancelado
         _clientes_indicado_por_anterior[instance.pk] = cliente_existente.indicado_por_id
         _clientes_telefone_anterior[instance.pk] = cliente_existente.telefone
 
+        # DEBUG: Log após armazenar
+        logger.debug(
+            f"[LABEL_DEBUG] PRE_SAVE Dicionário DEPOIS: {dict(_clientes_servidor_anterior)}"
+        )
+
 
 @receiver(post_save, sender=Cliente)
 def cliente_post_save(sender, instance, created, **kwargs):
     """Sincroniza as labels do contato no WhatsApp após criação ou atualização do cliente."""
     func_name = cliente_post_save.__name__
+    update_fields = kwargs.get('update_fields')
     servidor_foi_modificado = False
     cliente_foi_cancelado = False
     cliente_foi_reativado = False
     telefone_foi_modificado = False
     telefone_anterior = None
 
+    # DEBUG: Log de entrada do post_save
+    logger.debug(
+        f"[LABEL_DEBUG] POST_SAVE chamado para cliente ID={instance.pk} | "
+        f"Nome={instance.nome} | created={created} | update_fields={update_fields} | "
+        f"Dicionário estado atual: {dict(_clientes_servidor_anterior)}"
+    )
+
     if not created:
         # Detecta mudança de servidor
         if instance.pk in _clientes_servidor_anterior:
             servidor_anterior_id = _clientes_servidor_anterior.pop(instance.pk)
             servidor_foi_modificado = servidor_anterior_id != instance.servidor_id
+            # DEBUG: Log da comparação de servidor
+            logger.debug(
+                f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+                f"servidor_anterior_id={servidor_anterior_id} vs instance.servidor_id={instance.servidor_id} | "
+                f"servidor_foi_modificado={servidor_foi_modificado}"
+            )
+        else:
+            # DEBUG: Log quando não encontra no dicionário
+            logger.debug(
+                f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+                f"NÃO ENCONTRADO no dicionário _clientes_servidor_anterior! "
+                f"Dicionário atual: {dict(_clientes_servidor_anterior)}"
+            )
 
         # Detecta mudança de cancelamento (usa .get() para não remover ainda)
         if instance.pk in _clientes_cancelado_anterior:
@@ -308,15 +351,52 @@ def cliente_post_save(sender, instance, created, **kwargs):
             telefone_anterior = _clientes_telefone_anterior.pop(instance.pk)
             telefone_foi_modificado = telefone_anterior != instance.telefone
 
+    # DEBUG: Log das flags antes da decisão
+    logger.debug(
+        f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): FLAGS - "
+        f"created={created}, servidor_foi_modificado={servidor_foi_modificado}, "
+        f"cliente_foi_cancelado={cliente_foi_cancelado}, cliente_foi_reativado={cliente_foi_reativado}, "
+        f"telefone_foi_modificado={telefone_foi_modificado}"
+    )
+
     if not (created or servidor_foi_modificado or cliente_foi_cancelado or cliente_foi_reativado or telefone_foi_modificado):
+        logger.debug(
+            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+            f"SAINDO SEM PROCESSAR - nenhuma condição atendida"
+        )
         return
 
+    # DEBUG: Log quando vai processar
+    logger.debug(
+        f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+        f"PROCESSANDO sincronização de label..."
+    )
+
+    # =========================================================================
+    # IDENTIFICADOR DO CHAT: Usar LID quando disponível, senão telefone
+    # Contatos com isContactSyncCompleted=0 usam @lid para operações de label
+    # =========================================================================
     telefone = str(instance.telefone)
+    chat_id = instance.whatsapp_lid if instance.whatsapp_lid else telefone
+
+    logger.debug(
+        f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+        f"Usando chat_id={chat_id} (whatsapp_lid={instance.whatsapp_lid}, telefone={telefone})"
+    )
 
     token = SessaoWpp.objects.filter(usuario=instance.usuario, is_active=True).first()
     if not token:
+        logger.debug(
+            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+            f"Sessão WhatsApp não encontrada. Saindo."
+        )
         _log_event(logging.INFO, instance, func_name, "Sessão do WhatsApp não encontrada para o usuário.")
         return
+
+    logger.debug(
+        f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+        f"Sessão WhatsApp encontrada. Iniciando sincronização de labels..."
+    )
 
     # Se telefone mudou, remover etiquetas do número antigo
     if telefone_foi_modificado and telefone_anterior:
@@ -329,16 +409,69 @@ def cliente_post_save(sender, instance, created, **kwargs):
             _log_event(logging.ERROR, instance, func_name, f"Erro ao remover etiquetas do telefone antigo {telefone_anterior}", exc_info=error)
 
     try:
-        labels_atuais = get_label_contact(telefone, token.token, user=token)
+        logger.debug(
+            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+            f"Buscando labels atuais do chat_id {chat_id}..."
+        )
+        labels_atuais = get_label_contact(chat_id, token.token, user=token)
+        logger.debug(
+            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+            f"Labels atuais do contato: {labels_atuais}"
+        )
     except Exception as error:
         _log_event(logging.ERROR, instance, func_name, "Erro ao obter labels atuais do contato.", exc_info=error)
         labels_atuais = []
+
+    # =========================================================================
+    # FALLBACK: Quando não conseguimos identificar as labels do contato
+    # (contato não sincronizado retorna labels=[]), removemos TODAS as labels
+    # possíveis da sessão antes de adicionar a nova label.
+    # =========================================================================
+    usar_fallback = False
+    if not labels_atuais:
+        logger.debug(
+            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+            f"Labels atuais vazias - ativando FALLBACK para remover todas as labels possíveis"
+        )
+        usar_fallback = True
+        try:
+            from wpp.api_connection import get_all_labels
+            todas_labels = get_all_labels(token.token, token)
+            if todas_labels:
+                # Usar todos os IDs de labels da sessão como candidatos para remoção
+                labels_atuais = [label.get('id') for label in todas_labels if label.get('id')]
+                logger.debug(
+                    f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+                    f"FALLBACK - obtidas {len(labels_atuais)} labels da sessão para tentar remover: {labels_atuais}"
+                )
+            else:
+                logger.warning(
+                    f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+                    f"FALLBACK - não foi possível obter labels da sessão"
+                )
+        except Exception as fallback_error:
+            logger.error(
+                f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+                f"FALLBACK - erro ao buscar todas as labels: {fallback_error}"
+            )
 
     try:
         label_desejada = "CANCELADOS" if cliente_foi_cancelado else instance.servidor.nome
         hex_color = LABELS_CORES_FIXAS.get(label_desejada.upper())
 
+        logger.debug(
+            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+            f"Label desejada='{label_desejada}' | hex_color={hex_color} | "
+            f"Servidor atual: {instance.servidor.nome if instance.servidor else None}"
+        )
+
         nova_label_id = criar_label_se_nao_existir(label_desejada, token.token, user=token, hex_color=hex_color)
+
+        logger.debug(
+            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+            f"nova_label_id={nova_label_id} para label '{label_desejada}'"
+        )
+
         if not nova_label_id:
             _log_event(
                 logging.INFO,
@@ -348,16 +481,43 @@ def cliente_post_save(sender, instance, created, **kwargs):
             )
             return
 
+        # IMPORTANTE: Se estamos usando fallback, a lista labels_atuais contém TODAS
+        # as labels da sessão. Precisamos remover a nova label dessa lista para que
+        # a função add_or_remove_label_contact não pense que ela já está atribuída.
+        if usar_fallback and nova_label_id in labels_atuais:
+            labels_atuais = [label for label in labels_atuais if label != nova_label_id]
+            logger.debug(
+                f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+                f"FALLBACK - removida nova label {nova_label_id} da lista de remoção. "
+                f"Labels restantes para remover: {labels_atuais}"
+            )
+
+        logger.debug(
+            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+            f"Chamando add_or_remove_label_contact com label_id_1={nova_label_id}, "
+            f"label_id_2={labels_atuais}, chat_id={chat_id}, usar_fallback={usar_fallback}"
+        )
+
         add_or_remove_label_contact(
             label_id_1=nova_label_id,
             label_id_2=labels_atuais,
             label_name=label_desejada,
-            telefone=telefone,
+            telefone=chat_id,  # Usa LID quando disponível, senão telefone
             token=token.token,
             user=token,
         )
 
+        fallback_msg = " (usando FALLBACK - removeu todas as labels possíveis)" if usar_fallback else ""
+        logger.debug(
+            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+            f"Sincronização de label CONCLUÍDA com sucesso{fallback_msg}!"
+        )
+
     except Exception as error:
+        logger.debug(
+            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+            f"ERRO na sincronização: {error}"
+        )
         _log_event(logging.ERROR, instance, func_name, "Erro ao alterar label do contato.", exc_info=error)
 
 

@@ -342,7 +342,7 @@
       <!-- Page Header -->
       <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h3 class="mb-1">Relatorio de Pagamentos</h3>
+          <h3 class="mb-1">Relatório de Pagamentos</h3>
           <p class="text-muted mb-0">Pagamentos recebidos via PIX (API) e registros manuais</p>
         </div>
       </div>
@@ -381,13 +381,13 @@
         <div class="stat-card pending">
           <div class="stat-label">Pendentes</div>
           <div class="stat-value">R$ {{ total_pendentes|floatformat:2 }}</div>
-          <div class="stat-count">{{ qtd_pendentes }} transação{{ qtd_pendentes|pluralize:"ões" }}</div>
+          <div class="stat-count">{{ qtd_pendentes }} transações</div>
         </div>
 
         <div class="stat-card expired">
           <div class="stat-label">Expiradas</div>
           <div class="stat-value">R$ {{ total_expiradas|floatformat:2 }}</div>
-          <div class="stat-count">{{ qtd_expiradas }} transação{{ qtd_expiradas|pluralize:"ões" }}</div>
+          <div class="stat-count">{{ qtd_expiradas }} transações</div>
         </div>
 
         <div class="stat-card taxa">
@@ -398,7 +398,7 @@
 
         {% if qtd_pix > 0 %}
         <div class="stat-card taxa">
-          <div class="stat-label">Media Geral das Taxas</div>
+          <div class="stat-label">Média Geral das Taxas</div>
           <div class="stat-value">R$ {{ taxa_media|floatformat:2 }}</div>
           <div class="stat-count">{{ taxa_percentual|floatformat:2 }}% do valor</div>
         </div>
@@ -450,7 +450,7 @@
       <!-- Payments Table -->
       <div class="table-container">
         <div class="table-header">
-          <span class="table-title">Transacoes</span>
+          <span class="table-title">Transacões</span>
           <span class="text-muted">{{ pagamentos|length }} registro{{ pagamentos|length|pluralize:"s" }}</span>
         </div>
 
@@ -465,7 +465,7 @@
                 <th>Tipo</th>
                 <th>Status</th>
                 <th>Origem</th>
-                <th>Acao</th>
+                <th>Acão</th>
               </tr>
             </thead>
             <tbody>
@@ -488,7 +488,7 @@
                   <div class="valor-principal">R$ {{ pag.valor|floatformat:2 }}</div>
                   {% if pag.valor_recebido %}
                   <div class="valor-detalhe">
-                    Liquido: R$ {{ pag.valor_recebido|floatformat:2 }}
+                    Líquido: R$ {{ pag.valor_recebido|floatformat:2 }}
                     {% if pag.valor_taxa %} | Taxa: R$ {{ pag.valor_taxa|floatformat:2 }}{% endif %}
                   </div>
                   {% endif %}
@@ -553,7 +553,7 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Detalhes da Transacao</h5>
+          <h5 class="modal-title">Detalhes da Transacão</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
         </div>
         <div class="modal-body" id="modalTransacaoBody">

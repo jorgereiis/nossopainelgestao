@@ -3,7 +3,7 @@ Módulo de definição das models principais da aplicação.
 Inclui entidades como Cliente, Plano, Mensalidade, Aplicativo, Sessão WhatsApp, entre outras.
 """
 
-from datetime import date, timedelta
+from datetime import date, timedelta, time as dt_time
 from decimal import Decimal
 from typing import Optional
 import re
@@ -1117,6 +1117,16 @@ class Cliente(models.Model):
         null=True,
         blank=True,
         help_text="CPF do cliente (opcional, util para pagamentos)"
+    )
+
+    # ===== INTEGRAÇÃO WHATSAPP =====
+    whatsapp_lid = models.CharField(
+        "WhatsApp LID",
+        max_length=50,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Linked ID do contato no WhatsApp (preenchido automaticamente via webhook)"
     )
 
     class Meta:
@@ -3759,13 +3769,33 @@ class TelefoneLeads(models.Model):
     """Modela os números de telefone coletados como leads para futuras campanhas."""
     telefone = models.CharField(max_length=20, unique=True)
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    valido = models.BooleanField(
+        default=True,
+        verbose_name='Válido',
+        help_text='Indica se o número foi validado no WhatsApp. Números inválidos são marcados como False ao invés de deletados.'
+    )
+    data_validacao = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Data da Validação',
+        help_text='Data/hora da última validação do número'
+    )
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Criado Em'
+    )
 
     class Meta:
         db_table = 'cadastros_telefoneleads'
-        verbose_name_plural = "Telefones Leads"
+        verbose_name = 'Telefone Lead'
+        verbose_name_plural = 'Telefones Leads'
+        indexes = [
+            models.Index(fields=['usuario', 'valido'], name='lead_usr_valido_idx'),
+        ]
 
     def __str__(self):
-        return self.telefone
+        status = "✓" if self.valido else "✗"
+        return f"[{status}] {self.telefone}"
     
 
 class EnviosLeads(models.Model):
@@ -4577,6 +4607,13 @@ class TarefaEnvio(models.Model):
         help_text='Lista de cidades para filtrar clientes (vazio = todas)'
     )
 
+    # Dias mínimos de cancelamento (apenas para tipo_envio='cancelados')
+    dias_cancelamento = models.PositiveIntegerField(
+        default=10,
+        verbose_name='Dias de Cancelamento',
+        help_text='Quantidade mínima de dias desde o cancelamento para incluir o cliente (apenas para tipo "Cancelados")'
+    )
+
     # Pausa temporária
     pausado_ate = models.DateTimeField(
         null=True,
@@ -4666,6 +4703,20 @@ class TarefaEnvio(models.Model):
             return False
 
         agora = timezone.localtime()
+        hoje = agora.date()
+
+        # ============================================
+        # TIPO AGENDAMENTO ÚNICO
+        # ============================================
+        if self.tipo_agendamento == 'unico':
+            # Para envio único, verifica apenas se a data é hoje
+            if not self.data_envio_unico:
+                return False
+            return self.data_envio_unico == hoje
+
+        # ============================================
+        # TIPO AGENDAMENTO RECORRENTE
+        # ============================================
         dia_semana = agora.weekday()  # 0=segunda, 6=domingo
         dia_mes = agora.day
 
@@ -4921,13 +4972,13 @@ class ConfiguracaoEnvio(models.Model):
     )
 
     horario_inicio_permitido = models.TimeField(
-        default='08:00',
+        default=dt_time(8, 0),
         verbose_name='Horário Início Permitido',
         help_text='Horário mínimo para iniciar envios'
     )
 
     horario_fim_permitido = models.TimeField(
-        default='20:00',
+        default=dt_time(20, 0),
         verbose_name='Horário Fim Permitido',
         help_text='Horário máximo para envios'
     )

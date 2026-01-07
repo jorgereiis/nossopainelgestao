@@ -32,7 +32,7 @@ PARAMS_URL = "type=m3u_plus&output=m3u8"
 
 USERNAME = json.loads(os.getenv("USERNAME_M3U8"))
 PASSWORD = json.loads(os.getenv("PASSWORD_M3U8"))
-URL_API_WPP = os.getenv("URL_API_WPP")
+API_WPP_URL_PROD = os.getenv("API_WPP_URL_PROD")
 WPP_TELEFONE = os.getenv("MEU_NUM_TIM")
 ADM_ENVIA_ALERTAS = os.getenv("NUM_MONITOR")
 
@@ -48,7 +48,7 @@ WPP_TOKEN = sessao_wpp.token
 os.makedirs(os.path.dirname(STATUS_SNAPSHOT_FILE), exist_ok=True)
 
 # --- Verificação de variáveis obrigatórias ---
-if not all([USERNAME, PASSWORD, URL_API_WPP, WPP_TELEFONE, WPP_USER, WPP_TOKEN]):
+if not all([USERNAME, PASSWORD, API_WPP_URL_PROD, WPP_TELEFONE, WPP_USER, WPP_TOKEN]):
     logger.critical("Variáveis obrigatórias não definidas")
     sys.exit(1)
 
@@ -65,7 +65,7 @@ HEADERS = {
 
 # --- Envio de mensagens via WPPConnect ---
 def enviar_mensagem(telefone, mensagem, usuario, token, is_group=False):
-    url = f"{URL_API_WPP}/{usuario}/send-message"
+    url = f"{API_WPP_URL_PROD}/{usuario}/send-message"
     headers_envio = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
