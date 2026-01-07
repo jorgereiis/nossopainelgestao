@@ -220,6 +220,7 @@
                                         data-notas="{{cliente.notas}}"
                                         data-telefone="{{cliente.telefone|formatar_telefone}}"
                                         data-servidor="{{cliente.servidor}}"
+                                        data-servidor_logo="{{cliente.servidor|servidor_imagem_url:user}}"
                                         data-aplicativo="{{cliente.sistema}}"
                                         data-forma_pgto="{{cliente.forma_pgto}}"
                                         data-dispositivo="{{cliente.dispositivo}}"
@@ -228,6 +229,7 @@
                                         data-data_vencimento="{{cliente.data_vencimento|date:'d/m/Y'}}"
                                         data-ultimo_pagamento="{{cliente.ultimo_pagamento|date:'d/m/Y'}}"
                                         data-conta_aplicativo="{{cliente.conta_aplicativo.all}}"
+                                        data-whatsapp_lid="{{cliente.whatsapp_lid|default:''}}"
                                         onclick="exibirModalDetalhes(this)">
                                     <i class="bi bi-eye me-3"></i>
                                     <span>Ver Informações</span>
