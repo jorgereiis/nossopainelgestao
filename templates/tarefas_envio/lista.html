@@ -932,7 +932,7 @@
 
     <!-- Toggle de Visualizacao -->
     <div class="row mb-3">
-        <div class="col-12">
+        <div class="col-12 d-flex justify-content-between align-items-center">
             <div class="btn-group view-toggle" role="group">
                 <button type="button" class="btn btn-primary active" id="btn-view-lista" data-view="lista">
                     <i data-feather="list" class="icon-xs me-1"></i> Lista
@@ -941,6 +941,11 @@
                     <i data-feather="calendar" class="icon-xs me-1"></i> Calendario
                 </button>
             </div>
+            {% if user.is_superuser %}
+            <button type="button" class="btn btn-outline-secondary" id="btn-configuracao" data-bs-toggle="modal" data-bs-target="#modalConfiguracao">
+                <i data-feather="settings" class="icon-xs me-1"></i> Configuracoes
+            </button>
+            {% endif %}
         </div>
     </div>
 
@@ -1157,19 +1162,163 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de Configuracoes (apenas admin) -->
+{% if user.is_superuser %}
+<div class="modal fade" id="modalConfiguracao" tabindex="-1" aria-labelledby="modalConfiguracaoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title" id="modalConfiguracaoLabel">
+                    <i class="bi bi-gear me-2"></i>Configuracoes de Envio
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="config-loading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                </div>
+                <form id="formConfiguracao" class="d-none">
+                    <div class="mb-3">
+                        <label for="config_limite_envios" class="form-label">
+                            <i class="bi bi-speedometer2 me-1"></i>Limite de Envios por Execucao
+                        </label>
+                        <input type="number" class="form-control" id="config_limite_envios" min="1" max="1000" required>
+                        <small class="text-muted">Maximo de mensagens enviadas por execucao de tarefa (1-1000)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="config_intervalo" class="form-label">
+                            <i class="bi bi-clock me-1"></i>Intervalo entre Mensagens (segundos)
+                        </label>
+                        <input type="number" class="form-control" id="config_intervalo" min="1" max="300" required>
+                        <small class="text-muted">Segundos de espera entre cada mensagem (1-300)</small>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label for="config_horario_inicio" class="form-label">
+                                    <i class="bi bi-sunrise me-1"></i>Horario Inicio
+                                </label>
+                                <input type="time" class="form-control" id="config_horario_inicio" required>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label for="config_horario_fim" class="form-label">
+                                    <i class="bi bi-sunset me-1"></i>Horario Fim
+                                </label>
+                                <input type="time" class="form-control" id="config_horario_fim" required>
+                            </div>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Envios so serao executados entre os horarios permitidos
+                    </small>
+                    <div id="config-ultima-atualizacao" class="text-muted small mb-3"></div>
+                </form>
+                <div id="config-error" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-salvar-config" disabled>
+                    <i class="bi bi-check-lg me-1"></i>Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
 $(document).ready(function() {
+    // ===== CONFIGURACOES GLOBAIS (MODAL) =====
+    {% if user.is_superuser %}
+    $('#modalConfiguracao').on('show.bs.modal', function() {
+        $('#config-loading').removeClass('d-none');
+        $('#formConfiguracao').addClass('d-none');
+        $('#config-error').addClass('d-none');
+        $('#btn-salvar-config').prop('disabled', true);
+
+        $.ajax({
+            url: '{% url "tarefas-envio-configuracao-get" %}',
+            method: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    $('#config_limite_envios').val(response.config.limite_envios_por_execucao);
+                    $('#config_intervalo').val(response.config.intervalo_entre_mensagens);
+                    $('#config_horario_inicio').val(response.config.horario_inicio_permitido);
+                    $('#config_horario_fim').val(response.config.horario_fim_permitido);
+                    if (response.config.atualizado_em) {
+                        $('#config-ultima-atualizacao').html('<i class="bi bi-clock-history me-1"></i>Ultima atualizacao: ' + response.config.atualizado_em);
+                    }
+                    $('#config-loading').addClass('d-none');
+                    $('#formConfiguracao').removeClass('d-none');
+                    $('#btn-salvar-config').prop('disabled', false);
+                } else {
+                    $('#config-error').text(response.error).removeClass('d-none');
+                    $('#config-loading').addClass('d-none');
+                }
+            },
+            error: function() {
+                $('#config-error').text('Erro ao carregar configuracoes').removeClass('d-none');
+                $('#config-loading').addClass('d-none');
+            }
+        });
+    });
+
+    $('#btn-salvar-config').on('click', function() {
+        const $btn = $(this);
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Salvando...');
+
+        $.ajax({
+            url: '{% url "tarefas-envio-configuracao-salvar" %}',
+            method: 'POST',
+            contentType: 'application/json',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'},
+            data: JSON.stringify({
+                limite_envios_por_execucao: parseInt($('#config_limite_envios').val()),
+                intervalo_entre_mensagens: parseInt($('#config_intervalo').val()),
+                horario_inicio_permitido: $('#config_horario_inicio').val(),
+                horario_fim_permitido: $('#config_horario_fim').val()
+            }),
+            success: function(response) {
+                if (response.success) {
+                    $('#modalConfiguracao').modal('hide');
+                    // Toast de sucesso
+                    Toastify({
+                        text: response.message,
+                        duration: 3000,
+                        gravity: 'top',
+                        position: 'right',
+                        backgroundColor: '#28a745'
+                    }).showToast();
+                } else {
+                    $('#config-error').text(response.error).removeClass('d-none');
+                }
+            },
+            error: function() {
+                $('#config-error').text('Erro ao salvar configuracoes').removeClass('d-none');
+            },
+            complete: function() {
+                $btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>Salvar');
+            }
+        });
+    });
+    {% endif %}
+
     // ===== ATUALIZACAO EM TEMPO REAL =====
     let ultimosStats = {
         total_ativas: {{ total_ativas }},
         total_inativas: {{ total_inativas }},
         total_pausadas: {{ total_pausadas }},
         total_envios: {{ total_envios|default:0 }},
-        taxa_sucesso: {% if taxa_sucesso is not None %}{{ taxa_sucesso }}{% else %}null{% endif %},
-        media_envios_execucao: {{ media_envios_execucao|default:0 }}
+        taxa_sucesso: {% if taxa_sucesso is not None %}{{ taxa_sucesso|stringformat:"g" }}{% else %}null{% endif %},
+        media_envios_execucao: {{ media_envios_execucao|default:0|stringformat:"g" }}
     };
 
     function atualizarStats() {

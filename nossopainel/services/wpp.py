@@ -138,9 +138,9 @@ def _get_base_url() -> str:
     Levanta:
         RuntimeError: caso a variável não esteja definida.
     """
-    base_url = os.getenv("URL_API_WPP")
+    base_url = os.getenv("API_WPP_URL_PROD")
     if not base_url:
-        raise RuntimeError("URL_API_WPP environment variable is not set.")
+        raise RuntimeError("API_WPP_URL_PROD environment variable is not set.")
     return base_url.rstrip("/")
 
 

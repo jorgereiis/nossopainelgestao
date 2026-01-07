@@ -23,11 +23,11 @@ logger = get_wpp_logger()
 
 # --- Variáveis de ambiente e caminhos ---
 MEU_NUM_TIM = os.getenv("MEU_NUM_TIM")
-URL_API_WPP = os.getenv("URL_API_WPP")
+API_WPP_URL_PROD = os.getenv("API_WPP_URL_PROD")
 
 # --- Envia mensagem privada para número específico ---
 def enviar_mensagem(telefone, mensagem, usuario, token):
-    url = f"{URL_API_WPP}/{usuario}/send-message"
+    url = f"{API_WPP_URL_PROD}/{usuario}/send-message"
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

@@ -91,6 +91,8 @@ from .models import (
     ConfiguracaoLimite,
     NotificacaoSistema,
     PlanoLinkPagamento,
+    # Tarefas de Envio WhatsApp
+    ConfiguracaoEnvio,
 )
 from .utils import (
     envio_apos_novo_cadastro,
@@ -150,7 +152,7 @@ warnings.filterwarnings(
     "ignore", message="errors='ignore' is deprecated", category=FutureWarning
 )
 logger = logging.getLogger(__name__)
-url_api = os.getenv("URL_API_WPP")
+url_api = os.getenv("API_WPP_URL_PROD")
 
 class StaffRequiredMixin(UserPassesTestMixin):
     raise_exception = True
@@ -9567,7 +9569,7 @@ def internal_send_whatsapp(request):
             }, status=500)
 
         # Prepara requisição para WPPConnect API
-        url_api_wpp = os.getenv('URL_API_WPP', os.getenv('URL_API', 'http://api.nossopainel.com.br/api'))
+        url_api_wpp = os.getenv('API_WPP_URL_PROD', os.getenv('URL_API', 'http://api.nossopainel.com.br/api'))
         url = f"{url_api_wpp}/{sessao.usuario}/send-message"
 
         headers = {
@@ -11015,15 +11017,12 @@ from .models import TarefaEnvio, HistoricoExecucaoTarefa, TemplateMensagem
 from .forms import TarefaEnvioForm
 
 
-class TarefaEnvioListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+class TarefaEnvioListView(LoginRequiredMixin, ListView):
     """Lista todas as tarefas de envio do usuário."""
     model = TarefaEnvio
     template_name = 'tarefas_envio/lista.html'
     context_object_name = 'tarefas'
     paginate_by = 10
-
-    def test_func(self):
-        return self.request.user.is_superuser
 
     def get_queryset(self):
         return TarefaEnvio.objects.filter(
@@ -11076,43 +11075,28 @@ class TarefaEnvioListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return context
 
 
-class TarefaEnvioCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+class TarefaEnvioCreateView(LoginRequiredMixin, CreateView):
     """Cria uma nova tarefa de envio."""
     model = TarefaEnvio
     form_class = TarefaEnvioForm
     template_name = 'tarefas_envio/form.html'
     success_url = reverse_lazy('tarefas-envio-lista')
 
-    def test_func(self):
-        return self.request.user.is_superuser
-
     def post(self, request, *args, **kwargs):
-        """Log do POST antes de processar o form."""
-        import logging
-        logger = logging.getLogger(__name__)
-
+        """Processa o POST do formulário."""
         # IMPORTANTE: CreateView precisa definir self.object = None antes de processar o form
         self.object = None
-
-        logger.info(f"TarefaEnvioCreateView POST - FILES: {request.FILES}")
-        logger.info(f"TarefaEnvioCreateView POST - FILES keys: {list(request.FILES.keys())}")
-        logger.info(f"TarefaEnvioCreateView POST - POST keys: {list(request.POST.keys())}")
-        logger.info(f"TarefaEnvioCreateView POST - content_type: {request.content_type}")
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"TarefaEnvioCreateView form_valid - FILES: {self.request.FILES}")
-        logger.info(f"TarefaEnvioCreateView form_valid - imagem in cleaned_data: {form.cleaned_data.get('imagem')}")
         form.instance.usuario = self.request.user
-
         try:
             response = super().form_valid(form)
-            logger.info(f"TarefaEnvioCreateView - tarefa salva com sucesso, ID: {self.object.id}")
             messages.success(self.request, 'Tarefa de envio criada com sucesso!')
             return response
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
             logger.error(f"TarefaEnvioCreateView - erro ao salvar: {e}", exc_info=True)
             messages.error(self.request, f'Erro ao salvar tarefa: {e}')
             return self.form_invalid(form)
@@ -11121,8 +11105,6 @@ class TarefaEnvioCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView)
         import logging
         logger = logging.getLogger(__name__)
         logger.warning(f"TarefaEnvioCreateView form_invalid - errors: {form.errors}")
-        logger.warning(f"TarefaEnvioCreateView form_invalid - FILES: {self.request.FILES}")
-        logger.warning(f"TarefaEnvioCreateView form_invalid - POST: {self.request.POST}")
         messages.error(self.request, f'Erro ao criar tarefa: {form.errors}')
         return super().form_invalid(form)
 
@@ -11135,51 +11117,34 @@ class TarefaEnvioCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView)
         return context
 
 
-class TarefaEnvioUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+class TarefaEnvioUpdateView(LoginRequiredMixin, UpdateView):
     """Edita uma tarefa de envio existente."""
     model = TarefaEnvio
     form_class = TarefaEnvioForm
     template_name = 'tarefas_envio/form.html'
     success_url = reverse_lazy('tarefas-envio-lista')
 
-    def test_func(self):
-        return self.request.user.is_superuser
-
     def get_queryset(self):
         return TarefaEnvio.objects.filter(usuario=self.request.user)
 
     def post(self, request, *args, **kwargs):
-        """Log do POST antes de processar o form."""
-        import logging
-        logger = logging.getLogger(__name__)
-
+        """Processa o POST do formulário."""
         # IMPORTANTE: UpdateView precisa definir self.object antes de processar o form
         self.object = self.get_object()
-
-        logger.info(f"TarefaEnvioUpdateView POST - FILES: {request.FILES}")
-        logger.info(f"TarefaEnvioUpdateView POST - FILES keys: {list(request.FILES.keys())}")
-        logger.info(f"TarefaEnvioUpdateView POST - content_type: {request.content_type}")
-        logger.info(f"TarefaEnvioUpdateView POST - object.imagem: {self.object.imagem}")
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"TarefaEnvioUpdateView form_valid - FILES: {self.request.FILES}")
-        logger.info(f"TarefaEnvioUpdateView form_valid - imagem in cleaned_data: {form.cleaned_data.get('imagem')}")
-        logger.info(f"TarefaEnvioUpdateView form_valid - form.instance.imagem: {form.instance.imagem}")
-
         # Trata remoção de imagem (checkbox imagem-clear)
         if self.request.POST.get('imagem-clear') == 'true':
-            logger.info("TarefaEnvioUpdateView - removendo imagem atual")
             form.instance.imagem = None
 
         try:
             response = super().form_valid(form)
-            logger.info(f"TarefaEnvioUpdateView - tarefa atualizada com sucesso, ID: {self.object.id}")
             messages.success(self.request, 'Tarefa de envio atualizada com sucesso!')
             return response
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
             logger.error(f"TarefaEnvioUpdateView - erro ao salvar: {e}", exc_info=True)
             messages.error(self.request, f'Erro ao salvar tarefa: {e}')
             return self.form_invalid(form)
@@ -11188,8 +11153,6 @@ class TarefaEnvioUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView)
         import logging
         logger = logging.getLogger(__name__)
         logger.warning(f"TarefaEnvioUpdateView form_invalid - errors: {form.errors}")
-        logger.warning(f"TarefaEnvioUpdateView form_invalid - FILES: {self.request.FILES}")
-        logger.warning(f"TarefaEnvioUpdateView form_invalid - POST keys: {list(self.request.POST.keys())}")
         messages.error(self.request, f'Erro ao atualizar tarefa: {form.errors}')
         return super().form_invalid(form)
 
@@ -11203,13 +11166,10 @@ class TarefaEnvioUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView)
         return context
 
 
-class TarefaEnvioDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+class TarefaEnvioDeleteView(LoginRequiredMixin, DeleteView):
     """Deleta uma tarefa de envio."""
     model = TarefaEnvio
     success_url = reverse_lazy('tarefas-envio-lista')
-
-    def test_func(self):
-        return self.request.user.is_superuser
 
     def get_queryset(self):
         return TarefaEnvio.objects.filter(usuario=self.request.user)
@@ -11233,12 +11193,6 @@ class TarefaEnvioDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView)
 @require_POST
 def tarefa_envio_excluir_ajax(request, pk):
     """Exclui uma tarefa de envio via AJAX."""
-    if not request.user.is_superuser:
-        return JsonResponse({
-            'success': False,
-            'error': 'Permissão negada'
-        }, status=403)
-
     tarefa = get_object_or_404(TarefaEnvio, pk=pk, usuario=request.user)
     nome = tarefa.nome
     tarefa.delete()
@@ -11253,12 +11207,6 @@ def tarefa_envio_excluir_ajax(request, pk):
 @require_POST
 def tarefa_envio_toggle(request, pk):
     """Alterna o status ativo/inativo de uma tarefa via AJAX."""
-    if not request.user.is_superuser:
-        return JsonResponse({
-            'success': False,
-            'error': 'Permissão negada'
-        }, status=403)
-
     tarefa = get_object_or_404(TarefaEnvio, pk=pk, usuario=request.user)
     tarefa.ativo = not tarefa.ativo
     tarefa.save(update_fields=['ativo'])
@@ -11274,12 +11222,6 @@ def tarefa_envio_toggle(request, pk):
 @require_POST
 def tarefa_envio_duplicar(request, pk):
     """Duplica uma tarefa de envio existente."""
-    if not request.user.is_superuser:
-        return JsonResponse({
-            'success': False,
-            'error': 'Permissão negada'
-        }, status=403)
-
     tarefa = get_object_or_404(TarefaEnvio, pk=pk, usuario=request.user)
 
     # Cria cópia da tarefa
@@ -11309,12 +11251,6 @@ def tarefa_envio_duplicar(request, pk):
 @require_POST
 def tarefa_envio_preview(request):
     """Retorna preview da mensagem convertida para WhatsApp."""
-    if not request.user.is_superuser:
-        return JsonResponse({
-            'success': False,
-            'error': 'Permissão negada'
-        }, status=403)
-
     html_content = request.POST.get('mensagem', '')
 
     # Cria instância temporária para usar o método de conversão
@@ -11335,9 +11271,6 @@ def tarefa_envio_sugestao_horarios(request):
     """
     from django.db.models import Count, Case, When, FloatField
     from django.db.models.functions import ExtractHour
-
-    if not request.user.is_superuser:
-        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
 
     # Busca histórico dos últimos 90 dias
     data_limite = timezone.localtime() - timezone.timedelta(days=90)
@@ -11394,15 +11327,12 @@ def tarefa_envio_sugestao_horarios(request):
     })
 
 
-class TarefaEnvioHistoricoView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+class TarefaEnvioHistoricoView(LoginRequiredMixin, ListView):
     """Exibe o histórico de execuções de uma tarefa."""
     model = HistoricoExecucaoTarefa
     template_name = 'tarefas_envio/historico.html'
     context_object_name = 'historicos'
     paginate_by = 20
-
-    def test_func(self):
-        return self.request.user.is_superuser
 
     def get_queryset(self):
         self.tarefa = get_object_or_404(
@@ -11442,9 +11372,6 @@ class TarefaEnvioHistoricoView(LoginRequiredMixin, UserPassesTestMixin, ListView
 @require_GET
 def tarefas_envio_stats_api(request):
     """Retorna estatísticas das tarefas de envio em JSON para atualização em tempo real."""
-    if not request.user.is_superuser:
-        return JsonResponse({'success': False, 'error': 'Não autorizado'}, status=403)
-
     from django.db.models import Avg
     from django.utils import timezone
 
@@ -11523,14 +11450,13 @@ def tarefa_envio_preview_alcance(request):
     Parâmetros GET:
     - tipo_envio: 'ativos' ou 'cancelados'
     - filtro_estados[]: lista de UFs (opcional)
+    - dias_cancelamento: dias mínimos de cancelamento (padrão: 10)
 
     Retorna JSON com contagem de clientes.
     """
-    if not request.user.is_superuser:
-        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
-
     tipo_envio = request.GET.get('tipo_envio', '')
     filtro_estados = request.GET.getlist('filtro_estados[]', [])
+    dias_cancelamento = int(request.GET.get('dias_cancelamento', 10) or 10)
 
     # Base query
     qs = Cliente.objects.filter(usuario=request.user, nao_enviar_msgs=False)
@@ -11538,7 +11464,7 @@ def tarefa_envio_preview_alcance(request):
     if tipo_envio == 'ativos':
         qs = qs.filter(cancelado=False)
     elif tipo_envio == 'cancelados':
-        data_limite = timezone.now() - timedelta(days=7)
+        data_limite = timezone.now() - timedelta(days=dias_cancelamento)
         qs = qs.filter(cancelado=True, data_cancelamento__lte=data_limite)
     else:
         return JsonResponse({
@@ -11563,6 +11489,7 @@ def tarefa_envio_preview_alcance(request):
         'total': total,
         'tipo_envio': tipo_envio,
         'filtro_estados': filtro_estados,
+        'dias_cancelamento': dias_cancelamento,
         'stats_estados': stats_estados
     })
 
@@ -11580,9 +11507,6 @@ def tarefa_envio_verificar_conflito(request):
 
     Retorna lista de tarefas conflitantes.
     """
-    if not request.user.is_superuser:
-        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
-
     horario_str = request.GET.get('horario', '')
     dias_semana = request.GET.getlist('dias_semana[]', [])
     tarefa_id = request.GET.get('tarefa_id', '')
@@ -11661,9 +11585,6 @@ def tarefa_envio_listar_templates(request):
 
     Retorna lista de templates agrupados por categoria.
     """
-    if not request.user.is_superuser:
-        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
-
     categoria = request.GET.get('categoria', '')
 
     qs = TemplateMensagem.objects.filter(usuario=request.user, ativo=True)
@@ -11717,9 +11638,6 @@ def tarefa_envio_salvar_template(request):
 
     Retorna o template criado.
     """
-    if not request.user.is_superuser:
-        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
-
     try:
         import json
         data = json.loads(request.body)
@@ -11788,6 +11706,133 @@ def tarefa_envio_salvar_template(request):
     })
 
 
+# ============================================================================
+# TAREFAS ENVIO - CONFIGURAÇÕES GLOBAIS
+# ============================================================================
+
+@login_required
+@require_GET
+def tarefas_envio_configuracao_get(request):
+    """
+    Retorna configurações globais de envio.
+    Apenas para superusuários.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
+
+    try:
+        config = ConfiguracaoEnvio.get_config()
+
+        # Formata horário de início (pode ser time object ou string)
+        horario_inicio = config.horario_inicio_permitido
+        if horario_inicio:
+            if hasattr(horario_inicio, 'strftime'):
+                horario_inicio = horario_inicio.strftime('%H:%M')
+            else:
+                horario_inicio = str(horario_inicio)[:5]  # Garante formato HH:MM
+        else:
+            horario_inicio = '08:00'
+
+        # Formata horário de fim (pode ser time object ou string)
+        horario_fim = config.horario_fim_permitido
+        if horario_fim:
+            if hasattr(horario_fim, 'strftime'):
+                horario_fim = horario_fim.strftime('%H:%M')
+            else:
+                horario_fim = str(horario_fim)[:5]  # Garante formato HH:MM
+        else:
+            horario_fim = '20:00'
+
+        # Formata data de atualização
+        atualizado_em = None
+        if config.atualizado_em:
+            if hasattr(config.atualizado_em, 'strftime'):
+                atualizado_em = config.atualizado_em.strftime('%d/%m/%Y %H:%M')
+            else:
+                atualizado_em = str(config.atualizado_em)
+
+        return JsonResponse({
+            'success': True,
+            'config': {
+                'limite_envios_por_execucao': config.limite_envios_por_execucao,
+                'intervalo_entre_mensagens': config.intervalo_entre_mensagens,
+                'horario_inicio_permitido': horario_inicio,
+                'horario_fim_permitido': horario_fim,
+                'atualizado_em': atualizado_em
+            }
+        })
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Erro ao carregar configurações de envio: {e}")
+        return JsonResponse({'success': False, 'error': f'Erro ao carregar configurações: {str(e)}'}, status=500)
+
+
+@login_required
+@require_POST
+def tarefas_envio_configuracao_salvar(request):
+    """
+    Salva configurações globais de envio.
+    Apenas para superusuários.
+
+    Parâmetros POST (JSON):
+    - limite_envios_por_execucao: int
+    - intervalo_entre_mensagens: int (segundos)
+    - horario_inicio_permitido: string HH:MM
+    - horario_fim_permitido: string HH:MM
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Permissão negada'}, status=403)
+
+    try:
+        import json
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'JSON inválido'}, status=400)
+
+    config = ConfiguracaoEnvio.get_config()
+
+    # Atualiza campos
+    if 'limite_envios_por_execucao' in data:
+        limite = int(data['limite_envios_por_execucao'])
+        if limite < 1 or limite > 1000:
+            return JsonResponse({'success': False, 'error': 'Limite deve ser entre 1 e 1000'}, status=400)
+        config.limite_envios_por_execucao = limite
+
+    if 'intervalo_entre_mensagens' in data:
+        intervalo = int(data['intervalo_entre_mensagens'])
+        if intervalo < 1 or intervalo > 300:
+            return JsonResponse({'success': False, 'error': 'Intervalo deve ser entre 1 e 300 segundos'}, status=400)
+        config.intervalo_entre_mensagens = intervalo
+
+    if 'horario_inicio_permitido' in data:
+        from datetime import datetime as dt
+        try:
+            config.horario_inicio_permitido = dt.strptime(data['horario_inicio_permitido'], '%H:%M').time()
+        except ValueError:
+            return JsonResponse({'success': False, 'error': 'Formato de horário início inválido'}, status=400)
+
+    if 'horario_fim_permitido' in data:
+        from datetime import datetime as dt
+        try:
+            config.horario_fim_permitido = dt.strptime(data['horario_fim_permitido'], '%H:%M').time()
+        except ValueError:
+            return JsonResponse({'success': False, 'error': 'Formato de horário fim inválido'}, status=400)
+
+    config.save()
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Configurações salvas com sucesso!',
+        'config': {
+            'limite_envios_por_execucao': config.limite_envios_por_execucao,
+            'intervalo_entre_mensagens': config.intervalo_entre_mensagens,
+            'horario_inicio_permitido': config.horario_inicio_permitido.strftime('%H:%M'),
+            'horario_fim_permitido': config.horario_fim_permitido.strftime('%H:%M')
+        }
+    })
+
+
 @login_required
 @require_GET
 def tarefa_envio_historico_api(request, pk):
@@ -11800,9 +11845,6 @@ def tarefa_envio_historico_api(request, pk):
     - data_fim: YYYY-MM-DD
     - page: numero da pagina (default: 1)
     """
-    if not request.user.is_superuser:
-        return JsonResponse({'success': False, 'error': 'Permissao negada'}, status=403)
-
     # Valida que a tarefa pertence ao usuario
     tarefa = get_object_or_404(TarefaEnvio, pk=pk, usuario=request.user)
 

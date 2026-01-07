@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from nossopainel.services.logging import append_line
 from nossopainel.services.logging_config import get_wpp_logger
 
-URL_API_WPP = os.getenv("URL_API_WPP")
+API_WPP_URL_PROD = os.getenv("API_WPP_URL_PROD")
 MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
 
 # Timeout padrão para requisições à API WPPConnect (em segundos)
@@ -96,7 +96,7 @@ def registrar_log(mensagem: str, log_path: Optional[str]) -> None:
 # --- Estas funções permitem gerar token, iniciar sessão, verificar status, obter QR code, verificar conexão, fechar sessão e fazer logout. ---
 def gerar_token(session: str, secret: str):
     """Gera token de autenticação Bearer para a sessão."""
-    url = f"{URL_API_WPP}/{session}/{secret}/generate-token"
+    url = f"{API_WPP_URL_PROD}/{session}/{secret}/generate-token"
     return _make_request("POST", url)
 
 def start_session(session: str, token: str, webhook_url: str = ""):
@@ -108,7 +108,7 @@ def start_session(session: str, token: str, webhook_url: str = ""):
         token: Token Bearer de autenticação
         webhook_url: URL para receber eventos via webhook (opcional)
     """
-    url = f"{URL_API_WPP}/{session}/start-session"
+    url = f"{API_WPP_URL_PROD}/{session}/start-session"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
@@ -121,7 +121,7 @@ def start_session(session: str, token: str, webhook_url: str = ""):
 
 def status_session(session: str, token: str):
     """Consulta status atual da sessão (CONNECTED, QRCODE, CLOSED, etc.)."""
-    url = f"{URL_API_WPP}/{session}/status-session"
+    url = f"{API_WPP_URL_PROD}/{session}/status-session"
     headers = {"Authorization": f"Bearer {token}"}
     return _make_request("GET", url, headers=headers)
 
@@ -132,7 +132,7 @@ def get_qrcode(session: str, token: str):
 
     Nota: Esta função retorna content binário, não usa _make_request.
     """
-    url = f"{URL_API_WPP}/{session}/qrcode-session"
+    url = f"{API_WPP_URL_PROD}/{session}/qrcode-session"
     headers = {"Authorization": f"Bearer {token}"}
     try:
         response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
@@ -145,20 +145,20 @@ def get_qrcode(session: str, token: str):
 
 def check_connection(session: str, token: str):
     """Ping na API para validar se sessão está ativa."""
-    url = f"{URL_API_WPP}/{session}/check-connection-session"
+    url = f"{API_WPP_URL_PROD}/{session}/check-connection-session"
     headers = {"Authorization": f"Bearer {token}"}
     return _make_request("GET", url, headers=headers)
 
 def close_session(session: str, token: str):
     """Encerra sessão sem fazer logout do WhatsApp (mantém vinculação)."""
-    url = f"{URL_API_WPP}/{session}/close-session"
+    url = f"{API_WPP_URL_PROD}/{session}/close-session"
     headers = {"Authorization": f"Bearer {token}"}
     return _make_request("POST", url, headers=headers)
 
 
 def logout_session(session: str, token: str):
     """Logout completo da sessão WhatsApp (remove vinculação)."""
-    url = f"{URL_API_WPP}/{session}/logout-session"
+    url = f"{API_WPP_URL_PROD}/{session}/logout-session"
     headers = {"Authorization": f"Bearer {token}"}
     return _make_request("POST", url, headers=headers)
 
@@ -174,7 +174,7 @@ def reject_call(session: str, token: str, call_id: str):
     Returns:
         tuple: (response_data, status_code)
     """
-    url = f"{URL_API_WPP}/{session}/reject-call"
+    url = f"{API_WPP_URL_PROD}/{session}/reject-call"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     data = {"callId": call_id}
     return _make_request("POST", url, headers=headers, json_data=data)
@@ -185,7 +185,7 @@ def reject_call(session: str, token: str, call_id: str):
 def get_label_contact(telefone, token, user):
     """Obtém as labels associadas a um contato específico."""
 
-    url = f'{URL_API_WPP}/{user}/contact/{telefone}'
+    url = f'{API_WPP_URL_PROD}/{user}/contact/{telefone}'
     headers = {
         'Accept': 'application/json',
         'Authorization': f'Bearer {token}'
@@ -195,12 +195,37 @@ def get_label_contact(telefone, token, user):
         "phone": telefone,
     }
 
+    # DEBUG: Log da requisição
+    logger.debug(
+        f"[LABEL_DEBUG] get_label_contact chamado | telefone={telefone} | url={url}"
+    )
+
     try:
         response = requests.get(url, headers=headers, json=body, timeout=REQUEST_TIMEOUT)
 
+        # DEBUG: Log da resposta completa
+        logger.debug(
+            f"[LABEL_DEBUG] get_label_contact resposta | telefone={telefone} | "
+            f"status_code={response.status_code} | response_text={response.text[:500] if response.text else 'vazio'}"
+        )
+
         if response.status_code in [200, 201]:
             response_data = response.json()
+
+            # DEBUG: Log da estrutura da resposta
+            logger.debug(
+                f"[LABEL_DEBUG] get_label_contact response_data | telefone={telefone} | "
+                f"keys={list(response_data.keys()) if response_data else 'None'} | "
+                f"response_obj={response_data.get('response')}"
+            )
+
             labels = (response_data.get('response') or {}).get('labels', [])
+
+            # DEBUG: Log das labels extraídas
+            logger.debug(
+                f"[LABEL_DEBUG] get_label_contact labels extraídas | telefone={telefone} | labels={labels}"
+            )
+
             return labels
 
         logger.error(
@@ -245,7 +270,7 @@ def check_number_status(telefone, token, user):
         - ``error`` (str, opcional): Detalhe textual em caso de erro
     """
 
-    url = f'{URL_API_WPP}/{user}/check-number-status/{telefone}'
+    url = f'{API_WPP_URL_PROD}/{user}/check-number-status/{telefone}'
     headers = {
         'Accept': 'application/json',
         'Authorization': f'Bearer {token}'
@@ -313,7 +338,7 @@ def check_number_status(telefone, token, user):
 def get_all_labels(token, user):
     """Retorna todas as labels disponíveis na instância WPP do usuário."""
 
-    url = f'{URL_API_WPP}/{user}/get-all-labels'
+    url = f'{API_WPP_URL_PROD}/{user}/get-all-labels'
     headers = {
         'Accept': 'application/json',
         'Authorization': f'Bearer {token}'
@@ -356,15 +381,44 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
     Se REMOVE falhar, a operação é abortada e ADD não é executado.
     """
 
-    telefone = telefone.replace('+', '').replace('@c.us', '').replace('@lid', '').strip()
+    # DEBUG: Log dos parâmetros de entrada
+    logger.debug(
+        f"[LABEL_DEBUG] add_or_remove_label_contact ENTRADA | "
+        f"label_id_1={label_id_1} (nova) | label_id_2={label_id_2} (atuais) | "
+        f"label_name={label_name} | telefone={telefone}"
+    )
+
+    # Normalizar identificador do chat:
+    # - Se for @lid: manter formato completo (ex: 277742767599622@lid)
+    # - Se for telefone: remover + e @c.us (ex: 554588334558)
+    if '@lid' in telefone:
+        # É um LID - manter o formato completo, apenas limpar espaços
+        chat_id = telefone.strip()
+    else:
+        # É um telefone - limpar formatação
+        chat_id = telefone.replace('+', '').replace('@c.us', '').strip()
+
+    # DEBUG: Log do chat_id após normalização
+    logger.debug(
+        f"[LABEL_DEBUG] add_or_remove_label_contact chat_id normalizado: {chat_id}"
+    )
+
+    # Renomear variável interna para usar chat_id
+    telefone = chat_id
 
     labels_atual = label_id_2 if isinstance(label_id_2, list) else [label_id_2]
+
+    # DEBUG: Log das labels atuais processadas
+    logger.debug(
+        f"[LABEL_DEBUG] add_or_remove_label_contact labels_atual processado: {labels_atual} | "
+        f"label_id_1 in labels_atual? {label_id_1 in labels_atual}"
+    )
 
     if label_id_1 in labels_atual:
         logger.info("[add_or_remove_label_contact] %s | Label '%s' já atribuída.", user, label_name)
         return 200, {"status": "skipped", "message": "Label já atribuída"}
 
-    url = f'{URL_API_WPP}/{user}/add-or-remove-label'
+    url = f'{API_WPP_URL_PROD}/{user}/add-or-remove-label'
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -377,41 +431,53 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
     # PASSO 1: Remover labels antigas (se houver)
     labels_para_remover = [label for label in labels_atual if label and label != label_id_1]
 
+    # DEBUG: Log das labels a serem removidas
+    logger.debug(
+        f"[LABEL_DEBUG] add_or_remove_label_contact PASSO 1 | "
+        f"labels_para_remover={labels_para_remover} | "
+        f"Vai remover? {bool(labels_para_remover)}"
+    )
+
     if labels_para_remover:
-        body_remove = {
-            "chatIds": [telefone],
-            "options": [{"labelId": label, "type": "remove"} for label in labels_para_remover]
-        }
+        # Remover labels uma a uma com intervalo para evitar limitações da API
+        LABEL_REMOVE_DELAY = 1.5  # Delay entre cada remoção individual
 
-        try:
-            response_remove = requests.post(url, headers=headers, json=body_remove, timeout=LABEL_TIMEOUT)
-            logger.info(
-                "[add_or_remove_label_contact] %s | REMOVE status=%s labels=%s",
-                user,
-                response_remove.status_code,
-                labels_para_remover,
-            )
+        for idx, label in enumerate(labels_para_remover):
+            body_remove = {
+                "chatIds": [telefone],
+                "options": [{"labelId": label, "type": "remove"}]
+            }
 
-            if response_remove.status_code not in [200, 201]:
-                logger.error(
-                    "[add_or_remove_label_contact] %s | REMOVE falhou para %s: %s - %s. Abortando operação.",
+            try:
+                response_remove = requests.post(url, headers=headers, json=body_remove, timeout=LABEL_TIMEOUT)
+                logger.info(
+                    "[add_or_remove_label_contact] %s | REMOVE [%d/%d] status=%s label=%s",
                     user,
-                    telefone,
+                    idx + 1,
+                    len(labels_para_remover),
                     response_remove.status_code,
-                    response_remove.text,
+                    label,
                 )
-                try:
-                    response_data = response_remove.json()
-                except ValueError:
-                    response_data = {"status": "error", "message": "Falha ao remover labels anteriores"}
-                return response_remove.status_code, response_data
 
-        except requests.Timeout:
-            logger.error("[add_or_remove_label_contact] %s | Timeout ao remover labels de %s. Abortando.", user, telefone)
-            return 504, {"status": "error", "message": "Timeout na remoção de labels"}
-        except requests.RequestException as exc:
-            logger.exception("[add_or_remove_label_contact] %s | Erro REMOVE: %s. Abortando.", user, exc)
-            return 500, {"status": "error", "message": str(exc)}
+                if response_remove.status_code not in [200, 201]:
+                    logger.warning(
+                        "[add_or_remove_label_contact] %s | REMOVE falhou para label %s em %s: %s - %s. Continuando...",
+                        user,
+                        label,
+                        telefone,
+                        response_remove.status_code,
+                        response_remove.text,
+                    )
+                    # Não aborta, apenas loga o aviso e continua com as próximas labels
+
+            except requests.Timeout:
+                logger.warning("[add_or_remove_label_contact] %s | Timeout ao remover label %s de %s. Continuando...", user, label, telefone)
+            except requests.RequestException as exc:
+                logger.warning("[add_or_remove_label_contact] %s | Erro REMOVE label %s: %s. Continuando...", user, label, exc)
+
+            # Delay entre cada remoção (exceto após a última)
+            if idx < len(labels_para_remover) - 1:
+                time.sleep(LABEL_REMOVE_DELAY)
 
         # Delay entre REMOVE e ADD conforme limitação do WhatsApp Web
         time.sleep(LABEL_OPERATION_DELAY)
@@ -469,7 +535,7 @@ def remover_todas_labels_contato(telefone, labels, token, user):
     if not labels:
         return 200, {"status": "skipped", "message": "Nenhuma label para remover"}
 
-    url = f'{URL_API_WPP}/{user}/add-or-remove-label'
+    url = f'{API_WPP_URL_PROD}/{user}/add-or-remove-label'
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -517,7 +583,7 @@ def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
     if label_existente:
         return label_existente.get("id")
 
-    url = f"{URL_API_WPP}/{user}/add-new-label"
+    url = f"{API_WPP_URL_PROD}/{user}/add-new-label"
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
@@ -571,7 +637,7 @@ def criar_label_se_nao_existir(nome_label, token, user, hex_color=None):
 def get_all_groups(token, user):
     """Obtém todos os grupos acessíveis para a sessão informada."""
 
-    url = f'{URL_API_WPP}/{user}/all-groups'
+    url = f'{API_WPP_URL_PROD}/{user}/all-groups'
     headers = {
         'Accept': 'application/json',
         'Authorization': f'Bearer {token}'
@@ -669,7 +735,7 @@ def get_group_ids_by_names(token, user, group_names, log_path=None):
 ##### FUNÇÃO PARA ENVIAR MENSAGENS DE STATUS NO WHATSAPP #####
 # --- Envia mensagem de texto para o status do WhatsApp ---
 def upload_status_sem_imagem(texto_status, usuario, token, log_path=None):
-    url = f"{URL_API_WPP}/{usuario}/send-text-storie"
+    url = f"{API_WPP_URL_PROD}/{usuario}/send-text-storie"
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -714,7 +780,7 @@ def upload_imagem_status(imagem, legenda, usuario, token, log_path=None):
                 img_base64 = base64.b64encode(f.read()).decode("utf-8")
             path_param = f"data:{mime_type};base64,{img_base64}"
 
-        url = f"{URL_API_WPP}/{usuario}/send-image-storie"
+        url = f"{API_WPP_URL_PROD}/{usuario}/send-image-storie"
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -754,7 +820,7 @@ def get_all_chats(session: str, token: str):
     O endpoint /all-chats (GET) está deprecated e pode não retornar todos os chats,
     especialmente aqueles com ID no formato @lid (Linked ID).
     """
-    url = f"{URL_API_WPP}/{session}/list-chats"
+    url = f"{API_WPP_URL_PROD}/{session}/list-chats"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     data = {"onlyWithUnreadMessage": False}
     return _make_request("POST", url, headers=headers, json_data=data)
@@ -770,28 +836,28 @@ def get_messages_in_chat(session: str, token: str, phone: str):
         token: Token de autenticação
         phone: Número do contato (com @c.us ou @g.us para grupos)
     """
-    url = f"{URL_API_WPP}/{session}/get-messages/{phone}"
+    url = f"{API_WPP_URL_PROD}/{session}/get-messages/{phone}"
     headers = {"Authorization": f"Bearer {token}"}
     return _make_request("GET", url, headers=headers)
 
 
 def load_earlier_messages(session: str, token: str, phone: str):
     """Carrega mensagens mais antigas de uma conversa."""
-    url = f"{URL_API_WPP}/{session}/load-messages-in-chat/{phone}"
+    url = f"{API_WPP_URL_PROD}/{session}/load-messages-in-chat/{phone}"
     headers = {"Authorization": f"Bearer {token}"}
     return _make_request("GET", url, headers=headers)
 
 
 def get_profile_picture(session: str, token: str, phone: str):
     """Obtém URL da foto de perfil de um contato."""
-    url = f"{URL_API_WPP}/{session}/profile-pic/{phone}"
+    url = f"{API_WPP_URL_PROD}/{session}/profile-pic/{phone}"
     headers = {"Authorization": f"Bearer {token}"}
     return _make_request("GET", url, headers=headers)
 
 
 def send_text_message(session: str, token: str, phone: str, message: str):
     """Envia mensagem de texto."""
-    url = f"{URL_API_WPP}/{session}/send-message"
+    url = f"{API_WPP_URL_PROD}/{session}/send-message"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
     # A API WPPConnect espera o phone SEM sufixo para contatos, mas COM sufixo para grupos
@@ -831,7 +897,7 @@ def _normalize_phone(phone: str) -> tuple:
 
 def send_image_message(session: str, token: str, phone: str, base64_image: str, caption: str = ""):
     """Envia imagem (base64 ou URL)."""
-    url = f"{URL_API_WPP}/{session}/send-image"
+    url = f"{API_WPP_URL_PROD}/{session}/send-image"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     normalized_phone, is_group = _normalize_phone(phone)
     data = {"phone": normalized_phone, "base64": base64_image, "caption": caption}
@@ -842,7 +908,7 @@ def send_image_message(session: str, token: str, phone: str, base64_image: str, 
 
 def send_file_message(session: str, token: str, phone: str, base64_file: str, filename: str):
     """Envia arquivo (documento, PDF, etc.)."""
-    url = f"{URL_API_WPP}/{session}/send-file-base64"
+    url = f"{API_WPP_URL_PROD}/{session}/send-file-base64"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     normalized_phone, is_group = _normalize_phone(phone)
     data = {"phone": normalized_phone, "base64": base64_file, "filename": filename}
@@ -853,7 +919,7 @@ def send_file_message(session: str, token: str, phone: str, base64_file: str, fi
 
 def send_audio_message(session: str, token: str, phone: str, base64_audio: str):
     """Envia mensagem de áudio."""
-    url = f"{URL_API_WPP}/{session}/send-voice-base64"
+    url = f"{API_WPP_URL_PROD}/{session}/send-voice-base64"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     normalized_phone, is_group = _normalize_phone(phone)
     data = {"phone": normalized_phone, "base64Ptt": base64_audio}
@@ -864,7 +930,7 @@ def send_audio_message(session: str, token: str, phone: str, base64_audio: str):
 
 def send_reply_message(session: str, token: str, phone: str, message: str, message_id: str):
     """Responde a uma mensagem específica."""
-    url = f"{URL_API_WPP}/{session}/send-reply"
+    url = f"{API_WPP_URL_PROD}/{session}/send-reply"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     normalized_phone, is_group = _normalize_phone(phone)
     data = {"phone": normalized_phone, "message": message, "messageId": message_id}
@@ -883,7 +949,7 @@ def download_media(session: str, token: str, message_id: str):
     Returns:
         tuple: (data_dict, status_code) onde data_dict contém 'mimetype' e 'data' (base64)
     """
-    url = f"{URL_API_WPP}/{session}/get-media-by-message/{message_id}"
+    url = f"{API_WPP_URL_PROD}/{session}/get-media-by-message/{message_id}"
     headers = {"Authorization": f"Bearer {token}"}
     try:
         response = requests.get(url, headers=headers, timeout=60)  # Timeout maior para mídia
@@ -920,7 +986,7 @@ def send_seen(session: str, token: str, phone: str):
     Returns:
         tuple: (response_data, status_code)
     """
-    url = f"{URL_API_WPP}/{session}/send-seen"
+    url = f"{API_WPP_URL_PROD}/{session}/send-seen"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     data = {"phone": phone}
     return _make_request("POST", url, headers=headers, json_data=data)
@@ -938,7 +1004,7 @@ def mark_chat_unread(session: str, token: str, phone: str):
     Returns:
         tuple: (response_data, status_code)
     """
-    url = f"{URL_API_WPP}/{session}/mark-unseen"
+    url = f"{API_WPP_URL_PROD}/{session}/mark-unseen"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
     # Para @lid, tentar COM o sufixo; para @c.us, remover
@@ -976,7 +1042,7 @@ def get_phone_from_lid(session: str, token: str, lid: str):
         tuple: (phone_number ou None, status_code)
     """
     # Usar endpoint /contact/{lid} para obter informações do contato
-    url = f"{URL_API_WPP}/{session}/contact/{lid}"
+    url = f"{API_WPP_URL_PROD}/{session}/contact/{lid}"
     headers = {"Authorization": f"Bearer {token}"}
     data, status = _make_request("GET", url, headers=headers)
 
@@ -1039,7 +1105,7 @@ def get_phone_from_pn_lid(session: str, token: str, pn_lid: str):
     if "@lid" not in lid_param:
         lid_param = f"{lid_param}@lid"
 
-    url = f"{URL_API_WPP}/{session}/contact/pn-lid/{lid_param}"
+    url = f"{API_WPP_URL_PROD}/{session}/contact/pn-lid/{lid_param}"
     headers = {"Authorization": f"Bearer {token}"}
     data, status = _make_request("GET", url, headers=headers)
 

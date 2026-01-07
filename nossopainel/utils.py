@@ -37,7 +37,7 @@ from wpp.api_connection import (
 
 logger = logging.getLogger(__name__)
 
-URL_API_WPP = os.getenv("URL_API_WPP")
+API_WPP_URL_PROD = os.getenv("API_WPP_URL_PROD")
 USER_SESSION_WPP = os.getenv("USER_SESSION_WPP")
 MEU_NUM_CLARO = os.getenv("MEU_NUM_CLARO")
 DIR_LOGS_AGENDADOS = os.getenv("DIR_LOGS_AGENDADOS")

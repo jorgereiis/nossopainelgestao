@@ -146,7 +146,13 @@ def _handle_qrcode(payload: dict, session: str):
 
 
 def _handle_message(payload: dict, session: str):
-    """Trata evento de mensagem recebida - envia via SSE."""
+    """
+    Trata evento de mensagem recebida - envia via SSE e captura LID.
+
+    Para mensagens de chat privado com @lid:
+    - Enfileira o LID para sincronização com o banco de dados
+    - O LidSyncService irá buscar o telefone e atualizar o cliente
+    """
     message_data = payload.get('data', {}) or payload
     msg_from = message_data.get('from', '') or payload.get('from', '')
     msg_type = message_data.get('type', '') or payload.get('type', '')
@@ -167,6 +173,11 @@ def _handle_message(payload: dict, session: str):
         msg_type,
         sender_name
     )
+
+    # ========== CAPTURA DE LID ==========
+    # Ignorar grupos (@g.us) - apenas chats privados
+    if '@g.us' not in msg_from and '@lid' in msg_from:
+        _enqueue_lid_for_sync(msg_from, session)
 
     # Enviar evento SSE para o frontend com dados completos
     push_event_to_session(session, 'new_message', {
@@ -420,6 +431,50 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
         session,
         caller
     )
+
+
+def _enqueue_lid_for_sync(lid: str, session: str):
+    """
+    Enfileira um LID para sincronização com o banco de dados.
+
+    Args:
+        lid: O LID completo (ex: "277742767599622@lid")
+        session: Nome da sessão WhatsApp
+    """
+    try:
+        # Buscar token da sessão
+        sessao = SessaoWpp.objects.filter(usuario=session, is_active=True).first()
+        if not sessao:
+            logger.debug(
+                "LID não enfileirado - sessão não encontrada | session=%s lid=%s",
+                session,
+                lid
+            )
+            return
+
+        # Enfileirar para processamento
+        from nossopainel.services.lid_sync_service import lid_sync_service
+
+        enqueued = lid_sync_service.enqueue(
+            lid=lid,
+            session=session,
+            token=sessao.token
+        )
+
+        if enqueued:
+            logger.debug(
+                "LID enfileirado para sincronização | session=%s lid=%s",
+                session,
+                lid
+            )
+
+    except Exception as e:
+        logger.error(
+            "Erro ao enfileirar LID | session=%s lid=%s error=%s",
+            session,
+            lid,
+            str(e)
+        )
 
 
 def _get_client_ip(request) -> str:

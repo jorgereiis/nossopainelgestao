@@ -261,6 +261,7 @@ class TarefaEnvioForm(forms.ModelForm):
             'imagem',
             'mensagem',
             'filtro_estados',
+            'dias_cancelamento',
             'pausado_ate',
             'ativo',
         ]
@@ -287,6 +288,12 @@ class TarefaEnvioForm(forms.ModelForm):
                 'class': 'form-check-input',
                 'role': 'switch'
             }),
+            'dias_cancelamento': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'max': '365',
+                'placeholder': '10'
+            }),
         }
         labels = {
             'nome': 'Nome da Tarefa',
@@ -296,6 +303,7 @@ class TarefaEnvioForm(forms.ModelForm):
             'imagem': 'Imagem',
             'mensagem': 'Mensagem',
             'ativo': 'Tarefa Ativa',
+            'dias_cancelamento': 'Dias desde Cancelamento',
         }
 
     def __init__(self, *args, **kwargs):

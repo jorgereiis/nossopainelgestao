@@ -132,6 +132,8 @@ from .views import (
     tarefa_envio_listar_templates,
     tarefa_envio_salvar_template,
     tarefa_envio_historico_api,
+    tarefas_envio_configuracao_get,
+    tarefas_envio_configuracao_salvar,
     # Integração Bancária
     api_instituicoes_bancarias,
     api_contas_bancarias,
@@ -351,6 +353,8 @@ urlpatterns = [
     path("tarefas-envio/templates/", tarefa_envio_listar_templates, name="tarefas-envio-templates"),
     path("tarefas-envio/templates/salvar/", tarefa_envio_salvar_template, name="tarefas-envio-template-salvar"),
     path("tarefas-envio/<int:pk>/historico/api/", tarefa_envio_historico_api, name="tarefas-envio-historico-api"),
+    path("tarefas-envio/configuracao/", tarefas_envio_configuracao_get, name="tarefas-envio-configuracao-get"),
+    path("tarefas-envio/configuracao/salvar/", tarefas_envio_configuracao_salvar, name="tarefas-envio-configuracao-salvar"),
 
     ############ Integração Bancária ###########
     path("api/instituicoes-bancarias/", api_instituicoes_bancarias, name="api-instituicoes-bancarias"),
