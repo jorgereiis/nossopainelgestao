@@ -16,7 +16,9 @@ function exibirModalDetalhes(botao) {
     const clientePlano = botao.dataset.plano;
     const clienteTelas = botao.dataset.telas;
     const clienteTelefone = botao.dataset.telefone;
+    const clienteWhatsappLid = botao.dataset.whatsapp_lid;
     const clienteServidor = botao.dataset.servidor;
+    const clienteServidorLogo = botao.dataset.servidor_logo;
     const clienteFormaPgto = botao.dataset.forma_pgto;
     const clienteAplicativo = botao.dataset.aplicativo;
     const clienteDataAdesao = botao.dataset.data_adesao;
@@ -54,8 +56,27 @@ function exibirModalDetalhes(botao) {
     document.getElementById('info-cliente-indicado_por').textContent =  clienteIndicadoPor;
     document.getElementById('info-cliente-ultimo_pgto').textContent =  clienteUltimoPagamento;
     document.getElementById('info-cliente-data_vencimento').textContent =  clienteDataVencimento;
-    document.getElementById('info-cliente-telefone').textContent = clienteTelefone;
+    // Exibir telefone com ícone de WhatsApp verde se tiver LID
+    const telefoneElement = document.getElementById('info-cliente-telefone');
+    if (clienteWhatsappLid && clienteWhatsappLid.trim() !== '') {
+        // Cliente tem LID - exibir ícone verde
+        telefoneElement.innerHTML = clienteTelefone + ' <i class="bi bi-whatsapp text-success ms-2" title="WhatsApp sincronizado (LID salvo)"></i>';
+    } else {
+        // Cliente sem LID - apenas telefone
+        telefoneElement.textContent = clienteTelefone;
+    }
     document.getElementById('info-cliente-data_adesao').textContent = 'Cliente desde ' + clienteDataAdesao;
+
+    // Atualizar logo do servidor em meia-lua
+    const servidorLogoImg = document.getElementById('info-cliente-servidor-logo');
+    const servidorLogoContainer = document.getElementById('servidor-logo-container');
+    if (clienteServidorLogo && clienteServidorLogo.trim() !== '') {
+        servidorLogoImg.src = clienteServidorLogo;
+        servidorLogoImg.alt = 'Logo ' + clienteServidor;
+        servidorLogoContainer.style.display = 'block';
+    } else {
+        servidorLogoContainer.style.display = 'none';
+    }
 
     $('#info-cliente-modal').modal('show');
 

@@ -2194,6 +2194,59 @@ button.dropdown-item.dropdown-action-delete:focus i {
     }
 }
 
+/* ===== LOGO SERVIDOR MEIA-LUA NO MODAL INFO CLIENTE ===== */
+
+.servidor-logo-halfmoon {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 200px;
+    overflow: hidden;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.servidor-logo-img {
+    position: absolute;
+    top: -120px;
+    right: -120px;
+    width: 320px;
+    height: 320px;
+    object-fit: cover;
+    border-radius: 50%;
+    opacity: 0.2;
+}
+
+/* Responsividade para telas menores */
+@media (max-width: 768px) {
+    .servidor-logo-halfmoon {
+        width: 160px;
+        height: 160px;
+    }
+
+    .servidor-logo-img {
+        top: -100px;
+        right: -100px;
+        width: 260px;
+        height: 260px;
+    }
+}
+
+@media (max-width: 576px) {
+    .servidor-logo-halfmoon {
+        width: 120px;
+        height: 120px;
+    }
+
+    .servidor-logo-img {
+        top: -75px;
+        right: -75px;
+        width: 195px;
+        height: 195px;
+    }
+}
+
 /* ===== RESPONSIVIDADE MODAL EDITAR CLIENTE ===== */
 
 @media (max-width: 767px) {
