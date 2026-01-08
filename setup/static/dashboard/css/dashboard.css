@@ -347,12 +347,19 @@
     }
 
     /* Linha de revendedor bloqueado */
-    #tableRevendedores .table-secondary {
+    #tableRevendedores .table-secondary td {
+        background-color: #f8f9fa;
+    }
+
+    /* Aplica opacidade apenas no conteúdo, não no dropdown */
+    #tableRevendedores .table-secondary td > *:not(.dropdown) {
         opacity: 0.7;
     }
 
-    #tableRevendedores .table-secondary td {
-        background-color: #f8f9fa;
+    /* Garante que o dropdown mantenha opacidade normal */
+    #tableRevendedores .table-secondary .dropdown,
+    #tableRevendedores .table-secondary .dropdown-menu {
+        opacity: 1 !important;
     }
 
     /* Hover effects para avatar na tabela de Revendedores */

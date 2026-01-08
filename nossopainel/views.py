@@ -14208,10 +14208,10 @@ def revendedores_busca(request):
         em_execucao=True
     )
 
-    # Subquery para verificar HorarioEnvios ativo (vencimento/atraso)
+    # Subquery para verificar HorarioEnvios em execução (vencimento/atraso)
     horario_envio_ativo = HorarioEnvios.objects.filter(
         usuario=OuterRef('pk'),
-        status=True  # status=True indica que está em execução
+        em_execucao=True  # Verifica se está realmente em execução no momento
     )
 
     qs = User.objects.filter(is_superuser=False).annotate(
@@ -14255,10 +14255,11 @@ def revendedor_toggle_bloqueio(request, user_id):
     # Log de auditoria
     UserActionLog.objects.create(
         usuario=request.user,
-        acao=f'revendedor_{acao}',
+        acao='other',
         entidade='User',
-        entidade_id=user.id,
-        detalhes=f'Revendedor {user.username} foi {acao}'
+        objeto_id=str(user.id),
+        objeto_repr=user.username,
+        mensagem=f'Revendedor {user.username} foi {acao}'
     )
 
     return JsonResponse({
@@ -14274,37 +14275,72 @@ def revendedor_toggle_bloqueio(request, user_id):
 def revendedor_excluir(request, user_id):
     """
     Exclui um revendedor permanentemente.
-    Só permite exclusão se não houver clientes associados.
+    Só permite exclusão se não houver dados vinculados (clientes, mensalidades, assinaturas).
     """
     from django.contrib.auth.models import User
+    from django.db.models import ProtectedError
 
     user = get_object_or_404(User, pk=user_id, is_superuser=False)
     username = user.username
 
     # Verificar se tem clientes associados
     clientes_count = Cliente.objects.filter(usuario=user).count()
-
     if clientes_count > 0:
         return JsonResponse({
             'success': False,
             'message': f'Não é possível excluir. Revendedor possui {clientes_count} cliente(s) cadastrado(s).'
         }, status=400)
 
-    # Log de auditoria antes da exclusão
-    UserActionLog.objects.create(
-        usuario=request.user,
-        acao='revendedor_excluido',
-        entidade='User',
-        entidade_id=user.id,
-        detalhes=f'Revendedor {username} foi excluído permanentemente'
-    )
+    # Verificar se tem mensalidades associadas
+    mensalidades_count = Mensalidade.objects.filter(usuario=user).count()
+    if mensalidades_count > 0:
+        return JsonResponse({
+            'success': False,
+            'message': f'Não é possível excluir. Revendedor possui {mensalidades_count} mensalidade(s) registrada(s).'
+        }, status=400)
 
-    user.delete()
+    # Verificar se tem assinaturas associadas (via cliente)
+    assinaturas_count = AssinaturaCliente.objects.filter(cliente__usuario=user).count()
+    if assinaturas_count > 0:
+        return JsonResponse({
+            'success': False,
+            'message': f'Não é possível excluir. Revendedor possui {assinaturas_count} assinatura(s) ativa(s).'
+        }, status=400)
 
-    return JsonResponse({
-        'success': True,
-        'message': f'Revendedor {username} excluído com sucesso.'
-    })
+    try:
+        # Log de auditoria antes da exclusão
+        UserActionLog.objects.create(
+            usuario=request.user,
+            acao='delete',
+            entidade='User',
+            objeto_id=str(user.id),
+            objeto_repr=username,
+            mensagem=f'Revendedor {username} foi excluído permanentemente'
+        )
+
+        # Excluir todos os cadastros associados ao revendedor (são configurações dele)
+        # Ordem importante: excluir dependências primeiro
+        PlanoIndicacao.objects.filter(usuario=user).delete()
+        DadosBancarios.objects.filter(usuario=user).delete()
+        Tipos_pgto.objects.filter(usuario=user).delete()
+        Plano.objects.filter(usuario=user).delete()
+        Aplicativo.objects.filter(usuario=user).delete()
+        Dispositivo.objects.filter(usuario=user).delete()
+        Servidor.objects.filter(usuario=user).delete()
+
+        user.delete()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Revendedor {username} excluído com sucesso.'
+        })
+
+    except ProtectedError as e:
+        # Captura erros de proteção de FK não previstos
+        return JsonResponse({
+            'success': False,
+            'message': 'Não é possível excluir. Este revendedor possui dados vinculados que impedem a exclusão.'
+        }, status=400)
 
 
 @login_required
@@ -14332,10 +14368,11 @@ def revendedor_logar_como(request, user_id):
     # Log de auditoria
     UserActionLog.objects.create(
         usuario=request.user,
-        acao='impersonate_login',
+        acao='other',
         entidade='User',
-        entidade_id=target_user.id,
-        detalhes=f'Admin {request.user.username} logou como revendedor {target_user.username}'
+        objeto_id=str(target_user.id),
+        objeto_repr=target_user.username,
+        mensagem=f'Admin {request.user.username} logou como revendedor {target_user.username}'
     )
 
     # Logar como o revendedor
@@ -14364,10 +14401,11 @@ def impersonate_encerrar(request):
         # Log de auditoria
         UserActionLog.objects.create(
             usuario=admin_user,
-            acao='impersonate_logout',
+            acao='other',
             entidade='User',
-            entidade_id=request.user.id,
-            detalhes=f'Admin {admin_username} encerrou sessão como {request.user.username}'
+            objeto_id=str(request.user.id),
+            objeto_repr=request.user.username,
+            mensagem=f'Admin {admin_username} encerrou sessão como {request.user.username}'
         )
 
         # Voltar para admin
@@ -14375,3 +14413,147 @@ def impersonate_encerrar(request):
         messages.success(request, f'Bem-vindo de volta, {admin_user.username}!')
 
     return redirect('dashboard')
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_GET
+def revendedor_dados(request, user_id):
+    """Retorna dados do revendedor para edição."""
+    from django.contrib.auth.models import User
+
+    user = get_object_or_404(User, pk=user_id, is_superuser=False)
+
+    return JsonResponse({
+        'success': True,
+        'revendedor': {
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'is_active': user.is_active,
+        }
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def revendedor_editar(request, user_id):
+    """Edita dados do revendedor."""
+    from django.contrib.auth.models import User
+    import json
+
+    user = get_object_or_404(User, pk=user_id, is_superuser=False)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Dados inválidos'}, status=400)
+
+    # Atualiza campos básicos
+    user.first_name = data.get('first_name', user.first_name)
+    user.last_name = data.get('last_name', user.last_name)
+    user.email = data.get('email', user.email)
+
+    # Atualiza senha se fornecida
+    nova_senha = data.get('nova_senha')
+    senha_alterada = False
+    if nova_senha:
+        if len(nova_senha) < 6:
+            return JsonResponse({'success': False, 'message': 'Senha deve ter no mínimo 6 caracteres'}, status=400)
+        user.set_password(nova_senha)
+        senha_alterada = True
+
+    user.save()
+
+    # Log de auditoria
+    mensagem_log = f'Revendedor {user.username} editado pelo admin {request.user.username}'
+    if senha_alterada:
+        mensagem_log += ' (senha alterada)'
+
+    UserActionLog.objects.create(
+        usuario=request.user,
+        acao='update',
+        entidade='User',
+        objeto_id=str(user.id),
+        objeto_repr=user.username,
+        mensagem=mensagem_log
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Revendedor {user.username} atualizado com sucesso.'
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def revendedor_criar(request):
+    """Cria um novo revendedor."""
+    from django.contrib.auth.models import User
+    import re
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Dados inválidos'}, status=400)
+
+    # Validação dos campos obrigatórios
+    username = data.get('username', '').strip()
+    first_name = data.get('first_name', '').strip()
+    senha = data.get('senha', '')
+
+    if not username:
+        return JsonResponse({'success': False, 'message': 'Username é obrigatório'}, status=400)
+
+    if not first_name:
+        return JsonResponse({'success': False, 'message': 'Primeiro nome é obrigatório'}, status=400)
+
+    if not senha:
+        return JsonResponse({'success': False, 'message': 'Senha é obrigatória'}, status=400)
+
+    # Validação do username (apenas letras, números e underscores)
+    if not re.match(r'^[a-zA-Z0-9_]+$', username):
+        return JsonResponse({'success': False, 'message': 'Username deve conter apenas letras, números e underscores'}, status=400)
+
+    # Verifica se username já existe
+    if User.objects.filter(username=username).exists():
+        return JsonResponse({'success': False, 'message': f'Username "{username}" já está em uso'}, status=400)
+
+    # Validação da senha
+    if len(senha) < 6:
+        return JsonResponse({'success': False, 'message': 'Senha deve ter no mínimo 6 caracteres'}, status=400)
+
+    # Cria o usuário
+    try:
+        user = User.objects.create_user(
+            username=username,
+            email=data.get('email', '').strip() or None,
+            password=senha,
+            first_name=first_name,
+            last_name=data.get('last_name', '').strip(),
+            is_active=True,
+            is_staff=False,
+            is_superuser=False
+        )
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Erro ao criar usuário: {str(e)}'}, status=500)
+
+    # Log de auditoria
+    UserActionLog.objects.create(
+        usuario=request.user,
+        acao='create',
+        entidade='User',
+        objeto_id=str(user.id),
+        objeto_repr=user.username,
+        mensagem=f'Revendedor {user.username} criado pelo admin {request.user.username}'
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Revendedor {user.username} criado com sucesso.',
+        'user_id': user.id
+    })

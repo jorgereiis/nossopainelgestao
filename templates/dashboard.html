@@ -21,6 +21,8 @@
     {% include 'partials/modal_confirm_delete_app.html' %}
     {% include 'partials/modal_create_app.html' %}
     {% include 'partials/modal_edit_cliente.html' %}
+    {% include 'partials/modal_edit_revendedor.html' %}
+    {% include 'partials/modal_create_revendedor.html' %}
     {% include 'partials/modal_aviso_limite.html' %}
     {% include 'partials/modal_alertas_fastdepix.html' %}
 {% endblock %}
@@ -478,11 +480,16 @@
                                         {% if user.is_superuser %}
                                         <div class="tab-pane fade" id="pane-revendedores" role="tabpanel" aria-labelledby="tab-revendedores">
                                             <div class="dashboard-tab-body">
-                                                <div class="dashboard-search mb-4">
-                                                    <input type="text" class="form-control"
-                                                           id="searchRevendedores"
-                                                           placeholder="Buscar por nome ou usu&aacute;rio..."
-                                                           autocomplete="off">
+                                                <div class="d-flex gap-2 mb-4">
+                                                    <div class="dashboard-search flex-grow-1">
+                                                        <input type="text" class="form-control"
+                                                               id="searchRevendedores"
+                                                               placeholder="Buscar por nome ou usu&aacute;rio..."
+                                                               autocomplete="off">
+                                                    </div>
+                                                    <button type="button" class="btn btn-success" onclick="abrirModalCriarRevendedor()">
+                                                        <i class="bi bi-plus-lg me-1"></i>Novo
+                                                    </button>
                                                 </div>
                                                 <div id="tabela-revendedores-container">
                                                     {% include 'partials/table-revendedores.html' %}
@@ -578,12 +585,213 @@ $(document).ready(function() {
 
     // ========== AÇÕES DE REVENDEDOR ==========
 
-    // Editar revendedor (placeholder - pode ser expandido)
+    // Editar revendedor
     window.editarRevendedor = function(userId) {
-        Swal.fire({
-            title: 'Editar Revendedor',
-            text: 'Esta funcionalidade será implementada em breve.',
-            icon: 'info'
+        // Busca dados do revendedor
+        fetch(`/revendedores/${userId}/dados/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const r = data.revendedor;
+                    $('#edit-revendedor-id').val(r.id);
+                    $('#edit-revendedor-username').val(r.username);
+                    $('#edit-revendedor-first-name').val(r.first_name);
+                    $('#edit-revendedor-last-name').val(r.last_name);
+                    $('#edit-revendedor-email').val(r.email);
+
+                    // Reseta campos de senha
+                    $('#edit-revendedor-alterar-senha').prop('checked', false);
+                    $('#edit-revendedor-senha-fields').hide();
+                    $('#edit-revendedor-nova-senha').val('');
+                    $('#edit-revendedor-confirmar-senha').val('');
+
+                    // Abre modal
+                    const modal = new bootstrap.Modal(document.getElementById('modal-edit-revendedor'));
+                    modal.show();
+                } else {
+                    Swal.fire('Erro', data.message || 'Erro ao carregar dados', 'error');
+                }
+            })
+            .catch(err => {
+                console.error('Erro ao carregar dados do revendedor:', err);
+                Swal.fire('Erro', 'Falha na comunicação com o servidor', 'error');
+            });
+    };
+
+    // Salvar edição do revendedor
+    window.salvarRevendedor = function() {
+        const userId = $('#edit-revendedor-id').val();
+        const alterarSenha = $('#edit-revendedor-alterar-senha').is(':checked');
+
+        const payload = {
+            first_name: $('#edit-revendedor-first-name').val().trim(),
+            last_name: $('#edit-revendedor-last-name').val().trim(),
+            email: $('#edit-revendedor-email').val().trim()
+        };
+
+        // Validação de primeiro nome
+        if (!payload.first_name) {
+            Swal.fire('Atenção', 'O primeiro nome é obrigatório', 'warning');
+            return;
+        }
+
+        // Validação de senha
+        if (alterarSenha) {
+            const novaSenha = $('#edit-revendedor-nova-senha').val();
+            const confirmarSenha = $('#edit-revendedor-confirmar-senha').val();
+
+            if (!novaSenha) {
+                Swal.fire('Atenção', 'Digite a nova senha', 'warning');
+                return;
+            }
+            if (novaSenha.length < 6) {
+                Swal.fire('Atenção', 'A senha deve ter no mínimo 6 caracteres', 'warning');
+                return;
+            }
+            if (novaSenha !== confirmarSenha) {
+                Swal.fire('Atenção', 'As senhas não conferem', 'warning');
+                return;
+            }
+            payload.nova_senha = novaSenha;
+        }
+
+        // Desabilita botão
+        const $btn = $('#btn-salvar-revendedor');
+        const btnText = $btn.html();
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Salvando...');
+
+        fetch(`/revendedores/${userId}/editar/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            $btn.prop('disabled', false).html(btnText);
+
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('modal-edit-revendedor')).hide();
+                Swal.fire({
+                    title: 'Sucesso',
+                    text: data.message,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                buscarRevendedores(); // Atualiza tabela
+            } else {
+                Swal.fire('Erro', data.message, 'error');
+            }
+        })
+        .catch(err => {
+            $btn.prop('disabled', false).html(btnText);
+            console.error('Erro ao salvar revendedor:', err);
+            Swal.fire('Erro', 'Falha ao salvar', 'error');
+        });
+    };
+
+    // Toggle para mostrar/ocultar campos de senha
+    $(document).on('change', '#edit-revendedor-alterar-senha', function() {
+        $('#edit-revendedor-senha-fields').toggle(this.checked);
+        if (!this.checked) {
+            $('#edit-revendedor-nova-senha').val('');
+            $('#edit-revendedor-confirmar-senha').val('');
+        }
+    });
+
+    // ========== CRIAR REVENDEDOR ==========
+    window.abrirModalCriarRevendedor = function() {
+        // Limpa campos
+        $('#form-create-revendedor')[0].reset();
+
+        // Abre modal
+        const modal = new bootstrap.Modal(document.getElementById('modal-create-revendedor'));
+        modal.show();
+    };
+
+    window.criarRevendedor = function() {
+        const username = $('#create-revendedor-username').val().trim();
+        const firstName = $('#create-revendedor-first-name').val().trim();
+        const lastName = $('#create-revendedor-last-name').val().trim();
+        const email = $('#create-revendedor-email').val().trim();
+        const senha = $('#create-revendedor-senha').val();
+        const confirmarSenha = $('#create-revendedor-confirmar-senha').val();
+
+        // Validações
+        if (!username) {
+            Swal.fire('Atenção', 'Username é obrigatório', 'warning');
+            return;
+        }
+
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            Swal.fire('Atenção', 'Username deve conter apenas letras, números e underscores', 'warning');
+            return;
+        }
+
+        if (!firstName) {
+            Swal.fire('Atenção', 'Primeiro nome é obrigatório', 'warning');
+            return;
+        }
+
+        if (!senha) {
+            Swal.fire('Atenção', 'Senha é obrigatória', 'warning');
+            return;
+        }
+
+        if (senha.length < 6) {
+            Swal.fire('Atenção', 'A senha deve ter no mínimo 6 caracteres', 'warning');
+            return;
+        }
+
+        if (senha !== confirmarSenha) {
+            Swal.fire('Atenção', 'As senhas não conferem', 'warning');
+            return;
+        }
+
+        const payload = {
+            username: username,
+            first_name: firstName,
+            last_name: lastName,
+            email: email,
+            senha: senha
+        };
+
+        const $btn = $('#btn-criar-revendedor');
+        const btnText = $btn.html();
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Criando...');
+
+        fetch('/revendedores/criar/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            $btn.prop('disabled', false).html(btnText);
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('modal-create-revendedor')).hide();
+                Swal.fire({
+                    title: 'Sucesso!',
+                    text: data.message,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                buscarRevendedores(); // Atualiza tabela
+            } else {
+                Swal.fire('Erro', data.message, 'error');
+            }
+        })
+        .catch(err => {
+            $btn.prop('disabled', false).html(btnText);
+            console.error('Erro ao criar revendedor:', err);
+            Swal.fire('Erro', 'Falha ao criar revendedor', 'error');
         });
     };
 

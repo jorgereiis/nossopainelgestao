@@ -2040,7 +2040,9 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
 
                 # Lock DB adquirido! Atualiza para bloquear outros processos
                 h.ultimo_envio = hoje
-                h.save(update_fields=['ultimo_envio'])
+                h.em_execucao = True
+                h.execucao_iniciada_em = agora
+                h.save(update_fields=['ultimo_envio', 'em_execucao', 'execucao_iniciada_em'])
 
                 logger.info(
                     "Lock adquirido - iniciando envios | thread=%s usuario=%s tipo=%s horario=%s",
@@ -2065,6 +2067,11 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
                     obter_mensalidades_a_vencer(h.usuario)
                 elif h.tipo_envio == 'obter_mensalidades_vencidas':
                     obter_mensalidades_vencidas(h.usuario)
+
+                # Marca execução como finalizada
+                h.em_execucao = False
+                h.execucao_iniciada_em = None
+                h.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
 
                 logger.info(
                     "Envios concluídos | thread=%s usuario=%s tipo=%s",
@@ -2106,9 +2113,11 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
                     error_msg
                 )
 
-                # Reverte ultimo_envio para permitir nova tentativa
+                # Reverte ultimo_envio para permitir nova tentativa e marca execução como finalizada
                 h.ultimo_envio = ultimo_envio_anterior
-                h.save(update_fields=['ultimo_envio'])
+                h.em_execucao = False
+                h.execucao_iniciada_em = None
+                h.save(update_fields=['ultimo_envio', 'em_execucao', 'execucao_iniciada_em'])
 
                 registrar_log_auditoria({
                     "funcao": "executar_envio_para_usuario",

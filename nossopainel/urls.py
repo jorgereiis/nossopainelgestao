@@ -197,6 +197,9 @@ from .views import (
     revendedor_excluir,
     revendedor_logar_como,
     impersonate_encerrar,
+    revendedor_dados,
+    revendedor_editar,
+    revendedor_criar,
 )
 
 urlpatterns = [
@@ -444,5 +447,8 @@ urlpatterns = [
     path("revendedores/<int:user_id>/toggle-bloqueio/", revendedor_toggle_bloqueio, name="revendedor-toggle-bloqueio"),
     path("revendedores/<int:user_id>/excluir/", revendedor_excluir, name="revendedor-excluir"),
     path("revendedores/<int:user_id>/logar-como/", revendedor_logar_como, name="revendedor-logar-como"),
+    path("revendedores/<int:user_id>/dados/", revendedor_dados, name="revendedor-dados"),
+    path("revendedores/<int:user_id>/editar/", revendedor_editar, name="revendedor-editar"),
+    path("revendedores/criar/", revendedor_criar, name="revendedor-criar"),
     path("impersonate/encerrar/", impersonate_encerrar, name="impersonate-encerrar"),
 ]
