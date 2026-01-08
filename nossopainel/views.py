@@ -5713,6 +5713,11 @@ def import_customers(request):
                     cliente.save()
                     clientes_criados[telefone] = cliente
 
+                    # Remove lead se existir (telefone virou cliente)
+                    # Normaliza para formato do lead (+DIGITOS)
+                    telefone_lead = telefone if telefone.startswith('+') else '+' + re.sub(r'\D', '', telefone)
+                    TelefoneLeads.objects.filter(telefone=telefone_lead, usuario=usuario).delete()
+
                     # Conta do App se aplicável
                     conta_criada = False
                     if device_id or email:
@@ -6233,6 +6238,11 @@ def cadastrar_cliente_basico(request):
                 indicado_por=None,
             )
 
+            # Remove lead se existir (telefone virou cliente)
+            # Normaliza para formato do lead (+DIGITOS)
+            telefone_lead = telefone if telefone.startswith('+') else '+' + re.sub(r'\D', '', telefone)
+            TelefoneLeads.objects.filter(telefone=telefone_lead, usuario=usuario).delete()
+
             # Log de auditoria
             log_user_action(
                 request=request,
@@ -6388,6 +6398,11 @@ def cadastrar_assinatura(request):
                         usuario=usuario,
                         tem_assinatura=False,
                     )
+
+                    # Remove lead se existir (telefone virou cliente)
+                    # Normaliza para formato do lead (+DIGITOS)
+                    telefone_lead = telefone if telefone.startswith('+') else '+' + re.sub(r'\D', '', telefone)
+                    TelefoneLeads.objects.filter(telefone=telefone_lead, usuario=usuario).delete()
 
                 # ===== Processar dados da assinatura =====
                 servidor_nome = normalizar_servidor(post.get('servidor', '').strip())
@@ -11933,6 +11948,63 @@ def tarefas_envio_configuracao_salvar(request):
             'horario_fim_permitido': config.horario_fim_permitido.strftime('%H:%M')
         }
     })
+
+
+@login_required
+@require_POST
+def tarefas_envio_revisar_leads(request):
+    """
+    Remove leads cujo telefone já corresponde a um cliente cadastrado.
+    Apenas para superusuários.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Acesso negado'}, status=403)
+
+    try:
+        # Busca todos os leads do usuário
+        leads = TelefoneLeads.objects.filter(usuario=request.user)
+
+        # Cria mapeamento: telefone_normalizado -> dados do cliente
+        clientes_por_telefone = {}
+        for cliente in Cliente.objects.filter(usuario=request.user).values('id', 'nome', 'telefone'):
+            # Normaliza: remove tudo exceto dígitos e adiciona +
+            telefone_normalizado = '+' + re.sub(r'\D', '', cliente['telefone'])
+            clientes_por_telefone[telefone_normalizado] = {
+                'nome': cliente['nome'],
+                'telefone': cliente['telefone']
+            }
+
+        # Identifica leads que já são clientes
+        telefones_clientes = set(clientes_por_telefone.keys())
+        leads_para_remover = leads.filter(telefone__in=telefones_clientes)
+
+        # Coleta dados dos clientes correspondentes antes de deletar
+        clientes_removidos = []
+        for lead in leads_para_remover:
+            if lead.telefone in clientes_por_telefone:
+                clientes_removidos.append(clientes_por_telefone[lead.telefone])
+
+        total_removidos = len(clientes_removidos)
+
+        # Remove os leads
+        leads_para_remover.delete()
+
+        if total_removidos > 0:
+            return JsonResponse({
+                'success': True,
+                'message': f'{total_removidos} lead(s) removido(s) pois já eram clientes.',
+                'clientes': clientes_removidos
+            })
+        else:
+            return JsonResponse({
+                'success': True,
+                'message': 'Nenhum lead encontrado que já seja cliente.',
+                'clientes': []
+            })
+
+    except Exception as e:
+        logger.error(f"[REVISAR_LEADS] Erro: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @login_required
