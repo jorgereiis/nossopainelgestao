@@ -1221,6 +1221,33 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "current_order": self.get_sort_params()[1],
             }
         )
+
+        # ============================================================
+        # REVENDEDORES - Aba exclusiva para superuser
+        # ============================================================
+        if self.request.user.is_superuser:
+            from django.contrib.auth.models import User
+            from django.db.models import Exists, OuterRef
+            from django.core.paginator import Paginator
+
+            # Subquery para verificar se há automação ativa
+            automacao_ativa = TarefaEnvio.objects.filter(
+                usuario=OuterRef('pk'),
+                em_execucao=True
+            )
+
+            revendedores_qs = User.objects.filter(
+                is_superuser=False
+            ).annotate(
+                tem_automacao_ativa=Exists(automacao_ativa)
+            ).select_related('profile').order_by('-date_joined')
+
+            # Paginação
+            paginator = Paginator(revendedores_qs, 10)
+            revendedores = paginator.get_page(1)
+
+            context['revendedores'] = revendedores
+
         return context
 
 
@@ -11017,6 +11044,73 @@ from .models import TarefaEnvio, HistoricoExecucaoTarefa, TemplateMensagem
 from .forms import TarefaEnvioForm
 
 
+def calcular_proxima_execucao(tarefas_ativas, agora, dias_verificar=7):
+    """
+    Calcula a próxima execução considerando hoje e os próximos dias.
+
+    Args:
+        tarefas_ativas: QuerySet de tarefas ativas
+        agora: datetime atual (timezone-aware)
+        dias_verificar: quantidade de dias a verificar (default: 7)
+
+    Returns:
+        dict com informações da próxima execução ou None se não houver:
+        {
+            'tarefa': objeto TarefaEnvio,
+            'data': date da execução,
+            'horario': time do horário,
+            'horario_formatado': string 'HH:MM',
+            'data_formatada': string 'DD/MM',
+            'descricao': string descritiva ('Hoje', 'Amanhã', 'Qua 15/01', etc),
+            'is_hoje': bool
+        }
+    """
+    from datetime import timedelta
+
+    DIAS_SEMANA_ABREV = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+
+    if not tarefas_ativas.exists():
+        return None
+
+    hoje = agora.date()
+    hora_atual = agora.time()
+
+    # Itera pelos próximos dias (incluindo hoje)
+    for offset in range(dias_verificar):
+        data_verificar = hoje + timedelta(days=offset)
+        is_hoje = (offset == 0)
+
+        # Busca tarefas que devem executar nessa data
+        for tarefa in tarefas_ativas.order_by('horario'):
+            if tarefa.deve_executar_na_data(data_verificar):
+                # Se for hoje, verifica se o horário já passou
+                if is_hoje and tarefa.horario <= hora_atual:
+                    continue
+
+                # Encontrou a próxima execução!
+                # Monta descrição legível
+                if is_hoje:
+                    descricao = 'Hoje'
+                elif offset == 1:
+                    descricao = 'Amanhã'
+                else:
+                    dia_semana = DIAS_SEMANA_ABREV[data_verificar.weekday()]
+                    descricao = f"{dia_semana} {data_verificar.strftime('%d/%m')}"
+
+                return {
+                    'tarefa': tarefa,
+                    'data': data_verificar,
+                    'horario': tarefa.horario,
+                    'horario_formatado': tarefa.horario.strftime('%H:%M'),
+                    'data_formatada': data_verificar.strftime('%d/%m'),
+                    'descricao': descricao,
+                    'is_hoje': is_hoje,
+                    'nome': tarefa.nome[:25] + '...' if len(tarefa.nome) > 25 else tarefa.nome
+                }
+
+    return None
+
+
 class TarefaEnvioListView(LoginRequiredMixin, ListView):
     """Lista todas as tarefas de envio do usuário."""
     model = TarefaEnvio
@@ -11061,14 +11155,10 @@ class TarefaEnvioListView(LoginRequiredMixin, ListView):
         media_envios = historico_recente.aggregate(media=Avg('quantidade_enviada'))['media']
         context['media_envios_execucao'] = round(media_envios, 1) if media_envios else 0
 
-        # Próxima tarefa a executar (hoje, baseado no horário)
+        # Próxima tarefa a executar (verifica hoje e próximos 7 dias)
         tarefas_ativas = qs.filter(ativo=True, pausado_ate__isnull=True) | qs.filter(ativo=True, pausado_ate__lte=agora)
-        proxima_tarefa = None
-        for tarefa in tarefas_ativas.order_by('horario'):
-            if tarefa.deve_executar_hoje() and tarefa.horario > agora.time():
-                proxima_tarefa = tarefa
-                break
-        context['proxima_tarefa'] = proxima_tarefa
+        proxima_execucao = calcular_proxima_execucao(tarefas_ativas, agora)
+        context['proxima_execucao'] = proxima_execucao
 
         context['page'] = 'tarefas-envio'
         context['page_group'] = 'admin'
@@ -11163,6 +11253,8 @@ class TarefaEnvioUpdateView(LoginRequiredMixin, UpdateView):
         context['editando'] = True
         context['page'] = 'tarefas-envio'
         context['page_group'] = 'admin'
+        # Passa informação de execução para o template (para modal informativo)
+        context['tarefa_em_execucao'] = self.object.em_execucao if self.object else False
         return context
 
 
@@ -11269,7 +11361,7 @@ def tarefa_envio_sugestao_horarios(request):
     Analisa o histórico de execuções e sugere os melhores horários.
     Baseado na taxa de sucesso por faixa horária.
     """
-    from django.db.models import Count, Case, When, FloatField
+    from django.db.models import Count, Case, When, FloatField, Avg
     from django.db.models.functions import ExtractHour
 
     # Busca histórico dos últimos 90 dias
@@ -11401,17 +11493,9 @@ def tarefas_envio_stats_api(request):
     media_envios = historico_recente.aggregate(media=Avg('quantidade_enviada'))['media']
     media_envios_execucao = round(media_envios, 1) if media_envios else 0
 
-    # Próxima tarefa a executar
+    # Próxima tarefa a executar (verifica hoje e próximos 7 dias)
     tarefas_ativas = qs.filter(ativo=True, pausado_ate__isnull=True) | qs.filter(ativo=True, pausado_ate__lte=agora)
-    proxima_tarefa = None
-    proxima_nome = None
-    proxima_horario = None
-    for tarefa in tarefas_ativas.order_by('horario'):
-        if tarefa.deve_executar_hoje() and tarefa.horario > agora.time():
-            proxima_tarefa = tarefa
-            proxima_nome = tarefa.nome[:25] + '...' if len(tarefa.nome) > 25 else tarefa.nome
-            proxima_horario = tarefa.horario.strftime('%H:%M')
-            break
+    proxima_execucao = calcular_proxima_execucao(tarefas_ativas, agora)
 
     # Tarefas em execução
     tarefas_em_execucao = list(
@@ -11427,10 +11511,13 @@ def tarefas_envio_stats_api(request):
             'total_envios': total_envios,
             'taxa_sucesso': taxa_sucesso,
             'media_envios_execucao': media_envios_execucao,
-            'proxima_tarefa': {
-                'nome': proxima_nome,
-                'horario': proxima_horario
-            } if proxima_tarefa else None
+            'proxima_execucao': {
+                'nome': proxima_execucao['nome'],
+                'horario': proxima_execucao['horario_formatado'],
+                'descricao': proxima_execucao['descricao'],
+                'is_hoje': proxima_execucao['is_hoje'],
+                'data_formatada': proxima_execucao['data_formatada']
+            } if proxima_execucao else None
         },
         'tarefas_em_execucao': tarefas_em_execucao,
         'timestamp': agora.isoformat()
@@ -14094,3 +14181,197 @@ def api_cliente_mensalidades(request, cliente_id):
         'mensalidades': lista,
         'total': len(lista),
     })
+
+
+# ============================================================
+# REVENDEDORES - Views para gerenciamento (apenas superuser)
+# ============================================================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def revendedores_busca(request):
+    """
+    Busca AJAX de revendedores com paginação.
+    Retorna HTML parcial da tabela para atualização dinâmica.
+    """
+    from django.contrib.auth.models import User
+    from django.core.paginator import Paginator
+    from django.db.models import Exists, OuterRef, Q
+
+    q = request.GET.get('q', '').strip()
+    page = request.GET.get('page', 1)
+    per_page = int(request.GET.get('per_page', 10))
+
+    # Subquery para verificar TarefaEnvio ativa (campanhas de marketing)
+    tarefa_envio_ativa = TarefaEnvio.objects.filter(
+        usuario=OuterRef('pk'),
+        em_execucao=True
+    )
+
+    # Subquery para verificar HorarioEnvios ativo (vencimento/atraso)
+    horario_envio_ativo = HorarioEnvios.objects.filter(
+        usuario=OuterRef('pk'),
+        status=True  # status=True indica que está em execução
+    )
+
+    qs = User.objects.filter(is_superuser=False).annotate(
+        tem_tarefa_envio_ativa=Exists(tarefa_envio_ativa),
+        tem_horario_envio_ativo=Exists(horario_envio_ativo)
+    ).select_related('profile')
+
+    if q:
+        qs = qs.filter(
+            Q(first_name__icontains=q) |
+            Q(last_name__icontains=q) |
+            Q(username__icontains=q)
+        )
+
+    qs = qs.order_by('-date_joined')
+    paginator = Paginator(qs, per_page)
+    revendedores = paginator.get_page(page)
+
+    return render(request, 'partials/table-revendedores.html', {
+        'revendedores': revendedores,
+        'per_page': per_page,
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def revendedor_toggle_bloqueio(request, user_id):
+    """
+    Bloqueia ou desbloqueia um revendedor.
+    Altera o campo is_active do Django User.
+    """
+    from django.contrib.auth.models import User
+
+    user = get_object_or_404(User, pk=user_id, is_superuser=False)
+    user.is_active = not user.is_active
+    user.save(update_fields=['is_active'])
+
+    acao = 'desbloqueado' if user.is_active else 'bloqueado'
+
+    # Log de auditoria
+    UserActionLog.objects.create(
+        usuario=request.user,
+        acao=f'revendedor_{acao}',
+        entidade='User',
+        entidade_id=user.id,
+        detalhes=f'Revendedor {user.username} foi {acao}'
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Revendedor {user.username} {acao} com sucesso.',
+        'is_active': user.is_active
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def revendedor_excluir(request, user_id):
+    """
+    Exclui um revendedor permanentemente.
+    Só permite exclusão se não houver clientes associados.
+    """
+    from django.contrib.auth.models import User
+
+    user = get_object_or_404(User, pk=user_id, is_superuser=False)
+    username = user.username
+
+    # Verificar se tem clientes associados
+    clientes_count = Cliente.objects.filter(usuario=user).count()
+
+    if clientes_count > 0:
+        return JsonResponse({
+            'success': False,
+            'message': f'Não é possível excluir. Revendedor possui {clientes_count} cliente(s) cadastrado(s).'
+        }, status=400)
+
+    # Log de auditoria antes da exclusão
+    UserActionLog.objects.create(
+        usuario=request.user,
+        acao='revendedor_excluido',
+        entidade='User',
+        entidade_id=user.id,
+        detalhes=f'Revendedor {username} foi excluído permanentemente'
+    )
+
+    user.delete()
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Revendedor {username} excluído com sucesso.'
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def revendedor_logar_como(request, user_id):
+    """
+    Permite admin logar como revendedor (impersonation).
+    Salva dados do admin original na sessão para retorno posterior.
+    """
+    from django.contrib.auth.models import User
+    from django.contrib.auth import login
+
+    target_user = get_object_or_404(User, pk=user_id, is_superuser=False)
+
+    # Verificar se usuário está ativo
+    if not target_user.is_active:
+        messages.error(request, f'Não é possível logar como {target_user.username}. O usuário está bloqueado.')
+        return redirect('dashboard')
+
+    # Salvar dados do admin original na sessão
+    request.session['_impersonate_admin_id'] = request.user.id
+    request.session['_impersonate_admin_username'] = request.user.username
+    request.session['_impersonate_started'] = timezone.now().isoformat()
+
+    # Log de auditoria
+    UserActionLog.objects.create(
+        usuario=request.user,
+        acao='impersonate_login',
+        entidade='User',
+        entidade_id=target_user.id,
+        detalhes=f'Admin {request.user.username} logou como revendedor {target_user.username}'
+    )
+
+    # Logar como o revendedor
+    login(request, target_user, backend='django.contrib.auth.backends.ModelBackend')
+
+    messages.info(request, f'Você está logado como {target_user.username}. Clique em "Voltar ao Admin" para retornar.')
+
+    return redirect('dashboard')
+
+
+@login_required
+def impersonate_encerrar(request):
+    """
+    Encerra impersonation e volta para admin original.
+    """
+    from django.contrib.auth.models import User
+    from django.contrib.auth import login
+
+    admin_id = request.session.pop('_impersonate_admin_id', None)
+    admin_username = request.session.pop('_impersonate_admin_username', None)
+    request.session.pop('_impersonate_started', None)
+
+    if admin_id:
+        admin_user = get_object_or_404(User, pk=admin_id, is_superuser=True)
+
+        # Log de auditoria
+        UserActionLog.objects.create(
+            usuario=admin_user,
+            acao='impersonate_logout',
+            entidade='User',
+            entidade_id=request.user.id,
+            detalhes=f'Admin {admin_username} encerrou sessão como {request.user.username}'
+        )
+
+        # Voltar para admin
+        login(request, admin_user, backend='django.contrib.auth.backends.ModelBackend')
+        messages.success(request, f'Bem-vindo de volta, {admin_user.username}!')
+
+    return redirect('dashboard')

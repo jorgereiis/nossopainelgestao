@@ -66,3 +66,17 @@ def user_profile(request):
 
     return {"user_profile": profile}
 
+
+def impersonation(request):
+    """
+    Disponibiliza informações de impersonation (admin logado como outro usuário).
+    Usado para mostrar banner de aviso quando admin está impersonando um revendedor.
+    """
+    is_impersonating = request.session.get('_impersonate_admin_id') is not None
+    admin_username = request.session.get('_impersonate_admin_username', '')
+
+    return {
+        "is_impersonating": is_impersonating,
+        "impersonate_admin_username": admin_username,
+    }
+

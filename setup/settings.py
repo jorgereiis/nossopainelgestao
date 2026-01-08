@@ -219,6 +219,7 @@ TEMPLATES = [
 TEMPLATES[0]["OPTIONS"]["context_processors"] += [
     "setup.context_processors.notifications",
     "setup.context_processors.user_profile",
+    "setup.context_processors.impersonation",
 ]
 
 WSGI_APPLICATION = "setup.wsgi.application"
