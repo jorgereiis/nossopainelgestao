@@ -916,11 +916,18 @@
                         <div>
                             <h6 class="text-uppercase text-muted mb-1 small fw-semibold">Proxima Execucao</h6>
                             <div id="stat-proxima">
-                                {% if proxima_tarefa %}
-                                <span class="fw-bold text-success" id="proxima-horario">{{ proxima_tarefa.horario|time:"H:i" }}</span>
-                                <small class="text-muted d-block" id="proxima-nome">{{ proxima_tarefa.nome|truncatechars:25 }}</small>
+                                {% if proxima_execucao %}
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold text-success" id="proxima-horario">{{ proxima_execucao.horario_formatado }}</span>
+                                    <span class="badge {% if proxima_execucao.is_hoje %}bg-success{% else %}bg-secondary{% endif %}" id="proxima-quando">
+                                        {{ proxima_execucao.descricao }}
+                                    </span>
+                                </div>
+                                <small class="text-muted d-block" id="proxima-nome">{{ proxima_execucao.nome }}</small>
+                                {% elif total_ativas > 0 %}
+                                <span class="text-muted">Nenhuma nos proximos 7 dias</span>
                                 {% else %}
-                                <span class="text-muted">Nenhuma hoje</span>
+                                <span class="text-muted">Sem tarefas ativas</span>
                                 {% endif %}
                             </div>
                         </div>
@@ -1352,13 +1359,19 @@ $(document).ready(function() {
                     }
 
                     // Proxima execucao
-                    if (stats.proxima_tarefa) {
+                    if (stats.proxima_execucao) {
+                        const badgeClass = stats.proxima_execucao.is_hoje ? 'bg-success' : 'bg-secondary';
                         $('#stat-proxima').html(`
-                            <span class="fw-bold text-success">${stats.proxima_tarefa.horario}</span>
-                            <small class="text-muted d-block">${stats.proxima_tarefa.nome}</small>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-bold text-success">${stats.proxima_execucao.horario}</span>
+                                <span class="badge ${badgeClass}">${stats.proxima_execucao.descricao}</span>
+                            </div>
+                            <small class="text-muted d-block">${stats.proxima_execucao.nome}</small>
                         `);
+                    } else if (stats.total_ativas > 0) {
+                        $('#stat-proxima').html('<span class="text-muted">Nenhuma nos proximos 7 dias</span>');
                     } else {
-                        $('#stat-proxima').html('<span class="text-muted">Nenhuma hoje</span>');
+                        $('#stat-proxima').html('<span class="text-muted">Sem tarefas ativas</span>');
                     }
 
                     // Atualiza indicadores de execução em tempo real

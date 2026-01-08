@@ -330,6 +330,41 @@
         --dashboard-tab-icon-color: #059669;
     }
 
+    .tab-icon-revendedores {
+        --dashboard-tab-icon-bg: #dbeafe;
+        --dashboard-tab-icon-color: #2563eb;
+    }
+
+    /* Avatar placeholder para tabela de revendedores */
+    .avatar-placeholder {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    /* Linha de revendedor bloqueado */
+    #tableRevendedores .table-secondary {
+        opacity: 0.7;
+    }
+
+    #tableRevendedores .table-secondary td {
+        background-color: #f8f9fa;
+    }
+
+    /* Hover effects para avatar na tabela de Revendedores */
+    #tableRevendedores tbody .flex-shrink-0 img {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #tableRevendedores tbody tr:hover .flex-shrink-0 img {
+        transform: scale(1.08);
+        box-shadow: 0 4px 12px rgba(98, 75, 255, 0.2);
+    }
+
     .clientes-servidor-card {
         border: none;
         background: linear-gradient(135deg, rgba(98, 75, 255, 0.06), rgba(255, 255, 255, 0.95));
@@ -1126,11 +1161,13 @@
     transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* ===== DROPDOWN DA TABELA - ESTILO PREMIUM ===== */
+/* ========================================
+   Dropdown de Ações - Estilo Global Simplificado
+   ======================================== */
 
-/* Menu dropdown com design moderno */
-#myTable .dropdown-menu {
-    min-width: 220px;
+/* Menu dropdown - estilo unificado para todas as tabelas */
+.table-dropdown-actions .dropdown-menu {
+    min-width: 200px;
     background-color: #ffffff;
     border: 1px solid #e2e8f0;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
@@ -1138,13 +1175,11 @@
     padding: 0.5rem 0;
     margin-top: 4px;
     overflow: hidden;
-    z-index: 9999 !important;
+    z-index: 10050 !important;
 }
 
-/* Animação de fade-in ao abrir */
-#myTable .dropdown-menu.show {
+.table-dropdown-actions .dropdown-menu.show {
     animation: tableDropdownFadeIn 0.2s ease-out;
-    z-index: 10000 !important;
 }
 
 @keyframes tableDropdownFadeIn {
@@ -1158,8 +1193,46 @@
     }
 }
 
+/* Itens do dropdown - estilo simples */
+.table-dropdown-actions .dropdown-item {
+    padding: 0.625rem 1rem;
+    font-size: 0.9375rem;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.15s ease;
+}
+
+.table-dropdown-actions .dropdown-item:hover,
+.table-dropdown-actions .dropdown-item:focus {
+    background-color: #f8fafc;
+    color: inherit;
+}
+
+.table-dropdown-actions .dropdown-item i {
+    width: 1.25rem;
+    text-align: center;
+}
+
+.table-dropdown-actions .dropdown-divider {
+    margin: 0.5rem 0;
+    border-color: #e2e8f0;
+}
+
+/* Mobile responsivo */
+@media (max-width: 767.98px) {
+    .table-dropdown-actions .dropdown-menu {
+        min-width: 180px;
+    }
+
+    .table-dropdown-actions .dropdown-item {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+}
+
 /* Posicionamento correto do dropdown */
-#myTable .dropdown {
+.table-dropdown-actions {
     position: relative;
 }
 
@@ -1251,30 +1324,7 @@
 /* Botão de ações com animação - já incluído no bloco compartilhado abaixo */
 /* (ver linhas ~868-902 para estilos compartilhados) */
 
-/* Menu dropdown - estilo premium */
-#servidoresTable .dropdown-menu {
-    min-width: 220px;
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    padding: 0.5rem 0;
-    margin-top: 4px;
-    overflow: hidden;
-    z-index: 9999 !important;
-}
-
-#servidoresTable .dropdown-menu.show {
-    animation: tableDropdownFadeIn 0.2s ease-out;
-    z-index: 10000 !important;
-}
-
-/* REMOVIDO: Estilos movidos para .table-dropdown-item (linha ~1332) */
-
-/* Garantir que o dropdown sempre apareça sobre o card */
-#servidoresTable .dropdown {
-    position: relative;
-}
+/* Menu dropdown - estilo agora é global via .table-dropdown-actions */
 
 /* Espaçamento otimizado das células */
 #servidoresTable tbody td {
@@ -1339,39 +1389,7 @@
     transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Menu dropdown - estilo premium */
-#aplicativosTable .dropdown-menu,
-#dispositivosTable .dropdown-menu,
-#planosTable .dropdown-menu,
-#formasPgtoTable .dropdown-menu {
-    min-width: 220px;
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    padding: 0.5rem 0;
-    margin-top: 4px;
-    overflow: hidden;
-    z-index: 9999 !important;
-}
-
-#aplicativosTable .dropdown-menu.show,
-#dispositivosTable .dropdown-menu.show,
-#planosTable .dropdown-menu.show,
-#formasPgtoTable .dropdown-menu.show {
-    animation: tableDropdownFadeIn 0.2s ease-out;
-    z-index: 10000 !important;
-}
-
-/* REMOVIDO: Estilos movidos para .table-dropdown-item (linha ~1332) */
-
-/* Posicionamento do dropdown */
-#aplicativosTable .dropdown,
-#dispositivosTable .dropdown,
-#planosTable .dropdown,
-#formasPgtoTable .dropdown {
-    position: relative;
-}
+/* Menu dropdown - estilo agora é global via .table-dropdown-actions */
 
 /* Espaçamento das células */
 #aplicativosTable tbody td,
@@ -1569,11 +1587,11 @@
     }
 }
 
-/* ===== CLASSES ESPECÍFICAS PARA DROPDOWNS DE TABELAS ===== */
-/* Inspirada no estilo premium do header.html */
-/* Sobrescreve TODOS os estilos com !important e especificidade máxima */
+/* ===== CLASSES dropdown-action-* DESATIVADAS ===== */
+/* Estilo simplificado agora via .table-dropdown-actions .dropdown-item */
+/* As classes abaixo foram comentadas para usar o estilo simples do Revendedores */
 
-/* Base comum para todos os dropdown-items de tabelas */
+/*
 .dropdown-item.dropdown-action-view,
 .dropdown-item.dropdown-action-edit,
 .dropdown-item.dropdown-action-payment,
@@ -1599,207 +1617,9 @@ button.dropdown-item.dropdown-action-delete {
     text-decoration: none !important;
     border-radius: 0 !important;
 }
+*/
 
-/* ===== AÇÃO: VER INFORMAÇÕES (Roxo) ===== */
-.dropdown-item.dropdown-action-view::before,
-button.dropdown-item.dropdown-action-view::before {
-    content: '' !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    bottom: 0 !important;
-    width: 3px !important;
-    background: #624bff !important;
-    transform: scaleY(0) !important;
-    transition: transform 0.2s ease !important;
-}
-
-.dropdown-item.dropdown-action-view:hover,
-.dropdown-item.dropdown-action-view:focus,
-.dropdown-item.dropdown-action-view:active,
-button.dropdown-item.dropdown-action-view:hover,
-button.dropdown-item.dropdown-action-view:focus,
-button.dropdown-item.dropdown-action-view:active {
-    background-color: #f1f5f9 !important;
-    background: #f1f5f9 !important;
-    color: #624bff !important;
-    padding-left: 1.75rem !important;
-    text-decoration: none !important;
-}
-
-.dropdown-item.dropdown-action-view:hover::before,
-.dropdown-item.dropdown-action-view:focus::before,
-button.dropdown-item.dropdown-action-view:hover::before,
-button.dropdown-item.dropdown-action-view:focus::before {
-    transform: scaleY(1) !important;
-}
-
-.dropdown-item.dropdown-action-view i,
-button.dropdown-item.dropdown-action-view i {
-    transition: all 0.2s ease !important;
-    opacity: 0.7 !important;
-    color: #475569 !important;
-}
-
-.dropdown-item.dropdown-action-view:hover i,
-.dropdown-item.dropdown-action-view:focus i,
-button.dropdown-item.dropdown-action-view:hover i,
-button.dropdown-item.dropdown-action-view:focus i {
-    opacity: 1 !important;
-    color: #624bff !important;
-}
-
-/* ===== AÇÃO: EDITAR INFORMAÇÕES (Roxo) ===== */
-.dropdown-item.dropdown-action-edit::before,
-button.dropdown-item.dropdown-action-edit::before {
-    content: '' !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    bottom: 0 !important;
-    width: 3px !important;
-    background: #624bff !important;
-    transform: scaleY(0) !important;
-    transition: transform 0.2s ease !important;
-}
-
-.dropdown-item.dropdown-action-edit:hover,
-.dropdown-item.dropdown-action-edit:focus,
-.dropdown-item.dropdown-action-edit:active,
-button.dropdown-item.dropdown-action-edit:hover,
-button.dropdown-item.dropdown-action-edit:focus,
-button.dropdown-item.dropdown-action-edit:active {
-    background-color: #f1f5f9 !important;
-    background: #f1f5f9 !important;
-    color: #624bff !important;
-    padding-left: 1.75rem !important;
-    text-decoration: none !important;
-}
-
-.dropdown-item.dropdown-action-edit:hover::before,
-.dropdown-item.dropdown-action-edit:focus::before,
-button.dropdown-item.dropdown-action-edit:hover::before,
-button.dropdown-item.dropdown-action-edit:focus::before {
-    transform: scaleY(1) !important;
-}
-
-.dropdown-item.dropdown-action-edit i,
-button.dropdown-item.dropdown-action-edit i {
-    transition: all 0.2s ease !important;
-    opacity: 0.7 !important;
-    color: #475569 !important;
-}
-
-.dropdown-item.dropdown-action-edit:hover i,
-.dropdown-item.dropdown-action-edit:focus i,
-button.dropdown-item.dropdown-action-edit:hover i,
-button.dropdown-item.dropdown-action-edit:focus i {
-    opacity: 1 !important;
-    color: #624bff !important;
-}
-
-/* ===== AÇÃO: REGISTRAR PAGAMENTO (Verde) ===== */
-.dropdown-item.dropdown-action-payment::before,
-button.dropdown-item.dropdown-action-payment::before {
-    content: '' !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    bottom: 0 !important;
-    width: 3px !important;
-    background: #16a34a !important;
-    transform: scaleY(0) !important;
-    transition: transform 0.2s ease !important;
-}
-
-.dropdown-item.dropdown-action-payment:hover,
-.dropdown-item.dropdown-action-payment:focus,
-.dropdown-item.dropdown-action-payment:active,
-button.dropdown-item.dropdown-action-payment:hover,
-button.dropdown-item.dropdown-action-payment:focus,
-button.dropdown-item.dropdown-action-payment:active {
-    background-color: #f1f5f9 !important;
-    background: #f1f5f9 !important;
-    color: #16a34a !important;
-    padding-left: 1.75rem !important;
-    text-decoration: none !important;
-}
-
-.dropdown-item.dropdown-action-payment:hover::before,
-.dropdown-item.dropdown-action-payment:focus::before,
-button.dropdown-item.dropdown-action-payment:hover::before,
-button.dropdown-item.dropdown-action-payment:focus::before {
-    transform: scaleY(1) !important;
-}
-
-.dropdown-item.dropdown-action-payment i,
-button.dropdown-item.dropdown-action-payment i {
-    transition: all 0.2s ease !important;
-    opacity: 0.7 !important;
-    color: #475569 !important;
-}
-
-.dropdown-item.dropdown-action-payment:hover i,
-.dropdown-item.dropdown-action-payment:focus i,
-button.dropdown-item.dropdown-action-payment:hover i,
-button.dropdown-item.dropdown-action-payment:focus i {
-    opacity: 1 !important;
-    color: #16a34a !important;
-}
-
-/* ===== AÇÃO: CANCELAR/DELETAR (Vermelho) ===== */
-.dropdown-item.dropdown-action-delete::before,
-button.dropdown-item.dropdown-action-delete::before {
-    content: '' !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    bottom: 0 !important;
-    width: 3px !important;
-    background: #dc3545 !important;
-    transform: scaleY(0) !important;
-    transition: transform 0.2s ease !important;
-}
-
-.dropdown-item.dropdown-action-delete:hover,
-.dropdown-item.dropdown-action-delete:focus,
-.dropdown-item.dropdown-action-delete:active,
-button.dropdown-item.dropdown-action-delete:hover,
-button.dropdown-item.dropdown-action-delete:focus,
-button.dropdown-item.dropdown-action-delete:active {
-    background-color: #fff5f5 !important;
-    background: #fff5f5 !important;
-    color: #b91c1c !important;
-    padding-left: 1.75rem !important;
-    text-decoration: none !important;
-}
-
-.dropdown-item.dropdown-action-delete:hover::before,
-.dropdown-item.dropdown-action-delete:focus::before,
-button.dropdown-item.dropdown-action-delete:hover::before,
-button.dropdown-item.dropdown-action-delete:focus::before {
-    transform: scaleY(1) !important;
-}
-
-.dropdown-item.dropdown-action-delete,
-button.dropdown-item.dropdown-action-delete {
-    color: #dc3545 !important;
-}
-
-.dropdown-item.dropdown-action-delete i,
-button.dropdown-item.dropdown-action-delete i {
-    transition: all 0.2s ease !important;
-    opacity: 0.7 !important;
-    color: #dc3545 !important;
-}
-
-.dropdown-item.dropdown-action-delete:hover i,
-.dropdown-item.dropdown-action-delete:focus i,
-button.dropdown-item.dropdown-action-delete:hover i,
-button.dropdown-item.dropdown-action-delete:focus i {
-    opacity: 1 !important;
-    color: #b91c1c !important;
-}
+/* Estilos dropdown-action-* comentados - usando estilo simplificado global */
 
 /* ========== Gestão DNS - Cards Filtráveis ========== */
 .card-filter-clickable {

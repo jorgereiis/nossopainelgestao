@@ -333,6 +333,16 @@
                                                 <span class="dashboard-tab-label">Receita Anual</span>
                                             </button>
                                         </li>
+                                        {% if user.is_superuser %}
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="tab-revendedores" data-bs-toggle="tab" data-bs-target="#pane-revendedores" type="button" role="tab" aria-controls="pane-revendedores" aria-selected="false">
+                                                <span class="dashboard-tab-icon tab-icon-revendedores">
+                                                    <i class="bi bi-people-fill"></i>
+                                                </span>
+                                                <span class="dashboard-tab-label">Revendedores</span>
+                                            </button>
+                                        </li>
+                                        {% endif %}
                                     </ul>
                                 </div>
                                 <div class="dashboard-tab-content w-100">
@@ -465,6 +475,21 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        {% if user.is_superuser %}
+                                        <div class="tab-pane fade" id="pane-revendedores" role="tabpanel" aria-labelledby="tab-revendedores">
+                                            <div class="dashboard-tab-body">
+                                                <div class="dashboard-search mb-4">
+                                                    <input type="text" class="form-control"
+                                                           id="searchRevendedores"
+                                                           placeholder="Buscar por nome ou usu&aacute;rio..."
+                                                           autocomplete="off">
+                                                </div>
+                                                <div id="tabela-revendedores-container">
+                                                    {% include 'partials/table-revendedores.html' %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -511,4 +536,177 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+{% if user.is_superuser %}
+<!-- JavaScript para aba Revendedores -->
+<script>
+$(document).ready(function() {
+    // ========== BUSCA DE REVENDEDORES ==========
+    let searchRevendedoresTimeout;
+
+    $('#searchRevendedores').on('input', function() {
+        clearTimeout(searchRevendedoresTimeout);
+        const q = $(this).val();
+        searchRevendedoresTimeout = setTimeout(() => buscarRevendedores(q), 300);
+    });
+
+    // Busca com paginação
+    window.buscarRevendedores = function(q = '', page = 1) {
+        const perPage = $('#per-page-revendedores').val() || 10;
+        const $container = $('#tabela-revendedores-container');
+
+        $container.css('opacity', '0.5');
+
+        $.get('{% url "revendedores-busca" %}', {
+            q: q,
+            page: page,
+            per_page: perPage
+        }).done(function(html) {
+            $container.html(html).css('opacity', '1');
+            // Reinicializa tooltips
+            $container.find('[data-bs-toggle="tooltip"]').tooltip();
+        }).fail(function() {
+            $container.css('opacity', '1');
+            Swal.fire('Erro', 'Falha ao buscar revendedores', 'error');
+        });
+    };
+
+    // Atualiza quando muda registros por página
+    $(document).on('change', '#per-page-revendedores', function() {
+        buscarRevendedores($('#searchRevendedores').val(), 1);
+    });
+
+    // ========== AÇÕES DE REVENDEDOR ==========
+
+    // Editar revendedor (placeholder - pode ser expandido)
+    window.editarRevendedor = function(userId) {
+        Swal.fire({
+            title: 'Editar Revendedor',
+            text: 'Esta funcionalidade será implementada em breve.',
+            icon: 'info'
+        });
+    };
+
+    // Logar como revendedor
+    window.loginComoRevendedor = function(userId, username) {
+        Swal.fire({
+            title: 'Logar como Revendedor',
+            html: `Você será redirecionado para o painel de <strong>${username}</strong>.<br><br>
+                   <small class="text-muted">Um banner aparecerá no topo para você retornar ao admin.</small>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-box-arrow-in-right me-1"></i>Continuar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0d6efd'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                window.location.href = '/revendedores/' + userId + '/logar-como/';
+            }
+        });
+    };
+
+    // Bloquear revendedor
+    window.bloquearRevendedor = function(userId, username) {
+        Swal.fire({
+            title: 'Bloquear Revendedor',
+            html: `O revendedor <strong>${username}</strong> não poderá mais acessar o sistema.<br><br>
+                   <small class="text-muted">Você poderá desbloquear a qualquer momento.</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-lock me-1"></i>Bloquear',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#f59e0b'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                toggleBloqueioRevendedor(userId);
+            }
+        });
+    };
+
+    // Desbloquear revendedor
+    window.desbloquearRevendedor = function(userId, username) {
+        Swal.fire({
+            title: 'Desbloquear Revendedor',
+            html: `Deseja desbloquear <strong>${username}</strong>?<br><br>
+                   <small class="text-muted">O revendedor poderá acessar o sistema novamente.</small>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-unlock me-1"></i>Desbloquear',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#198754'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                toggleBloqueioRevendedor(userId);
+            }
+        });
+    };
+
+    // Toggle bloqueio
+    function toggleBloqueioRevendedor(userId) {
+        $.ajax({
+            url: '/revendedores/' + userId + '/toggle-bloqueio/',
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'},
+            success: function(response) {
+                Swal.fire({
+                    title: 'Sucesso',
+                    text: response.message,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                buscarRevendedores($('#searchRevendedores').val());
+            },
+            error: function(xhr) {
+                Swal.fire('Erro', xhr.responseJSON?.message || 'Erro ao processar', 'error');
+            }
+        });
+    }
+
+    // Excluir revendedor
+    window.excluirRevendedor = function(userId, username) {
+        Swal.fire({
+            title: 'Excluir Revendedor',
+            html: `<div class="text-danger mb-3"><i class="bi bi-exclamation-triangle-fill fs-1"></i></div>
+                   Tem certeza que deseja excluir <strong>${username}</strong>?<br><br>
+                   <small class="text-danger">Esta ação não pode ser desfeita!</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-trash me-1"></i>Excluir',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#dc2626'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/revendedores/' + userId + '/excluir/',
+                    method: 'POST',
+                    headers: {'X-CSRFToken': '{{ csrf_token }}'},
+                    success: function(response) {
+                        Swal.fire({
+                            title: 'Sucesso',
+                            text: response.message,
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        buscarRevendedores($('#searchRevendedores').val());
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Erro', xhr.responseJSON?.message || 'Erro ao excluir', 'error');
+                    }
+                });
+            }
+        });
+    };
+
+    // ========== ATUALIZAÇÃO AUTOMÁTICA DE AUTOMAÇÕES ==========
+    setInterval(function() {
+        // Só atualiza se a aba de revendedores estiver ativa
+        if ($('#pane-revendedores').hasClass('show') && $('#pane-revendedores').hasClass('active')) {
+            buscarRevendedores($('#searchRevendedores').val());
+        }
+    }, 30000); // A cada 30 segundos
+});
+</script>
+{% endif %}
 {% endblock %}

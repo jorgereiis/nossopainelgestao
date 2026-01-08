@@ -293,7 +293,7 @@
                         </td>
                         <!-- Dropdown da tabela -->
                         <td class="text-center">
-                          <div class="dropdown">
+                          <div class="dropdown table-dropdown-actions">
                             <button
                               class="btn btn-sm btn-light rounded-circle d-inline-flex align-items-center justify-content-center border"
                               type="button"
@@ -305,23 +305,23 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ aplicativo.id }}">
                               <li>
-                                <button class="dropdown-item dropdown-action-edit"
+                                <button class="dropdown-item"
+                                  type="button"
                                   data-aplicativo="{{ aplicativo.id }}"
                                   data-nome="{{ aplicativo.nome }}"
                                   data-device_has_mac="{{ aplicativo.device_has_mac|yesno:'true,false' }}"
                                   onclick="exibirModalEdicao(this)">
-                                  <i class="bi bi-pencil me-2"></i>
-                                  <span>Editar Aplicativo</span>
+                                  <i class="bi bi-pencil me-2 text-primary"></i>Editar Aplicativo
                                 </button>
                               </li>
                               <li><hr class="dropdown-divider"></li>
                               <li>
-                                <button class="dropdown-item dropdown-action-delete"
+                                <button class="dropdown-item"
+                                  type="button"
                                   data-aplicativo="{{aplicativo.id}}"
                                   data-nome="{{aplicativo.nome}}"
                                   onclick="exibirModalConfirmacaoExclusao(this)">
-                                  <i class="bi bi-trash me-2"></i>
-                                  <span>Excluir Aplicativo</span>
+                                  <i class="bi bi-trash me-2 text-danger"></i>Excluir Aplicativo
                                 </button>
                               </li>
                             </ul>

@@ -4698,27 +4698,39 @@ class TarefaEnvio(models.Model):
 
     def deve_executar_hoje(self):
         """Verifica se a tarefa deve executar no dia atual."""
-        # Verifica se está pausada
-        if self.esta_pausada():
-            return False
+        return self.deve_executar_na_data(timezone.localtime().date())
 
-        agora = timezone.localtime()
-        hoje = agora.date()
+    def deve_executar_na_data(self, data):
+        """
+        Verifica se a tarefa deve executar em uma data específica.
+
+        Args:
+            data: objeto date para verificar
+
+        Returns:
+            bool: True se a tarefa deve executar na data especificada
+        """
+        # Verifica se está pausada (considera a data informada)
+        if self.pausado_ate:
+            # Converte pausado_ate para date se for datetime
+            pausado_ate_date = self.pausado_ate.date() if hasattr(self.pausado_ate, 'date') else self.pausado_ate
+            if data <= pausado_ate_date:
+                return False
 
         # ============================================
         # TIPO AGENDAMENTO ÚNICO
         # ============================================
         if self.tipo_agendamento == 'unico':
-            # Para envio único, verifica apenas se a data é hoje
+            # Para envio único, verifica apenas se a data corresponde
             if not self.data_envio_unico:
                 return False
-            return self.data_envio_unico == hoje
+            return self.data_envio_unico == data
 
         # ============================================
         # TIPO AGENDAMENTO RECORRENTE
         # ============================================
-        dia_semana = agora.weekday()  # 0=segunda, 6=domingo
-        dia_mes = agora.day
+        dia_semana = data.weekday()  # 0=segunda, 6=domingo
+        dia_mes = data.day
 
         # Verifica dia da semana
         if dia_semana not in self.dias_semana:

@@ -191,6 +191,12 @@ from .views import (
     # Cadastro separado (Cliente básico + Assinatura)
     cadastrar_cliente_basico,
     cadastrar_assinatura,
+    # Revendedores (Admin)
+    revendedores_busca,
+    revendedor_toggle_bloqueio,
+    revendedor_excluir,
+    revendedor_logar_como,
+    impersonate_encerrar,
 )
 
 urlpatterns = [
@@ -432,4 +438,11 @@ urlpatterns = [
 
     ########### Tests ###########
     path("teste/", test, name="teste"),
+
+    ########### Revendedores (Admin) ###########
+    path("revendedores/busca/", revendedores_busca, name="revendedores-busca"),
+    path("revendedores/<int:user_id>/toggle-bloqueio/", revendedor_toggle_bloqueio, name="revendedor-toggle-bloqueio"),
+    path("revendedores/<int:user_id>/excluir/", revendedor_excluir, name="revendedor-excluir"),
+    path("revendedores/<int:user_id>/logar-como/", revendedor_logar_como, name="revendedor-logar-como"),
+    path("impersonate/encerrar/", impersonate_encerrar, name="impersonate-encerrar"),
 ]

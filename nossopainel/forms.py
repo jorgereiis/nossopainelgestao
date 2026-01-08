@@ -197,10 +197,7 @@ class TarefaEnvioForm(forms.ModelForm):
         widget=forms.CheckboxSelectMultiple(attrs={
             'class': 'form-check-input'
         }),
-        required=True,
-        error_messages={
-            'required': 'Selecione pelo menos um dia da semana'
-        },
+        required=False,  # Validação condicional no clean() - obrigatório apenas para recorrente
         label='Dias da Semana'
     )
 
@@ -338,7 +335,14 @@ class TarefaEnvioForm(forms.ModelForm):
         return imagem
 
     def clean_periodo_mes(self):
-        """Valida que o período do mês foi selecionado."""
+        """Valida que o período do mês foi selecionado (apenas para recorrente)."""
+        # Obtém tipo de agendamento do POST diretamente (cleaned_data pode não ter ainda)
+        tipo_agendamento = self.data.get('tipo_agendamento', 'recorrente')
+
+        # Para envio único, período do mês é irrelevante - usa valor padrão
+        if tipo_agendamento == 'unico':
+            return 'todos'
+
         periodo = self.cleaned_data.get('periodo_mes', '').strip()
 
         if not periodo:
@@ -387,5 +391,12 @@ class TarefaEnvioForm(forms.ModelForm):
             # Para envio recorrente, dias da semana são obrigatórios
             if not dias_semana:
                 self.add_error('dias_semana', 'Selecione pelo menos um dia da semana.')
+
+        # Validação: dias_cancelamento obrigatório para clientes cancelados
+        tipo_envio = cleaned_data.get('tipo_envio')
+        dias_cancelamento = cleaned_data.get('dias_cancelamento')
+
+        if tipo_envio == 'cancelados' and not dias_cancelamento:
+            self.add_error('dias_cancelamento', 'Este campo é obrigatório para clientes cancelados.')
 
         return cleaned_data

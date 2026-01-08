@@ -212,7 +212,8 @@
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownMenuButton-{{ cliente.id }}">
                             <li>
-                                <button class="dropdown-item dropdown-action-view"
+                                <button class="dropdown-item"
+                                        type="button"
                                         data-id="{{cliente.id}}"
                                         data-nome="{{cliente.nome}}"
                                         data-plano="{{cliente.plano}}"
@@ -231,49 +232,48 @@
                                         data-conta_aplicativo="{{cliente.conta_aplicativo.all}}"
                                         data-whatsapp_lid="{{cliente.whatsapp_lid|default:''}}"
                                         onclick="exibirModalDetalhes(this)">
-                                    <i class="bi bi-eye me-3"></i>
-                                    <span>Ver Informações</span>
+                                    <i class="bi bi-eye me-2 text-primary"></i>Ver Informações
                                 </button>
                             </li>
                             <li>
-                                <button class="dropdown-item dropdown-action-edit"
-                                data-id="{{cliente.id}}"
-                                data-nome="{{cliente.nome}}"
-                                data-telefone-raw="{{cliente.telefone}}"
-                                data-telefone="{{cliente.telefone|formatar_telefone}}"
-                                data-indicado_por="{{cliente.indicado_por}}"
-                                data-servidor="{{cliente.servidor}}"
-                                data-forma_pgto="{% if cliente.forma_pgto %}{{cliente.forma_pgto.id}}{% endif %}"
-                                data-plano="{{cliente.plano.id}}"
-                                data-telas="{{cliente.telas}}"
-                                data-data_vencimento="{{cliente.data_vencimento|date:'Y-m-d'}}"
-                                data-dispositivo="{{cliente.dispositivo}}"
-                                data-aplicativo="{{cliente.sistema}}"
-                                data-notas="{{cliente.notas}}"
-                                data-nao_enviar_msgs="{{cliente.nao_enviar_msgs}}"
-                                onclick="exibirModalEdicao(this)">
-                                    <i class="bi bi-pencil me-3"></i>
-                                    <span>Editar Informações</span>
-                                </button>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <button class="dropdown-item dropdown-action-payment"
-                                    data-nome="{{cliente.nome}}"
-                                    data-mensalidade="{{mensalidade.id}}"
-                                    onclick="exibirModalConfirmacaoPagamento(this)">
-                                    <i class="bi bi-cash-coin me-3"></i>
-                                    <span>Registrar Pagamento</span>
+                                <button class="dropdown-item"
+                                        type="button"
+                                        data-id="{{cliente.id}}"
+                                        data-nome="{{cliente.nome}}"
+                                        data-telefone-raw="{{cliente.telefone}}"
+                                        data-telefone="{{cliente.telefone|formatar_telefone}}"
+                                        data-indicado_por="{{cliente.indicado_por}}"
+                                        data-servidor="{{cliente.servidor}}"
+                                        data-forma_pgto="{% if cliente.forma_pgto %}{{cliente.forma_pgto.id}}{% endif %}"
+                                        data-plano="{{cliente.plano.id}}"
+                                        data-telas="{{cliente.telas}}"
+                                        data-data_vencimento="{{cliente.data_vencimento|date:'Y-m-d'}}"
+                                        data-dispositivo="{{cliente.dispositivo}}"
+                                        data-aplicativo="{{cliente.sistema}}"
+                                        data-notas="{{cliente.notas}}"
+                                        data-nao_enviar_msgs="{{cliente.nao_enviar_msgs}}"
+                                        onclick="exibirModalEdicao(this)">
+                                    <i class="bi bi-pencil me-2 text-primary"></i>Editar Informações
                                 </button>
                             </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <button class="dropdown-item dropdown-action-delete"
-                                    data-nome="{{cliente.nome}}"
-                                    data-cliente="{{cliente.id}}"
-                                    onclick="exibirModalConfirmacaoCancelamento(this)">
-                                    <i class="bi bi-x-circle me-3"></i>
-                                    <span>Cancelar Cliente</span>
+                                <button class="dropdown-item"
+                                        type="button"
+                                        data-nome="{{cliente.nome}}"
+                                        data-mensalidade="{{mensalidade.id}}"
+                                        onclick="exibirModalConfirmacaoPagamento(this)">
+                                    <i class="bi bi-cash-coin me-2 text-success"></i>Registrar Pagamento
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button class="dropdown-item"
+                                        type="button"
+                                        data-nome="{{cliente.nome}}"
+                                        data-cliente="{{cliente.id}}"
+                                        onclick="exibirModalConfirmacaoCancelamento(this)">
+                                    <i class="bi bi-x-circle me-2 text-danger"></i>Cancelar Cliente
                                 </button>
                             </li>
                         </ul>
