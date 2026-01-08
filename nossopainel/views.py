@@ -93,6 +93,7 @@ from .models import (
     PlanoLinkPagamento,
     # Tarefas de Envio WhatsApp
     ConfiguracaoEnvio,
+    TelefoneLeads,
 )
 from .utils import (
     envio_apos_novo_cadastro,
@@ -11553,6 +11554,20 @@ def tarefa_envio_preview_alcance(request):
     elif tipo_envio == 'cancelados':
         data_limite = timezone.now() - timedelta(days=dias_cancelamento)
         qs = qs.filter(cancelado=True, data_cancelamento__lte=data_limite)
+    elif tipo_envio == 'avulso':
+        # Leads: conta telefones válidos cadastrados
+        total = TelefoneLeads.objects.filter(
+            usuario=request.user,
+            valido=True
+        ).count()
+
+        return JsonResponse({
+            'success': True,
+            'total': total,
+            'tipo_envio': tipo_envio,
+            'filtro_estados': [],
+            'stats_estados': []
+        })
     else:
         return JsonResponse({
             'success': False,
