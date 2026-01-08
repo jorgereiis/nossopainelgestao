@@ -1192,13 +1192,6 @@ $(document).ready(function() {
             return;
         }
 
-        // Leads (avulso) nao tem preview de alcance
-        if (tipoEnvio === 'avulso') {
-            $('#alcance-numero').text('-');
-            $('#alcance-label').text('Leads importados');
-            return;
-        }
-
         const estados = [];
         $('.filtro-estado-check:checked').each(function() {
             estados.push($(this).val());
@@ -1221,8 +1214,18 @@ $(document).ready(function() {
                 success: function(response) {
                     if (response.success) {
                         $('#alcance-numero').text(response.total.toLocaleString('pt-BR'));
-                        $('#alcance-label').text('clientes serao atingidos');
+                        // Label dinamico baseado no tipo (usa response do backend)
+                        if (response.tipo_envio === 'avulso') {
+                            $('#alcance-label').text('leads cadastrados');
+                        } else {
+                            $('#alcance-label').text('clientes serao atingidos');
+                        }
                     }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Erro ao carregar alcance:', status, error);
+                    $('#alcance-numero').text('-');
+                    $('#alcance-label').text('Erro ao calcular');
                 },
                 complete: function() {
                     $('#alcance-badge').removeClass('loading updating');
