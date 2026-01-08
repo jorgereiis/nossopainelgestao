@@ -1,0 +1,76 @@
+<!-- Modal Editar Revendedor -->
+<div class="modal fade" id="modal-edit-revendedor" tabindex="-1" aria-labelledby="modalEditRevendedorLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="modalEditRevendedorLabel">
+                    <i class="bi bi-person-gear me-2 text-primary"></i>Editar Revendedor
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <form id="form-edit-revendedor">
+                    <input type="hidden" id="edit-revendedor-id">
+
+                    <!-- Username (somente leitura) -->
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Username</label>
+                        <input type="text" class="form-control bg-light" id="edit-revendedor-username" readonly disabled>
+                    </div>
+
+                    <!-- Nome -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Primeiro Nome <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit-revendedor-first-name" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Sobrenome</label>
+                            <input type="text" class="form-control" id="edit-revendedor-last-name">
+                        </div>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="edit-revendedor-email" placeholder="email@exemplo.com">
+                    </div>
+
+                    <!-- Divider -->
+                    <hr class="my-4">
+
+                    <!-- Alterar Senha (opcional) -->
+                    <div class="mb-3">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="edit-revendedor-alterar-senha" role="switch">
+                            <label class="form-check-label fw-medium" for="edit-revendedor-alterar-senha">
+                                <i class="bi bi-key me-1"></i>Alterar senha
+                            </label>
+                        </div>
+                        <div id="edit-revendedor-senha-fields" style="display: none;">
+                            <div class="mb-2">
+                                <input type="password" class="form-control" id="edit-revendedor-nova-senha"
+                                       placeholder="Nova senha" minlength="6" autocomplete="new-password">
+                            </div>
+                            <div class="mb-2">
+                                <input type="password" class="form-control" id="edit-revendedor-confirmar-senha"
+                                       placeholder="Confirmar senha" minlength="6" autocomplete="new-password">
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>Minimo 6 caracteres
+                            </small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-salvar-revendedor" onclick="salvarRevendedor()">
+                    <i class="bi bi-check-lg me-1"></i>Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

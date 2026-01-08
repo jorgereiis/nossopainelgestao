@@ -1685,6 +1685,19 @@ class HorarioEnvios(models.Model):
     ativo = models.BooleanField(default=True)
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
 
+    # Campos de controle de execução em tempo real
+    em_execucao = models.BooleanField(
+        default=False,
+        verbose_name='Em Execução',
+        help_text='Indica se o envio está sendo executado no momento'
+    )
+    execucao_iniciada_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Execução Iniciada Em',
+        help_text='Data/hora do início da execução atual'
+    )
+
     class Meta:
         db_table = 'cadastros_horarioenvios'
         verbose_name = "Horário de Envio"
@@ -3782,6 +3795,7 @@ class TelefoneLeads(models.Model):
     )
     criado_em = models.DateTimeField(
         auto_now_add=True,
+        null=True,  # Permite NULL para registros antigos importados antes do campo existir
         verbose_name='Criado Em'
     )
 

@@ -1,0 +1,69 @@
+<!-- Modal Criar Revendedor -->
+<div class="modal fade" id="modal-create-revendedor" tabindex="-1" aria-labelledby="modalCreateRevendedorLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="modalCreateRevendedorLabel">
+                    <i class="bi bi-person-plus me-2 text-success"></i>Novo Revendedor
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <form id="form-create-revendedor">
+                    <!-- Username -->
+                    <div class="mb-3">
+                        <label class="form-label">Username <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="create-revendedor-username"
+                               placeholder="nome_usuario" required autocomplete="off"
+                               pattern="[a-zA-Z0-9_]+" title="Apenas letras, números e underscores">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>Apenas letras, números e underscores
+                        </small>
+                    </div>
+
+                    <!-- Nome -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Primeiro Nome <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="create-revendedor-first-name" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Sobrenome</label>
+                            <input type="text" class="form-control" id="create-revendedor-last-name">
+                        </div>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="create-revendedor-email"
+                               placeholder="email@exemplo.com">
+                    </div>
+
+                    <!-- Divider -->
+                    <hr class="my-4">
+
+                    <!-- Senha -->
+                    <div class="mb-3">
+                        <label class="form-label">Senha <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control mb-2" id="create-revendedor-senha"
+                               placeholder="Senha" minlength="6" required autocomplete="new-password">
+                        <input type="password" class="form-control" id="create-revendedor-confirmar-senha"
+                               placeholder="Confirmar senha" minlength="6" required autocomplete="new-password">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>Mínimo 6 caracteres
+                        </small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-success" id="btn-criar-revendedor" onclick="criarRevendedor()">
+                    <i class="bi bi-check-lg me-1"></i>Criar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
