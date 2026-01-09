@@ -111,7 +111,7 @@
                                                 <td class="text-capitalize text-center" style="max-width: 200px;"><span class="badge bg-danger">Cancelado</span></td>
                                                 <td class="text-center">
                                                     <input type="checkbox" class="toggle-switch" id="reativar-{{ cliente.id }}"
-                                                           onclick="abrirModalReativacao({{ cliente.id }}, '{{ cliente.nome|escapejs }}')">
+                                                           onclick="abrirModalReativacao({{ cliente.id }}, '{{ cliente.nome|escapejs }}', {{ cliente.forma_pgto.id|default:'null' }})">
                                                     <label for="reativar-{{ cliente.id }}"></label>
                                                 </td>
                                             </tr>
@@ -244,6 +244,43 @@
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><polyline points="20 6 9 17 4 12"/></svg>
                                         Confirmar Reativação
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal de Sucesso com Dados de Pagamento -->
+                    <div class="modal fade" id="modalDadosPagamento" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow-lg">
+                                <div class="modal-body text-center p-5">
+                                    <!-- Ícone de Sucesso -->
+                                    <div class="mb-4">
+                                        <div class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                                             style="width: 80px; height: 80px; background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+                                            <i class="bi bi-check-circle-fill text-success" style="font-size: 2.5rem;"></i>
+                                        </div>
+                                    </div>
+
+                                    <h4 class="fw-bold mb-2">Cliente Reativado!</h4>
+                                    <p class="text-muted mb-4">
+                                        A assinatura de <strong id="nomeClienteReativado"></strong> foi reativada com sucesso.
+                                    </p>
+
+                                    <!-- Container para dados de pagamento (preenchido via JS) -->
+                                    <div id="containerDadosPagamento"></div>
+
+                                    <hr class="my-4">
+
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal"
+                                                onclick="window.location.href='/clientes-cancelados/'">
+                                            <i class="bi bi-arrow-left me-1"></i>Voltar para Cancelados
+                                        </button>
+                                        <a href="/dashboard/" class="btn btn-outline-secondary">
+                                            <i class="bi bi-people me-1"></i>Ver Clientes Ativos
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -394,12 +431,13 @@
     // Variáveis globais para o modal de reativação
     let clienteIdReativar = null;
     let formaPagamentoSelecionada = null;
+    let formaPagamentoAnterior = null;
     let modalReativarInstance = null;
 
     /**
      * Abre o modal de reativação de cliente
      */
-    function abrirModalReativacao(clienteId, clienteNome) {
+    function abrirModalReativacao(clienteId, clienteNome, formaPgtoAnteriorId) {
         // Resetar toggle switch (não deixar marcado)
         var toggleSwitch = document.getElementById('reativar-' + clienteId);
         if (toggleSwitch) {
@@ -409,6 +447,7 @@
         // Salvar dados do cliente
         clienteIdReativar = clienteId;
         formaPagamentoSelecionada = null;
+        formaPagamentoAnterior = formaPgtoAnteriorId;
 
         // Atualizar nome no modal
         document.getElementById('nomeClienteReativar').textContent = clienteNome;
@@ -473,33 +512,72 @@
         return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     }
 
+    // Variável global para armazenar dados das formas de pagamento
+    let formasPagamentoData = [];
+
     /**
      * Renderiza a lista de formas de pagamento no modal
      */
     function renderizarFormasPagamento(formas) {
         const container = document.getElementById('listaFormasPagamento');
 
-        let html = '<div class="list-group gap-2">';
+        // Armazenar dados globalmente para uso na função de seleção
+        formasPagamentoData = formas;
 
-        formas.forEach(forma => {
+        // Converter formaPagamentoAnterior para número (se existir)
+        const formaPgtoAnteriorId = formaPagamentoAnterior ? parseInt(formaPagamentoAnterior) : null;
+
+        // Ordenar formas: forma anterior primeiro, depois as demais
+        const formasOrdenadas = [...formas].sort((a, b) => {
+            if (a.id === formaPgtoAnteriorId) return -1;
+            if (b.id === formaPgtoAnteriorId) return 1;
+            return 0;
+        });
+
+        // Verificar se existe forma de pagamento anterior válida
+        const formaAnteriorExiste = formaPgtoAnteriorId && formas.some(f => f.id === formaPgtoAnteriorId);
+
+        // Determinar qual forma será pré-selecionada
+        let formaSelecionadaInicial = null;
+        if (formaAnteriorExiste) {
+            const formaAnterior = formas.find(f => f.id === formaPgtoAnteriorId);
+            if (formaAnterior && !formaAnterior.bloqueado) {
+                formaSelecionadaInicial = formaPgtoAnteriorId;
+            }
+        }
+
+        let html = '';
+
+        // Adicionar texto de recomendação se houver forma de pagamento anterior (visível apenas quando a forma anterior está selecionada)
+        if (formaAnteriorExiste) {
+            const mostrarRecomendacao = formaSelecionadaInicial === formaPgtoAnteriorId;
+            html += '<div id="alertRecomendacaoFormaAnterior" class="alert alert-warning align-items-start mb-3 ' + (mostrarRecomendacao ? 'd-flex' : 'd-none') + '" style="background-color: #fff8e6; border-color: #ffe69c;">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#997404" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 flex-shrink-0 mt-1"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>' +
+                '<div style="color: #664d03;"><strong>Recomendação:</strong> Essa foi a Forma de Pagamento anterior utilizada por este cliente, então, analise se deseja manter ou alterar para alguma das alternativas com limite disponível.</div>' +
+                '</div>';
+        }
+
+        html += '<div class="list-group gap-2" id="listaFormasContainer">';
+
+        formasOrdenadas.forEach(forma => {
             const bloqueado = forma.bloqueado;
             const isFastDePix = forma.tipo_integracao === 'fastdepix';
-            const status = forma.status; // disponivel, proximo_limite, bloqueado
+            const status = forma.status;
+            const isFormaPgtoAnterior = forma.id === formaPgtoAnteriorId;
+            const percentual = forma.percentual_utilizado || 0;
+
+            // Verificar se esta forma deve estar expandida (selecionada)
+            const estaExpandido = forma.id === formaSelecionadaInicial;
 
             // Classes CSS baseadas no estado
             let borderClass = '';
-            let bgClass = '';
             let extraStyles = '';
             if (status === 'bloqueado') {
-                borderClass = '';
-                bgClass = '';
                 extraStyles = 'border: 1px solid #e9a8ad; background: linear-gradient(135deg, #fdf2f3 0%, #fef7f7 100%);';
             } else if (status === 'proximo_limite') {
                 borderClass = 'border-warning';
-                bgClass = '';
             } else {
                 borderClass = 'border-success border-opacity-50';
-                bgClass = '';
             }
 
             const classeOpacidade = bloqueado ? 'opacity-75' : '';
@@ -509,41 +587,46 @@
             let icone = '';
             let corIcone = '';
             if (isFastDePix) {
-                corIcone = '#198754'; // verde
+                corIcone = '#198754';
                 icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`;
             } else if (status === 'bloqueado') {
-                corIcone = '#b5838d'; // rosa acinzentado suave
+                corIcone = '#b5838d';
                 icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
             } else if (status === 'proximo_limite') {
-                corIcone = '#ffc107'; // amarelo
+                corIcone = '#ffc107';
                 icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`;
             } else {
-                corIcone = '#198754'; // verde
+                corIcone = '#198754';
                 icone = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${corIcone}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
             }
 
-            // Badge de tipo de conta removido conforme solicitação
+            // Cor do percentual
+            const corPercentual = percentual >= 98 ? '#8d6b75' : percentual >= 80 ? '#b5850d' : '#6c757d';
 
-            // Percentual de utilização (usado tanto na info de limite quanto no display)
-            const percentual = forma.percentual_utilizado || 0;
+            // Estilo de seleção
+            const estiloSelecao = estaExpandido ? 'box-shadow: 0 0 0 3px rgba(98, 75, 255, 0.3);' : '';
 
-            // Informações de limite
-            let infoLimite = '';
-            if (isFastDePix) {
-                // FastDePix não tem limite - não mostrar badge
-                infoLimite = '';
-            } else if (forma.limite_anual > 0) {
-                // Barra de progresso
+            // Badge de status (compacto)
+            let badgeStatusCompacto = '';
+            if (status === 'bloqueado') {
+                badgeStatusCompacto = `<span class="badge px-2 py-1" style="background-color: #e8d4d7; color: #6d4c5a; font-size: 0.7em;">Indisponível</span>`;
+            } else if (status === 'proximo_limite') {
+                badgeStatusCompacto = `<span class="badge bg-warning text-dark px-2 py-1" style="font-size: 0.7em;">Próx. Limite</span>`;
+            }
+
+            // Informações de limite expandidas
+            let infoLimiteExpandido = '';
+            if (!isFastDePix && forma.limite_anual > 0) {
                 let barraCorClass = 'bg-success';
                 let barraStyle = '';
                 if (percentual >= 98) {
                     barraCorClass = '';
-                    barraStyle = 'background-color: #c9a8ad;'; // rosa acinzentado suave
+                    barraStyle = 'background-color: #c9a8ad;';
                 } else if (percentual >= 80) {
                     barraCorClass = 'bg-warning';
                 }
 
-                infoLimite = `
+                infoLimiteExpandido = `
                     <div class="mt-2">
                         <div class="d-flex justify-content-between align-items-center small mb-1">
                             <span class="text-muted">Utilizado: <strong>${formatarMoeda(forma.total_projetado)}</strong></span>
@@ -566,10 +649,10 @@
                 `;
             }
 
-            // Badge de status
-            let badgeStatus = '';
+            // Badge de status expandido
+            let badgeStatusExpandido = '';
             if (status === 'bloqueado') {
-                badgeStatus = `
+                badgeStatusExpandido = `
                     <div class="text-end">
                         <span class="badge px-3 py-2" style="background-color: #e8d4d7; color: #6d4c5a;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -579,7 +662,7 @@
                     </div>
                 `;
             } else if (status === 'proximo_limite') {
-                badgeStatus = `
+                badgeStatusExpandido = `
                     <div class="text-end">
                         <span class="badge bg-warning text-dark px-3 py-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
@@ -587,9 +670,6 @@
                         </span>
                     </div>
                 `;
-            } else {
-                // Sem badge para status disponível
-                badgeStatus = '';
             }
 
             // Quantidade de clientes
@@ -599,45 +679,54 @@
             }
 
             html += `
-                <div class="list-group-item ${borderClass} ${bgClass} ${classeOpacidade} rounded-3 p-3"
-                     style="${cursorStyle} ${extraStyles}" ${bloqueado ? '' : `onclick="selecionarFormaPagamento(${forma.id}, this)"`}>
-                    <div class="d-flex align-items-start gap-3">
-                        <!-- Radio + Ícone -->
-                        <div class="d-flex align-items-center gap-2">
+                <div class="list-group-item ${borderClass} ${classeOpacidade} rounded-3 ${estaExpandido ? 'shadow-sm' : ''}"
+                     style="${cursorStyle} ${extraStyles} ${estiloSelecao} transition: all 0.3s ease;"
+                     ${bloqueado ? '' : `onclick="selecionarFormaPagamento(${forma.id}, this)"`}
+                     data-forma-id="${forma.id}">
+
+                    <!-- Visualização Compacta (quando não selecionado) -->
+                    <div class="forma-compacta p-2" style="display: ${estaExpandido ? 'none' : 'block'};">
+                        <div class="d-flex align-items-center gap-3">
                             <input type="radio" name="formaPagamentoReativar" value="${forma.id}"
-                                   class="form-check-input" style="width: 20px; height: 20px;" ${bloqueado ? 'disabled' : ''}>
-                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                                ${icone}
+                                   class="form-check-input" style="width: 18px; height: 18px;" ${bloqueado ? 'disabled' : ''} ${estaExpandido ? 'checked' : ''}>
+                            <div class="d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                ${icone.replace('width="32"', 'width="24"').replace('height="32"', 'height="24"')}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-semibold">${forma.nome_identificacao || forma.nome}</span>
+                                    ${isFormaPgtoAnterior ? '<span class="badge bg-primary" style="font-size: 0.65em;">Usada anteriormente por esse cliente</span>' : ''}
+                                    ${badgeStatusCompacto}
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                ${isFastDePix ? '<span class="small text-success fw-semibold">Ilimitado</span>' : `<span class="small fw-semibold" style="color: ${corPercentual};">${percentual.toFixed(0)}%</span>`}
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Informações -->
-                        <div class="flex-grow-1">
-                            <div class="mb-1">
-                                <h6 class="mb-0 fw-bold">${forma.nome_identificacao || forma.nome}</h6>
+                    <!-- Visualização Expandida (quando selecionado) -->
+                    <div class="forma-expandida p-3" style="display: ${estaExpandido ? 'block' : 'none'};">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="radio" name="formaPagamentoReativar" value="${forma.id}"
+                                       class="form-check-input" style="width: 20px; height: 20px;" ${bloqueado ? 'disabled' : ''} ${estaExpandido ? 'checked' : ''}>
+                                <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                    ${icone}
+                                </div>
                             </div>
-                            <div class="text-muted small">${forma.instituicao_nome || '-'}</div>
-                            ${isFastDePix ? `
-                                <div class="small text-success fw-semibold">
-                                    <i class="bi bi-infinity me-1"></i>Ilimitado
+                            <div class="flex-grow-1">
+                                <div class="mb-1 d-flex align-items-center gap-2">
+                                    <h6 class="mb-0 fw-bold">${forma.nome_identificacao || forma.nome}</h6>
+                                    ${isFormaPgtoAnterior ? '<span class="badge bg-primary" style="font-size: 0.7em;">Usada anteriormente por esse cliente</span>' : ''}
                                 </div>
-                                <div class="small text-muted">
-                                    Faturamento: <strong>${formatarMoeda(forma.total_projetado)}</strong>
-                                </div>
-                            ` : `
-                                <div class="small fw-semibold" style="color: ${percentual >= 98 ? '#8d6b75' : percentual >= 80 ? '#b5850d' : '#6c757d'};">
-                                    <strong>${percentual.toFixed(0)}%</strong>/100%
-                                </div>
-                                <div class="small" style="color: ${forma.margem_disponivel > 0 ? '#198754' : '#8d6b75'};">
-                                    Disponível: <strong>${formatarMoeda(forma.margem_disponivel)}</strong>
-                                </div>
-                            `}
-                            ${infoClientes}
-                            ${infoLimite}
+                                <div class="text-muted small">${forma.instituicao_nome || '-'}</div>
+                                ${isFastDePix ? '<div class="small text-success fw-semibold">Ilimitado</div><div class="small text-muted">Faturamento: <strong>' + formatarMoeda(forma.total_projetado) + '</strong></div>' : '<div class="small fw-semibold" style="color: ' + corPercentual + ';"><strong>' + percentual.toFixed(0) + '%</strong>/100%</div><div class="small" style="color: ' + (forma.margem_disponivel > 0 ? '#198754' : '#8d6b75') + ';">Disponível: <strong>' + formatarMoeda(forma.margem_disponivel) + '</strong></div>'}
+                                ${infoClientes}
+                                ${infoLimiteExpandido}
+                            </div>
+                            ${badgeStatusExpandido}
                         </div>
-
-                        <!-- Status -->
-                        ${badgeStatus}
                     </div>
                 </div>
             `;
@@ -664,6 +753,12 @@
         `;
 
         container.innerHTML = html;
+
+        // Se houver forma de pagamento anterior válida e não bloqueada, pré-selecionar
+        if (formaSelecionadaInicial) {
+            formaPagamentoSelecionada = formaSelecionadaInicial;
+            document.getElementById('btnConfirmarReativacao').disabled = false;
+        }
     }
 
     /**
@@ -672,21 +767,44 @@
     function selecionarFormaPagamento(formaId, element) {
         formaPagamentoSelecionada = formaId;
 
-        // Remover seleção anterior
-        document.querySelectorAll('#listaFormasPagamento .list-group-item').forEach(item => {
-            item.classList.remove('ring-2', 'ring-primary', 'shadow-sm');
-            item.style.boxShadow = '';
+        // Atualizar todas as formas: colapsar as não selecionadas, expandir a selecionada
+        document.querySelectorAll('#listaFormasContainer .list-group-item').forEach(item => {
+            const itemFormaId = parseInt(item.getAttribute('data-forma-id'));
+            const compacta = item.querySelector('.forma-compacta');
+            const expandida = item.querySelector('.forma-expandida');
+            const radios = item.querySelectorAll('input[type="radio"]');
+
+            if (itemFormaId === formaId) {
+                // Expandir este item
+                if (compacta) compacta.style.display = 'none';
+                if (expandida) expandida.style.display = 'block';
+                item.style.boxShadow = '0 0 0 3px rgba(98, 75, 255, 0.3)';
+                item.classList.add('shadow-sm');
+                radios.forEach(r => r.checked = true);
+            } else {
+                // Colapsar outros itens
+                if (compacta) compacta.style.display = 'block';
+                if (expandida) expandida.style.display = 'none';
+                item.style.boxShadow = '';
+                item.classList.remove('shadow-sm');
+                radios.forEach(r => r.checked = false);
+            }
         });
 
-        // Marcar o radio button
-        const radio = element.querySelector('input[type="radio"]');
-        if (radio) {
-            radio.checked = true;
+        // Controlar exibição do card de recomendação (só aparece quando a forma anterior está selecionada)
+        const alertRecomendacao = document.getElementById('alertRecomendacaoFormaAnterior');
+        if (alertRecomendacao && formaPagamentoAnterior !== null) {
+            // Converter para números para garantir comparação correta
+            const formaIdNum = parseInt(formaId);
+            const formaAnteriorNum = parseInt(formaPagamentoAnterior);
+            if (formaIdNum === formaAnteriorNum) {
+                alertRecomendacao.classList.remove('d-none');
+                alertRecomendacao.classList.add('d-flex');
+            } else {
+                alertRecomendacao.classList.remove('d-flex');
+                alertRecomendacao.classList.add('d-none');
+            }
         }
-
-        // Destacar item selecionado
-        element.style.boxShadow = '0 0 0 3px rgba(98, 75, 255, 0.3)';
-        element.classList.add('shadow-sm');
 
         // Habilitar botão de confirmação
         document.getElementById('btnConfirmarReativacao').disabled = false;
@@ -720,20 +838,101 @@
         })
         .then(response => response.json())
         .then(data => {
-            // Fechar modal
+            // Fechar modal de seleção de forma de pagamento
             if (modalReativarInstance) {
                 modalReativarInstance.hide();
             }
 
             if (data.success_message_activate) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Cliente Reativado!',
-                    html: data.success_message_activate,
-                    confirmButtonColor: '#624BFF'
-                }).then(() => {
-                    window.location.href = '/clientes-cancelados/';
-                });
+                // Preencher dados no modal de sucesso
+                document.getElementById('nomeClienteReativado').textContent = data.cliente_nome || '';
+
+                // Construir HTML dos dados de pagamento
+                let htmlDadosPagamento = '';
+
+                if (data.is_fastdepix && data.link_painel_cliente) {
+                    // FastDePix
+                    htmlDadosPagamento = `
+                        <div class="alert alert-info text-start mb-4" style="background: linear-gradient(135deg, #e7f3ff 0%, #cce5ff 100%); border: none;">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-info-circle-fill text-primary me-2 mt-1"></i>
+                                <div>
+                                    <strong>Próximo passo:</strong><br>
+                                    Copie a mensagem abaixo e envie ao cliente para que ele realize o pagamento.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold text-start d-block">
+                                <i class="bi bi-whatsapp text-success me-1"></i>Mensagem para enviar ao cliente
+                            </label>
+                            <textarea class="form-control" id="mensagemClienteReativacao" rows="6" readonly style="font-size: 0.9rem; background-color: #f8f9fa;">▫️  *PAGAMENTO COM PIX:*
+
+📱 Acesse o link abaixo, faça login para visualizar sua mensalidade e efetuar o pagamento:
+
+🔗 ${data.link_painel_cliente}/</textarea>
+                            <div class="d-grid mt-2">
+                                <button class="btn btn-success" type="button" onclick="copiarMensagemReativacao()">
+                                    <i class="bi bi-whatsapp me-1"></i> Copiar Mensagem
+                                </button>
+                            </div>
+                            <small class="text-muted mt-2 d-block">Cole esta mensagem no WhatsApp para enviar ao cliente</small>
+                        </div>
+                    `;
+                } else if (data.pix_manual_dados) {
+                    // PIX Manual
+                    const pix = data.pix_manual_dados;
+                    htmlDadosPagamento = `
+                        <div class="alert alert-info text-start mb-4" style="background: linear-gradient(135deg, #e7f3ff 0%, #cce5ff 100%); border: none;">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-info-circle-fill text-primary me-2 mt-1"></i>
+                                <div>
+                                    <strong>Próximo passo:</strong><br>
+                                    Copie a mensagem abaixo com os dados de pagamento e envie ao cliente.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold text-start d-block">
+                                <i class="bi bi-whatsapp text-success me-1"></i>Mensagem para enviar ao cliente
+                            </label>
+                            <textarea class="form-control" id="mensagemClienteReativacao" rows="7" readonly style="font-size: 0.9rem; background-color: #f8f9fa;">▫️ *PAGAMENTO COM PIX:*
+
+🔑 *Tipo:* ${pix.tipo_chave || ''}
+🔢 *Chave:* ${pix.chave || ''}
+🏦 *Banco:* ${pix.banco || ''}
+👤 *Beneficiário:* ${pix.beneficiario || ''}</textarea>
+                            <div class="d-grid mt-2">
+                                <button class="btn btn-success" type="button" onclick="copiarMensagemReativacao()">
+                                    <i class="bi bi-whatsapp me-1"></i> Copiar Mensagem
+                                </button>
+                            </div>
+                            <small class="text-muted mt-2 d-block">Cole esta mensagem no WhatsApp para enviar ao cliente</small>
+                        </div>
+                    `;
+                } else {
+                    // Sem dados de pagamento
+                    htmlDadosPagamento = `
+                        <div class="alert alert-warning text-start mb-4" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border: none;">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-exclamation-triangle-fill text-warning me-2 mt-1"></i>
+                                <div>
+                                    <strong>Próximo passo:</strong><br>
+                                    Aguarde o cliente confirmar que realizou o pagamento e depois registre manualmente na tela de mensalidades.
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('containerDadosPagamento').innerHTML = htmlDadosPagamento;
+
+                // Abrir modal de sucesso
+                const modalDadosPagamento = new bootstrap.Modal(document.getElementById('modalDadosPagamento'));
+                modalDadosPagamento.show();
+
             } else if (data.error) {
                 Swal.fire({
                     icon: 'error',
@@ -776,6 +975,23 @@
         formaPagamentoSelecionada = null;
         document.getElementById('btnConfirmarReativacao').disabled = true;
     });
+
+    /**
+     * Copia a mensagem de pagamento para a área de transferência
+     */
+    function copiarMensagemReativacao() {
+        var textarea = document.getElementById('mensagemClienteReativacao');
+        textarea.select();
+        textarea.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(textarea.value).then(function() {
+            var btn = event.target.closest('button');
+            var originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> Copiado!';
+            setTimeout(function() {
+                btn.innerHTML = originalHTML;
+            }, 2000);
+        });
+    }
 </script>
 
 <style>

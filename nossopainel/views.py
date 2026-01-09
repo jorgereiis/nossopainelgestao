@@ -3113,6 +3113,7 @@ def reactivate_customer(request, cliente_id):
 
     # ⭐ ASSOCIAR FORMA DE PAGAMENTO (se fornecida no POST)
     forma_pgto_id = request.POST.get('forma_pagamento_id')
+    forma_pgto = None  # Inicializar para uso posterior nos dados de pagamento
     if forma_pgto_id:
         try:
             forma_pgto = Tipos_pgto.objects.get(id=forma_pgto_id, usuario=request.user)
@@ -3287,7 +3288,56 @@ def reactivate_customer(request, cliente_id):
             "mensalidade_reativada": mensalidade_reativada,
         },
     )
-    return JsonResponse({"success_message_activate": "Reativação feita com sucesso!"})
+
+    # ⭐ PREPARAR DADOS DE PAGAMENTO PARA O MODAL
+    is_fastdepix = False
+    link_painel_cliente = None
+    pix_manual_dados = None
+
+    if forma_pgto and forma_pgto.conta_bancaria:
+        conta = forma_pgto.conta_bancaria
+
+        # Verificar se é FastDePix
+        if conta.instituicao and conta.instituicao.tipo_integracao == 'fastdepix':
+            is_fastdepix = True
+            # Importar modelo para buscar subdomínio
+            from painel_cliente.models import SubdominioPainelCliente
+            # Buscar subdomínio do painel do cliente
+            subdominio = SubdominioPainelCliente.objects.filter(
+                admin_responsavel=request.user,
+                ativo=True
+            ).first()
+            if subdominio:
+                link_painel_cliente = f"https://{subdominio.dominio_completo}"
+
+        # PIX Manual
+        elif conta.instituicao and conta.instituicao.tipo_integracao == 'manual':
+            if conta.chave_pix:
+                pix_manual_dados = {
+                    'tipo_chave': conta.get_tipo_chave_pix_display(),
+                    'chave': conta.chave_pix,
+                    'banco': conta.instituicao.nome,
+                    'beneficiario': conta.beneficiario or '',
+                }
+
+    # Fallback para dados bancários legados
+    if not is_fastdepix and not pix_manual_dados and forma_pgto and forma_pgto.dados_bancarios:
+        dados = forma_pgto.dados_bancarios
+        if dados and dados.chave:
+            pix_manual_dados = {
+                'tipo_chave': dados.tipo_chave,
+                'chave': dados.chave,
+                'banco': dados.instituicao,
+                'beneficiario': dados.beneficiario,
+            }
+
+    return JsonResponse({
+        "success_message_activate": "Reativação feita com sucesso!",
+        "cliente_nome": cliente.nome,
+        "is_fastdepix": is_fastdepix,
+        "link_painel_cliente": link_painel_cliente,
+        "pix_manual_dados": pix_manual_dados,
+    })
 
 
 # AÇÃO DE PAGAR MENSALIDADE
@@ -8546,7 +8596,7 @@ def webhook_pagamento_pix(request):
     """
     import logging
     from nossopainel.services.payment_integrations import (
-        FastDePixIntegration, PaymentStatus
+        FastDePixIntegration, PaymentStatus, get_payment_integration
     )
 
     # Logger específico para webhook FastDePix
@@ -8689,17 +8739,54 @@ def webhook_pagamento_pix(request):
                     fdpx_logger.info(f"  Data Pagamento (now): {paid_at}")
 
                 # Extrair valores financeiros
-                # FastDePix envia:
-                # - amount: valor bruto cobrado
-                # - commission_amount: valor líquido real (o que você recebe)
-                # - net_amount: NÃO usar (é valor arredondado, não é o líquido real)
+                # FastDePix envia no webhook apenas dados básicos (amount, status, transaction_id)
+                # Os dados de taxa (commission_amount, fee) geralmente NÃO vêm no webhook
+                # Por isso, buscamos os detalhes completos via API
                 amount = data.get('amount')
-                # Priorizar commission_amount (valor líquido real do FastDePix)
                 amount_received = data.get('commission_amount') or data.get('amount_received') or data.get('net_amount')
                 fee = data.get('fee') or data.get('tax')
-                fdpx_logger.info(f"  Valor Cobrado: {amount}")
-                fdpx_logger.info(f"  Valor Recebido (commission_amount): {amount_received}")
-                fdpx_logger.info(f"  Taxa informada: {fee}")
+                fdpx_logger.info(f"  Valor Cobrado (webhook): {amount}")
+                fdpx_logger.info(f"  Valor Recebido (webhook): {amount_received}")
+                fdpx_logger.info(f"  Taxa (webhook): {fee}")
+
+                # Se não veio dados de taxa no webhook, buscar detalhes completos via API
+                if not amount_received and not fee:
+                    fdpx_logger.info("  Dados de taxa não encontrados no webhook, buscando via API...")
+                    try:
+                        integration = get_payment_integration(cobranca.conta_bancaria)
+                        if integration:
+                            details = integration.get_charge_details(transaction_id)
+                            fdpx_logger.info(f"  Detalhes da API: {details}")
+
+                            # Extrair dados do retorno da API
+                            amount_received = (
+                                details.get('commission_amount') or
+                                details.get('amount_received') or
+                                details.get('net_amount')
+                            )
+                            fee = details.get('fee') or details.get('tax')
+
+                            # Atualizar dados do pagador se não vieram no webhook
+                            if not payer_name:
+                                api_payer = details.get('payer', {})
+                                if isinstance(api_payer, dict):
+                                    payer_name = api_payer.get('name')
+                                    payer_doc = api_payer.get('cpf_cnpj')
+
+                            # Atualizar data de pagamento se disponível
+                            if not paid_at or paid_at == timezone.now():
+                                if details.get('paid_at'):
+                                    try:
+                                        paid_at = timezone.datetime.fromisoformat(
+                                            details['paid_at'].replace('Z', '+00:00')
+                                        )
+                                    except (ValueError, AttributeError):
+                                        pass
+
+                            fdpx_logger.info(f"  Valor Recebido (API): {amount_received}")
+                            fdpx_logger.info(f"  Taxa (API): {fee}")
+                    except Exception as e:
+                        fdpx_logger.warning(f"  Erro ao buscar detalhes via API: {e}")
 
                 # Converter valores para Decimal se existirem
                 valor_recebido = None
@@ -8722,6 +8809,9 @@ def webhook_pagamento_pix(request):
                         fdpx_logger.info(f"  Taxa calculada: {valor_taxa}")
                     except:
                         pass
+
+                fdpx_logger.info(f"  Valor Recebido Final: {valor_recebido}")
+                fdpx_logger.info(f"  Taxa Final: {valor_taxa}")
 
                 # Marcar como pago
                 fdpx_logger.info("  Executando mark_as_paid()...")

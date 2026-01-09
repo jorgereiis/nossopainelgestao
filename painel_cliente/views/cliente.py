@@ -707,9 +707,74 @@ def status_pix(request, cobranca_id):
         # Atualiza status se mudou
         if novo_status != cobranca.status:
             if novo_status == 'paid':
+                # Buscar detalhes completos da transação para obter dados de taxa
+                paid_at = timezone.now()
+                payer_name = None
+                payer_doc = None
+                valor_recebido = None
+                valor_taxa = None
+
+                try:
+                    details = integracao.get_charge_details(cobranca.transaction_id)
+                    logger.info(f"[PainelCliente] Detalhes da API para {cobranca.id}: {details}")
+
+                    # Extrair data de pagamento
+                    if details.get('paid_at'):
+                        try:
+                            paid_at = timezone.datetime.fromisoformat(
+                                details['paid_at'].replace('Z', '+00:00')
+                            )
+                        except (ValueError, AttributeError):
+                            pass
+
+                    # Extrair dados do pagador
+                    payer = details.get('payer', {})
+                    if isinstance(payer, dict):
+                        payer_name = payer.get('name')
+                        payer_doc = payer.get('cpf_cnpj')
+
+                    # Extrair valores financeiros
+                    from decimal import Decimal
+                    amount_received = (
+                        details.get('commission_amount') or
+                        details.get('amount_received') or
+                        details.get('net_amount')
+                    )
+                    fee = details.get('fee') or details.get('tax')
+
+                    if amount_received:
+                        try:
+                            valor_recebido = Decimal(str(amount_received))
+                        except (ValueError, TypeError):
+                            pass
+
+                    if fee:
+                        try:
+                            valor_taxa = Decimal(str(fee))
+                        except (ValueError, TypeError):
+                            pass
+
+                    # Se não veio taxa, calcular a partir do valor bruto
+                    if valor_taxa is None and details.get('amount') and valor_recebido:
+                        try:
+                            valor_taxa = Decimal(str(details['amount'])) - valor_recebido
+                        except (ValueError, TypeError):
+                            pass
+
+                    logger.info(f"[PainelCliente] Valores extraídos - Recebido: {valor_recebido}, Taxa: {valor_taxa}")
+
+                except Exception as e:
+                    logger.warning(f"[PainelCliente] Erro ao buscar detalhes da cobrança {cobranca.id}: {e}")
+
                 # Usar mark_as_paid que já atualiza mensalidade e dispara signals
                 # (criar_nova_mensalidade, atualiza_ultimo_pagamento)
-                cobranca.mark_as_paid(paid_at=timezone.now())
+                cobranca.mark_as_paid(
+                    paid_at=paid_at,
+                    payer_name=payer_name,
+                    payer_document=payer_doc,
+                    valor_recebido=valor_recebido,
+                    valor_taxa=valor_taxa,
+                )
                 logger.info(f"[PainelCliente] Cobrança {cobranca.id} marcada como paga via polling")
             else:
                 cobranca.status = novo_status
