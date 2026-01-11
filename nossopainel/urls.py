@@ -189,11 +189,13 @@ from .views import (
     # Relatório de Pagamentos
     relatorio_pagamentos,
     api_cliente_mensalidades,
+    api_cliente_dados_reativacao,
     # Cadastro separado (Cliente básico + Assinatura)
     cadastrar_cliente_basico,
     cadastrar_assinatura,
     # Revendedores (Admin)
     revendedores_busca,
+    revendedores_automacoes_status,
     revendedor_toggle_bloqueio,
     revendedor_excluir,
     revendedor_logar_como,
@@ -434,6 +436,7 @@ urlpatterns = [
     ############ Relatórios (Admin) ###########
     path("admin/relatorios/pagamentos/", relatorio_pagamentos, name="relatorio-pagamentos"),
     path("api/clientes/<int:cliente_id>/mensalidades/", api_cliente_mensalidades, name="api-cliente-mensalidades"),
+    path("api/cliente/<int:cliente_id>/dados-reativacao/", api_cliente_dados_reativacao, name="api-cliente-dados-reativacao"),
 
     ########### Service Worker (Push Notifications) ###########
     path("sw.js", lambda request: HttpResponse(
@@ -446,6 +449,7 @@ urlpatterns = [
 
     ########### Revendedores (Admin) ###########
     path("revendedores/busca/", revendedores_busca, name="revendedores-busca"),
+    path("revendedores/automacoes-status/", revendedores_automacoes_status, name="revendedores-automacoes-status"),
     path("revendedores/<int:user_id>/toggle-bloqueio/", revendedor_toggle_bloqueio, name="revendedor-toggle-bloqueio"),
     path("revendedores/<int:user_id>/excluir/", revendedor_excluir, name="revendedor-excluir"),
     path("revendedores/<int:user_id>/logar-como/", revendedor_logar_como, name="revendedor-logar-como"),

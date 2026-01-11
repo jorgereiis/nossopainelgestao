@@ -351,11 +351,66 @@
                                     <div class="tab-content" id="dashboard-table-tabs-content">
                                         <div class="tab-pane fade show active" id="pane-renovacoes" role="tabpanel" aria-labelledby="tab-renovacoes">
                                             <div class="dashboard-tab-body">
-                                                <div class="dashboard-search mb-4">
-                                                    <input type="text" name="q" class="form-control" placeholder="Pesquisar"
+                                                <div class="dashboard-search mb-3">
+                                                    <input type="text" name="q" class="form-control" placeholder="Pesquisar por nome ou telefone"
                                                         aria-label="Pesquisar" aria-describedby="button-pesquisar" id="searchInput"
                                                         autocomplete="off">
                                                 </div>
+
+                                                <!-- Filtros Avançados -->
+                                                <div class="row g-2 mb-4">
+                                                    <!-- Filtro: Data de Vencimento -->
+                                                    <div class="col-6 col-md-3">
+                                                        <label class="form-label small fw-semibold text-muted mb-1">
+                                                            <i class="bi bi-calendar-event me-1"></i>Data de Vencimento
+                                                        </label>
+                                                        <input type="date" class="form-control form-control-sm" id="filtroDataVencimento">
+                                                    </div>
+
+                                                    <!-- Filtro: Servidor -->
+                                                    <div class="col-6 col-md-2">
+                                                        <label class="form-label small fw-semibold text-muted mb-1">
+                                                            <i class="bi bi-hdd-network me-1"></i>Servidor
+                                                        </label>
+                                                        <select class="form-select form-select-sm" id="filtroServidor">
+                                                            <option value="">Todos</option>
+                                                            {% for servidor in servidores %}
+                                                            <option value="{{ servidor.id }}">{{ servidor.nome }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+
+                                                    <!-- Filtro: Tipo de Plano -->
+                                                    <div class="col-6 col-md-2">
+                                                        <label class="form-label small fw-semibold text-muted mb-1">
+                                                            <i class="bi bi-tag me-1"></i>Tipo de Plano
+                                                        </label>
+                                                        <select class="form-select form-select-sm" id="filtroTipoPlano">
+                                                            <option value="">Todos</option>
+                                                            <option value="promo">Promocionais</option>
+                                                            <option value="regular">Regulares</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <!-- Filtro: Plano Específico -->
+                                                    <div class="col-6 col-md-4">
+                                                        <label class="form-label small fw-semibold text-muted mb-1">
+                                                            <i class="bi bi-box-seam me-1"></i>Plano
+                                                        </label>
+                                                        <select class="form-select form-select-sm" id="filtroPlano" disabled>
+                                                            <option value="">Selecione o tipo primeiro</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <!-- Botão Limpar Filtros -->
+                                                    <div class="col-12 col-md-1 d-flex align-items-end">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="btnLimparFiltros"
+                                                                title="Limpar todos os filtros">
+                                                            <i class="bi bi-x-circle"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
                                                 <div id="tabela-container">
                                                     {% include 'partials/table-clients.html' %}
                                                 </div>
@@ -541,6 +596,76 @@ document.addEventListener('DOMContentLoaded', function() {
         dispositivos: window.dispositivosGlobal.length,
         aplicativos: window.aplicativosGlobal.length
     });
+
+    // ========================================
+    // FILTROS AVANÇADOS DA ABA RENOVAÇÕES
+    // ========================================
+
+    // Cache dos planos para filtro
+    const planosParaFiltro = [
+        {% for plano in planos %}
+        {
+            id: '{{ plano.id }}',
+            nome: '{{ plano.nome }}',
+            valor: '{{ plano.valor }}',
+            telas: {{ plano.telas }},
+            campanha: {{ plano.campanha_ativa|yesno:'true,false' }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // Atualiza select de planos quando tipo muda
+    document.getElementById('filtroTipoPlano')?.addEventListener('change', function() {
+        const tipo = this.value;
+        const selectPlano = document.getElementById('filtroPlano');
+
+        if (!tipo) {
+            selectPlano.innerHTML = '<option value="">Selecione o tipo primeiro</option>';
+            selectPlano.disabled = true;
+            dispararBuscaComFiltros();
+            return;
+        }
+
+        selectPlano.disabled = false;
+        selectPlano.innerHTML = '<option value="">Todos os ' + (tipo === 'promo' ? 'Promocionais' : 'Regulares') + '</option>';
+
+        const planosFiltrados = planosParaFiltro.filter(p =>
+            tipo === 'promo' ? p.campanha : !p.campanha
+        );
+
+        planosFiltrados.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.id;
+            option.textContent = `${p.nome} - R$ ${parseFloat(p.valor).toFixed(2)} - ${p.telas} tela${p.telas > 1 ? 's' : ''}`;
+            selectPlano.appendChild(option);
+        });
+
+        // Dispara busca ao mudar tipo
+        dispararBuscaComFiltros();
+    });
+
+    // Event listeners para filtros
+    document.getElementById('filtroDataVencimento')?.addEventListener('change', dispararBuscaComFiltros);
+    document.getElementById('filtroServidor')?.addEventListener('change', dispararBuscaComFiltros);
+    document.getElementById('filtroPlano')?.addEventListener('change', dispararBuscaComFiltros);
+
+    // Botão limpar filtros
+    document.getElementById('btnLimparFiltros')?.addEventListener('click', function() {
+        document.getElementById('filtroDataVencimento').value = '';
+        document.getElementById('filtroServidor').value = '';
+        document.getElementById('filtroTipoPlano').value = '';
+        document.getElementById('filtroPlano').value = '';
+        document.getElementById('filtroPlano').disabled = true;
+        document.getElementById('filtroPlano').innerHTML = '<option value="">Selecione o tipo primeiro</option>';
+        document.getElementById('searchInput').value = '';
+        dispararBuscaComFiltros();
+    });
+
+    function dispararBuscaComFiltros() {
+        if (window.dashboardTableManager) {
+            window.dashboardTableManager.performSearchWithFilters();
+        }
+    }
 });
 </script>
 
@@ -548,6 +673,46 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- JavaScript para aba Revendedores -->
 <script>
 $(document).ready(function() {
+    // ========== ATUALIZAÇÃO DINÂMICA DE STATUS DE AUTOMAÇÕES ==========
+
+    // Armazena o estado anterior para detectar mudanças
+    let estadoAutomacoes = { tarefa_envio: [], horario_envio: [] };
+
+    /**
+     * Verifica se houve mudança no status das automações.
+     * Se houver mudança, recarrega a tabela para atualizar os indicadores.
+     */
+    function verificarMudancasAutomacoes() {
+        $.get('{% url "revendedores-automacoes-status" %}')
+            .done(function(response) {
+                if (!response.success) return;
+
+                const tarefasNovas = response.automacoes.tarefa_envio || [];
+                const horariosNovos = response.automacoes.horario_envio || [];
+
+                // Cria strings para comparação
+                const tarefasAntigas = JSON.stringify(estadoAutomacoes.tarefa_envio.map(t => t.user_id).sort());
+                const tarefasAtuais = JSON.stringify(tarefasNovas.map(t => t.user_id).sort());
+                const horariosAntigos = JSON.stringify(estadoAutomacoes.horario_envio.map(h => h.user_id + h.tipo).sort());
+                const horariosAtuais = JSON.stringify(horariosNovos.map(h => h.user_id + h.tipo).sort());
+
+                // Se houve mudança, recarrega a tabela
+                if (tarefasAntigas !== tarefasAtuais || horariosAntigos !== horariosAtuais) {
+                    console.debug('[Revendedores] Mudança detectada nas automações, recarregando tabela...');
+                    buscarRevendedores($('#searchRevendedores').val());
+                }
+
+                // Atualiza o estado
+                estadoAutomacoes = {
+                    tarefa_envio: tarefasNovas,
+                    horario_envio: horariosNovos
+                };
+            })
+            .fail(function(xhr) {
+                console.error('[Revendedores] Erro ao verificar status de automações:', xhr);
+            });
+    }
+
     // ========== BUSCA DE REVENDEDORES ==========
     let searchRevendedoresTimeout;
 
@@ -907,13 +1072,43 @@ $(document).ready(function() {
         });
     };
 
-    // ========== ATUALIZAÇÃO AUTOMÁTICA DE AUTOMAÇÕES ==========
+    // ========== INICIALIZAÇÃO DA VERIFICAÇÃO DE AUTOMAÇÕES ==========
+
+    // Ao entrar na aba de revendedores, inicializa o estado das automações
+    $('#tab-revendedores').on('shown.bs.tab', function() {
+        console.debug('[Revendedores] Aba aberta - inicializando estado das automações');
+        // Carrega o estado inicial (sem recarregar a tabela)
+        $.get('{% url "revendedores-automacoes-status" %}').done(function(response) {
+            if (response.success) {
+                estadoAutomacoes = {
+                    tarefa_envio: response.automacoes.tarefa_envio || [],
+                    horario_envio: response.automacoes.horario_envio || []
+                };
+            }
+        });
+    });
+
+    // Se a aba já estiver ativa ao carregar a página, inicializa o estado
+    if ($('#pane-revendedores').hasClass('show') && $('#pane-revendedores').hasClass('active')) {
+        setTimeout(function() {
+            $.get('{% url "revendedores-automacoes-status" %}').done(function(response) {
+                if (response.success) {
+                    estadoAutomacoes = {
+                        tarefa_envio: response.automacoes.tarefa_envio || [],
+                        horario_envio: response.automacoes.horario_envio || []
+                    };
+                }
+            });
+        }, 500);
+    }
+
+    // Polling a cada 30 segundos para detectar mudanças nas automações
     setInterval(function() {
-        // Só atualiza se a aba de revendedores estiver ativa
+        // Só verifica se a aba de revendedores estiver ativa
         if ($('#pane-revendedores').hasClass('show') && $('#pane-revendedores').hasClass('active')) {
-            buscarRevendedores($('#searchRevendedores').val());
+            verificarMudancasAutomacoes();
         }
-    }, 30000); // A cada 30 segundos
+    }, 30000);
 });
 </script>
 {% endif %}

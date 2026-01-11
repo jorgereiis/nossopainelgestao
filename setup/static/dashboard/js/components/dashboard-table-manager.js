@@ -340,6 +340,13 @@ class DashboardTableManager {
             params.append('sort', this.currentSort);
             params.append('order', this.currentOrder);
 
+            // Adiciona filtros avançados
+            const filters = this.getFilters();
+            if (filters.data_vencimento) params.append('data_vencimento', filters.data_vencimento);
+            if (filters.servidor) params.append('servidor', filters.servidor);
+            if (filters.tipo_plano) params.append('tipo_plano', filters.tipo_plano);
+            if (filters.plano) params.append('plano', filters.plano);
+
             const url = `${this.options.searchUrl}?${params.toString()}`;
             const response = await fetch(url);
 
@@ -383,6 +390,28 @@ class DashboardTableManager {
         console.debug(`[DashboardTableManager] Atualizando tabela (termo: "${this.currentSearchTerm}", página: ${this.currentPage})`);
 
         return this.performSearch(this.currentSearchTerm, this.currentPage);
+    }
+
+    /**
+     * Coleta valores dos filtros avançados
+     * @returns {Object} Objeto com os valores dos filtros
+     */
+    getFilters() {
+        return {
+            data_vencimento: document.getElementById('filtroDataVencimento')?.value || '',
+            servidor: document.getElementById('filtroServidor')?.value || '',
+            tipo_plano: document.getElementById('filtroTipoPlano')?.value || '',
+            plano: document.getElementById('filtroPlano')?.value || ''
+        };
+    }
+
+    /**
+     * Executa busca incluindo filtros avançados
+     * @returns {Promise<void>}
+     */
+    async performSearchWithFilters() {
+        const searchTerm = this.searchInput?.value?.trim() || '';
+        await this.performSearch(searchTerm, 1);
     }
 
     /**
