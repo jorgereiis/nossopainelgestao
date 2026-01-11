@@ -27,22 +27,32 @@
                         <div class="flex-shrink-0 position-relative">
                             {% if revendedor.profile and revendedor.profile.avatar %}
                             <img src="{{ revendedor.profile.avatar.url }}"
-                                 class="rounded-circle border border-2"
+                                 class="rounded-circle border border-2{% if revendedor.is_superuser %} border-warning{% endif %}"
                                  alt="{{ revendedor.get_full_name|default:revendedor.username }}"
                                  title="{{ revendedor.get_full_name|default:revendedor.username }}"
                                  style="width: 42px; height: 42px; object-fit: cover;"
                                  onerror="this.src='{% static 'assets/images/logo-apps/default.png' %}'">
                             {% else %}
                             <img src="{% static 'assets/images/logo-apps/default.png' %}"
-                                 class="rounded-circle border border-2"
+                                 class="rounded-circle border border-2{% if revendedor.is_superuser %} border-warning{% endif %}"
                                  alt="{{ revendedor.get_full_name|default:revendedor.username }}"
                                  title="{{ revendedor.get_full_name|default:revendedor.username }}"
                                  style="width: 42px; height: 42px; object-fit: cover;">
                             {% endif %}
                         </div>
                         <div class="ms-3 lh-sm">
-                            <h6 class="mb-0 fw-semibold text-capitalize text-dark">
+                            <h6 class="mb-0 fw-semibold text-capitalize text-dark d-flex align-items-center gap-2">
                                 {{ revendedor.get_full_name|default:revendedor.username }}
+                                {% if revendedor.is_superuser %}
+                                <span class="badge bg-warning text-dark" style="font-size: 10px;">
+                                    <i class="bi bi-shield-fill me-1"></i>Admin
+                                </span>
+                                {% endif %}
+                                {% if revendedor.id == current_user_id %}
+                                <span class="badge bg-info text-white" style="font-size: 10px;">
+                                    <i class="bi bi-person-check-fill me-1"></i>Você
+                                </span>
+                                {% endif %}
                             </h6>
                             <small class="text-muted d-block">
                                 <i class="bi bi-person me-1"></i>{{ revendedor.username }}
@@ -60,39 +70,72 @@
                     <br>
                     <small class="text-muted">{{ revendedor.date_joined|time:"H:i" }}</small>
                 </td>
-                <td class="text-center">
-                    <span class="automacao-status" data-user-id="{{ revendedor.id }}">
-                        {% if revendedor.tem_tarefa_envio_ativa or revendedor.tem_horario_envio_ativo %}
-                        <div class="d-inline-flex align-items-center gap-2">
-                            {% if revendedor.tem_tarefa_envio_ativa %}
-                            <span class="d-inline-flex align-items-center gap-1 badge bg-primary-subtle text-primary px-2 py-1"
-                                  data-bs-toggle="tooltip"
-                                  title="Campanha em execução">
-                                <div class="spinner-border spinner-border-sm" style="width: 12px; height: 12px; border-width: 2px;" role="status">
-                                    <span class="visually-hidden">Executando...</span>
-                                </div>
-                                <i class="bi bi-megaphone-fill" style="font-size: 11px;"></i>
+                <td class="text-start" style="min-width: 200px;">
+                    <div class="automacoes-lista small" data-user-id="{{ revendedor.id }}">
+                        <!-- HorarioEnvios (Vencimentos e Atrasos) -->
+                        {% for horario in revendedor.horarioenvios_set.all %}
+                        <div class="automacao-item mb-1">
+                            {% if horario.em_execucao %}
+                            <span class="d-inline-flex align-items-center gap-1 badge bg-success-subtle text-success px-2 py-1">
+                                <span class="spinner-border spinner-border-sm" style="width: 10px; height: 10px; border-width: 2px;" role="status"></span>
+                                {% if horario.tipo_envio == 'mensalidades_a_vencer' %}
+                                <i class="bi bi-bell-fill" style="font-size: 10px;"></i> Vencimentos
+                                {% else %}
+                                <i class="bi bi-exclamation-triangle-fill" style="font-size: 10px;"></i> Atrasos
+                                {% endif %}
+                                <small>desde {{ horario.execucao_iniciada_em|time:"H:i" }}</small>
                             </span>
-                            {% endif %}
-                            {% if revendedor.tem_horario_envio_ativo %}
-                            <span class="d-inline-flex align-items-center gap-1 badge bg-success-subtle text-success px-2 py-1"
+                            {% else %}
+                            <span class="d-inline-flex align-items-center gap-1 badge bg-light text-secondary px-2 py-1"
                                   data-bs-toggle="tooltip"
-                                  title="Notificação (Vencimento/Atraso) em execução">
-                                <div class="spinner-border spinner-border-sm" style="width: 12px; height: 12px; border-width: 2px;" role="status">
-                                    <span class="visually-hidden">Executando...</span>
-                                </div>
-                                <i class="bi bi-bell-fill" style="font-size: 11px;"></i>
+                                  title="{% if horario.tipo_envio == 'mensalidades_a_vencer' %}Notificacoes de Vencimento{% else %}Notificacoes de Atraso{% endif %} - Horario: {{ horario.horario|time:'H:i' }}">
+                                {% if horario.tipo_envio == 'mensalidades_a_vencer' %}
+                                <i class="bi bi-bell" style="font-size: 10px;"></i> Vencimentos: {{ horario.horario|time:"H:i" }}
+                                {% else %}
+                                <i class="bi bi-exclamation-triangle" style="font-size: 10px;"></i> Atrasos: {{ horario.horario|time:"H:i" }}
+                                {% endif %}
                             </span>
                             {% endif %}
                         </div>
-                        {% else %}
-                        <i class="bi bi-dash text-muted"
-                           data-bs-toggle="tooltip"
-                           title="Nenhuma automação em execução"></i>
+                        {% endfor %}
+
+                        <!-- TarefaEnvio (WhatsApp) -->
+                        {% for tarefa in revendedor.tarefas_envio.all %}
+                        <div class="automacao-item mb-1">
+                            {% if tarefa.em_execucao %}
+                            <span class="d-inline-flex align-items-center gap-1 badge bg-primary-subtle text-primary px-2 py-1">
+                                <span class="spinner-border spinner-border-sm" style="width: 10px; height: 10px; border-width: 2px;" role="status"></span>
+                                <i class="bi bi-megaphone-fill" style="font-size: 10px;"></i>
+                                {{ tarefa.nome|truncatechars:12 }}
+                                <small>desde {{ tarefa.execucao_iniciada_em|time:"H:i" }}</small>
+                            </span>
+                            {% else %}
+                            <span class="d-inline-flex align-items-center gap-1 badge bg-light text-secondary px-2 py-1"
+                                  data-bs-toggle="tooltip"
+                                  title="{{ tarefa.nome }} - {{ tarefa.horario|time:'H:i' }} [{{ tarefa.get_dias_semana_abrev|join:', ' }}]">
+                                <i class="bi bi-megaphone" style="font-size: 10px;"></i>
+                                {{ tarefa.nome|truncatechars:12 }}: {{ tarefa.horario|time:"H:i" }}
+                                <small class="text-muted">[{{ tarefa.get_dias_semana_abrev|join:"," }}]</small>
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+
+                        <!-- Nenhuma automacao configurada -->
+                        {% if not revendedor.horarioenvios_set.all and not revendedor.tarefas_envio.all %}
+                        <span class="text-muted small">
+                            <i class="bi bi-dash"></i> Nenhuma
+                        </span>
                         {% endif %}
-                    </span>
+                    </div>
                 </td>
                 <td class="text-center">
+                    {% if revendedor.id == current_user_id %}
+                    <!-- Próprio usuário logado - não pode realizar ações sobre si mesmo -->
+                    <span class="text-muted" data-bs-toggle="tooltip" title="Você está logado como este usuário">
+                        <i class="bi bi-dash"></i>
+                    </span>
+                    {% else %}
                     <div class="dropdown table-dropdown-actions">
                         <button class="btn btn-sm btn-light rounded-circle d-inline-flex align-items-center justify-content-center border"
                                 type="button"
@@ -142,6 +185,7 @@
                             </li>
                         </ul>
                     </div>
+                    {% endif %}
                 </td>
             </tr>
             {% empty %}

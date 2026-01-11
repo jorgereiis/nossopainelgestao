@@ -11,10 +11,10 @@
                 </div>
             </div>
 
-            <div class="modal-header bg-primary text-white">
-                <h4 class="modal-title" id="edit-cliente-label">
+            <div class="modal-header border-0" style="background: linear-gradient(135deg, #624BFF 0%, #8b5cf6 100%);">
+                <h5 class="modal-title text-white" id="edit-cliente-label">
                     <i class="bi bi-pencil-square me-2"></i>Editar Cliente
-                </h4>
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
 
@@ -123,21 +123,76 @@
                                 </div>
                             </div>
 
-                            <!-- Plano -->
-                            <div class="mb-3">
-                                <label for="edit-cliente-plano" class="form-label fw-semibold">
+                            <!-- Plano - Campo com bloqueio/desbloqueio -->
+                            <div class="mb-3" id="editPlanoContainer">
+                                <label class="form-label fw-semibold">
                                     <i class="bi bi-box-seam text-primary me-2"></i>Plano <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select form-select-lg" id="edit-cliente-plano" name="plano" required>
-                                    <option value="">Selecione um plano</option>
-                                    {% for plano in planos %}
-                                    <option value="{{ plano.id }}" data-telas="{{ plano.telas }}">
-                                        {% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %}
-                                        {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela{{ plano.telas|pluralize }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                                <small class="text-muted">Plano de adesão do cliente</small>
+
+                                <!-- Estado Bloqueado -->
+                                <div id="editPlanoBloqueado">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light">
+                                            <i class="bi bi-lock-fill text-muted"></i>
+                                        </span>
+                                        <input type="text" class="form-control form-control-lg bg-light"
+                                               id="editPlanoDisplay" readonly>
+                                        <button type="button" class="btn btn-outline-primary" id="btnAlterarPlanoEdit">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">O plano atual será mantido</small>
+                                </div>
+
+                                <!-- Estado Desbloqueado -->
+                                <div id="editPlanoDesbloqueado" style="display: none;">
+                                    <!-- Filtros -->
+                                    <div class="btn-group w-100 mb-2" role="group">
+                                        <input type="radio" class="btn-check" name="filtroPlanoEdit" id="filtroPromocionaisEdit" value="promocionais">
+                                        <label class="btn btn-outline-warning btn-sm" for="filtroPromocionaisEdit">
+                                            <i class="bi bi-megaphone-fill me-1"></i>Promocionais
+                                        </label>
+
+                                        <input type="radio" class="btn-check" name="filtroPlanoEdit" id="filtroRegularesEdit" value="regulares" checked>
+                                        <label class="btn btn-outline-secondary btn-sm" for="filtroRegularesEdit">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Regulares
+                                        </label>
+                                    </div>
+
+                                    <!-- Select de Planos -->
+                                    <div class="input-group">
+                                        <select class="form-select form-select-lg" id="edit-cliente-plano" name="plano" required>
+                                            <option value="">Selecione um plano</option>
+                                            {% for plano in planos %}
+                                            <option value="{{ plano.id }}"
+                                                    data-telas="{{ plano.telas }}"
+                                                    data-campanha="{{ plano.campanha_ativa|yesno:'true,false' }}"
+                                                    data-nome="{{ plano.nome }}"
+                                                    data-valor="{{ plano.valor }}">
+                                                {% if plano.campanha_ativa %}(Promo){% else %}(Regular){% endif %}
+                                                {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela{{ plano.telas|pluralize }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="button" class="btn btn-outline-danger" id="btnCancelarAlteracaoPlanoEdit">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+
+                                    <!-- Alerta informativo -->
+                                    <div id="alertaPlanoPromocionalEdit" class="alert alert-warning mt-2 py-2 px-3 mb-0" style="display: none;">
+                                        <small>
+                                            <i class="bi bi-info-circle-fill me-1"></i>
+                                            Ao selecionar um plano promocional, o cliente passará a participar da campanha vigente.
+                                        </small>
+                                    </div>
+
+                                    <small class="text-muted">Selecione o novo plano para o cliente</small>
+                                </div>
+
+                                <!-- Campos hidden para controle -->
+                                <input type="hidden" id="editPlanoOriginalId" value="">
+                                <input type="hidden" id="editPlanoAlterado" value="false">
                             </div>
 
                             <!-- Toggle: Não Enviar Mensagens -->

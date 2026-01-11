@@ -685,9 +685,43 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
             ).distinct()
         )
         if query:
-            queryset = queryset.filter(
-                Q(nome__icontains=query) | Q(telefone__icontains=query)
-            )
+            # Remove caracteres não numéricos do termo de busca
+            query_digits = re.sub(r'\D', '', query)
+
+            if query_digits:
+                # Se tem dígitos, busca por nome OU telefone normalizado
+                # Usa regex para buscar os dígitos em qualquer posição do telefone
+                queryset = queryset.filter(
+                    Q(nome__icontains=query) | Q(telefone__regex=rf'.*{query_digits}.*')
+                )
+            else:
+                # Se não tem dígitos, busca apenas por nome
+                queryset = queryset.filter(Q(nome__icontains=query))
+
+        # Filtros avançados
+        data_vencimento = self.request.GET.get("data_vencimento")
+        servidor_id = self.request.GET.get("servidor")
+        tipo_plano = self.request.GET.get("tipo_plano")
+        plano_id = self.request.GET.get("plano")
+
+        # Filtro por data de vencimento
+        if data_vencimento:
+            queryset = queryset.filter(mensalidade__dt_vencimento=data_vencimento)
+
+        # Filtro por servidor
+        if servidor_id:
+            queryset = queryset.filter(servidor_id=servidor_id)
+
+        # Filtro por tipo de plano (promo ou regular)
+        if tipo_plano:
+            if tipo_plano == 'promo':
+                queryset = queryset.filter(plano__campanha_ativa=True)
+            elif tipo_plano == 'regular':
+                queryset = queryset.filter(plano__campanha_ativa=False)
+
+        # Filtro por plano específico
+        if plano_id:
+            queryset = queryset.filter(plano_id=plano_id)
 
         # Aplicar ordenação server-side
         sort_field, sort_order = self.get_sort_params()
@@ -1228,26 +1262,33 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         # ============================================================
         if self.request.user.is_superuser:
             from django.contrib.auth.models import User
-            from django.db.models import Exists, OuterRef
+            from django.db.models import Prefetch
             from django.core.paginator import Paginator
 
-            # Subquery para verificar se há automação ativa
-            automacao_ativa = TarefaEnvio.objects.filter(
-                usuario=OuterRef('pk'),
-                em_execucao=True
+            # Prefetch para HorarioEnvios (Vencimentos e Atrasos)
+            horarios_prefetch = Prefetch(
+                'horarioenvios_set',
+                queryset=HorarioEnvios.objects.filter(ativo=True).order_by('tipo_envio')
             )
 
-            revendedores_qs = User.objects.filter(
-                is_superuser=False
-            ).annotate(
-                tem_automacao_ativa=Exists(automacao_ativa)
-            ).select_related('profile').order_by('-date_joined')
+            # Prefetch para TarefaEnvio (WhatsApp)
+            tarefas_prefetch = Prefetch(
+                'tarefas_envio',
+                queryset=TarefaEnvio.objects.filter(ativo=True).order_by('horario')
+            )
+
+            # Busca TODOS os usuários (admins e revendedores) com automações
+            revendedores_qs = User.objects.all().prefetch_related(
+                horarios_prefetch,
+                tarefas_prefetch
+            ).select_related('profile').order_by('-is_superuser', '-date_joined')
 
             # Paginação
             paginator = Paginator(revendedores_qs, 10)
             revendedores = paginator.get_page(1)
 
             context['revendedores'] = revendedores
+            context['current_user_id'] = self.request.user.id  # Para identificar o próprio usuário
 
         return context
 
@@ -3143,6 +3184,29 @@ def reactivate_customer(request, cliente_id):
         except Tipos_pgto.DoesNotExist:
             logger.warning('[%s] [USER][%s] Forma de pagamento ID %s não encontrada',
                            timezone.localtime(), request.user, forma_pgto_id)
+
+    # ⭐ ATUALIZAR DADOS DO CLIENTE (se fornecidos no POST - modal de revisão)
+    nome = request.POST.get('nome')
+    telefone = request.POST.get('telefone')
+    servidor_id = request.POST.get('servidor_id')
+    plano_id = request.POST.get('plano_id')
+
+    if nome:
+        cliente.nome = nome.strip()
+    if telefone:
+        cliente.telefone = telefone.strip()
+    if servidor_id:
+        try:
+            servidor = Servidor.objects.get(id=servidor_id, usuario=request.user)
+            cliente.servidor = servidor
+        except Servidor.DoesNotExist:
+            pass
+    if plano_id:
+        try:
+            plano = Plano.objects.get(id=plano_id, usuario=request.user)
+            cliente.plano = plano
+        except Plano.DoesNotExist:
+            pass
 
     cliente.save()
 
@@ -12466,6 +12530,55 @@ def api_formas_pagamento_disponiveis(request):
 
 @login_required
 @require_http_methods(["GET"])
+def api_cliente_dados_reativacao(request, cliente_id):
+    """
+    Retorna dados do cliente e listas de servidores/planos para o modal de revisão.
+    GET /api/cliente/<cliente_id>/dados-reativacao/
+
+    Usado no modal de reativação de clientes cancelados para revisar/editar dados.
+    """
+    try:
+        cliente = Cliente.objects.select_related('servidor', 'plano').get(
+            id=cliente_id,
+            usuario=request.user
+        )
+
+        servidores = Servidor.objects.filter(usuario=request.user).order_by('nome')
+        planos = Plano.objects.filter(usuario=request.user).order_by('nome', 'valor')
+
+        return JsonResponse({
+            'success': True,
+            'cliente': {
+                'id': cliente.id,
+                'nome': cliente.nome,
+                'telefone': cliente.telefone or '',
+                'servidor_id': cliente.servidor_id,
+                'servidor_nome': cliente.servidor.nome if cliente.servidor else '',
+                'plano_id': cliente.plano_id,
+                'plano_nome': cliente.plano.nome if cliente.plano else '',
+                'plano_campanha_ativa': cliente.plano.campanha_ativa if cliente.plano else False,
+            },
+            'servidores': [{'id': s.id, 'nome': s.nome} for s in servidores],
+            'planos': [
+                {
+                    'id': p.id,
+                    'nome': p.nome,
+                    'valor': float(p.valor),
+                    'telas': p.telas,
+                    'campanha_ativa': p.campanha_ativa
+                }
+                for p in planos
+            ]
+        })
+    except Cliente.DoesNotExist:
+        return JsonResponse({'error': 'Cliente não encontrado'}, status=404)
+    except Exception as e:
+        logger.error(f"[API] Erro ao buscar dados do cliente para reativação: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
 def api_forma_pagamento_detalhes(request, pk):
     """
     Retorna os detalhes de uma forma de pagamento.
@@ -14373,27 +14486,28 @@ def revendedores_busca(request):
     """
     from django.contrib.auth.models import User
     from django.core.paginator import Paginator
-    from django.db.models import Exists, OuterRef, Q
+    from django.db.models import Prefetch, Q
 
     q = request.GET.get('q', '').strip()
     page = request.GET.get('page', 1)
     per_page = int(request.GET.get('per_page', 10))
 
-    # Subquery para verificar TarefaEnvio ativa (campanhas de marketing)
-    tarefa_envio_ativa = TarefaEnvio.objects.filter(
-        usuario=OuterRef('pk'),
-        em_execucao=True
+    # Prefetch para HorarioEnvios (Vencimentos e Atrasos)
+    horarios_prefetch = Prefetch(
+        'horarioenvios_set',
+        queryset=HorarioEnvios.objects.filter(ativo=True).order_by('tipo_envio')
     )
 
-    # Subquery para verificar HorarioEnvios em execução (vencimento/atraso)
-    horario_envio_ativo = HorarioEnvios.objects.filter(
-        usuario=OuterRef('pk'),
-        em_execucao=True  # Verifica se está realmente em execução no momento
+    # Prefetch para TarefaEnvio (WhatsApp)
+    tarefas_prefetch = Prefetch(
+        'tarefas_envio',
+        queryset=TarefaEnvio.objects.filter(ativo=True).order_by('horario')
     )
 
-    qs = User.objects.filter(is_superuser=False).annotate(
-        tem_tarefa_envio_ativa=Exists(tarefa_envio_ativa),
-        tem_horario_envio_ativo=Exists(horario_envio_ativo)
+    # Busca TODOS os usuários (admins e revendedores) com automações
+    qs = User.objects.all().prefetch_related(
+        horarios_prefetch,
+        tarefas_prefetch
     ).select_related('profile')
 
     if q:
@@ -14403,13 +14517,72 @@ def revendedores_busca(request):
             Q(username__icontains=q)
         )
 
-    qs = qs.order_by('-date_joined')
+    # Ordena: superusers primeiro, depois por data de criação
+    qs = qs.order_by('-is_superuser', '-date_joined')
     paginator = Paginator(qs, per_page)
     revendedores = paginator.get_page(page)
 
     return render(request, 'partials/table-revendedores.html', {
         'revendedores': revendedores,
         'per_page': per_page,
+        'current_user_id': request.user.id,  # Para identificar o próprio usuário
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def revendedores_automacoes_status(request):
+    """
+    Retorna o status das automações em execução para cada revendedor.
+    Endpoint leve para atualização dinâmica dos spinners sem recarregar a tabela inteira.
+
+    Returns:
+        JSON com detalhes das automações em execução:
+        {
+            "success": true,
+            "automacoes": {
+                "tarefa_envio": [
+                    {"user_id": 1, "tarefa_id": 5, "nome": "Campanha", "iniciado_em": "08:30"},
+                ],
+                "horario_envio": [
+                    {"user_id": 2, "tipo": "mensalidades_a_vencer", "iniciado_em": "10:00"},
+                ]
+            },
+            "timestamp": "2026-01-11T..."
+        }
+    """
+    # Busca TarefaEnvio em execução com detalhes
+    tarefas_ativas = TarefaEnvio.objects.filter(
+        em_execucao=True
+    ).values('usuario_id', 'id', 'nome', 'execucao_iniciada_em')
+
+    # Busca HorarioEnvios em execução com detalhes
+    horarios_ativos = HorarioEnvios.objects.filter(
+        em_execucao=True
+    ).values('usuario_id', 'tipo_envio', 'execucao_iniciada_em')
+
+    return JsonResponse({
+        'success': True,
+        'automacoes': {
+            'tarefa_envio': [
+                {
+                    'user_id': t['usuario_id'],
+                    'tarefa_id': t['id'],
+                    'nome': t['nome'],
+                    'iniciado_em': t['execucao_iniciada_em'].strftime('%H:%M') if t['execucao_iniciada_em'] else None
+                }
+                for t in tarefas_ativas
+            ],
+            'horario_envio': [
+                {
+                    'user_id': h['usuario_id'],
+                    'tipo': h['tipo_envio'],
+                    'iniciado_em': h['execucao_iniciada_em'].strftime('%H:%M') if h['execucao_iniciada_em'] else None
+                }
+                for h in horarios_ativos
+            ]
+        },
+        'timestamp': now().isoformat()
     })
 
 

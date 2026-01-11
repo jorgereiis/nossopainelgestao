@@ -212,20 +212,46 @@
                         </div>
 
                         <!-- Planos -->
-                        <div class="mb-4">
-                          <label for="plano" class="form-label fw-semibold">
+                        <div class="mb-4" id="planoContainer">
+                          <label class="form-label fw-semibold">
                             <i class="bi bi-calendar-check-fill text-warning me-2"></i>Plano de Adesão <span class="text-danger">*</span>
                           </label>
+
+                          <!-- Filtros -->
+                          <div class="btn-group w-100 mb-2" role="group">
+                            <input type="radio" class="btn-check" name="filtroPlano" id="filtroPromocionais" value="promocionais">
+                            <label class="btn btn-outline-warning btn-sm" for="filtroPromocionais">
+                              <i class="bi bi-megaphone-fill me-1"></i>Promocionais
+                            </label>
+
+                            <input type="radio" class="btn-check" name="filtroPlano" id="filtroRegulares" value="regulares" checked>
+                            <label class="btn btn-outline-secondary btn-sm" for="filtroRegulares">
+                              <i class="bi bi-check-circle-fill me-1"></i>Regulares
+                            </label>
+                          </div>
+
+                          <!-- Select de Planos -->
                           <select class="form-select form-select-lg" id="plano" name="plano" required>
                             <option value="" selected disabled>Selecione um plano de adesão</option>
                             {% for plano in planos %}
-                            {% if plano.telas > 1 %}
-                            <option value="{{ plano.id }}" data-telas="{{ plano.telas }}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} telas</option>
-                            {% else %}
-                            <option value="{{ plano.id }}" data-telas="{{ plano.telas }}">{% if plano.campanha_ativa %}(Campanha){% else %}(Regular){% endif %} {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela</option>
-                            {% endif %}
+                            <option value="{{ plano.id }}"
+                                    data-telas="{{ plano.telas }}"
+                                    data-campanha="{{ plano.campanha_ativa|yesno:'true,false' }}">
+                              {% if plano.campanha_ativa %}(Promo){% else %}(Regular){% endif %}
+                              {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela{{ plano.telas|pluralize }}
+                            </option>
                             {% endfor %}
                           </select>
+
+                          <!-- Alerta informativo -->
+                          <div id="alertaPlanoPromocional" class="alert alert-warning mt-2 py-2 px-3 mb-0" style="display: none;">
+                            <small>
+                              <i class="bi bi-info-circle-fill me-1"></i>
+                              Ao selecionar um plano promocional, o cliente participará da campanha vigente.
+                            </small>
+                          </div>
+
+                          <small class="text-muted">Selecione o plano de adesão do cliente</small>
                         </div>
 
                         <!-- Indicado por -->
@@ -388,6 +414,79 @@
 
     // Geração dinâmica de blocos de dispositivo/app
     $(document).ready(function() {
+      // ========================================
+      // FILTROS DE PLANO
+      // ========================================
+
+      // Cache das options originais do select de planos
+      const selectPlano = document.getElementById('plano');
+      const planoOptionsOriginal = Array.from(selectPlano.options).map(opt => ({
+          value: opt.value,
+          text: opt.textContent,
+          telas: opt.dataset.telas,
+          campanha: opt.dataset.campanha === 'true',
+          disabled: opt.disabled
+      }));
+
+      // Função para filtrar planos
+      function filtrarPlanos(tipo) {
+          const valorAtual = selectPlano.value;
+          selectPlano.innerHTML = '';
+
+          // Adiciona option padrão
+          const optDefault = document.createElement('option');
+          optDefault.value = '';
+          optDefault.textContent = 'Selecione um plano de adesão';
+          optDefault.disabled = true;
+          optDefault.selected = true;
+          selectPlano.appendChild(optDefault);
+
+          // Filtra e adiciona opções
+          let optionsFiltradas = planoOptionsOriginal.filter(opt => opt.value !== '');
+
+          if (tipo === 'promocionais') {
+              optionsFiltradas = optionsFiltradas.filter(opt => opt.campanha);
+          } else if (tipo === 'regulares') {
+              optionsFiltradas = optionsFiltradas.filter(opt => !opt.campanha);
+          }
+
+          optionsFiltradas.forEach(opt => {
+              const option = document.createElement('option');
+              option.value = opt.value;
+              option.textContent = opt.text;
+              option.dataset.telas = opt.telas;
+              option.dataset.campanha = opt.campanha;
+              selectPlano.appendChild(option);
+          });
+
+          // Tenta manter valor selecionado
+          if (valorAtual) {
+              selectPlano.value = valorAtual;
+          }
+      }
+
+      // Event listeners para filtros
+      document.querySelectorAll('input[name="filtroPlano"]').forEach(radio => {
+          radio.addEventListener('change', function() {
+              filtrarPlanos(this.value);
+          });
+      });
+
+      // Alerta ao selecionar plano promocional
+      selectPlano.addEventListener('change', function() {
+          const selected = this.options[this.selectedIndex];
+          const isPromocional = selected?.dataset.campanha === 'true';
+          document.getElementById('alertaPlanoPromocional').style.display =
+              isPromocional ? 'block' : 'none';
+      });
+
+      // Inicializa com filtro "Regulares" selecionado
+      filtrarPlanos('regulares');
+
+      // ========================================
+      // GERAÇÃO DE BLOCOS DISPOSITIVO/APP
+      // ========================================
+
       const dispositivos = {{ dispositivos_json|safe }};
       const sistemas = {{ sistemas_json|safe }};
       const container = $('#dispositivos-apps-container');

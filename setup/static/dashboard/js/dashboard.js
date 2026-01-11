@@ -926,6 +926,126 @@ function adicionarEventListenersContas() {
     });
 }
 
+// ========================================
+// CONTROLE DO CAMPO DE PLANO (MODAL EDIÇÃO)
+// ========================================
+let editPlanoOriginal = null;
+let editPlanosOptions = []; // Cache das options originais
+
+/**
+ * Inicializa o controle do campo de plano no modal de edição
+ */
+function initEditPlanoControl() {
+    const select = document.getElementById('edit-cliente-plano');
+    if (!select) return;
+
+    // Cache das options originais
+    editPlanosOptions = Array.from(select.options).map(opt => ({
+        value: opt.value,
+        text: opt.textContent,
+        telas: opt.dataset.telas,
+        campanha: opt.dataset.campanha === 'true',
+        nome: opt.dataset.nome,
+        valor: opt.dataset.valor
+    }));
+
+    // Event listeners
+    document.getElementById('btnAlterarPlanoEdit')?.addEventListener('click', function() {
+        document.getElementById('editPlanoBloqueado').style.display = 'none';
+        document.getElementById('editPlanoDesbloqueado').style.display = 'block';
+        document.getElementById('editPlanoAlterado').value = 'true';
+        filtrarPlanosEdit('regulares'); // Inicia com regulares
+    });
+
+    document.getElementById('btnCancelarAlteracaoPlanoEdit')?.addEventListener('click', function() {
+        document.getElementById('editPlanoBloqueado').style.display = 'block';
+        document.getElementById('editPlanoDesbloqueado').style.display = 'none';
+        document.getElementById('editPlanoAlterado').value = 'false';
+        // Restaura plano original
+        document.getElementById('edit-cliente-plano').value = editPlanoOriginal?.id || '';
+        document.getElementById('alertaPlanoPromocionalEdit').style.display = 'none';
+    });
+
+    // Filtros
+    document.querySelectorAll('input[name="filtroPlanoEdit"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            filtrarPlanosEdit(this.value);
+        });
+    });
+
+    // Alerta ao selecionar plano promocional
+    document.getElementById('edit-cliente-plano')?.addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        const isPromocional = selected?.dataset.campanha === 'true';
+        document.getElementById('alertaPlanoPromocionalEdit').style.display =
+            isPromocional ? 'block' : 'none';
+    });
+}
+
+/**
+ * Filtra as opções de plano por tipo
+ */
+function filtrarPlanosEdit(filtro) {
+    const select = document.getElementById('edit-cliente-plano');
+    if (!select) return;
+
+    const valorAtual = select.value;
+    select.innerHTML = '<option value="">Selecione um plano</option>';
+
+    let optionsFiltradas = editPlanosOptions.filter(opt => opt.value !== '');
+
+    if (filtro === 'promocionais') {
+        optionsFiltradas = optionsFiltradas.filter(opt => opt.campanha);
+    } else if (filtro === 'regulares') {
+        optionsFiltradas = optionsFiltradas.filter(opt => !opt.campanha);
+    }
+
+    optionsFiltradas.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.text;
+        option.dataset.telas = opt.telas;
+        option.dataset.campanha = opt.campanha;
+        option.dataset.nome = opt.nome;
+        option.dataset.valor = opt.valor;
+        select.appendChild(option);
+    });
+
+    // Tenta manter o valor selecionado
+    if (valorAtual) {
+        select.value = valorAtual;
+    }
+}
+
+/**
+ * Preenche o campo de plano bloqueado com os dados do cliente
+ */
+function preencherPlanoBloqueadoEdit(planoId) {
+    const plano = editPlanosOptions.find(opt => opt.value === planoId);
+
+    editPlanoOriginal = plano ? { id: planoId, ...plano } : { id: planoId };
+
+    const tipoPlano = plano?.campanha ? '(Promo)' : '(Regular)';
+    const telas = plano?.telas > 1 ? `${plano?.telas} telas` : '1 tela';
+    const displayText = plano
+        ? `${tipoPlano} ${plano.nome} - R$ ${parseFloat(plano.valor).toFixed(2)} - ${telas}`
+        : 'Plano não encontrado';
+
+    document.getElementById('editPlanoDisplay').value = displayText;
+    document.getElementById('editPlanoOriginalId').value = planoId;
+    document.getElementById('edit-cliente-plano').value = planoId;
+
+    // Reset estado
+    document.getElementById('editPlanoBloqueado').style.display = 'block';
+    document.getElementById('editPlanoDesbloqueado').style.display = 'none';
+    document.getElementById('editPlanoAlterado').value = 'false';
+    document.getElementById('alertaPlanoPromocionalEdit').style.display = 'none';
+    document.getElementById('filtroRegularesEdit').checked = true;
+}
+
+// Inicializa quando DOM estiver pronto
+document.addEventListener('DOMContentLoaded', initEditPlanoControl);
+
 // FUNÇÃO PARA EXIBIR O MODAL DE EDIÇÃO DOS DADOS DO CLIENTE
 
     function exibirModalEdicao(botao) {
@@ -973,7 +1093,8 @@ function adicionarEventListenersContas() {
       }
       selectFormaPgto.value = clienteFormaPgto;
 
-      form.querySelector("#edit-cliente-plano").value = clientePlano;
+      // Preenche campo de plano com estado bloqueado
+      preencherPlanoBloqueadoEdit(clientePlano);
       form.querySelector("#edit-cliente-dt_pgto").value = clienteDataVencimento;
       form.querySelector("#edit-cliente-nao_enviar_msgs").checked = clienteNaoEnviarMsgs;
       form.querySelector("#edit-cliente-notas").value = clienteNotas;

@@ -286,6 +286,161 @@
                         </div>
                     </div>
 
+                    <!-- Modal de Revisão de Dados do Cliente -->
+                    <div class="modal fade" id="modalRevisaoDados" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                        <div class="modal-dialog modal-dialog-centered modal-lg">
+                            <div class="modal-content border-0 shadow-lg" style="position: relative;">
+                                <!-- Overlay de Loading -->
+                                <div class="modal-loading-overlay" id="loadingRevisaoOverlay" style="display: none;">
+                                    <div class="loading-content">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Reativando...</span>
+                                        </div>
+                                        <p class="mt-3 mb-0 text-primary fw-medium">Reativando cliente...</p>
+                                    </div>
+                                </div>
+                                <div class="modal-header border-0" style="background: linear-gradient(135deg, #624BFF 0%, #8b5cf6 100%);">
+                                    <h5 class="modal-title text-white">
+                                        <i class="bi bi-pencil-square me-2"></i>Revisar Dados do Cliente
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body p-4">
+                                    <!-- Loading -->
+                                    <div id="loadingRevisaoDados" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Carregando...</span>
+                                        </div>
+                                        <p class="text-muted mt-2">Carregando dados do cliente...</p>
+                                    </div>
+
+                                    <!-- Formulário -->
+                                    <div id="formRevisaoDados" style="display: none;">
+                                        <!-- Card de Dados -->
+                                        <div class="card shadow-sm mb-0" style="border-left: 4px solid #624BFF;">
+                                            <div class="card-header bg-light">
+                                                <h6 class="mb-0 fw-bold">
+                                                    <i class="bi bi-person-vcard text-primary me-2"></i>Dados do Cliente
+                                                </h6>
+                                                <small class="text-muted">Revise e atualize as informações antes de reativar</small>
+                                            </div>
+                                            <div class="card-body">
+                                                <!-- Row 1: Nome + Telefone -->
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label for="revisaoNome" class="form-label fw-semibold">
+                                                            <i class="bi bi-person-badge text-primary me-2"></i>Nome Completo <span class="text-danger">*</span>
+                                                        </label>
+                                                        <input type="text" class="form-control form-control-lg" id="revisaoNome"
+                                                               placeholder="Digite o nome do cliente" required>
+                                                        <small class="text-muted">Nome completo para identificação</small>
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label for="revisaoTelefone" class="form-label fw-semibold">
+                                                            <i class="bi bi-whatsapp text-success me-2"></i>Telefone <span class="text-danger">*</span>
+                                                        </label>
+                                                        <input type="tel" class="form-control form-control-lg" id="revisaoTelefone"
+                                                               placeholder="Digite o telefone" minlength="12" maxlength="15"
+                                                               autocomplete="off" required>
+                                                        <small class="text-muted">WhatsApp para contato e cobranças</small>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Row 2: Servidor + Plano -->
+                                                <div class="row">
+                                                    <div class="col-md-4 mb-3">
+                                                        <label for="revisaoServidor" class="form-label fw-semibold">
+                                                            <i class="bi bi-hdd-network-fill text-warning me-2"></i>Servidor <span class="text-danger">*</span>
+                                                        </label>
+                                                        <select class="form-select form-select-lg" id="revisaoServidor" required>
+                                                            <option value="">Selecione um servidor</option>
+                                                        </select>
+                                                        <small class="text-muted">Servidor onde o cliente será cadastrado</small>
+                                                    </div>
+                                                    <!-- Plano - Campo com bloqueio/desbloqueio -->
+                                                    <div class="col-md-8 mb-3" id="planoContainer">
+                                                        <label class="form-label fw-semibold">
+                                                            <i class="bi bi-box-seam text-info me-2"></i>Plano <span class="text-danger">*</span>
+                                                        </label>
+
+                                                        <!-- Estado Bloqueado -->
+                                                        <div id="planoBloqueado">
+                                                            <div class="input-group">
+                                                                <span class="input-group-text bg-light">
+                                                                    <i class="bi bi-lock-fill text-muted"></i>
+                                                                </span>
+                                                                <input type="text" class="form-control form-control-lg bg-light"
+                                                                       id="planoDisplay" readonly>
+                                                                <button type="button" class="btn btn-outline-primary" id="btnAlterarPlano">
+                                                                    <i class="bi bi-pencil-fill"></i>
+                                                                </button>
+                                                            </div>
+                                                            <small class="text-muted">O plano atual será mantido</small>
+                                                        </div>
+
+                                                        <!-- Estado Desbloqueado -->
+                                                        <div id="planoDesbloqueado" style="display: none;">
+                                                            <!-- Filtros -->
+                                                            <div class="btn-group w-100 mb-2" role="group">
+                                                                <input type="radio" class="btn-check" name="filtroPlano" id="filtroPromocionais" value="promocionais">
+                                                                <label class="btn btn-outline-warning btn-sm" for="filtroPromocionais">
+                                                                    <i class="bi bi-megaphone-fill me-1"></i>Promocionais
+                                                                </label>
+
+                                                                <input type="radio" class="btn-check" name="filtroPlano" id="filtroRegulares" value="regulares" checked>
+                                                                <label class="btn btn-outline-secondary btn-sm" for="filtroRegulares">
+                                                                    <i class="bi bi-check-circle-fill me-1"></i>Regulares
+                                                                </label>
+                                                            </div>
+
+                                                            <!-- Select de Planos -->
+                                                            <div class="input-group">
+                                                                <select class="form-select form-select-lg" id="revisaoPlano">
+                                                                    <option value="">Selecione um plano</option>
+                                                                </select>
+                                                                <button type="button" class="btn btn-outline-danger" id="btnCancelarAlteracaoPlano">
+                                                                    <i class="bi bi-x-lg"></i>
+                                                                </button>
+                                                            </div>
+
+                                                            <!-- Alerta informativo -->
+                                                            <div id="alertaPlanoPromocional" class="alert alert-warning mt-2 py-2 px-3 mb-0" style="display: none;">
+                                                                <small>
+                                                                    <i class="bi bi-info-circle-fill me-1"></i>
+                                                                    Ao selecionar um plano promocional, o cliente participará da campanha vigente.
+                                                                </small>
+                                                            </div>
+
+                                                            <small class="text-muted">Selecione o novo plano para o cliente</small>
+                                                        </div>
+
+                                                        <!-- Campos hidden para controle -->
+                                                        <input type="hidden" id="planoOriginalId" value="">
+                                                        <input type="hidden" id="planoAlterado" value="false">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Erro -->
+                                    <div id="erroRevisaoDados" class="alert alert-danger" style="display: none;">
+                                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                        <span id="erroRevisaoDadosMsg">Erro ao carregar dados.</span>
+                                    </div>
+                                </div>
+                                <div class="modal-footer border-0">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                        <i class="bi bi-x-circle me-1"></i>Cancelar
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="btnConfirmarRevisao" disabled>
+                                        <i class="bi bi-check-circle me-1"></i>Confirmar e Reativar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Offcanvas de Configurações -->
                     {% include 'partials/offcanvas_configuracoes.html' %}
 
@@ -433,6 +588,414 @@
     let formaPagamentoSelecionada = null;
     let formaPagamentoAnterior = null;
     let modalReativarInstance = null;
+    let modalRevisaoDadosInstance = null;
+    let dadosClienteRevisao = null;
+    let revisaoTelefoneIti = null;
+
+    // ========== VARIÁVEIS PARA CONTROLE DO CAMPO DE PLANO ==========
+    let planosDisponiveis = [];
+    let planoOriginal = null;
+
+    // ========== FUNÇÕES DE FORMATAÇÃO DE TELEFONE INTERNACIONAL ==========
+    const allowedTelefoneCountries = [
+        "br", "us", "mx", "ar", "co", "cl", "pe", "py", "uy",  // Américas
+        "pt", "es", "it", "fr", "de", "gb", "nl", "be", "ch"   // Europa
+    ];
+
+    // Mapa DDI -> código do país (ordenado do mais específico ao menos)
+    const DDI_COUNTRY_MAP = [
+        { ddi: '595', country: 'py' },   // Paraguai
+        { ddi: '598', country: 'uy' },   // Uruguai
+        { ddi: '351', country: 'pt' },   // Portugal
+        { ddi: '55', country: 'br' },    // Brasil
+        { ddi: '54', country: 'ar' },    // Argentina
+        { ddi: '57', country: 'co' },    // Colômbia
+        { ddi: '56', country: 'cl' },    // Chile
+        { ddi: '52', country: 'mx' },    // México
+        { ddi: '51', country: 'pe' },    // Peru
+        { ddi: '49', country: 'de' },    // Alemanha
+        { ddi: '44', country: 'gb' },    // Reino Unido
+        { ddi: '41', country: 'ch' },    // Suíça
+        { ddi: '39', country: 'it' },    // Itália
+        { ddi: '34', country: 'es' },    // Espanha
+        { ddi: '33', country: 'fr' },    // França
+        { ddi: '32', country: 'be' },    // Bélgica
+        { ddi: '31', country: 'nl' },    // Holanda
+        { ddi: '1', country: 'us' },     // EUA/Canadá
+    ];
+
+    function detectCountryFromPhone(phoneNumber) {
+        if (!phoneNumber) return 'br';
+        const numero = phoneNumber.replace(/\D/g, '');
+        for (const item of DDI_COUNTRY_MAP) {
+            if (numero.startsWith(item.ddi)) {
+                return item.country;
+            }
+        }
+        return 'br';
+    }
+
+    // Remove o DDI do telefone para exibição no input (nationalMode)
+    function removerDDI(phoneNumber) {
+        if (!phoneNumber) return '';
+        const numero = phoneNumber.replace(/\D/g, '');
+        for (const item of DDI_COUNTRY_MAP) {
+            if (numero.startsWith(item.ddi)) {
+                return numero.substring(item.ddi.length);
+            }
+        }
+        return numero;
+    }
+
+    function formatTelefoneInputValue(input, countryCode) {
+        let numero = input.value.replace(/\D/g, '');
+        const formatters = {
+            br: (n) => {
+                n = n.substring(0, 11);
+                if (n.length >= 2) {
+                    let f = '(' + n.substring(0, 2) + ') ';
+                    const local = n.substring(2);
+                    if (local.length === 9) f += local.substring(0, 5) + '-' + local.substring(5);
+                    else if (local.length >= 5) f += local.substring(0, 4) + '-' + local.substring(4);
+                    else f += local;
+                    return f;
+                }
+                return n;
+            },
+            us: (n) => {
+                n = n.substring(0, 10);
+                if (n.length >= 3) {
+                    let f = '(' + n.substring(0, 3) + ') ';
+                    if (n.length >= 6) f += n.substring(3, 6) + '-' + n.substring(6);
+                    else f += n.substring(3);
+                    return f;
+                }
+                return n;
+            },
+            mx: (n) => {
+                n = n.substring(0, 10);
+                if (n.length >= 2) {
+                    let f = n.substring(0, 2) + ' ';
+                    if (n.length >= 6) f += n.substring(2, 6) + ' ' + n.substring(6);
+                    else f += n.substring(2);
+                    return f;
+                }
+                return n;
+            },
+            ar: (n) => {
+                n = n.substring(0, 10);
+                if (n.length >= 2) {
+                    let f = n.substring(0, 2) + ' ';
+                    if (n.length >= 6) f += n.substring(2, 6) + '-' + n.substring(6);
+                    else f += n.substring(2);
+                    return f;
+                }
+                return n;
+            },
+            co: (n) => {
+                n = n.substring(0, 10);
+                if (n.length >= 3) {
+                    let f = n.substring(0, 3) + ' ';
+                    if (n.length >= 6) f += n.substring(3, 6) + ' ' + n.substring(6);
+                    else f += n.substring(3);
+                    return f;
+                }
+                return n;
+            },
+            cl: (n) => {
+                n = n.substring(0, 9);
+                if (n.length >= 1) {
+                    let f = n.substring(0, 1) + ' ';
+                    if (n.length >= 5) f += n.substring(1, 5) + ' ' + n.substring(5);
+                    else f += n.substring(1);
+                    return f;
+                }
+                return n;
+            },
+            pe: (n) => {
+                n = n.substring(0, 9);
+                if (n.length >= 3) {
+                    let f = n.substring(0, 3) + ' ';
+                    if (n.length >= 6) f += n.substring(3, 6) + ' ' + n.substring(6);
+                    else f += n.substring(3);
+                    return f;
+                }
+                return n;
+            },
+            py: (n) => {
+                n = n.substring(0, 9);
+                if (n.length >= 3) {
+                    let f = n.substring(0, 3) + ' ';
+                    if (n.length >= 6) f += n.substring(3, 6) + ' ' + n.substring(6);
+                    else f += n.substring(3);
+                    return f;
+                }
+                return n;
+            },
+            uy: (n) => {
+                n = n.substring(0, 8);
+                if (n.length >= 2) {
+                    let f = n.substring(0, 2) + ' ';
+                    if (n.length >= 5) f += n.substring(2, 5) + ' ' + n.substring(5);
+                    else f += n.substring(2);
+                    return f;
+                }
+                return n;
+            },
+            pt: (n) => {
+                n = n.substring(0, 9);
+                if (n.length >= 3) {
+                    let f = n.substring(0, 3) + ' ';
+                    if (n.length >= 6) f += n.substring(3, 6) + ' ' + n.substring(6);
+                    else f += n.substring(3);
+                    return f;
+                }
+                return n;
+            },
+            es: (n) => {
+                n = n.substring(0, 9);
+                if (n.length >= 3) {
+                    let f = n.substring(0, 3) + ' ';
+                    if (n.length >= 5) f += n.substring(3, 5) + ' ';
+                    if (n.length >= 7) f += n.substring(5, 7) + ' ';
+                    if (n.length > 7) f += n.substring(7);
+                    else if (n.length > 5) f += n.substring(5);
+                    else f += n.substring(3);
+                    return f.trim();
+                }
+                return n;
+            },
+            it: (n) => {
+                n = n.substring(0, 10);
+                if (n.length >= 3) {
+                    let f = n.substring(0, 3) + ' ';
+                    if (n.length >= 6) f += n.substring(3, 6) + ' ' + n.substring(6);
+                    else f += n.substring(3);
+                    return f;
+                }
+                return n;
+            },
+            fr: (n) => {
+                n = n.substring(0, 9);
+                let f = '';
+                for (let i = 0; i < n.length; i += 2) {
+                    f += n.substring(i, Math.min(i + 2, n.length)) + ' ';
+                }
+                return f.trim();
+            },
+            de: (n) => {
+                n = n.substring(0, 11);
+                if (n.length >= 4) {
+                    let f = n.substring(0, 4) + ' ';
+                    if (n.length >= 8) f += n.substring(4, 8) + ' ' + n.substring(8);
+                    else f += n.substring(4);
+                    return f;
+                }
+                return n;
+            },
+            gb: (n) => {
+                n = n.substring(0, 10);
+                if (n.length >= 5) {
+                    return n.substring(0, 5) + ' ' + n.substring(5);
+                }
+                return n;
+            },
+            nl: (n) => {
+                n = n.substring(0, 9);
+                if (n.length >= 2) {
+                    return n.substring(0, 2) + ' ' + n.substring(2);
+                }
+                return n;
+            },
+            be: (n) => {
+                n = n.substring(0, 9);
+                if (n.length >= 4) {
+                    let f = n.substring(0, 4) + ' ';
+                    if (n.length >= 6) f += n.substring(4, 6) + ' ';
+                    if (n.length >= 8) f += n.substring(6, 8) + ' ';
+                    if (n.length > 8) f += n.substring(8);
+                    else if (n.length > 6) f += n.substring(6);
+                    else f += n.substring(4);
+                    return f.trim();
+                }
+                return n;
+            },
+            ch: (n) => {
+                n = n.substring(0, 9);
+                if (n.length >= 3) {
+                    let f = n.substring(0, 3) + ' ';
+                    if (n.length >= 6) f += n.substring(3, 6) + ' ';
+                    if (n.length >= 8) f += n.substring(6, 8) + ' ';
+                    if (n.length > 8) f += n.substring(8);
+                    else if (n.length > 6) f += n.substring(6);
+                    else f += n.substring(3);
+                    return f.trim();
+                }
+                return n;
+            }
+        };
+        const formatter = formatters[countryCode];
+        if (formatter) {
+            input.value = formatter(numero);
+        }
+    }
+
+    // ========== FUNÇÕES PARA CONTROLE DO CAMPO DE PLANO ==========
+
+    /**
+     * Preenche o campo de plano bloqueado com os dados atuais
+     */
+    function preencherPlanosBloqueado(data) {
+        planosDisponiveis = data.planos;
+        planoOriginal = {
+            id: data.cliente.plano_id,
+            nome: data.cliente.plano_nome,
+            campanha_ativa: data.cliente.plano_campanha_ativa
+        };
+
+        // Encontrar plano atual
+        const planoAtual = planosDisponiveis.find(p => p.id === planoOriginal.id);
+        const tipoPlano = planoAtual?.campanha_ativa ? '(Promo)' : '(Regular)';
+        const telas = planoAtual?.telas > 1 ? `${planoAtual?.telas} telas` : '1 tela';
+
+        // Exibir no campo bloqueado
+        document.getElementById('planoDisplay').value =
+            `${tipoPlano} ${planoAtual?.nome || planoOriginal.nome} - R$ ${planoAtual?.valor?.toFixed(2) || '0.00'} - ${telas}`;
+        document.getElementById('planoOriginalId').value = planoOriginal.id;
+
+        // Popular select para quando desbloquear (inicia com Regulares)
+        popularSelectPlanos('regulares');
+
+        // Resetar estados
+        document.getElementById('planoBloqueado').style.display = 'block';
+        document.getElementById('planoDesbloqueado').style.display = 'none';
+        document.getElementById('planoAlterado').value = 'false';
+        document.getElementById('alertaPlanoPromocional').style.display = 'none';
+        document.getElementById('filtroRegulares').checked = true;
+    }
+
+    /**
+     * Popula o select de planos com base no filtro (promocionais ou regulares)
+     */
+    function popularSelectPlanos(filtro) {
+        const select = document.getElementById('revisaoPlano');
+        select.innerHTML = '<option value="">Selecione um plano</option>';
+
+        let planosFiltrados;
+        if (filtro === 'promocionais') {
+            planosFiltrados = planosDisponiveis.filter(p => p.campanha_ativa);
+        } else {
+            // Default: regulares
+            planosFiltrados = planosDisponiveis.filter(p => !p.campanha_ativa);
+        }
+
+        planosFiltrados.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.id;
+            const telas = p.telas > 1 ? `${p.telas} telas` : '1 tela';
+            option.textContent = `${p.nome} - R$ ${p.valor.toFixed(2)} - ${telas}`;
+            option.dataset.campanha = p.campanha_ativa;
+            if (p.id === planoOriginal?.id) option.selected = true;
+            select.appendChild(option);
+        });
+    }
+
+    /**
+     * Retorna o ID do plano a ser usado (original ou alterado)
+     */
+    function getPlanoIdParaSubmit() {
+        const planoAlterado = document.getElementById('planoAlterado').value === 'true';
+        if (planoAlterado) {
+            return document.getElementById('revisaoPlano').value;
+        }
+        return document.getElementById('planoOriginalId').value;
+    }
+
+    // ========== INTL-TEL-INPUT PARA REVISÃO DE DADOS ==========
+    function ensureRevisaoTelefoneITI() {
+        const telefoneInput = document.getElementById('revisaoTelefone');
+        if (!telefoneInput || typeof window.intlTelInput !== 'function') {
+            console.warn('[RevisaoDados] intlTelInput não disponível');
+            return;
+        }
+
+        if (telefoneInput.dataset.itiInitialized === "true") {
+            return;
+        }
+
+        try {
+            revisaoTelefoneIti = window.intlTelInput(telefoneInput, {
+                preferredCountries: ["br", "us", "pt", "it", "es", "fr", "de"],
+                initialCountry: "br",
+                formatOnDisplay: false,
+                nationalMode: true,
+                utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@18.1.1/build/js/utils.js"
+            });
+
+            telefoneInput.dataset.itiInitialized = "true";
+
+            // Formatação ao digitar
+            telefoneInput.addEventListener('input', function () {
+                if (!revisaoTelefoneIti) return;
+                const countryCode = revisaoTelefoneIti.getSelectedCountryData()?.iso2;
+                if (!countryCode || !allowedTelefoneCountries.includes(countryCode)) return;
+                formatTelefoneInputValue(telefoneInput, countryCode);
+            });
+
+            // Reformatar quando mudar o país
+            telefoneInput.addEventListener('countrychange', function() {
+                if (!revisaoTelefoneIti) return;
+                const countryCode = revisaoTelefoneIti.getSelectedCountryData()?.iso2;
+                if (countryCode && allowedTelefoneCountries.includes(countryCode)) {
+                    formatTelefoneInputValue(telefoneInput, countryCode);
+                }
+            });
+
+            console.debug('[RevisaoDados] ITI inicializado com sucesso');
+        } catch (error) {
+            console.error('[RevisaoDados] Erro ao inicializar ITI:', error);
+        }
+    }
+
+    // Inicializar quando o modal de revisão for exibido
+    document.getElementById('modalRevisaoDados').addEventListener('shown.bs.modal', function() {
+        ensureRevisaoTelefoneITI();
+    });
+
+    // ========== EVENT LISTENERS PARA CONTROLE DO CAMPO DE PLANO ==========
+
+    // Botão "Alterar" - Desbloqueia o campo de plano
+    document.getElementById('btnAlterarPlano').addEventListener('click', function() {
+        document.getElementById('planoBloqueado').style.display = 'none';
+        document.getElementById('planoDesbloqueado').style.display = 'block';
+        document.getElementById('planoAlterado').value = 'true';
+    });
+
+    // Botão "Cancelar" - Volta ao estado bloqueado
+    document.getElementById('btnCancelarAlteracaoPlano').addEventListener('click', function() {
+        document.getElementById('planoBloqueado').style.display = 'block';
+        document.getElementById('planoDesbloqueado').style.display = 'none';
+        document.getElementById('planoAlterado').value = 'false';
+        document.getElementById('revisaoPlano').value = planoOriginal?.id || '';
+        document.getElementById('alertaPlanoPromocional').style.display = 'none';
+        document.getElementById('filtroRegulares').checked = true;
+        popularSelectPlanos('regulares');
+    });
+
+    // Filtros de plano - Atualiza o select com base no filtro
+    document.querySelectorAll('input[name="filtroPlano"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            popularSelectPlanos(this.value);
+        });
+    });
+
+    // Select de plano - Mostra alerta quando selecionar plano promocional
+    document.getElementById('revisaoPlano').addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        const isPromocional = selected?.dataset.campanha === 'true';
+        document.getElementById('alertaPlanoPromocional').style.display =
+            isPromocional ? 'block' : 'none';
+    });
 
     /**
      * Abre o modal de reativação de cliente
@@ -813,39 +1376,164 @@
     /**
      * Confirma a reativação do cliente
      */
+    // Evento para abrir modal de revisão de dados (após selecionar forma de pagamento)
     document.getElementById('btnConfirmarReativacao').addEventListener('click', function() {
         if (!clienteIdReativar || !formaPagamentoSelecionada) {
             return;
         }
 
-        // Desabilitar botão e mostrar loading com 3 pontos
-        const btn = this;
-        const btnTextoOriginal = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+        // Fechar modal de forma de pagamento
+        if (modalReativarInstance) {
+            modalReativarInstance.hide();
+        }
 
-        // Criar FormData
+        // Abrir modal de revisão de dados
+        abrirModalRevisaoDados();
+    });
+
+    /**
+     * Abre o modal de revisão de dados do cliente
+     */
+    function abrirModalRevisaoDados() {
+        // Mostrar loading
+        document.getElementById('loadingRevisaoDados').style.display = 'block';
+        document.getElementById('formRevisaoDados').style.display = 'none';
+        document.getElementById('erroRevisaoDados').style.display = 'none';
+        document.getElementById('btnConfirmarRevisao').disabled = true;
+
+        // Abrir modal
+        const modalElement = document.getElementById('modalRevisaoDados');
+        modalRevisaoDadosInstance = new bootstrap.Modal(modalElement);
+        modalRevisaoDadosInstance.show();
+
+        // Buscar dados do cliente
+        fetch(`/api/cliente/${clienteIdReativar}/dados-reativacao/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('erroRevisaoDadosMsg').textContent = data.error;
+                document.getElementById('erroRevisaoDados').style.display = 'block';
+                document.getElementById('loadingRevisaoDados').style.display = 'none';
+                return;
+            }
+
+            dadosClienteRevisao = data;
+
+            // Preencher campos
+            document.getElementById('revisaoNome').value = data.cliente.nome || '';
+            // Remove DDI para exibição no formato nacional (o ITI adiciona o DDI no submit)
+            document.getElementById('revisaoTelefone').value = removerDDI(data.cliente.telefone);
+
+            // Preencher select de servidores
+            const selectServidor = document.getElementById('revisaoServidor');
+            selectServidor.innerHTML = '<option value="">Selecione um servidor</option>';
+            data.servidores.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.id;
+                option.textContent = s.nome;
+                if (s.id === data.cliente.servidor_id) option.selected = true;
+                selectServidor.appendChild(option);
+            });
+
+            // Preencher campo de plano (estado bloqueado com opção de alterar)
+            preencherPlanosBloqueado(data);
+
+            // Mostrar formulário
+            document.getElementById('loadingRevisaoDados').style.display = 'none';
+            document.getElementById('formRevisaoDados').style.display = 'block';
+            document.getElementById('btnConfirmarRevisao').disabled = false;
+
+            // Detectar país do telefone, configurar ITI e aplicar formatação
+            setTimeout(() => {
+                const telefoneInput = document.getElementById('revisaoTelefone');
+                const paisDetectado = detectCountryFromPhone(data.cliente.telefone);
+                ensureRevisaoTelefoneITI();
+                if (revisaoTelefoneIti) {
+                    revisaoTelefoneIti.setCountry(paisDetectado);
+                }
+                // Aplicar formatação visual ao telefone
+                if (telefoneInput) {
+                    formatTelefoneInputValue(telefoneInput, paisDetectado);
+                }
+            }, 100);
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            document.getElementById('erroRevisaoDadosMsg').textContent = 'Erro ao carregar dados do cliente.';
+            document.getElementById('erroRevisaoDados').style.display = 'block';
+            document.getElementById('loadingRevisaoDados').style.display = 'none';
+        });
+    }
+
+    // Evento para confirmar revisão e reativar cliente
+    document.getElementById('btnConfirmarRevisao').addEventListener('click', function() {
+        const nome = document.getElementById('revisaoNome').value.trim();
+        const servidorId = document.getElementById('revisaoServidor').value;
+        // Usa plano original se não foi alterado, ou o selecionado se foi desbloqueado
+        const planoId = getPlanoIdParaSubmit();
+
+        // Obter telefone com DDI completo via ITI no formato E.164 (+000000000000)
+        let telefone = document.getElementById('revisaoTelefone').value.trim();
+        if (revisaoTelefoneIti) {
+            const fullNumber = revisaoTelefoneIti.getNumber();
+            if (fullNumber) {
+                // Remove espaços, parênteses e hífens - mantém apenas +números
+                telefone = fullNumber.replace(/[\s\(\)\-]/g, '');
+            }
+        } else {
+            // Fallback: remove formatação manual se ITI não disponível
+            telefone = telefone.replace(/[\s\(\)\-]/g, '');
+        }
+
+        // Validar campos obrigatórios
+        if (!nome || !telefone || !servidorId || !planoId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Campos obrigatórios',
+                text: 'Preencha todos os campos antes de continuar.',
+                confirmButtonColor: '#624BFF'
+            });
+            return;
+        }
+
+        // Desabilitar botão e mostrar loading
+        const btn = this;
+        const btnTextoOriginal = '<i class="bi bi-check-circle me-1"></i>Confirmar e Reativar';
+        const loadingOverlay = document.getElementById('loadingRevisaoOverlay');
+
+        setButtonLoading(btn, true);
+        loadingOverlay.style.display = 'flex';
+
+        // Preparar dados
         const formData = new FormData();
         formData.append('forma_pagamento_id', formaPagamentoSelecionada);
+        formData.append('nome', nome);
+        formData.append('telefone', telefone);
+        formData.append('servidor_id', servidorId);
+        formData.append('plano_id', planoId);
 
-        // Enviar requisição
+        // Fazer requisição de reativação
         fetch(`/reativar-cliente/${clienteIdReativar}/`, {
             method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
             body: formData
         })
         .then(response => response.json())
         .then(data => {
-            // Fechar modal de seleção de forma de pagamento
-            if (modalReativarInstance) {
-                modalReativarInstance.hide();
+            // Fechar modal de revisão
+            if (modalRevisaoDadosInstance) {
+                modalRevisaoDadosInstance.hide();
             }
 
             if (data.success_message_activate) {
                 // Preencher dados no modal de sucesso
-                document.getElementById('nomeClienteReativado').textContent = data.cliente_nome || '';
+                document.getElementById('nomeClienteReativado').textContent = data.cliente_nome || nome;
 
                 // Construir HTML dos dados de pagamento
                 let htmlDadosPagamento = '';
@@ -940,8 +1628,8 @@
                     text: data.error,
                     confirmButtonColor: '#624BFF'
                 });
-                btn.disabled = false;
-                btn.innerHTML = btnTextoOriginal;
+                setButtonLoading(btn, false, btnTextoOriginal);
+                loadingOverlay.style.display = 'none';
             } else {
                 Swal.fire({
                     icon: 'error',
@@ -949,31 +1637,48 @@
                     text: 'Erro ao reativar o cliente.',
                     confirmButtonColor: '#624BFF'
                 });
-                btn.disabled = false;
-                btn.innerHTML = btnTextoOriginal;
+                setButtonLoading(btn, false, btnTextoOriginal);
+                loadingOverlay.style.display = 'none';
             }
         })
         .catch(error => {
             console.error('Erro:', error);
-            if (modalReativarInstance) {
-                modalReativarInstance.hide();
-            }
             Swal.fire({
                 icon: 'error',
                 title: 'Erro',
                 text: 'Falha na comunicação com o servidor.',
                 confirmButtonColor: '#624BFF'
             });
-            btn.disabled = false;
-            btn.innerHTML = btnTextoOriginal;
+            setButtonLoading(btn, false, btnTextoOriginal);
+            loadingOverlay.style.display = 'none';
         });
     });
 
-    // Limpar estado ao fechar modal
+    // Limpar estado ao fechar modal (apenas se o modal de revisão não estiver aberto)
     document.getElementById('modalReativarCliente').addEventListener('hidden.bs.modal', function () {
+        // Não limpar se o modal de revisão estiver aberto (fluxo normal de reativação)
+        const modalRevisao = document.getElementById('modalRevisaoDados');
+        if (modalRevisao && modalRevisao.classList.contains('show')) {
+            return;
+        }
         clienteIdReativar = null;
         formaPagamentoSelecionada = null;
         document.getElementById('btnConfirmarReativacao').disabled = true;
+    });
+
+    // Limpar estado ao fechar modal de revisão (cancelamento)
+    document.getElementById('modalRevisaoDados').addEventListener('hidden.bs.modal', function () {
+        // Limpar apenas se o modal de sucesso não estiver aberto
+        const modalSucesso = document.getElementById('modalDadosPagamento');
+        if (modalSucesso && modalSucesso.classList.contains('show')) {
+            return;
+        }
+        clienteIdReativar = null;
+        formaPagamentoSelecionada = null;
+        formaPagamentoAnterior = null;
+        dadosClienteRevisao = null;
+        document.getElementById('btnConfirmarReativacao').disabled = true;
+        document.getElementById('btnConfirmarRevisao').disabled = true;
     });
 
     /**
