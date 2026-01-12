@@ -297,6 +297,30 @@
                     </div>
                     {% endif %}
 
+                    <!-- Alerta: Sessão WhatsApp Desconectada -->
+                    {% if not sessao_wpp_ativa %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-warning d-flex align-items-start shadow-sm" role="alert" id="alert-sessao-wpp">
+                                <i class="bi bi-whatsapp fs-4 me-3 mt-1 text-warning"></i>
+                                <div class="flex-grow-1">
+                                    <h6 class="alert-heading mb-1 fw-bold">Sessão do WhatsApp Desconectada</h6>
+                                    <p class="mb-1">
+                                        Sua sessão do WhatsApp não está ativa. As notificações automáticas de cobrança não serão enviadas.
+                                    </p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Conecte sua conta para habilitar o envio automático de mensagens.
+                                    </small>
+                                </div>
+                                <button type="button" class="btn btn-outline-warning btn-sm ms-3 align-self-center" data-bs-toggle="modal" data-bs-target="#qrcode-modal">
+                                    <i class="bi bi-link-45deg me-1"></i>Conectar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- row  -->
                     <div class="row mt-2 g-4 align-items-stretch">
                         <div class="col-12">

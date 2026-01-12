@@ -80,10 +80,11 @@ function exibirModalDetalhes(botao) {
 
     $('#info-cliente-modal').modal('show');
 
-    // AJAX: carregar cards de contas do app, resumo e indicações
+    // AJAX: carregar cards de contas do app, resumo, indicações e histórico
     carregarContasApps(clienteId);
     carregarQuantidadeMensalidadesPagas(clienteId);
     carregarIndicacoes(clienteId);
+    carregarHistoricoAlteracoes(clienteId);
 }
 
 // Fecha modal de informações quando necessário
@@ -342,6 +343,120 @@ function carregarIndicacoes(clienteId) {
             console.log('Indicacoes: ', error);
         }
     });
+}
+
+// ========================================
+// HISTÓRICO DE ALTERAÇÕES DO CLIENTE
+// ========================================
+
+function carregarHistoricoAlteracoes(clienteId) {
+    const loading = document.getElementById('historico-alteracoes-loading');
+    const empty = document.getElementById('historico-alteracoes-empty');
+    const content = document.getElementById('historico-alteracoes-content');
+    const timeline = document.getElementById('timeline-alteracoes');
+
+    // Reset states
+    if (loading) loading.style.display = 'block';
+    if (empty) empty.style.display = 'none';
+    if (content) content.style.display = 'none';
+    if (timeline) timeline.innerHTML = '';
+
+    fetch(`/cliente/${clienteId}/logs/`)
+        .then(response => response.json())
+        .then(data => {
+            if (loading) loading.style.display = 'none';
+
+            if (!data.success || !data.logs || data.logs.length === 0) {
+                if (empty) empty.style.display = 'block';
+                return;
+            }
+
+            if (content) content.style.display = 'block';
+
+            data.logs.forEach(log => {
+                const item = document.createElement('div');
+                item.className = `timeline-item action-${log.acao_code}`;
+
+                let changesHtml = '';
+                if (log.alteracoes && log.alteracoes.length > 0) {
+                    changesHtml = `
+                        <div class="timeline-changes">
+                            ${log.alteracoes.map(alt => `
+                                <div class="timeline-change-item">
+                                    <span class="timeline-campo">${formatarNomeCampoLog(alt.campo)}:</span>
+                                    <span class="timeline-valor-antigo">${alt.valor_antigo}</span>
+                                    <i class="bi bi-arrow-right text-muted"></i>
+                                    <span class="timeline-valor-novo">${alt.valor_novo}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                item.innerHTML = `
+                    <div class="timeline-header">
+                        <span class="badge bg-${getActionBadgeColor(log.acao_code)}">${log.acao}</span>
+                        <span class="timeline-date">
+                            <i class="bi bi-clock me-1"></i>${log.criado_em}
+                        </span>
+                    </div>
+                    ${log.mensagem ? `<p class="mb-2 small text-muted">${log.mensagem}</p>` : ''}
+                    ${changesHtml}
+                `;
+
+                if (timeline) timeline.appendChild(item);
+            });
+        })
+        .catch(error => {
+            console.error('Erro ao carregar histórico:', error);
+            if (loading) loading.style.display = 'none';
+            if (empty) empty.style.display = 'block';
+        });
+}
+
+function formatarNomeCampoLog(campo) {
+    const mapeamento = {
+        // Cliente
+        'nome': 'Nome',
+        'telefone': 'Telefone',
+        'uf': 'UF',
+        'indicado_por': 'Indicado por',
+        'servidor': 'Servidor',
+        'forma_pgto': 'Forma de Pagamento',
+        'plano': 'Plano',
+        'data_vencimento': 'Data de Vencimento',
+        'nao_enviar_msgs': 'Não Enviar Msgs',
+        'notas': 'Notas',
+        // Mensalidade
+        'mensalidade.dt_vencimento': 'Vencimento Mensalidade',
+        'mensalidade.valor': 'Valor Mensalidade',
+        'valor': 'Valor',
+        'dt_pagamento': 'Data Pagamento',
+        'mensalidades_canceladas': 'Mensalidades Canceladas',
+        // Conta de Aplicativo
+        'dispositivo': 'Dispositivo',
+        'app': 'Aplicativo',
+        'device_id': 'Device ID',
+        'device_key': 'Device Key',
+        'email': 'E-mail',
+        'is_principal': 'Conta Principal',
+        // Reativação
+        'nova_mensalidade_criada': 'Nova Mensalidade Criada',
+        'mensalidade_reativada': 'Mensalidade Reativada',
+    };
+    return mapeamento[campo] || campo;
+}
+
+function getActionBadgeColor(action) {
+    const cores = {
+        'update': 'primary',
+        'create': 'success',
+        'delete': 'danger',
+        'cancel': 'danger',
+        'reactivate': 'warning',
+        'payment': 'info'
+    };
+    return cores[action] || 'secondary';
 }
 
 
@@ -874,4 +989,5 @@ window.exibirModalConfirmacaoExclusao = exibirModalConfirmacaoExclusao;
 window.carregarContasApps = carregarContasApps;
 window.carregarQuantidadeMensalidadesPagas = carregarQuantidadeMensalidadesPagas;
 window.carregarIndicacoes = carregarIndicacoes;
+window.carregarHistoricoAlteracoes = carregarHistoricoAlteracoes;
 window.copiarParaClipboard = copiarParaClipboard;

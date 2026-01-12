@@ -7,12 +7,21 @@
   Uso: {% include 'partials/modais_globais.html' %}
 {% endcomment %}
 
-<!-- Modal de Envios WhatsApp -->
-{% include 'partials/modal_envios_whatsapp.html' %}
+<!-- Modal de Conexão WhatsApp -->
+{% include 'partials/modal_whatsapp.html' %}
+
+<!-- Modal de DNS -->
+{% include 'partials/modal_dns.html' %}
+
+<!-- Modal de Logs do Usuário -->
+{% include 'partials/modal_userlogs.html' %}
+
+<!-- Modal de Logs Admin (Admin) -->
+{% if request.user.is_superuser %}
+{% include 'partials/modal_adminlogs.html' %}
+{% endif %}
 
 <!-- Modal de Migração de Clientes (Admin) -->
 {% if request.user.is_superuser %}
 {% include 'partials/modal_migrar_clientes.html' %}
 {% endif %}
-
-<!-- Adicione outros modais globais aqui conforme necessário -->
