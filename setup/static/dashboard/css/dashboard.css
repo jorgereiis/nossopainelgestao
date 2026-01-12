@@ -2030,7 +2030,7 @@ button.dropdown-item.dropdown-action-delete {
     width: 200px;
     height: 200px;
     overflow: hidden;
-    z-index: 10;
+    z-index: 0;
     pointer-events: none;
 }
 
@@ -2267,5 +2267,131 @@ button.dropdown-item.dropdown-action-delete {
 
     #edit-cliente-modal .card-body {
         overflow-x: hidden;
+    }
+}
+
+/* ========================================
+   TIMELINE - HISTÓRICO DE ALTERAÇÕES
+   ======================================== */
+
+.timeline {
+    position: relative;
+    padding-left: 24px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 20px;
+}
+
+.timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #6c757d;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #e9ecef;
+}
+
+.timeline-item.action-update::before { background: #0d6efd; }
+.timeline-item.action-create::before { background: #198754; }
+.timeline-item.action-delete::before { background: #dc3545; }
+.timeline-item.action-cancel::before { background: #dc3545; }
+.timeline-item.action-reactivate::before { background: #fd7e14; }
+.timeline-item.action-payment::before { background: #20c997; }
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.timeline-date {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.timeline-changes {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+}
+
+.timeline-change-item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid #e9ecef;
+    align-items: center;
+}
+
+.timeline-change-item:last-child {
+    border-bottom: none;
+}
+
+.timeline-campo {
+    font-weight: 600;
+    min-width: 100px;
+    color: #495057;
+}
+
+.timeline-valor-antigo {
+    color: #dc3545;
+    text-decoration: line-through;
+    word-break: break-word;
+}
+
+.timeline-valor-novo {
+    color: #198754;
+    word-break: break-word;
+}
+
+/* Mobile responsivo */
+@media (max-width: 576px) {
+    .timeline {
+        padding-left: 20px;
+    }
+
+    .timeline-item::before {
+        left: -16px;
+        width: 10px;
+        height: 10px;
+    }
+
+    .timeline-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .timeline-change-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .timeline-campo {
+        min-width: auto;
     }
 }
