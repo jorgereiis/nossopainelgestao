@@ -12143,7 +12143,14 @@ def api_cliente_dados_reativacao(request, cliente_id):
                     'nome': p.nome,
                     'valor': float(p.valor),
                     'telas': p.telas,
-                    'campanha_ativa': p.campanha_ativa
+                    'campanha_ativa': p.campanha_ativa,
+                    'campanha_tipo': p.campanha_tipo or '',
+                    'campanha_duracao_meses': p.campanha_duracao_meses or 0,
+                    'campanha_valor_fixo': float(p.campanha_valor_fixo) if p.campanha_valor_fixo else 0,
+                    'valores_personalizados': [
+                        float(getattr(p, f'campanha_valor_mes_{i}', 0) or 0)
+                        for i in range(1, 13)
+                    ] if p.campanha_tipo == 'PERSONALIZADO' else []
                 }
                 for p in planos
             ]

@@ -740,7 +740,11 @@ function initEditPlanoControl() {
         telas: opt.dataset.telas,
         campanha: opt.dataset.campanha === 'true',
         nome: opt.dataset.nome,
-        valor: opt.dataset.valor
+        valor: opt.dataset.valor,
+        campanhaTipo: opt.dataset.campanhaTipo || '',
+        campanhaDuracao: opt.dataset.campanhaDuracao || '0',
+        campanhaValorFixo: opt.dataset.campanhaValorFixo || '0',
+        valoresPersonalizados: opt.dataset.valoresPersonalizados || ''
     }));
 
     // Event listeners
@@ -767,12 +771,100 @@ function initEditPlanoControl() {
         });
     });
 
-    // Alerta ao selecionar plano promocional
+    // Alerta ao selecionar plano promocional com detalhes
     document.getElementById('edit-cliente-plano')?.addEventListener('change', function() {
         const selected = this.options[this.selectedIndex];
         const isPromocional = selected?.dataset.campanha === 'true';
-        document.getElementById('alertaPlanoPromocionalEdit').style.display =
-            isPromocional ? 'block' : 'none';
+        const alertaEl = document.getElementById('alertaPlanoPromocionalEdit');
+        const detalhesEl = document.getElementById('detalhesPlanoPromocionalEdit');
+
+        if (isPromocional && selected && detalhesEl) {
+            const tipo = selected.dataset.campanhaTipo;
+            const duracao = parseInt(selected.dataset.campanhaDuracao) || 0;
+            const valorFixo = parseFloat(selected.dataset.campanhaValorFixo) || 0;
+            const valorNormal = parseFloat(selected.dataset.valor) || 0;
+            const valoresStr = selected.dataset.valoresPersonalizados || '';
+
+            let html = '';
+
+            if (tipo === 'FIXO') {
+                const economia = valorNormal - valorFixo;
+                const economiaTotal = economia * duracao;
+                html = `
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <span class="badge bg-primary me-1">Desconto Fixo</span>
+                            <span class="badge bg-secondary">${duracao} ${duracao === 1 ? 'mês' : 'meses'}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">Valor promocional:</small>
+                            <strong class="text-success fs-6">R$ ${valorFixo.toFixed(2)}</strong>
+                            <small class="text-muted">/mês</small>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">Valor normal após promoção:</small>
+                            <strong>R$ ${valorNormal.toFixed(2)}</strong>
+                            <small class="text-muted">/mês</small>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <div class="bg-light rounded p-2">
+                                <i class="bi bi-piggy-bank text-success me-1"></i>
+                                <small>Economia de <strong class="text-success">R$ ${economia.toFixed(2)}</strong>/mês
+                                (Total: <strong class="text-success">R$ ${economiaTotal.toFixed(2)}</strong> em ${duracao} ${duracao === 1 ? 'mês' : 'meses'})</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tipo === 'PERSONALIZADO' && valoresStr) {
+                const valores = valoresStr.split(',').map(v => parseFloat(v) || 0).filter((v, i) => i < duracao && v > 0);
+                let economiaTotal = 0;
+
+                let tabelaHtml = '<div class="table-responsive mt-2"><table class="table table-sm table-bordered mb-0" style="font-size: 0.85rem;">';
+                tabelaHtml += '<thead class="table-light"><tr><th class="text-center">Mês</th><th class="text-center">Valor</th><th class="text-center">Economia</th></tr></thead><tbody>';
+
+                valores.forEach((val, idx) => {
+                    const economia = valorNormal - val;
+                    economiaTotal += economia;
+                    tabelaHtml += `<tr>
+                        <td class="text-center">${idx + 1}º</td>
+                        <td class="text-center text-success fw-bold">R$ ${val.toFixed(2)}</td>
+                        <td class="text-center"><small class="text-muted">-R$ ${economia.toFixed(2)}</small></td>
+                    </tr>`;
+                });
+
+                tabelaHtml += `<tr class="table-light">
+                    <td class="text-center fw-bold" colspan="2">Após ${duracao} ${duracao === 1 ? 'mês' : 'meses'}:</td>
+                    <td class="text-center fw-bold">R$ ${valorNormal.toFixed(2)}/mês</td>
+                </tr>`;
+                tabelaHtml += '</tbody></table></div>';
+
+                html = `
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <span class="badge bg-purple me-1" style="background-color: #6f42c1;">Desconto Progressivo</span>
+                            <span class="badge bg-secondary">${duracao} ${duracao === 1 ? 'mês' : 'meses'}</span>
+                        </div>
+                        <div class="col-12">
+                            <small class="text-muted">Valores promocionais por mês:</small>
+                            ${tabelaHtml}
+                        </div>
+                        <div class="col-12 mt-2">
+                            <div class="bg-light rounded p-2">
+                                <i class="bi bi-piggy-bank text-success me-1"></i>
+                                <small>Economia total: <strong class="text-success">R$ ${economiaTotal.toFixed(2)}</strong> durante a promoção</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html = `<small class="text-muted"><i class="bi bi-info-circle me-1"></i>Este plano possui uma campanha promocional ativa.</small>`;
+            }
+
+            detalhesEl.innerHTML = html;
+            alertaEl.style.display = 'block';
+        } else if (alertaEl) {
+            alertaEl.style.display = 'none';
+        }
     });
 }
 
@@ -802,12 +894,24 @@ function filtrarPlanosEdit(filtro) {
         option.dataset.campanha = opt.campanha;
         option.dataset.nome = opt.nome;
         option.dataset.valor = opt.valor;
+        option.dataset.campanhaTipo = opt.campanhaTipo;
+        option.dataset.campanhaDuracao = opt.campanhaDuracao;
+        option.dataset.campanhaValorFixo = opt.campanhaValorFixo;
+        option.dataset.valoresPersonalizados = opt.valoresPersonalizados;
         select.appendChild(option);
     });
 
-    // Tenta manter o valor selecionado
-    if (valorAtual) {
+    // Verifica se o valor anterior existe nas opções filtradas
+    const valorAnteriorExiste = optionsFiltradas.some(opt => opt.value === valorAtual);
+
+    if (valorAnteriorExiste) {
         select.value = valorAtual;
+    } else {
+        // Limpa o alerta de plano promocional quando muda de tipo de filtro
+        const alertaPromo = document.getElementById('alertaPlanoPromocionalEdit');
+        if (alertaPromo) {
+            alertaPromo.style.display = 'none';
+        }
     }
 }
 
