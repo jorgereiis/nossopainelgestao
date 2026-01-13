@@ -29,8 +29,8 @@
                         <div class="flex-shrink-0 position-relative">
                             <img src="{{ cliente.servidor|servidor_imagem_url:user }}"
                                 class="rounded-circle border border-2"
-                                alt="{{ cliente.servidor.nome }}"
-                                title="{{ cliente.servidor.nome }}"
+                                alt="{{ cliente.servidor.nome|default:'Sem servidor' }}"
+                                title="{{ cliente.servidor.nome|default:'Sem servidor' }}"
                                 style="width: 42px; height: 42px; object-fit: cover;"
                                 onerror="this.src='{% static 'assets/images/logo-apps/default.png' %}'">
                         </div>
@@ -40,7 +40,7 @@
                                 {{cliente.nome}}
                             </h6>
                             <small class="text-muted d-block" style="font-size: 0.75rem;">
-                                <i class="bi bi-hdd-network me-1"></i>{{ cliente.servidor.nome }}
+                                <i class="bi bi-hdd-network me-1"></i>{{ cliente.servidor.nome|default:'N/A' }}
                             </small>
                         </div>
                     </div>
