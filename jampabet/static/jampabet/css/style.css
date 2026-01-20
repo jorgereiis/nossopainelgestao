@@ -4471,6 +4471,70 @@ body {
     font-size: 1rem;
 }
 
+.empty-state.season-not-started {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border-radius: 16px;
+    padding: 40px 20px;
+    margin: 10px;
+}
+
+.empty-state.season-not-started i {
+    color: var(--primary-color);
+    opacity: 0.8;
+    font-size: 3rem;
+}
+
+.empty-state.season-not-started h3 {
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+}
+
+.empty-state.season-not-started p {
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.empty-state.season-not-started p strong {
+    color: var(--primary-color);
+}
+
+.empty-state.season-not-started .hint {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    margin-top: 10px;
+}
+
+.empty-state.competition-no-data {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(239, 68, 68, 0.1) 100%);
+    border-radius: 16px;
+    padding: 40px 20px;
+    margin: 10px;
+}
+
+.empty-state.competition-no-data i {
+    color: #f59e0b;
+    opacity: 0.8;
+    font-size: 3rem;
+}
+
+.empty-state.competition-no-data h3 {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+}
+
+.empty-state.competition-no-data p {
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.empty-state.competition-no-data .hint {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    margin-top: 10px;
+}
+
 /* ==================== FOOTER ==================== */
 .footer {
     background: var(--bg-card);

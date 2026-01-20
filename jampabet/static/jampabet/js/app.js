@@ -715,6 +715,23 @@ function initTabs() {
             btn.classList.add('active');
             document.querySelectorAll(`[data-tab="${tab}"]`).forEach(b => b.classList.add('active'));
             document.getElementById(tab)?.classList.add('active');
+
+            // Se clicou na aba Tabela (classificacao), sincroniza com a competicao da partida em destaque
+            if (tab === 'classificacao' && heroMatchData && heroMatchData.competition_id) {
+                const standingsSelect = document.getElementById('standings-select');
+                if (standingsSelect) {
+                    const competitionId = heroMatchData.competition_id.toString();
+                    // Verifica se a competicao existe no select
+                    const optionExists = Array.from(standingsSelect.options).some(opt => opt.value === competitionId);
+                    if (optionExists && standingsSelect.value !== competitionId) {
+                        standingsSelect.value = competitionId;
+                        // Dispara o evento de change para carregar a nova competicao
+                        roundsCache = {};
+                        roundsData = [];
+                        loadStandings(parseInt(competitionId));
+                    }
+                }
+            }
         });
     });
 }
@@ -1234,6 +1251,30 @@ async function loadStandings(leagueId) {
         const response = await fetch(`/app/bahia/api/standings/${leagueId}/?season=${currentSeason}`);
         const data = await response.json();
 
+        // Verifica se a temporada ainda nao comecou
+        if (data.season_not_started) {
+            const startDate = data.season_starts_at ? new Date(data.season_starts_at) : null;
+            const formattedDate = startDate ? startDate.toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }) : '';
+
+            container.innerHTML = `
+                <div class="empty-state season-not-started">
+                    <i class="fas fa-calendar-alt"></i>
+                    <h3>Temporada ${currentSeason} ainda nao iniciada</h3>
+                    ${startDate ? `<p>Primeira rodada em <strong>${formattedDate}</strong></p>` : ''}
+                    <p class="hint">A classificacao estara disponivel apos o inicio da competicao.</p>
+                </div>
+            `;
+            // Ainda carrega as rodadas/jogos agendados
+            await loadRounds(leagueId);
+            return;
+        }
+
         if (data.standings && data.standings.length > 0) {
             renderStandings(data);
             // Carregar rodadas e jogos
@@ -1330,10 +1371,32 @@ function getZoneClass(position) {
 
 // ==================== ROUND FIXTURES ====================
 async function loadRounds(leagueId) {
+    const fixturesList = document.getElementById('round-fixtures-list');
+    const roundSelector = document.getElementById('round-selector');
+
     try {
         // Inclui a temporada na requisição
         const response = await fetch(`/app/bahia/api/rounds/${leagueId}/?season=${currentSeason}`);
         const data = await response.json();
+
+        // Verifica se nao ha dados para a temporada
+        if (data.no_data_for_season) {
+            const compName = data.competition_name || 'Esta competicao';
+            if (fixturesList) {
+                fixturesList.innerHTML = `
+                    <div class="empty-state competition-no-data">
+                        <i class="fas fa-calendar-times"></i>
+                        <h3>${compName}</h3>
+                        <p>Nenhuma partida disponivel para ${currentSeason}</p>
+                        <p class="hint">Os dados desta competicao ainda nao foram publicados para esta temporada.</p>
+                    </div>
+                `;
+            }
+            if (roundSelector) {
+                roundSelector.innerHTML = '';
+            }
+            return;
+        }
 
         if (data.rounds && data.rounds.length > 0) {
             // Nova estrutura: data.rounds é um array de objetos com {raw, label, number, phase}
@@ -1341,13 +1404,13 @@ async function loadRounds(leagueId) {
             competitionType = data.competition_type || 'league';
             totalRounds = roundsData.length;
 
-            // Encontra a última rodada da fase regular/1st phase para começar
-            let startIndex = roundsData.length - 1;
-            for (let i = roundsData.length - 1; i >= 0; i--) {
-                if (roundsData[i].phase !== 'knockout') {
-                    startIndex = i;
-                    break;
-                }
+            // Usa o índice da rodada atual (próxima a acontecer) retornado pela API
+            // Se não fornecido, usa a primeira rodada como fallback
+            let startIndex = data.current_round_index ?? 0;
+
+            // Garante que o índice está dentro dos limites
+            if (startIndex < 0 || startIndex >= roundsData.length) {
+                startIndex = 0;
             }
 
             currentRoundIndex = startIndex;
@@ -1359,9 +1422,25 @@ async function loadRounds(leagueId) {
             // Carrega os jogos da rodada atual
             await loadFixturesByIndex(currentRoundIndex);
             updateNavButtons();
+        } else {
+            // Nenhuma rodada encontrada
+            if (fixturesList) {
+                fixturesList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-futbol"></i>
+                        <p>Nenhuma partida encontrada para ${currentSeason}</p>
+                    </div>
+                `;
+            }
+            if (roundSelector) {
+                roundSelector.innerHTML = '';
+            }
         }
     } catch (error) {
         console.error('Erro ao carregar rodadas:', error);
+        if (fixturesList) {
+            fixturesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar partidas</p></div>';
+        }
     }
 }
 
@@ -1752,8 +1831,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     initRoundNavigation();
     initSeasonSelect();  // Inicializa select de temporada
 
-    // Carrega proxima partida do Bahia (card principal)
-    loadNextBahiaMatch();
+    // Carrega proxima partida do Bahia (card principal) - aguarda para ter o competition_id
+    await loadNextBahiaMatch();
 
     // Carrega historico de palpites
     loadBetsHistory();
@@ -1772,8 +1851,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             roundsData = []; // Limpa dados de rodadas
             loadStandings(parseInt(e.target.value));
         });
+
+        // Define a competicao inicial baseada na partida em destaque
+        let initialLeagueId = parseInt(standingsSelect.value);
+        if (heroMatchData && heroMatchData.competition_id) {
+            const competitionId = heroMatchData.competition_id.toString();
+            const optionExists = Array.from(standingsSelect.options).some(opt => opt.value === competitionId);
+            if (optionExists) {
+                standingsSelect.value = competitionId;
+                initialLeagueId = heroMatchData.competition_id;
+            }
+        }
+
         // Carrega standings inicial
-        loadStandings(parseInt(standingsSelect.value));
+        loadStandings(initialLeagueId);
     }
 
     // Botões de apostar

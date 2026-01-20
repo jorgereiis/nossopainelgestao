@@ -16,6 +16,7 @@ from django.contrib.auth.hashers import make_password
 from .models import JampabetUser, Match, Bet, AuditLog, BrazilianTeam, Competition
 from .auth import JampabetAuth, jampabet_login_required
 from .services.bet_service import BetService
+from painel_cliente.utils import validar_recaptcha, get_recaptcha_site_key
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,10 @@ def login_view(request):
     if JampabetAuth.is_authenticated(request):
         return redirect('jampabet:app')
 
-    return render(request, 'jampabet/login.html')
+    context = {
+        'recaptcha_site_key': get_recaptcha_site_key(),
+    }
+    return render(request, 'jampabet/login.html', context)
 
 
 @require_POST
@@ -43,6 +47,12 @@ def api_login_step1(request):
         data = json.loads(request.body)
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
+        recaptcha_response = data.get('recaptcha', '')
+
+        # Valida reCAPTCHA
+        recaptcha_valido, recaptcha_erro = validar_recaptcha(recaptcha_response)
+        if not recaptcha_valido:
+            return JsonResponse({'error': recaptcha_erro}, status=400)
 
         if not email or not password:
             return JsonResponse({'error': 'Preencha todos os campos'}, status=400)
@@ -438,6 +448,18 @@ def api_next_bahia_match(request):
     if not match:
         return JsonResponse({'match': None})
 
+    # Busca o ID da competição para sincronizar com a aba Tabela
+    competition_id = None
+    try:
+        comp = Competition.objects.filter(name__iexact=match.competition).first()
+        if not comp:
+            # Tenta buscar por nome parcial
+            comp = Competition.objects.filter(name__icontains=match.competition.split()[0]).first()
+        if comp:
+            competition_id = comp.external_id
+    except Exception:
+        pass
+
     # Verifica se pode palpitar
     can_bet, reason = BetService.can_place_bet(match)
 
@@ -497,6 +519,7 @@ def api_next_bahia_match(request):
             'away_team_logo': match.away_team_logo,
             'date': match.date.isoformat(),
             'competition': match.competition,
+            'competition_id': competition_id,
             'competition_logo': match.competition_logo,
             'venue': match.venue,
             'location': match.location,
@@ -789,6 +812,7 @@ def api_standings(request, league_id):
     """
     from django.core.cache import cache
     from .services.api_football import APIFootballService
+    from .models import Fixture
     from datetime import datetime
 
     season = request.GET.get('season')
@@ -823,6 +847,37 @@ def api_standings(request, league_id):
                 data['competition_type'] = comp.competition_type
         except Exception:
             pass
+
+        # Verifica se a temporada ja iniciou (tem partidas finalizadas)
+        try:
+            fixtures_finished = Fixture.objects.filter(
+                competition__external_id=league_id,
+                season=season,
+                status='finished'
+            ).count()
+
+            fixtures_total = Fixture.objects.filter(
+                competition__external_id=league_id,
+                season=season
+            ).count()
+
+            # Se nao tem partidas finalizadas, a temporada ainda nao comecou
+            if fixtures_total > 0 and fixtures_finished == 0:
+                # Busca data da primeira partida
+                first_fixture = Fixture.objects.filter(
+                    competition__external_id=league_id,
+                    season=season
+                ).order_by('date').first()
+
+                data['season_not_started'] = True
+                data['season_starts_at'] = first_fixture.date.isoformat() if first_fixture else None
+                data['season_message'] = f'Temporada {season} ainda nao iniciada'
+
+                # Limpa standings para nao mostrar dados da temporada anterior
+                data['standings'] = []
+
+        except Exception as e:
+            logger.warning(f"Erro ao verificar status da temporada: {e}")
 
         # Armazena no cache por 1 hora (3600 segundos)
         cache.set(cache_key, data, timeout=3600)
@@ -903,6 +958,7 @@ def api_league_rounds(request, league_id):
     """
     from .services.api_football import APIFootballService
     from .models import Fixture
+    from datetime import datetime
 
     season = request.GET.get('season')
     force_api = request.GET.get('force_api') == '1'
@@ -911,6 +967,8 @@ def api_league_rounds(request, league_id):
         # Converte season para int se fornecido
         if season:
             season = int(season)
+        else:
+            season = datetime.now().year
 
         # Tenta buscar do banco primeiro (cache)
         if not force_api:
@@ -923,6 +981,18 @@ def api_league_rounds(request, league_id):
         logger.debug(f"[Rounds] Cache miss, buscando da API (league={league_id})")
         data = APIFootballService.get_league_rounds(league_id, season)
         data['from_cache'] = False
+
+        # Se nao tem rounds, verifica se a competicao existe e informa ao usuario
+        if not data.get('rounds'):
+            # Busca info da competicao
+            comp = Competition.objects.filter(external_id=league_id).first()
+            comp_name = comp.name if comp else f'Competicao {league_id}'
+
+            data['no_data_for_season'] = True
+            data['season'] = season
+            data['competition_name'] = comp_name
+            data['message'] = f'Nenhuma partida disponivel para {comp_name} em {season}'
+
         return JsonResponse(data)
 
     except ValueError as e:
@@ -1111,26 +1181,39 @@ def api_admin_sync_competitions(request):
 @csrf_exempt
 @require_http_methods(['POST'])
 def api_admin_sync_fixtures(request):
-    """API: Sincroniza partidas das competicoes monitoradas"""
+    """
+    API: Sincroniza partidas das competicoes monitoradas.
+
+    Sincroniza DOIS modelos:
+    1. Fixture - Cache de todas as partidas (para exibicao de jogos/classificacoes)
+    2. Match - Partidas do Bahia (para o card principal e palpites)
+    """
     if not _is_admin(request):
         return JsonResponse({'error': 'Acesso negado'}, status=403)
 
     from .services.api_football import APIFootballService
-    from .models import Competition, Fixture, BrazilianTeam
+    from .models import Competition, Fixture, BrazilianTeam, Match
 
     try:
         data = json.loads(request.body) if request.body else {}
         league_id = data.get('league_id')
         season = data.get('season')
 
-        count = APIFootballService.sync_fixtures(
+        # 1. Sincroniza Fixture (cache geral de partidas)
+        fixtures_count = APIFootballService.sync_fixtures(
             Fixture, Competition, BrazilianTeam,
             league_id=league_id, season=season
         )
+
+        # 2. Sincroniza Match (partidas do Bahia para palpites)
+        matches_count = APIFootballService.sync_matches(Match)
+
         return JsonResponse({
             'success': True,
-            'message': f'{count} partidas sincronizadas',
-            'count': count
+            'message': f'{fixtures_count} partidas sincronizadas + {matches_count} partidas do Bahia',
+            'fixtures_count': fixtures_count,
+            'matches_count': matches_count,
+            'count': fixtures_count + matches_count
         })
     except Exception as e:
         logger.error(f"Erro ao sincronizar partidas: {e}")
