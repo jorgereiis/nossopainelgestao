@@ -207,6 +207,9 @@ def update_live_matches_from_api():
                 changes.append(f"gols_bahia: {match.result_bahia} -> {result_bahia}")
                 changes.append(f"gols_adv: {match.result_opponent} -> {result_opponent}")
 
+                # Limpa o periodo ao finalizar
+                match.live_period = None
+
                 # Processa resultado e pontuacoes via BetService
                 process_match_result(match, result_bahia, result_opponent)
 
@@ -230,6 +233,12 @@ def update_live_matches_from_api():
                 if elapsed and match.elapsed_time != elapsed:
                     changes.append(f"tempo: {match.elapsed_time} -> {elapsed}")
                     match.elapsed_time = elapsed
+                    changed = True
+
+                # Atualiza periodo do jogo (1H, HT, 2H, ET, P)
+                if api_status and match.live_period != api_status:
+                    changes.append(f"periodo: {match.live_period} -> {api_status}")
+                    match.live_period = api_status
                     changed = True
 
                 if match.status != new_status:

@@ -57,6 +57,57 @@ function formatTime(dateStr) {
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Formata o status de uma partida ao vivo com base no periodo e tempo decorrido.
+ * @param {string} period - Codigo do periodo (1H, HT, 2H, ET, P, etc.)
+ * @param {number} elapsed - Tempo decorrido em minutos
+ * @returns {string} Status formatado para exibicao
+ */
+function formatLiveStatus(period, elapsed) {
+    if (!period && !elapsed) return 'Em andamento';
+
+    const periodLabels = {
+        '1H': '1º Tempo',
+        'HT': 'Intervalo',
+        '2H': '2º Tempo',
+        'ET': 'Prorrogação',
+        'BT': 'Intervalo Prorrogação',
+        'P': 'Pênaltis',
+        'SUSP': 'Suspenso',
+        'INT': 'Interrompido',
+        'LIVE': 'Ao Vivo'
+    };
+
+    // Se tem periodo especifico
+    if (period) {
+        const label = periodLabels[period] || period;
+
+        // Intervalo nao precisa de tempo
+        if (period === 'HT' || period === 'BT') {
+            return label;
+        }
+
+        // Penaltis nao precisa de tempo
+        if (period === 'P') {
+            return label;
+        }
+
+        // Outros periodos mostram tempo
+        if (elapsed) {
+            return `${label} ${elapsed}'`;
+        }
+
+        return label;
+    }
+
+    // Fallback: so tem tempo
+    if (elapsed) {
+        return `${elapsed}'`;
+    }
+
+    return 'Em andamento';
+}
+
 function showToast(message, type = 'success') {
     const existing = document.querySelector('.toast');
     if (existing) existing.remove();
@@ -174,7 +225,7 @@ function updateHeroCard(match) {
         } else {
             document.getElementById('hero-match-score').textContent = `${awayGoals} x ${homeGoals}`;
         }
-        document.getElementById('hero-status-text').textContent = match.elapsed_time ? `${match.elapsed_time}'` : 'Em andamento';
+        document.getElementById('hero-status-text').textContent = formatLiveStatus(match.live_period, match.elapsed_time);
 
         // Esconde countdown e botao
         countdownEl.classList.add('hidden');

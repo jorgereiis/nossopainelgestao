@@ -528,6 +528,7 @@ def api_next_bahia_match(request):
             'result_bahia': match.result_bahia,
             'result_opponent': match.result_opponent,
             'elapsed_time': match.elapsed_time,
+            'live_period': match.live_period,
             'can_bet': can_bet,
             'bet_reason': reason,
             'time_until_lock': time_until_lock,
