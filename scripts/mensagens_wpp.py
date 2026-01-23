@@ -1785,6 +1785,33 @@ def verificar_conflito_notificacoes(usuario_id: int) -> tuple:
     return False, ""
 
 
+def limpar_flags_tarefas_pausadas():
+    """
+    Limpa a flag pausado_por_notificacao de tarefas que não têm mais conflito.
+
+    Esta função deve ser chamada SEMPRE no início do scheduler, independente
+    de haver tarefas para executar na hora atual. Isso resolve o bug onde
+    tarefas pausadas em uma hora nunca eram retomadas porque o filtro
+    horario__hour=hora_atual não as incluía após a mudança de hora.
+    """
+    tarefas_pausadas = TarefaEnvio.objects.filter(
+        pausado_por_notificacao=True,
+        ativo=True
+    )
+
+    for tarefa in tarefas_pausadas:
+        tem_conflito, motivo = verificar_conflito_notificacoes(tarefa.usuario_id)
+
+        if not tem_conflito:
+            tarefa.pausado_por_notificacao = False
+            tarefa.pausado_motivo = ""
+            tarefa.save(update_fields=['pausado_por_notificacao', 'pausado_motivo'])
+            logger.info(
+                "[TAREFAS] Flag de pausa limpa | tarefa_id=%d nome=%s usuario_id=%d",
+                tarefa.id, tarefa.nome, tarefa.usuario_id
+            )
+
+
 ###########################################################
 ##### FUNÇÃO PARA EXECUTAR TAREFAS DE ENVIO DO BANCO  #####
 ###########################################################
@@ -1802,6 +1829,12 @@ def run_scheduled_tasks_from_db():
     - Se deve executar hoje (dia da semana + período do mês)
     """
     try:
+        # ============================================================
+        # PRIMEIRO: Limpar flags de tarefas pausadas que não têm mais conflito
+        # Isso deve acontecer ANTES de qualquer outra verificação
+        # ============================================================
+        limpar_flags_tarefas_pausadas()
+
         agora = localtime()
         hoje = agora.date()
         hora_atual = agora.hour
@@ -2271,6 +2304,26 @@ def executar_envios_agendados():
     agora = timezone.localtime()
     hora_atual = agora.strftime('%H:%M')
     hoje = agora.date()
+
+    # ============================================================
+    # VERIFICAÇÃO DE TIMEOUT: Detecta notificações travadas (>2h)
+    # ============================================================
+    horarios_travados = HorarioEnvios.objects.filter(
+        em_execucao=True,
+        execucao_iniciada_em__isnull=False
+    )
+    for h_travado in horarios_travados:
+        tempo_execucao = agora - h_travado.execucao_iniciada_em
+        if tempo_execucao.total_seconds() > 7200:  # 2 horas
+            logger.warning(
+                "[NOTIFICACOES] HorarioEnvios travado detectado (>2h) - resetando | "
+                "id=%d tipo=%s usuario_id=%d tempo=%s",
+                h_travado.id, h_travado.tipo_envio, h_travado.usuario_id,
+                str(tempo_execucao)
+            )
+            h_travado.em_execucao = False
+            h_travado.execucao_iniciada_em = None
+            h_travado.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
 
     # Busca horários elegíveis (sem lock ainda)
     horarios_candidatos = HorarioEnvios.objects.filter(
