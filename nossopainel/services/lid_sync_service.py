@@ -27,6 +27,7 @@ from collections import deque
 from typing import Optional
 
 from django.db import OperationalError, transaction
+from django.db.models.signals import post_save
 
 from nossopainel.services.logging_config import get_logger
 
@@ -279,12 +280,15 @@ class LidSyncService:
         Atualiza o campo whatsapp_lid do cliente.
 
         Implementa retry com timeout para lidar com database lock.
+        OTIMIZAÇÃO: Desconecta o signal cliente_post_save durante o save
+        para evitar sincronização de labels desnecessária.
 
         Args:
             phone: Número de telefone do cliente
             lid: LID a ser salvo
         """
         from nossopainel.models import Cliente
+        from nossopainel.signals import cliente_post_save
 
         # Normalizar telefone para busca (remover + e @c.us se houver)
         phone_normalized = phone.replace('+', '').replace('@c.us', '').strip()
@@ -326,7 +330,15 @@ class LidSyncService:
                     # Atualizar o LID
                     old_lid = cliente.whatsapp_lid
                     cliente.whatsapp_lid = lid
-                    cliente.save(update_fields=['whatsapp_lid'])
+
+                    # OTIMIZAÇÃO: Desconectar signal para evitar sincronização de labels
+                    # A atualização de whatsapp_lid não deve disparar labels sync
+                    post_save.disconnect(cliente_post_save, sender=Cliente)
+                    try:
+                        cliente.save(update_fields=['whatsapp_lid'])
+                    finally:
+                        # Sempre reconectar o signal, mesmo em caso de erro
+                        post_save.connect(cliente_post_save, sender=Cliente)
 
                     logger.info(
                         f"[LidSyncService] LID atualizado com sucesso | "

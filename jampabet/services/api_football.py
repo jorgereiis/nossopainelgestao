@@ -42,9 +42,11 @@ class APIFootballService:
     @classmethod
     def _get_headers(cls):
         """Retorna headers com a chave da API"""
-        api_key = getattr(settings, 'API_FOOTBALL_KEY', os.getenv('API_FOOTBALL_KEY', ''))
+        api_key = getattr(settings, 'API_FOOTBALL_KEY', None)
+        if not api_key:
+            api_key = os.getenv('API_FOOTBALL_KEY', '')
         return {
-            'x-apisports-key': api_key
+            'x-apisports-key': api_key or ''
         }
 
     @classmethod
@@ -335,11 +337,14 @@ class APIFootballService:
         elif all(r.get("phase") == "knockout" for r in rounds_info):
             competition_type = "cup"  # copa só mata-mata
 
+        # Nota: current_round_index é calculado apenas quando dados vêm do banco (cache)
+        # Quando vem da API externa, usamos 0 como default (primeira rodada)
         return {
             "rounds": rounds_info,
             "competition_type": competition_type,
             "has_knockout": any(r.get("phase") == "knockout" for r in rounds_info),
-            "phases": list(phases)
+            "phases": list(phases),
+            "current_round_index": 0
         }
 
     @classmethod
@@ -1193,10 +1198,35 @@ class APIFootballService:
         elif has_knockout and len(rounds_info) < 10:
             competition_type = "cup"  # provavelmente copa se poucos rounds e tem knockout
 
+        # Determina a rodada atual (próxima a acontecer)
+        # Busca a primeira rodada que tem pelo menos uma partida com status 'scheduled'
+        # e data >= agora
+        from django.utils import timezone
+        now = timezone.now()
+        current_round_index = 0
+
+        for i, round_info in enumerate(rounds_info):
+            round_raw = round_info.get("raw")
+            # Verifica se há partidas futuras nesta rodada
+            upcoming_count = Fixture.objects.filter(
+                competition__external_id=league_id,
+                season=season,
+                round=round_raw,
+                date__gte=now
+            ).exclude(status='finished').count()
+
+            if upcoming_count > 0:
+                current_round_index = i
+                break
+        else:
+            # Se todas as rodadas já passaram, mostra a última
+            current_round_index = len(rounds_info) - 1 if rounds_info else 0
+
         return {
             "rounds": rounds_info,
             "competition_type": competition_type,
             "has_knockout": has_knockout,
             "phases": list(phases),
+            "current_round_index": current_round_index,
             "from_cache": True
         }

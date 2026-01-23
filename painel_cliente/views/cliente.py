@@ -177,7 +177,7 @@ class LoginView(View):
         response.set_cookie(
             PainelClienteSessionMiddleware.COOKIE_NAME,
             sessao.token,
-            max_age=7 * 24 * 60 * 60,  # 7 dias
+            max_age=24 * 60 * 60,  # 24 horas
             httponly=True,
             secure=False if is_development else is_secure,
             samesite='Lax',  # Lax permite cookies em redirecionamentos
@@ -434,12 +434,16 @@ class DashboardView(View):
         cliente = request.cliente_sessao.cliente
         today = date.today()
 
-        # Mensalidades em aberto (nao pagas, nao canceladas)
-        mensalidades_abertas = Mensalidade.objects.filter(
-            cliente=cliente,
-            pgto=False,
-            cancelado=False
-        ).order_by('dt_vencimento')[:5]
+        # Se cliente cancelado, não exibe mensalidades abertas
+        if cliente.cancelado:
+            mensalidades_abertas = []
+        else:
+            # Mensalidades em aberto (nao pagas, nao canceladas)
+            mensalidades_abertas = Mensalidade.objects.filter(
+                cliente=cliente,
+                pgto=False,
+                cancelado=False
+            ).order_by('dt_vencimento')[:5]
 
         # Historico recente (ultimas 12 mensalidades)
         historico_recente = Mensalidade.objects.filter(
@@ -476,6 +480,11 @@ class PagamentoView(View):
 
         cliente = request.cliente_sessao.cliente
         config = request.painel_config
+
+        # Bloqueia acesso se cliente cancelado
+        if cliente.cancelado:
+            messages.error(request, 'Seu plano está cancelado. Entre em contato com o suporte.')
+            return redirect('painel_cliente:dashboard')
 
         # Busca mensalidade validando ownership (sem filtrar por status)
         mensalidade = get_object_or_404(
@@ -526,6 +535,13 @@ def gerar_pix(request, mensalidade_id):
     """
     cliente = request.cliente_sessao.cliente
     config = request.painel_config
+
+    # Bloqueia geração de PIX para clientes cancelados
+    if cliente.cancelado:
+        return JsonResponse({
+            'success': False,
+            'error': 'Seu plano está cancelado. Entre em contato com o suporte.'
+        }, status=403)
 
     # Valida mensalidade
     try:

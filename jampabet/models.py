@@ -197,6 +197,13 @@ class Match(models.Model):
     result_bahia = models.IntegerField(null=True, blank=True, verbose_name='Gols Bahia')
     result_opponent = models.IntegerField(null=True, blank=True, verbose_name='Gols Adversário')
     elapsed_time = models.IntegerField(null=True, blank=True, verbose_name='Tempo de Jogo')
+    live_period = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        verbose_name='Período',
+        help_text='Status da API: 1H, HT, 2H, ET, P, FT, etc.'
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
 
@@ -630,6 +637,13 @@ class APIConfig(models.Model):
         default=10,
         verbose_name='Minutos antes para bloquear palpites',
         help_text='Bloquear palpites X minutos antes do inicio'
+    )
+
+    # Configuracoes de seguranca
+    require_2fa = models.BooleanField(
+        default=False,
+        verbose_name='Exigir verificacao por e-mail (2FA)',
+        help_text='Se ativado, envia codigo de verificacao por e-mail ao fazer login'
     )
 
     # Configuracoes de pontuacao

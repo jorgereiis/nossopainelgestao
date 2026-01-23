@@ -700,7 +700,7 @@ $(document).ready(function() {
     // ========== ATUALIZAÇÃO DINÂMICA DE STATUS DE AUTOMAÇÕES ==========
 
     // Armazena o estado anterior para detectar mudanças
-    let estadoAutomacoes = { tarefa_envio: [], horario_envio: [] };
+    let estadoAutomacoes = { tarefa_envio: [], tarefa_pausada_notificacao: [], horario_envio: [] };
 
     /**
      * Verifica se houve mudança no status das automações.
@@ -712,16 +712,19 @@ $(document).ready(function() {
                 if (!response.success) return;
 
                 const tarefasNovas = response.automacoes.tarefa_envio || [];
+                const tarefasPausadasNovas = response.automacoes.tarefa_pausada_notificacao || [];
                 const horariosNovos = response.automacoes.horario_envio || [];
 
                 // Cria strings para comparação
                 const tarefasAntigas = JSON.stringify(estadoAutomacoes.tarefa_envio.map(t => t.user_id).sort());
                 const tarefasAtuais = JSON.stringify(tarefasNovas.map(t => t.user_id).sort());
+                const pausadasAntigas = JSON.stringify(estadoAutomacoes.tarefa_pausada_notificacao.map(t => t.user_id + '_' + t.tarefa_id).sort());
+                const pausadasAtuais = JSON.stringify(tarefasPausadasNovas.map(t => t.user_id + '_' + t.tarefa_id).sort());
                 const horariosAntigos = JSON.stringify(estadoAutomacoes.horario_envio.map(h => h.user_id + h.tipo).sort());
                 const horariosAtuais = JSON.stringify(horariosNovos.map(h => h.user_id + h.tipo).sort());
 
                 // Se houve mudança, recarrega a tabela
-                if (tarefasAntigas !== tarefasAtuais || horariosAntigos !== horariosAtuais) {
+                if (tarefasAntigas !== tarefasAtuais || pausadasAntigas !== pausadasAtuais || horariosAntigos !== horariosAtuais) {
                     console.debug('[Revendedores] Mudança detectada nas automações, recarregando tabela...');
                     buscarRevendedores($('#searchRevendedores').val());
                 }
@@ -729,6 +732,7 @@ $(document).ready(function() {
                 // Atualiza o estado
                 estadoAutomacoes = {
                     tarefa_envio: tarefasNovas,
+                    tarefa_pausada_notificacao: tarefasPausadasNovas,
                     horario_envio: horariosNovos
                 };
             })
@@ -1106,6 +1110,7 @@ $(document).ready(function() {
             if (response.success) {
                 estadoAutomacoes = {
                     tarefa_envio: response.automacoes.tarefa_envio || [],
+                    tarefa_pausada_notificacao: response.automacoes.tarefa_pausada_notificacao || [],
                     horario_envio: response.automacoes.horario_envio || []
                 };
             }
@@ -1119,6 +1124,7 @@ $(document).ready(function() {
                 if (response.success) {
                     estadoAutomacoes = {
                         tarefa_envio: response.automacoes.tarefa_envio || [],
+                        tarefa_pausada_notificacao: response.automacoes.tarefa_pausada_notificacao || [],
                         horario_envio: response.automacoes.horario_envio || []
                     };
                 }

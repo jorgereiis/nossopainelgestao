@@ -244,7 +244,14 @@ class PainelClienteSessionMiddleware:
             request.cliente_sessao = None
             logger.debug("[PainelCliente Auth] Resultado: SEM SESSAO (cookie vazio)")
 
-        return self.get_response(request)
+        response = self.get_response(request)
+
+        # Deleta cookie se sessão inválida (resolve problema de cookie antigo persistindo)
+        if getattr(request, '_delete_painel_cookie', False):
+            response.delete_cookie(self.COOKIE_NAME)
+            logger.debug("[PainelCliente Auth] Cookie deletado (sessão inválida)")
+
+        return response
 
     def _load_cliente_session(self, request, token):
         """
@@ -276,8 +283,10 @@ class PainelClienteSessionMiddleware:
                 logger.debug("[PainelCliente Auth] Resultado: SESSAO VALIDA - Renovada")
             else:
                 request.cliente_sessao = None
-                logger.debug("[PainelCliente Auth] Resultado: SESSAO EXPIRADA")
+                request._delete_painel_cookie = True  # Marcar para deletar cookie
+                logger.debug("[PainelCliente Auth] Resultado: SESSAO EXPIRADA - Marcado para deletar cookie")
 
         except SessaoCliente.DoesNotExist:
             request.cliente_sessao = None
-            logger.debug("[PainelCliente Auth] Resultado: SESSAO NAO ENCONTRADA")
+            request._delete_painel_cookie = True  # Marcar para deletar cookie
+            logger.debug("[PainelCliente Auth] Resultado: SESSAO NAO ENCONTRADA - Marcado para deletar cookie")

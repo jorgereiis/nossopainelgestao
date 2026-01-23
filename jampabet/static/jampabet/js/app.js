@@ -57,6 +57,57 @@ function formatTime(dateStr) {
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Formata o status de uma partida ao vivo com base no periodo e tempo decorrido.
+ * @param {string} period - Codigo do periodo (1H, HT, 2H, ET, P, etc.)
+ * @param {number} elapsed - Tempo decorrido em minutos
+ * @returns {string} Status formatado para exibicao
+ */
+function formatLiveStatus(period, elapsed) {
+    if (!period && !elapsed) return 'Em andamento';
+
+    const periodLabels = {
+        '1H': '1º Tempo',
+        'HT': 'Intervalo',
+        '2H': '2º Tempo',
+        'ET': 'Prorrogação',
+        'BT': 'Intervalo Prorrogação',
+        'P': 'Pênaltis',
+        'SUSP': 'Suspenso',
+        'INT': 'Interrompido',
+        'LIVE': 'Ao Vivo'
+    };
+
+    // Se tem periodo especifico
+    if (period) {
+        const label = periodLabels[period] || period;
+
+        // Intervalo nao precisa de tempo
+        if (period === 'HT' || period === 'BT') {
+            return label;
+        }
+
+        // Penaltis nao precisa de tempo
+        if (period === 'P') {
+            return label;
+        }
+
+        // Outros periodos mostram tempo
+        if (elapsed) {
+            return `${label} ${elapsed}'`;
+        }
+
+        return label;
+    }
+
+    // Fallback: so tem tempo
+    if (elapsed) {
+        return `${elapsed}'`;
+    }
+
+    return 'Em andamento';
+}
+
 function showToast(message, type = 'success') {
     const existing = document.querySelector('.toast');
     if (existing) existing.remove();
@@ -92,6 +143,115 @@ function hideSplash() {
 // ==================== CARD PRINCIPAL - PROXIMA PARTIDA ====================
 let heroMatchData = null;
 let countdownInterval = null;
+let livePollingInterval = null;
+let livePollingActive = false;
+
+// Configuracoes de polling
+const POLLING_CONFIG = {
+    LIVE_INTERVAL: 20000,      // 20 segundos quando ao vivo
+    UPCOMING_INTERVAL: 60000,  // 60 segundos quando aguardando inicio
+    FINISHED_CHECK: 120000     // 2 minutos para verificar proxima partida apos encerramento
+};
+
+/**
+ * Sistema inteligente de polling para partidas ao vivo.
+ * - Detecta quando uma partida inicia (upcoming -> live)
+ * - Atualiza frequentemente durante a partida
+ * - Para apos encerramento (com uma atualizacao final)
+ * - Retoma verificacao periodica para proxima partida
+ */
+function initLiveMatchPolling() {
+    // Inicia verificacao com base no estado atual
+    scheduleNextPoll();
+}
+
+function scheduleNextPoll() {
+    // Limpa intervalo anterior se existir
+    if (livePollingInterval) {
+        clearTimeout(livePollingInterval);
+        livePollingInterval = null;
+    }
+
+    if (!heroMatchData) {
+        // Sem partida - verifica a cada 2 minutos
+        livePollingInterval = setTimeout(async () => {
+            await loadNextBahiaMatch();
+            scheduleNextPoll();
+        }, POLLING_CONFIG.FINISHED_CHECK);
+        return;
+    }
+
+    const status = heroMatchData.status;
+    const previousStatus = heroMatchData._previousStatus;
+
+    // Partida ao vivo - polling frequente
+    if (status === 'live') {
+        livePollingActive = true;
+        livePollingInterval = setTimeout(async () => {
+            heroMatchData._previousStatus = status;
+            await loadNextBahiaMatch();
+            scheduleNextPoll();
+        }, POLLING_CONFIG.LIVE_INTERVAL);
+    }
+    // Partida encerrada
+    else if (status === 'finished') {
+        // Se acabou de encerrar (transicao live -> finished), faz uma ultima atualizacao
+        if (previousStatus === 'live' && livePollingActive) {
+            console.log('[Polling] Partida encerrada - ultima atualizacao');
+            livePollingActive = false;
+            // Agenda verificacao para proxima partida
+            livePollingInterval = setTimeout(async () => {
+                await loadNextBahiaMatch();
+                scheduleNextPoll();
+            }, POLLING_CONFIG.FINISHED_CHECK);
+        } else {
+            // Partida ja estava encerrada - verifica periodicamente por nova partida
+            livePollingInterval = setTimeout(async () => {
+                await loadNextBahiaMatch();
+                scheduleNextPoll();
+            }, POLLING_CONFIG.FINISHED_CHECK);
+        }
+    }
+    // Partida agendada (upcoming) - verifica se vai comecar
+    else if (status === 'upcoming') {
+        // Calcula tempo ate o inicio
+        const matchDate = new Date(heroMatchData.date);
+        const now = new Date();
+        const timeUntilStart = matchDate - now;
+
+        // Se falta menos de 5 minutos, verifica com mais frequencia
+        if (timeUntilStart > 0 && timeUntilStart < 5 * 60 * 1000) {
+            livePollingInterval = setTimeout(async () => {
+                heroMatchData._previousStatus = status;
+                await loadNextBahiaMatch();
+                scheduleNextPoll();
+            }, 15000); // 15 segundos quando perto de comecar
+        }
+        // Se ja passou do horario de inicio, verifica frequentemente (pode ter comecado)
+        else if (timeUntilStart <= 0) {
+            livePollingInterval = setTimeout(async () => {
+                heroMatchData._previousStatus = status;
+                await loadNextBahiaMatch();
+                scheduleNextPoll();
+            }, POLLING_CONFIG.LIVE_INTERVAL);
+        }
+        // Ainda falta tempo - verifica menos frequentemente
+        else {
+            livePollingInterval = setTimeout(async () => {
+                heroMatchData._previousStatus = status;
+                await loadNextBahiaMatch();
+                scheduleNextPoll();
+            }, POLLING_CONFIG.UPCOMING_INTERVAL);
+        }
+    }
+    // Outros status (cancelled, postponed) - verifica periodicamente
+    else {
+        livePollingInterval = setTimeout(async () => {
+            await loadNextBahiaMatch();
+            scheduleNextPoll();
+        }, POLLING_CONFIG.FINISHED_CHECK);
+    }
+}
 
 async function loadNextBahiaMatch() {
     try {
@@ -174,7 +334,7 @@ function updateHeroCard(match) {
         } else {
             document.getElementById('hero-match-score').textContent = `${awayGoals} x ${homeGoals}`;
         }
-        document.getElementById('hero-status-text').textContent = match.elapsed_time ? `${match.elapsed_time}'` : 'Em andamento';
+        document.getElementById('hero-status-text').textContent = formatLiveStatus(match.live_period, match.elapsed_time);
 
         // Esconde countdown e botao
         countdownEl.classList.add('hidden');
@@ -715,6 +875,23 @@ function initTabs() {
             btn.classList.add('active');
             document.querySelectorAll(`[data-tab="${tab}"]`).forEach(b => b.classList.add('active'));
             document.getElementById(tab)?.classList.add('active');
+
+            // Se clicou na aba Tabela (classificacao), sincroniza com a competicao da partida em destaque
+            if (tab === 'classificacao' && heroMatchData && heroMatchData.competition_id) {
+                const standingsSelect = document.getElementById('standings-select');
+                if (standingsSelect) {
+                    const competitionId = heroMatchData.competition_id.toString();
+                    // Verifica se a competicao existe no select
+                    const optionExists = Array.from(standingsSelect.options).some(opt => opt.value === competitionId);
+                    if (optionExists && standingsSelect.value !== competitionId) {
+                        standingsSelect.value = competitionId;
+                        // Dispara o evento de change para carregar a nova competicao
+                        roundsCache = {};
+                        roundsData = [];
+                        loadStandings(parseInt(competitionId));
+                    }
+                }
+            }
         });
     });
 }
@@ -1234,6 +1411,30 @@ async function loadStandings(leagueId) {
         const response = await fetch(`/app/bahia/api/standings/${leagueId}/?season=${currentSeason}`);
         const data = await response.json();
 
+        // Verifica se a temporada ainda nao comecou
+        if (data.season_not_started) {
+            const startDate = data.season_starts_at ? new Date(data.season_starts_at) : null;
+            const formattedDate = startDate ? startDate.toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }) : '';
+
+            container.innerHTML = `
+                <div class="empty-state season-not-started">
+                    <i class="fas fa-calendar-alt"></i>
+                    <h3>Temporada ${currentSeason} ainda nao iniciada</h3>
+                    ${startDate ? `<p>Primeira rodada em <strong>${formattedDate}</strong></p>` : ''}
+                    <p class="hint">A classificacao estara disponivel apos o inicio da competicao.</p>
+                </div>
+            `;
+            // Ainda carrega as rodadas/jogos agendados
+            await loadRounds(leagueId);
+            return;
+        }
+
         if (data.standings && data.standings.length > 0) {
             renderStandings(data);
             // Carregar rodadas e jogos
@@ -1315,9 +1516,13 @@ function renderStandings(data) {
 
 function renderFormIndicators(form) {
     if (!form) return '';
-    return form.split('').map(char =>
-        `<span class="form-indicator form-${char}">${char}</span>`
-    ).join('');
+    // Converte letras do ingles para portugues
+    // W (Win) -> V (Vitoria), D (Draw) -> E (Empate), L (Loss) -> D (Derrota)
+    const translations = { 'W': 'V', 'D': 'E', 'L': 'D' };
+    return form.split('').map(char => {
+        const ptChar = translations[char] || char;
+        return `<span class="form-indicator form-${ptChar}">${ptChar}</span>`;
+    }).join('');
 }
 
 function getZoneClass(position) {
@@ -1330,10 +1535,32 @@ function getZoneClass(position) {
 
 // ==================== ROUND FIXTURES ====================
 async function loadRounds(leagueId) {
+    const fixturesList = document.getElementById('round-fixtures-list');
+    const roundSelector = document.getElementById('round-selector');
+
     try {
         // Inclui a temporada na requisição
         const response = await fetch(`/app/bahia/api/rounds/${leagueId}/?season=${currentSeason}`);
         const data = await response.json();
+
+        // Verifica se nao ha dados para a temporada
+        if (data.no_data_for_season) {
+            const compName = data.competition_name || 'Esta competicao';
+            if (fixturesList) {
+                fixturesList.innerHTML = `
+                    <div class="empty-state competition-no-data">
+                        <i class="fas fa-calendar-times"></i>
+                        <h3>${compName}</h3>
+                        <p>Nenhuma partida disponivel para ${currentSeason}</p>
+                        <p class="hint">Os dados desta competicao ainda nao foram publicados para esta temporada.</p>
+                    </div>
+                `;
+            }
+            if (roundSelector) {
+                roundSelector.innerHTML = '';
+            }
+            return;
+        }
 
         if (data.rounds && data.rounds.length > 0) {
             // Nova estrutura: data.rounds é um array de objetos com {raw, label, number, phase}
@@ -1341,13 +1568,13 @@ async function loadRounds(leagueId) {
             competitionType = data.competition_type || 'league';
             totalRounds = roundsData.length;
 
-            // Encontra a última rodada da fase regular/1st phase para começar
-            let startIndex = roundsData.length - 1;
-            for (let i = roundsData.length - 1; i >= 0; i--) {
-                if (roundsData[i].phase !== 'knockout') {
-                    startIndex = i;
-                    break;
-                }
+            // Usa o índice da rodada atual (próxima a acontecer) retornado pela API
+            // Se não fornecido, usa a primeira rodada como fallback
+            let startIndex = data.current_round_index ?? 0;
+
+            // Garante que o índice está dentro dos limites
+            if (startIndex < 0 || startIndex >= roundsData.length) {
+                startIndex = 0;
             }
 
             currentRoundIndex = startIndex;
@@ -1359,9 +1586,25 @@ async function loadRounds(leagueId) {
             // Carrega os jogos da rodada atual
             await loadFixturesByIndex(currentRoundIndex);
             updateNavButtons();
+        } else {
+            // Nenhuma rodada encontrada
+            if (fixturesList) {
+                fixturesList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-futbol"></i>
+                        <p>Nenhuma partida encontrada para ${currentSeason}</p>
+                    </div>
+                `;
+            }
+            if (roundSelector) {
+                roundSelector.innerHTML = '';
+            }
         }
     } catch (error) {
         console.error('Erro ao carregar rodadas:', error);
+        if (fixturesList) {
+            fixturesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar partidas</p></div>';
+        }
     }
 }
 
@@ -1752,8 +1995,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     initRoundNavigation();
     initSeasonSelect();  // Inicializa select de temporada
 
-    // Carrega proxima partida do Bahia (card principal)
-    loadNextBahiaMatch();
+    // Carrega proxima partida do Bahia (card principal) - aguarda para ter o competition_id
+    await loadNextBahiaMatch();
 
     // Carrega historico de palpites
     loadBetsHistory();
@@ -1772,8 +2015,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             roundsData = []; // Limpa dados de rodadas
             loadStandings(parseInt(e.target.value));
         });
+
+        // Define a competicao inicial baseada na partida em destaque
+        let initialLeagueId = parseInt(standingsSelect.value);
+        if (heroMatchData && heroMatchData.competition_id) {
+            const competitionId = heroMatchData.competition_id.toString();
+            const optionExists = Array.from(standingsSelect.options).some(opt => opt.value === competitionId);
+            if (optionExists) {
+                standingsSelect.value = competitionId;
+                initialLeagueId = heroMatchData.competition_id;
+            }
+        }
+
         // Carrega standings inicial
-        loadStandings(parseInt(standingsSelect.value));
+        loadStandings(initialLeagueId);
     }
 
     // Botões de apostar
@@ -1791,12 +2046,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Inicializa gerenciamento de partidas (DEV ONLY)
     initMatchManagement();
 
-    // Atualiza card principal a cada 30 segundos (para jogos ao vivo)
-    setInterval(() => {
-        if (heroMatchData && heroMatchData.status === 'live') {
-            loadNextBahiaMatch();
-        }
-    }, 30000);
+    // Sistema inteligente de polling para partidas ao vivo
+    initLiveMatchPolling();
 
     // Inicializa modal de menu do usuario
     initUserMenuModal();
@@ -3269,6 +3520,13 @@ async function loadAPIConfig() {
         // Atualiza status do polling
         updatePollingStatus(config.last_poll_status, config.last_poll_message, config.last_poll_at);
 
+        // Atualiza campos do formulario - Seguranca
+        const require2fa = document.getElementById('config-require-2fa');
+        if (require2fa) require2fa.checked = config.require_2fa || false;
+
+        // Atualiza status visual do 2FA
+        update2FAStatus(config.require_2fa);
+
         // Atualiza campos do formulario - Pontuacao
         const pointsVictory = document.getElementById('config-points-victory');
         const pointsDraw = document.getElementById('config-points-draw');
@@ -3294,6 +3552,49 @@ function updateScoringInfo(pointsVictory, pointsDraw, roundCost) {
     if (infoVictory) infoVictory.textContent = pointsVictory || 3;
     if (infoDraw) infoDraw.textContent = pointsDraw || 1;
     if (infoCost) infoCost.textContent = (roundCost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function update2FAStatus(enabled) {
+    const statusEl = document.getElementById('info-2fa-status');
+    if (!statusEl) return;
+
+    if (enabled) {
+        statusEl.innerHTML = '<i class="fas fa-lock text-green"></i> Ativado';
+    } else {
+        statusEl.innerHTML = '<i class="fas fa-lock-open text-muted"></i> Desativado';
+    }
+}
+
+async function saveSecurityConfig() {
+    const require2fa = document.getElementById('config-require-2fa');
+
+    const configData = {
+        require_2fa: require2fa ? require2fa.checked : false
+    };
+
+    try {
+        const response = await fetch('/app/bahia/api/admin/config/update/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(configData)
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showToast('Configuracoes de seguranca salvas com sucesso', 'success');
+            update2FAStatus(configData.require_2fa);
+        } else {
+            showToast(data.error || 'Erro ao salvar configuracoes', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar configuracoes de seguranca:', error);
+        showToast('Erro ao salvar configuracoes', 'error');
+    }
 }
 
 function updatePollingStatus(status, message, lastPoll) {
@@ -3418,6 +3719,12 @@ async function saveScoringConfig() {
 }
 
 function initAPIConfig() {
+    // Botao salvar Seguranca
+    const btnSaveSecurity = document.getElementById('btn-save-security-config');
+    if (btnSaveSecurity) {
+        btnSaveSecurity.addEventListener('click', saveSecurityConfig);
+    }
+
     // Botao salvar API
     const btnSave = document.getElementById('btn-save-api-config');
     if (btnSave) {

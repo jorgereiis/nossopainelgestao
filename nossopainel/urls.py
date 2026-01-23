@@ -5,18 +5,6 @@ from django.views.generic import RedirectView
 from django.http import HttpResponse
 from django.conf import settings
 from .views_webhook import webhook_wppconnect
-from .views_chat import (
-    ChatPageView,
-    api_chat_list,
-    api_chat_messages,
-    api_load_earlier_messages,
-    api_profile_picture,
-    api_send_message,
-    api_send_file,
-    api_download_media,
-    api_mark_as_read,
-)
-from .views_sse import sse_chat_stream
 from .views import (
     test,
     Login,
@@ -308,18 +296,6 @@ urlpatterns = [
 
     ############ Webhook WPPConnect (externo) ###########
     path("webhook/wppconnect/", webhook_wppconnect, name="webhook_wppconnect"),
-
-    ############ Chat WhatsApp (Admin) ###########
-    path("chat-whatsapp/", ChatPageView.as_view(), name="chat-whatsapp"),
-    path("api/chat/list/", api_chat_list, name="api-chat-list"),
-    path("api/chat/messages/<str:phone>/", api_chat_messages, name="api-chat-messages"),
-    path("api/chat/messages/<str:phone>/load-more/", api_load_earlier_messages, name="api-chat-load-more"),
-    path("api/chat/profile-pic/<str:phone>/", api_profile_picture, name="api-chat-profile-pic"),
-    path("api/chat/send-message/", api_send_message, name="api-chat-send-message"),
-    path("api/chat/send-file/", api_send_file, name="api-chat-send-file"),
-    path("api/chat/download/<str:message_id>/", api_download_media, name="api-chat-download"),
-    path("api/chat/mark-as-read/", api_mark_as_read, name="api-chat-mark-as-read"),
-    path("api/chat/sse/", sse_chat_stream, name="api-chat-sse"),
 
     ############ Migração de Clientes (Admin) ###########
     path("migration/clientes/list/", MigrationClientesListView.as_view(), name="migration-clientes-list"),

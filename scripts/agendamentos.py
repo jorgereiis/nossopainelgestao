@@ -22,6 +22,7 @@ from mensagens_wpp import (
 from upload_status_wpp import executar_upload_image_from_telegram_com_lock
 from integracoes.telegram_connection import telegram_connection
 from jampabet_live_matches import run_check_and_poll as jampabet_check_live_matches
+from jampabet_daily_sync import run_daily_sync as jampabet_daily_sync
 from sync_pagamentos_pix import sincronizar_pagamentos_pix_pendentes
 
 ################################################
@@ -277,6 +278,13 @@ schedule.every(1).minutes.do(
 
 # JampaBet - Verificacao de partidas ao vivo (a cada 1 minuto) - SEM wrapper, job será removido
 schedule.every(1).minutes.do(run_threaded_sync_nolog, jampabet_check_live_matches).tag("jampabet_live")
+
+# JampaBet - Sincronização diária completa (meia-noite)
+horario_jampabet_sync = get_job_horario("jampabet_sync", "00:00")
+schedule.every().day.at(horario_jampabet_sync).do(
+    run_threaded_sync, job_wrapper, "jampabet_sync", jampabet_daily_sync
+).tag("jampabet_sync")
+logger.info(f"  - JampaBet Sync Diário: {horario_jampabet_sync}")
 
 # Sincronização de pagamentos PIX pendentes (a cada 30 minutos)
 # Rede de segurança para casos onde o webhook falhe

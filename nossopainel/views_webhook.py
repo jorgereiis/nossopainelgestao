@@ -4,6 +4,8 @@ import json
 import logging
 import threading
 import time
+import time as time_module
+from collections import defaultdict
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -11,10 +13,37 @@ from django.views.decorators.http import require_POST
 
 from nossopainel.models import SessaoWpp
 from nossopainel.services.logging_config import get_logger
-from nossopainel.views_sse import push_event_to_session
 
 # Configuração do logger com rotação automática
 logger = get_logger(__name__, log_file="logs/WhatsApp/webhook_wpp.log")
+
+# =============================================================================
+# RATE LIMITING PARA CHAMADAS RECEBIDAS
+# =============================================================================
+_call_timestamps = defaultdict(list)  # {session: [timestamps]}
+CALL_RATE_LIMIT = 3  # máx 3 chamadas/minuto por sessão
+CALL_RATE_WINDOW = 60  # janela de 60 segundos
+
+
+def _check_call_rate_limit(session: str) -> bool:
+    """Verifica se sessão está dentro do rate limit de chamadas."""
+    now = time_module.time()
+
+    # Limpar timestamps antigos (fora da janela)
+    _call_timestamps[session] = [
+        t for t in _call_timestamps[session]
+        if now - t < CALL_RATE_WINDOW
+    ]
+
+    if len(_call_timestamps[session]) >= CALL_RATE_LIMIT:
+        logger.warning(
+            "Rate limit de chamadas atingido | session=%s count=%d limit=%d",
+            session, len(_call_timestamps[session]), CALL_RATE_LIMIT
+        )
+        return False
+
+    _call_timestamps[session].append(now)
+    return True
 
 
 @csrf_exempt
@@ -31,35 +60,42 @@ def webhook_wppconnect(request):
     - qrcode: Novo QR code gerado
     - session-logged / onconnected: Sessão conectada com sucesso
     - session-closed / ondisconnected: Sessão encerrada/desconectada
-    - onmessage: Mensagem recebida (para log apenas)
+    - onmessage: Mensagem recebida + captura LID
+    - incomingcall: Chamada recebida (com rate limiting)
+
+    Eventos REMOVIDOS (eram apenas para SSE/Chat):
+    - onack: Confirmação de leitura
+    - onmessage-sent / onsendmessage: Confirmação de envio
 
     Returns:
         JsonResponse com status da operação
     """
-    # Log do IP de origem para debug
+    start_time = time_module.time()
     client_ip = _get_client_ip(request)
 
     try:
         payload = json.loads(request.body)
     except json.JSONDecodeError:
         logger.error(
-            "Webhook recebeu payload inválido | ip=%s",
+            "[WEBHOOK] Payload inválido | ip=%s",
             client_ip
         )
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     event = payload.get('event', '')
     session = payload.get('session', '')
+    payload_size = len(request.body)
 
     logger.info(
-        "Webhook recebido | event=%s session=%s ip=%s",
+        "[WEBHOOK] Recebido | event=%s session=%s ip=%s payload_size=%d",
         event,
         session,
-        client_ip
+        client_ip,
+        payload_size
     )
 
     if not session:
-        logger.warning("Webhook sem session | event=%s ip=%s", event, client_ip)
+        logger.warning("[WEBHOOK] Sem session | event=%s ip=%s", event, client_ip)
         return JsonResponse({"error": "Session not provided"}, status=400)
 
     # Buscar sessão no banco
@@ -81,20 +117,30 @@ def webhook_wppconnect(request):
     elif event == 'onmessage':
         _handle_message(payload, session)
 
-    elif event == 'onack':
-        _handle_ack(payload, session)
-
-    elif event in ('onmessage-sent', 'onsendmessage'):
-        _handle_message_sent(payload, session)
-
     elif event == 'incomingcall':
         _handle_incoming_call(payload, sessao, session)
 
-    else:
+    # Eventos ignorados (eram apenas para SSE/Chat em tempo real - REMOVIDO)
+    elif event in ('onack', 'onmessage-sent', 'onsendmessage'):
         logger.debug(
-            "Evento não tratado | event=%s session=%s",
+            "[WEBHOOK] Evento SSE ignorado | event=%s session=%s",
             event,
             session
+        )
+
+    else:
+        logger.debug(
+            "[WEBHOOK] Evento não tratado | event=%s session=%s",
+            event,
+            session
+        )
+
+    # Log de tempo de processamento
+    elapsed = time_module.time() - start_time
+    if elapsed > 1.0:  # Logar apenas se demorar mais de 1 segundo
+        logger.warning(
+            "[WEBHOOK] Processamento lento | event=%s session=%s elapsed=%.3fs",
+            event, session, elapsed
         )
 
     return JsonResponse({"status": "ok"})
@@ -147,12 +193,14 @@ def _handle_qrcode(payload: dict, session: str):
 
 def _handle_message(payload: dict, session: str):
     """
-    Trata evento de mensagem recebida - envia via SSE e captura LID.
+    Trata evento de mensagem recebida - captura LID para sincronização.
 
     Para mensagens de chat privado com @lid:
     - Enfileira o LID para sincronização com o banco de dados
     - O LidSyncService irá buscar o telefone e atualizar o cliente
     """
+    start_time = time_module.time()
+
     message_data = payload.get('data', {}) or payload
     msg_from = message_data.get('from', '') or payload.get('from', '')
     msg_type = message_data.get('type', '') or payload.get('type', '')
@@ -167,7 +215,7 @@ def _handle_message(payload: dict, session: str):
     )
 
     logger.info(
-        "Nova mensagem recebida | session=%s from=%s type=%s name=%s",
+        "[WEBHOOK] onmessage | session=%s from=%s type=%s name=%s",
         session,
         msg_from,
         msg_type,
@@ -179,59 +227,8 @@ def _handle_message(payload: dict, session: str):
     if '@g.us' not in msg_from and '@lid' in msg_from:
         _enqueue_lid_for_sync(msg_from, session)
 
-    # Enviar evento SSE para o frontend com dados completos
-    push_event_to_session(session, 'new_message', {
-        'chatId': msg_from,
-        'senderName': sender_name,
-        'message': message_data
-    })
-
-
-def _handle_ack(payload: dict, session: str):
-    """Trata evento de confirmação de leitura - envia via SSE."""
-    ack_data = payload.get('data', {}) or payload
-    message_id = ack_data.get('id', {})
-    ack_level = ack_data.get('ack', 0)
-
-    # Extrair chatId (para quem a mensagem foi enviada)
-    chat_id = ack_data.get('to', '') or ack_data.get('from', '')
-
-    # Extrair ID serializado se for objeto
-    if isinstance(message_id, dict):
-        message_id = message_id.get('_serialized', '') or message_id.get('id', '')
-
-    logger.debug(
-        "ACK recebido | session=%s chatId=%s messageId=%s ack=%s",
-        session,
-        chat_id,
-        str(message_id)[:50],
-        ack_level
-    )
-
-    # Enviar evento SSE para o frontend
-    push_event_to_session(session, 'message_ack', {
-        'chatId': chat_id,
-        'messageId': message_id,
-        'ack': ack_level
-    })
-
-
-def _handle_message_sent(payload: dict, session: str):
-    """Trata evento de mensagem enviada confirmada - envia via SSE."""
-    message_data = payload.get('data', {}) or payload
-    msg_to = message_data.get('to', '') or payload.get('to', '')
-
-    logger.debug(
-        "Mensagem enviada confirmada | session=%s to=%s",
-        session,
-        msg_to
-    )
-
-    # Enviar evento SSE para o frontend
-    push_event_to_session(session, 'message_sent', {
-        'chatId': msg_to,
-        'message': message_data
-    })
+    elapsed = time_module.time() - start_time
+    logger.debug("[WEBHOOK] onmessage processado em %.3fs | session=%s", elapsed, session)
 
 
 def _should_reject_call(sessao) -> bool:
@@ -260,6 +257,8 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
     """
     Trata evento de chamada recebida.
 
+    Inclui rate limiting para evitar sobrecarga da API.
+
     Fluxo para GRUPOS:
     1. Rejeita a chamada (sem mensagem, sem marcar não lido)
 
@@ -278,15 +277,25 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
 
     if not sessao:
         logger.warning(
-            "Chamada recebida sem sessão ativa | session=%s",
+            "[WEBHOOK] incomingcall sem sessão ativa | session=%s",
             session
+        )
+        return
+
+    # ========== RATE LIMITING ==========
+    # Evita sobrecarga da API em caso de muitas chamadas
+    if not _check_call_rate_limit(session):
+        logger.info(
+            "[WEBHOOK] incomingcall ignorada por rate limit | session=%s caller=%s",
+            session,
+            caller
         )
         return
 
     # Verificar se deve rejeitar chamada (configuração + horário)
     if not _should_reject_call(sessao):
         logger.info(
-            "Rejeição de chamadas desativada ou fora do horário | session=%s caller=%s",
+            "[WEBHOOK] Rejeição desativada ou fora do horário | session=%s caller=%s",
             session,
             caller
         )
@@ -296,7 +305,7 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
 
     # 1. Rejeitar chamada (sempre, grupo ou contato)
     logger.info(
-        "Rejeitando chamada | session=%s callId=%s caller=%s is_group=%s",
+        "[WEBHOOK] Rejeitando chamada | session=%s callId=%s caller=%s is_group=%s",
         session,
         call_id,
         caller,
@@ -306,7 +315,7 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
 
     if reject_status not in (200, 201):
         logger.error(
-            "Falha ao rejeitar chamada | session=%s status=%s response=%s",
+            "[WEBHOOK] Falha ao rejeitar chamada | session=%s status=%s response=%s",
             session,
             reject_status,
             reject_result
@@ -315,7 +324,7 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
     # Se for grupo, para aqui (sem mensagem, sem marcar não lido)
     if is_group:
         logger.info(
-            "Chamada de grupo rejeitada | session=%s caller=%s",
+            "[WEBHOOK] Chamada de grupo rejeitada | session=%s caller=%s",
             session,
             caller
         )
@@ -324,7 +333,7 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
     # Se for @lid, tentar obter número real via endpoint pn-lid
     if "@lid" in caller:
         logger.info(
-            "Chamada com @lid detectada, tentando resolver número real | session=%s lid=%s",
+            "[WEBHOOK] Chamada com @lid, resolvendo número | session=%s lid=%s",
             session,
             caller
         )
@@ -333,7 +342,7 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
 
         if phone_from_lid:
             logger.info(
-                "LID resolvido com sucesso | session=%s lid=%s phone=%s",
+                "[WEBHOOK] LID resolvido | session=%s lid=%s phone=%s",
                 session,
                 caller,
                 phone_from_lid
@@ -342,7 +351,7 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
             caller = f"{phone_from_lid}@c.us"
         else:
             logger.warning(
-                "Não foi possível resolver LID para número | session=%s lid=%s status=%s",
+                "[WEBHOOK] Falha ao resolver LID | session=%s lid=%s status=%s",
                 session,
                 caller,
                 lid_status
@@ -364,7 +373,7 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
                 "Enquanto isso, informe aqui como podemos ajudá-lo(a)."
             )
             logger.info(
-                "Enviando mensagem pós-rejeição | session=%s phone=%s",
+                "[WEBHOOK] Enviando mensagem pós-rejeição | session=%s phone=%s",
                 session,
                 phone
             )
@@ -375,25 +384,23 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
 
             if msg_status in (200, 201):
                 logger.info(
-                    "Mensagem pós-chamada enviada com sucesso | session=%s phone=%s status=%s",
+                    "[WEBHOOK] Mensagem pós-chamada enviada | session=%s phone=%s",
                     session,
-                    phone,
-                    msg_status
+                    phone
                 )
             else:
                 logger.error(
-                    "Falha ao enviar mensagem pós-chamada | session=%s phone=%s status=%s result=%s",
+                    "[WEBHOOK] Falha ao enviar mensagem pós-chamada | session=%s phone=%s status=%s",
                     session,
                     phone,
-                    msg_status,
-                    msg_result
+                    msg_status
                 )
 
             # Aguarda 10s antes de marcar como não lido
             time.sleep(10)
 
             logger.info(
-                "Marcando conversa como não lida | session=%s phone=%s",
+                "[WEBHOOK] Marcando conversa como não lida | session=%s phone=%s",
                 session,
                 phone
             )
@@ -404,21 +411,20 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
 
             if unread_status in (200, 201):
                 logger.info(
-                    "Conversa marcada como não lida com sucesso | session=%s phone=%s",
+                    "[WEBHOOK] Conversa marcada como não lida | session=%s phone=%s",
                     session,
                     phone
                 )
             else:
                 logger.error(
-                    "Falha ao marcar conversa como não lida | session=%s phone=%s status=%s result=%s",
+                    "[WEBHOOK] Falha ao marcar não lida | session=%s phone=%s status=%s",
                     session,
                     phone,
-                    unread_status,
-                    unread_result
+                    unread_status
                 )
         except Exception as e:
             logger.error(
-                "Erro no processo pós-rejeição | session=%s caller=%s error=%s",
+                "[WEBHOOK] Erro no processo pós-rejeição | session=%s caller=%s error=%s",
                 session,
                 caller,
                 str(e)
@@ -427,7 +433,7 @@ def _handle_incoming_call(payload: dict, sessao, session: str):
     threading.Thread(target=_processo_pos_rejeicao, daemon=True).start()
 
     logger.info(
-        "Chamada rejeitada com sucesso | session=%s caller=%s",
+        "[WEBHOOK] Chamada rejeitada com sucesso | session=%s caller=%s",
         session,
         caller
     )
