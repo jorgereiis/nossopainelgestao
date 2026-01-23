@@ -422,38 +422,14 @@ def cliente_post_save(sender, instance, created, **kwargs):
         _log_event(logging.ERROR, instance, func_name, "Erro ao obter labels atuais do contato.", exc_info=error)
         labels_atuais = []
 
-    # =========================================================================
-    # FALLBACK: Quando não conseguimos identificar as labels do contato
-    # (contato não sincronizado retorna labels=[]), removemos TODAS as labels
-    # possíveis da sessão antes de adicionar a nova label.
-    # =========================================================================
-    usar_fallback = False
+    # Se labels_atuais está vazio, simplesmente prosseguir
+    # A função add_or_remove_label_contact já trata lista vazia corretamente
     if not labels_atuais:
         logger.debug(
             f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-            f"Labels atuais vazias - ativando FALLBACK para remover todas as labels possíveis"
+            f"Contato sem labels existentes - apenas adicionando nova label"
         )
-        usar_fallback = True
-        try:
-            from wpp.api_connection import get_all_labels
-            todas_labels = get_all_labels(token.token, token)
-            if todas_labels:
-                # Usar todos os IDs de labels da sessão como candidatos para remoção
-                labels_atuais = [label.get('id') for label in todas_labels if label.get('id')]
-                logger.debug(
-                    f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-                    f"FALLBACK - obtidas {len(labels_atuais)} labels da sessão para tentar remover: {labels_atuais}"
-                )
-            else:
-                logger.warning(
-                    f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-                    f"FALLBACK - não foi possível obter labels da sessão"
-                )
-        except Exception as fallback_error:
-            logger.error(
-                f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-                f"FALLBACK - erro ao buscar todas as labels: {fallback_error}"
-            )
+        labels_atuais = []
 
     try:
         label_desejada = "CANCELADOS" if cliente_foi_cancelado else instance.servidor.nome
@@ -481,21 +457,10 @@ def cliente_post_save(sender, instance, created, **kwargs):
             )
             return
 
-        # IMPORTANTE: Se estamos usando fallback, a lista labels_atuais contém TODAS
-        # as labels da sessão. Precisamos remover a nova label dessa lista para que
-        # a função add_or_remove_label_contact não pense que ela já está atribuída.
-        if usar_fallback and nova_label_id in labels_atuais:
-            labels_atuais = [label for label in labels_atuais if label != nova_label_id]
-            logger.debug(
-                f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-                f"FALLBACK - removida nova label {nova_label_id} da lista de remoção. "
-                f"Labels restantes para remover: {labels_atuais}"
-            )
-
         logger.debug(
             f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
             f"Chamando add_or_remove_label_contact com label_id_1={nova_label_id}, "
-            f"label_id_2={labels_atuais}, chat_id={chat_id}, usar_fallback={usar_fallback}"
+            f"label_id_2={labels_atuais}, chat_id={chat_id}"
         )
 
         add_or_remove_label_contact(
@@ -507,10 +472,9 @@ def cliente_post_save(sender, instance, created, **kwargs):
             user=token,
         )
 
-        fallback_msg = " (usando FALLBACK - removeu todas as labels possíveis)" if usar_fallback else ""
         logger.debug(
             f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-            f"Sincronização de label CONCLUÍDA com sucesso{fallback_msg}!"
+            f"Sincronização de label CONCLUÍDA com sucesso!"
         )
 
     except Exception as error:

@@ -4636,6 +4636,24 @@ class TarefaEnvio(models.Model):
         help_text='Data/hora até quando a tarefa está pausada'
     )
 
+    # Controle de execução completa
+    execucao_completa = models.BooleanField(
+        default=True,
+        help_text='Indica se a última execução foi concluída com sucesso'
+    )
+
+    # Controle de pausa por notificações
+    pausado_por_notificacao = models.BooleanField(
+        default=False,
+        help_text='Indica se a tarefa está pausada aguardando notificações'
+    )
+    pausado_motivo = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text='Motivo da pausa (ex: "Notificação de vencimentos em execução")'
+    )
+
     # Tipo de agendamento (recorrente ou único)
     tipo_agendamento = models.CharField(
         max_length=20,

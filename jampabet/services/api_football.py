@@ -42,9 +42,11 @@ class APIFootballService:
     @classmethod
     def _get_headers(cls):
         """Retorna headers com a chave da API"""
-        api_key = getattr(settings, 'API_FOOTBALL_KEY', os.getenv('API_FOOTBALL_KEY', ''))
+        api_key = getattr(settings, 'API_FOOTBALL_KEY', None)
+        if not api_key:
+            api_key = os.getenv('API_FOOTBALL_KEY', '')
         return {
-            'x-apisports-key': api_key
+            'x-apisports-key': api_key or ''
         }
 
     @classmethod

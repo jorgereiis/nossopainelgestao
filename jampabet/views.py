@@ -13,12 +13,46 @@ from django.utils import timezone
 from django.db import models
 from django.contrib.auth.hashers import make_password
 
-from .models import JampabetUser, Match, Bet, AuditLog, BrazilianTeam, Competition
+from .models import JampabetUser, Match, Bet, AuditLog, BrazilianTeam, Competition, APIConfig
 from .auth import JampabetAuth, jampabet_login_required
 from .services.bet_service import BetService
 from painel_cliente.utils import validar_recaptcha, get_recaptcha_site_key
 
 logger = logging.getLogger(__name__)
+
+
+# ==================== HELPERS ====================
+
+def get_team_display_info(team_name):
+    """
+    Busca informacoes de exibicao personalizadas para um time.
+    Retorna o nome de exibicao e logo customizado se disponiveis.
+
+    Args:
+        team_name: Nome do time (pode ser com ou sem acento)
+
+    Returns:
+        dict: {'display_name': str, 'logo_url': str}
+    """
+    if not team_name:
+        return {'display_name': team_name, 'logo_url': ''}
+
+    # Busca no BrazilianTeam por nome ou short_name
+    team = BrazilianTeam.objects.filter(
+        models.Q(name__iexact=team_name) |
+        models.Q(short_name__iexact=team_name) |
+        models.Q(name__icontains=team_name) |
+        models.Q(short_name__icontains=team_name)
+    ).first()
+
+    if team:
+        # Usa display_name se existir, senao short_name
+        display_name = team.display_name or team.short_name or team.name
+        # Usa custom_logo se existir, senao logo_url
+        logo_url = team.custom_logo_url or team.logo_url or ''
+        return {'display_name': display_name, 'logo_url': logo_url}
+
+    return {'display_name': team_name, 'logo_url': ''}
 
 
 # ==================== PAGINAS DE AUTENTICACAO ====================
@@ -41,7 +75,9 @@ def login_view(request):
 @require_POST
 def api_login_step1(request):
     """
-    API: Etapa 1 do login - valida email/senha e envia token 2FA.
+    API: Etapa 1 do login - valida email/senha.
+    Se 2FA ativado: envia token por e-mail e aguarda etapa 2.
+    Se 2FA desativado: faz login direto.
     """
     try:
         data = json.loads(request.body)
@@ -72,7 +108,20 @@ def api_login_step1(request):
         if not user.is_active:
             return JsonResponse({'error': 'Conta desativada.'}, status=403)
 
-        # Envia token 2FA por e-mail
+        # Verifica se 2FA esta habilitado na configuracao
+        config = APIConfig.get_config()
+
+        if not config.require_2fa:
+            # 2FA desativado - faz login direto
+            JampabetAuth.login(request, user)
+            return JsonResponse({
+                'success': True,
+                'login_complete': True,
+                'message': 'Login realizado com sucesso',
+                'redirect_url': '/app/bahia/'
+            })
+
+        # 2FA ativado - envia token por e-mail
         login_token = JampabetAuth.send_login_token(user, request)
         if not login_token:
             return JsonResponse({
@@ -90,6 +139,7 @@ def api_login_step1(request):
 
         return JsonResponse({
             'success': True,
+            'requires_2fa': True,
             'message': 'Codigo enviado para seu e-mail',
             'email_hint': email_hint
         })
@@ -404,10 +454,13 @@ def api_upcoming_matches(request):
     data = []
     for match in matches:
         can_bet, _ = BetService.can_place_bet(match)
+        # Busca dados personalizados dos times
+        home_info = get_team_display_info(match.home_team)
+        away_info = get_team_display_info(match.away_team)
         data.append({
             'id': match.id,
-            'home_team': match.home_team,
-            'away_team': match.away_team,
+            'home_team': home_info['display_name'],
+            'away_team': away_info['display_name'],
             'date': match.date.isoformat(),
             'competition': match.competition,
             'status': match.status,
@@ -422,28 +475,49 @@ def api_next_bahia_match(request):
     """
     API: Retorna a proxima partida do Bahia para o card principal.
 
-    Logica:
-    - Retorna a partida mais proxima que ainda nao passou de "ontem"
-    - Se ao vivo, retorna com status 'live'
-    - Se encerrou hoje ou ontem, retorna com status 'finished'
-    - Inclui informacao de se pode palpitar e tempo restante
+    Logica de prioridade:
+    1. Partida AO VIVO -> sempre tem prioridade
+    2. Partida ENCERRADA HOJE -> mostra resultado do dia
+    3. Proxima partida FUTURA -> partida agendada
     """
     now = timezone.now()
-    yesterday = now - timedelta(days=1)
-    yesterday_start = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # Busca partida ao vivo primeiro
+    match = None
+
+    # 1. Prioridade: Partida ao vivo
     live_match = Match.objects.filter(status='live').first()
-
     if live_match:
         match = live_match
-    else:
-        # Busca proxima partida (agendada) OU partida de ontem/hoje que ainda nao "expirou"
-        match = Match.objects.filter(
-            date__gte=yesterday_start
+
+    # 2. Se nao ha partida ao vivo, verifica se ha partida encerrada HOJE
+    if not match:
+        finished_today = Match.objects.filter(
+            status='finished',
+            date__gte=today_start,  # Comecou hoje
+            date__lte=now           # Ja passou
+        ).order_by('-date').first()  # Mais recente primeiro
+
+        if finished_today:
+            match = finished_today
+
+    # 3. Se nao ha partida ao vivo nem encerrada hoje, busca proxima futura
+    if not match:
+        upcoming_match = Match.objects.filter(
+            status='upcoming',
+            date__gt=now  # Data futura
         ).exclude(
             status='cancelled'
-        ).order_by('date').first()
+        ).order_by('date').first()  # Mais proxima primeiro
+
+        if upcoming_match:
+            match = upcoming_match
+
+    # 4. Fallback: qualquer partida recente (para nao deixar card vazio)
+    if not match:
+        match = Match.objects.exclude(
+            status='cancelled'
+        ).order_by('-date').first()
 
     if not match:
         return JsonResponse({'match': None})
@@ -509,14 +583,18 @@ def api_next_bahia_match(request):
         else:
             bet_result = 'none'
 
+    # Busca dados personalizados dos times (display_name, custom_logo)
+    home_info = get_team_display_info(match.home_team)
+    away_info = get_team_display_info(match.away_team)
+
     return JsonResponse({
         'match': {
             'id': match.id,
             'external_id': match.external_id,
-            'home_team': match.home_team,
-            'away_team': match.away_team,
-            'home_team_logo': match.home_team_logo,
-            'away_team_logo': match.away_team_logo,
+            'home_team': home_info['display_name'],
+            'away_team': away_info['display_name'],
+            'home_team_logo': home_info['logo_url'] or match.home_team_logo,
+            'away_team_logo': away_info['logo_url'] or match.away_team_logo,
             'date': match.date.isoformat(),
             'competition': match.competition,
             'competition_id': competition_id,
@@ -588,12 +666,16 @@ def api_user_bets_history(request):
 
         can_bet, reason = BetService.can_place_bet(match)
 
+        # Busca dados personalizados dos times
+        home_info = get_team_display_info(match.home_team)
+        away_info = get_team_display_info(match.away_team)
+
         return {
             'id': match.id,
-            'home_team': match.home_team,
-            'away_team': match.away_team,
-            'home_team_logo': match.home_team_logo,
-            'away_team_logo': match.away_team_logo,
+            'home_team': home_info['display_name'],
+            'away_team': away_info['display_name'],
+            'home_team_logo': home_info['logo_url'] or match.home_team_logo,
+            'away_team_logo': away_info['logo_url'] or match.away_team_logo,
             'date': match.date.isoformat(),
             'competition': match.competition,
             'location': match.location,
@@ -660,14 +742,18 @@ def api_match_detail(request, match_id):
                 'points_earned': bet.points_earned
             }
 
+    # Busca dados personalizados dos times
+    home_info = get_team_display_info(match.home_team)
+    away_info = get_team_display_info(match.away_team)
+
     return JsonResponse({
         'match': {
             'id': match.id,
             'external_id': match.external_id,
-            'home_team': match.home_team,
-            'away_team': match.away_team,
-            'home_team_logo': match.home_team_logo,
-            'away_team_logo': match.away_team_logo,
+            'home_team': home_info['display_name'],
+            'away_team': away_info['display_name'],
+            'home_team_logo': home_info['logo_url'] or match.home_team_logo,
+            'away_team_logo': away_info['logo_url'] or match.away_team_logo,
             'date': match.date.isoformat(),
             'competition': match.competition,
             'competition_logo': match.competition_logo,
@@ -834,12 +920,29 @@ def api_standings(request, league_id):
             if cached_data:
                 logger.debug(f"[Standings] Cache hit: league={league_id}")
                 cached_data['from_cache'] = True
+                # Aplica personalizacao de times aos dados do cache
+                if cached_data.get('standings'):
+                    for team in cached_data['standings']:
+                        team_info = get_team_display_info(team.get('team_name', ''))
+                        if team_info['display_name'] != team.get('team_name'):
+                            team['team_name'] = team_info['display_name']
+                        if team_info['logo_url']:
+                            team['team_logo'] = team_info['logo_url']
                 return JsonResponse(cached_data)
 
         # Se nao houver no cache ou force_api=1, busca da API
         logger.debug(f"[Standings] Cache miss, buscando da API (league={league_id})")
         data = APIFootballService.get_standings(league_id, season)
         data['from_cache'] = False
+
+        # Aplica personalizacao de times (display_name e custom_logo)
+        if data.get('standings'):
+            for team in data['standings']:
+                team_info = get_team_display_info(team.get('team_name', ''))
+                if team_info['display_name'] != team.get('team_name'):
+                    team['team_name'] = team_info['display_name']
+                if team_info['logo_url']:
+                    team['team_logo'] = team_info['logo_url']
 
         # Adiciona tipo de competicao (para diferenciar liga de copa/mata-mata)
         try:
@@ -1324,13 +1427,16 @@ def api_admin_matches(request):
 
     matches = []
     for match in Match.objects.all().order_by('-date')[:50]:
+        # Busca dados personalizados dos times
+        home_info = get_team_display_info(match.home_team)
+        away_info = get_team_display_info(match.away_team)
         matches.append({
             'id': match.id,
             'external_id': match.external_id,
-            'home_team': match.home_team,
-            'away_team': match.away_team,
-            'home_team_logo': match.home_team_logo,
-            'away_team_logo': match.away_team_logo,
+            'home_team': home_info['display_name'],
+            'away_team': away_info['display_name'],
+            'home_team_logo': home_info['logo_url'] or match.home_team_logo,
+            'away_team_logo': away_info['logo_url'] or match.away_team_logo,
             'date': match.date.isoformat() if match.date else None,
             'competition': match.competition,
             'competition_logo': match.competition_logo,
@@ -1364,14 +1470,18 @@ def api_admin_match_detail(request, match_id):
     # Conta palpites dessa partida
     bets_count = Bet.objects.filter(match=match).count()
 
+    # Busca dados personalizados dos times
+    home_info = get_team_display_info(match.home_team)
+    away_info = get_team_display_info(match.away_team)
+
     return JsonResponse({
         'match': {
             'id': match.id,
             'external_id': match.external_id,
-            'home_team': match.home_team,
-            'away_team': match.away_team,
-            'home_team_logo': match.home_team_logo,
-            'away_team_logo': match.away_team_logo,
+            'home_team': home_info['display_name'],
+            'away_team': away_info['display_name'],
+            'home_team_logo': home_info['logo_url'] or match.home_team_logo,
+            'away_team_logo': away_info['logo_url'] or match.away_team_logo,
             'date': match.date.isoformat() if match.date else None,
             'competition': match.competition,
             'competition_logo': match.competition_logo,
@@ -2108,6 +2218,8 @@ def api_admin_config(request):
         'last_poll_status': config.last_poll_status,
         'last_poll_message': config.last_poll_message,
         'total_api_calls_today': config.total_api_calls_today,
+        # Configuracoes de seguranca
+        'require_2fa': config.require_2fa,
         # Configuracoes de pontuacao
         'points_exact_victory': config.points_exact_victory,
         'points_exact_draw': config.points_exact_draw,
@@ -2163,6 +2275,10 @@ def api_admin_config_update(request):
         cost = Decimal(str(data['round_cost']))
         config.round_cost = max(Decimal('0'), min(Decimal('1000'), cost))
 
+    # Configuracoes de seguranca
+    if 'require_2fa' in data:
+        config.require_2fa = bool(data['require_2fa'])
+
     config.save()
 
     return JsonResponse({
@@ -2174,6 +2290,7 @@ def api_admin_config_update(request):
             'auto_start_matches': config.auto_start_matches,
             'auto_update_scores': config.auto_update_scores,
             'minutes_before_match': config.minutes_before_match,
+            'require_2fa': config.require_2fa,
             'points_exact_victory': config.points_exact_victory,
             'points_exact_draw': config.points_exact_draw,
             'round_cost': float(config.round_cost),

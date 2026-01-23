@@ -419,6 +419,66 @@
         border-left: 3px solid #22c55e;
     }
 
+    /* ===== INDICADOR DE PAUSA POR NOTIFICAÇÃO ===== */
+    .notif-pause-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.35rem 0.75rem;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 1px solid #fcd34d;
+        border-radius: 2rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #92400e;
+        cursor: help;
+        animation: notif-pulse 3s ease-in-out infinite;
+    }
+    @keyframes notif-pulse {
+        0%, 100% {
+            box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4);
+        }
+        50% {
+            box-shadow: 0 0 0 6px rgba(251, 191, 36, 0);
+        }
+    }
+    .notif-pause-icon {
+        width: 14px;
+        height: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .notif-pause-icon svg {
+        width: 14px;
+        height: 14px;
+        animation: bell-ring 2s ease-in-out infinite;
+    }
+    @keyframes bell-ring {
+        0%, 100% { transform: rotate(0deg); }
+        10% { transform: rotate(10deg); }
+        20% { transform: rotate(-10deg); }
+        30% { transform: rotate(8deg); }
+        40% { transform: rotate(-8deg); }
+        50% { transform: rotate(0deg); }
+    }
+
+    /* Linha da tabela quando pausada por notificação */
+    tr.pausada-notificacao {
+        background: linear-gradient(90deg, rgba(251, 191, 36, 0.08) 0%, rgba(255,255,255,0) 100%) !important;
+    }
+    tr.pausada-notificacao td:first-child {
+        border-left: 3px solid #f59e0b;
+    }
+
+    /* Badge de pausa por notificação (ao lado do nome) */
+    .badge-notif-pause {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
+        color: #92400e !important;
+        border: 1px solid #fcd34d;
+        cursor: help;
+    }
+
     /* Tooltip personalizado para tarefas do calendario */
     .calendario-tarefa {
         position: relative;
@@ -1015,13 +1075,22 @@
                         </thead>
                         <tbody id="tarefas-tbody">
                             {% for tarefa in tarefas %}
-                            <tr data-tarefa-id="{{ tarefa.id }}" {% if tarefa.em_execucao %}class="em-execucao"{% endif %}>
+                            <tr data-tarefa-id="{{ tarefa.id }}" {% if tarefa.em_execucao %}class="em-execucao"{% elif tarefa.pausado_por_notificacao %}class="pausada-notificacao"{% endif %}>
                                 <td class="text-center">
                                     <div class="status-cell">
                                         {% if tarefa.em_execucao %}
                                         <div class="exec-indicator" title="Enviando mensagens...">
                                             <div class="exec-spinner"></div>
                                             <span>Enviando</span>
+                                        </div>
+                                        {% elif tarefa.pausado_por_notificacao %}
+                                        <div class="notif-pause-indicator"
+                                             title="Tarefa pausada enquanto ha envios de Notificacao de Vencimentos em andamento. A execucao sera retomada apos conclusao."
+                                             data-bs-toggle="tooltip" data-bs-placement="top">
+                                            <div class="notif-pause-icon">
+                                                <i data-feather="bell"></i>
+                                            </div>
+                                            <span>Aguardando</span>
                                         </div>
                                         {% else %}
                                         <div class="form-check form-switch d-flex justify-content-center">
@@ -1044,7 +1113,13 @@
                                         <div>
                                             <h6 class="mb-0 fw-semibold">
                                                 {{ tarefa.nome }}
-                                                {% if tarefa.esta_pausada %}
+                                                {% if tarefa.pausado_por_notificacao %}
+                                                <span class="badge badge-notif-pause ms-1"
+                                                      title="Tarefa pausada enquanto ha envios de Notificacao de Vencimentos em andamento. A execucao sera retomada apos conclusao."
+                                                      data-bs-toggle="tooltip" data-bs-placement="top">
+                                                    <i data-feather="bell" class="icon-xxs"></i> Aguardando
+                                                </span>
+                                                {% elif tarefa.esta_pausada %}
                                                 <span class="badge bg-warning-soft text-warning ms-1" title="Pausada ate {{ tarefa.get_pausado_ate_display }}">
                                                     <i data-feather="pause-circle" class="icon-xxs"></i> Pausada
                                                 </span>
@@ -1451,8 +1526,11 @@ $(document).ready(function() {
                         $('#stat-proxima').html('<span class="text-muted">Sem tarefas ativas</span>');
                     }
 
-                    // Atualiza indicadores de execução em tempo real
-                    atualizarIndicadoresExecucao(response.tarefas_em_execucao || []);
+                    // Atualiza indicadores de execução e pausa por notificação em tempo real
+                    atualizarIndicadoresExecucao(
+                        response.tarefas_em_execucao || [],
+                        response.tarefas_pausadas_notificacao || []
+                    );
 
                     // Atualiza timestamp
                     const agora = new Date();
@@ -1525,31 +1603,73 @@ $(document).ready(function() {
         }
     }
 
-    // Atualiza indicadores de execução em tempo real
-    function atualizarIndicadoresExecucao(tarefasEmExecucao) {
+    // Atualiza indicadores de execução e pausa por notificação em tempo real
+    function atualizarIndicadoresExecucao(tarefasEmExecucao, tarefasPausadasNotificacao) {
         // Processa cada linha da tabela
         $('#tarefas-tbody tr[data-tarefa-id]').each(function() {
             const $row = $(this);
             const tarefaId = parseInt($row.data('tarefa-id'));
             const $statusCell = $row.find('.status-cell');
-            const estaEmExecucao = tarefasEmExecucao.includes(tarefaId);
-            const tinhaIndicador = $statusCell.find('.exec-indicator').length > 0;
+            const $nomeCell = $row.find('.tarefa-nome-cell h6');
 
-            if (estaEmExecucao && !tinhaIndicador) {
+            const estaEmExecucao = tarefasEmExecucao.includes(tarefaId);
+            const estaPausadaNotif = tarefasPausadasNotificacao.includes(tarefaId);
+
+            const tinhaIndicadorExec = $statusCell.find('.exec-indicator').length > 0;
+            const tinhaIndicadorNotif = $statusCell.find('.notif-pause-indicator').length > 0;
+
+            // Remove classes anteriores
+            $row.removeClass('em-execucao pausada-notificacao');
+
+            if (estaEmExecucao && !tinhaIndicadorExec) {
                 // Adiciona indicador de execução
                 $row.addClass('em-execucao');
-                const isChecked = $statusCell.find('.toggle-tarefa').prop('checked');
+                const isChecked = $statusCell.find('.toggle-tarefa').prop('checked') ||
+                                  $statusCell.data('was-checked') !== false;
+                $statusCell.data('was-checked', isChecked);
                 $statusCell.html(`
                     <div class="exec-indicator" title="Enviando mensagens...">
                         <div class="exec-spinner"></div>
                         <span>Enviando</span>
                     </div>
                 `);
-                // Guarda estado do toggle para restaurar depois
+                // Remove badge de pausa do nome se existir
+                $nomeCell.find('.badge-notif-pause').remove();
+
+            } else if (estaPausadaNotif && !estaEmExecucao && !tinhaIndicadorNotif) {
+                // Adiciona indicador de pausa por notificação
+                $row.addClass('pausada-notificacao');
+                const isChecked = $statusCell.find('.toggle-tarefa').prop('checked') ||
+                                  $statusCell.data('was-checked') !== false;
                 $statusCell.data('was-checked', isChecked);
-            } else if (!estaEmExecucao && tinhaIndicador) {
-                // Remove indicador e restaura toggle
-                $row.removeClass('em-execucao');
+                $statusCell.html(`
+                    <div class="notif-pause-indicator"
+                         title="Tarefa pausada enquanto ha envios de Notificacao de Vencimentos em andamento. A execucao sera retomada apos conclusao."
+                         data-bs-toggle="tooltip" data-bs-placement="top">
+                        <div class="notif-pause-icon">
+                            <i data-feather="bell"></i>
+                        </div>
+                        <span>Aguardando</span>
+                    </div>
+                `);
+                // Adiciona badge ao nome se não existir
+                if ($nomeCell.find('.badge-notif-pause').length === 0) {
+                    const nomeTarefa = $nomeCell.contents().first().text().trim();
+                    $nomeCell.html(`
+                        ${nomeTarefa}
+                        <span class="badge badge-notif-pause ms-1"
+                              title="Tarefa pausada enquanto ha envios de Notificacao de Vencimentos em andamento. A execucao sera retomada apos conclusao."
+                              data-bs-toggle="tooltip" data-bs-placement="top">
+                            <i data-feather="bell" class="icon-xxs"></i> Aguardando
+                        </span>
+                    `);
+                }
+                // Inicializa tooltip e feather
+                if (typeof feather !== 'undefined') feather.replace();
+                $statusCell.find('[data-bs-toggle="tooltip"]').tooltip();
+
+            } else if (!estaEmExecucao && !estaPausadaNotif && (tinhaIndicadorExec || tinhaIndicadorNotif)) {
+                // Remove indicadores e restaura toggle
                 const wasChecked = $statusCell.data('was-checked') !== false;
                 $statusCell.html(`
                     <div class="form-check form-switch d-flex justify-content-center">
@@ -1560,6 +1680,12 @@ $(document).ready(function() {
                 `);
                 // Re-attach event handler
                 $statusCell.find('.toggle-tarefa').on('change', handleToggleTarefa);
+                // Remove badge de pausa do nome
+                $nomeCell.find('.badge-notif-pause').remove();
+            } else if (estaEmExecucao) {
+                $row.addClass('em-execucao');
+            } else if (estaPausadaNotif) {
+                $row.addClass('pausada-notificacao');
             }
         });
     }
@@ -1884,6 +2010,12 @@ $(document).ready(function() {
     if (typeof feather !== 'undefined') {
         feather.replace();
     }
+
+    // Inicializa tooltips do Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 
     // ===== DROPDOWN MOBILE COM PORTAL PATTERN =====
     function isMobile() {

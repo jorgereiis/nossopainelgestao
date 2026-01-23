@@ -2534,16 +2534,16 @@ body {
     text-transform: uppercase;
 }
 
-.form-indicator.form-W {
-    background: #22c55e;
+.form-indicator.form-V {
+    background: #22c55e; /* Vitoria - verde */
+}
+
+.form-indicator.form-E {
+    background: #9ca3af; /* Empate - cinza */
 }
 
 .form-indicator.form-D {
-    background: #9ca3af;
-}
-
-.form-indicator.form-L {
-    background: #ef4444;
+    background: #ef4444; /* Derrota - vermelho */
 }
 
 /* Colunas da tabela */

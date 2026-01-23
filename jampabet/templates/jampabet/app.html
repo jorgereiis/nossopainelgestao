@@ -454,6 +454,38 @@
                 </div>
             </div>
 
+            <!-- Configuracoes de Seguranca -->
+            <div class="admin-section">
+                <h3><i class="fas fa-shield-alt"></i> Configuracoes de Seguranca</h3>
+                <p class="admin-section-desc">Configuracoes de autenticacao e seguranca do sistema</p>
+
+                <div class="security-config-form" id="security-config-form">
+                    <div class="config-row">
+                        <div class="config-group">
+                            <label>
+                                <input type="checkbox" id="config-require-2fa">
+                                <span>Exigir Verificacao por E-mail (2FA)</span>
+                            </label>
+                            <small>Se ativado, envia codigo de verificacao por e-mail ao fazer login</small>
+                        </div>
+                        <div class="config-group config-info">
+                            <label>Status do 2FA</label>
+                            <div class="security-info">
+                                <span class="info-item" id="info-2fa-status">
+                                    <i class="fas fa-lock-open text-muted"></i> Desativado
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-actions">
+                        <button class="btn btn-admin-action btn-primary-action" id="btn-save-security-config">
+                            <i class="fas fa-save"></i> Salvar Seguranca
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Configuracoes da API -->
             <div class="admin-section">
                 <h3><i class="fas fa-cogs"></i> Configuracoes da API</h3>

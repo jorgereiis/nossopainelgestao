@@ -50,8 +50,8 @@
   </div>
 </section>
 {% else %}
-<!-- Pending Payments Alert -->
-{% if mensalidades_abertas %}
+<!-- Pending Payments Alert (não exibir para clientes cancelados) -->
+{% if mensalidades_abertas and not cliente.cancelado %}
 <section class="section animate-fade-in-up" style="animation-delay: 100ms;">
   {% for mensalidade in mensalidades_abertas %}
   <div class="payment-card payment-card-pending {% if mensalidade.dt_vencimento < today %}payment-card-overdue animate-pulse-border{% endif %}">

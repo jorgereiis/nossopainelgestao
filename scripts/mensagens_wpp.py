@@ -1726,6 +1726,66 @@ def obter_mensagem_personalizada(nome: str, tipo: str, usuario: User = None) -> 
 
 
 ###########################################################
+##### VERIFICAÇÃO DE CONFLITO COM NOTIFICAÇÕES        #####
+###########################################################
+
+MARGEM_NOTIFICACAO_MINUTOS = 5
+
+
+def verificar_conflito_notificacoes(usuario_id: int) -> tuple:
+    """
+    Verifica se há notificações de Vencimento/Atrasos que devem ter prioridade.
+
+    Regras:
+    1. Se uma notificação está em execução → PAUSA
+    2. Se faltam menos de 5 minutos para uma notificação → PAUSA
+    3. Se notificação deveria ter executado hoje mas ainda não → PAUSA
+
+    Args:
+        usuario_id: ID do usuário da tarefa
+
+    Returns:
+        tuple: (tem_conflito: bool, motivo: str)
+    """
+    agora = localtime()
+    hoje = agora.date()
+    hora_atual = agora.time()
+    margem = timedelta(minutes=MARGEM_NOTIFICACAO_MINUTOS)
+
+    # Buscar notificações ativas do usuário
+    notificacoes = HorarioEnvios.objects.filter(
+        usuario_id=usuario_id,
+        status=True,
+        ativo=True
+    )
+
+    for notif in notificacoes:
+        tipo_nome = "Vencimentos" if notif.tipo_envio == "mensalidades_a_vencer" else "Atrasos"
+
+        # 1. Notificação em execução
+        if notif.em_execucao:
+            return True, f"Notificação de {tipo_nome} em execução"
+
+        # 2. Faltam menos de 5 minutos para a notificação
+        horario_notif_dt = datetime.combine(hoje, notif.horario)
+        # Tornar timezone-aware se necessário
+        if agora.tzinfo is not None:
+            horario_notif_dt = agora.tzinfo.localize(horario_notif_dt) if hasattr(agora.tzinfo, 'localize') else horario_notif_dt.replace(tzinfo=agora.tzinfo)
+
+        diferenca = horario_notif_dt - agora
+        if timedelta(0) < diferenca <= margem:
+            minutos_restantes = int(diferenca.total_seconds() / 60)
+            return True, f"Notificação de {tipo_nome} inicia em {minutos_restantes} minutos"
+
+        # 3. Notificação deveria ter executado mas não executou
+        if notif.ultimo_envio is None or notif.ultimo_envio < hoje:
+            if hora_atual >= notif.horario:
+                return True, f"Notificação de {tipo_nome} pendente de execução"
+
+    return False, ""
+
+
+###########################################################
 ##### FUNÇÃO PARA EXECUTAR TAREFAS DE ENVIO DO BANCO  #####
 ###########################################################
 
@@ -1781,14 +1841,51 @@ def run_scheduled_tasks_from_db():
 
         for tarefa in tarefas_para_executar:
             try:
-                # Pula se já executou hoje
-                if tarefa.ultimo_envio and tarefa.ultimo_envio.date() == hoje:
-                    logger.debug(
-                        "TarefaEnvio já executada hoje | tarefa_id=%d nome=%s",
+                # ============================================================
+                # VERIFICAÇÃO DE CONFLITO COM NOTIFICAÇÕES
+                # ============================================================
+                tem_conflito, motivo = verificar_conflito_notificacoes(tarefa.usuario_id)
+                if tem_conflito:
+                    logger.info(
+                        "TarefaEnvio pausada por conflito | tarefa_id=%d nome=%s motivo=%s",
+                        tarefa.id,
+                        tarefa.nome,
+                        motivo
+                    )
+                    # Atualizar status de pausa
+                    if not tarefa.pausado_por_notificacao:
+                        tarefa.pausado_por_notificacao = True
+                        tarefa.pausado_motivo = motivo
+                        tarefa.save(update_fields=['pausado_por_notificacao', 'pausado_motivo'])
+                    continue
+
+                # Limpar flag de pausa se estava pausada
+                if tarefa.pausado_por_notificacao:
+                    tarefa.pausado_por_notificacao = False
+                    tarefa.pausado_motivo = ""
+                    tarefa.save(update_fields=['pausado_por_notificacao', 'pausado_motivo'])
+                    logger.info(
+                        "TarefaEnvio retomada após notificações | tarefa_id=%d nome=%s",
                         tarefa.id,
                         tarefa.nome
                     )
-                    continue
+
+                # Pula se já executou hoje (exceto se execução não foi completa)
+                if tarefa.ultimo_envio and tarefa.ultimo_envio.date() == hoje:
+                    # Permitir reexecução se última execução não foi completa
+                    if tarefa.execucao_completa:
+                        logger.debug(
+                            "TarefaEnvio já executada hoje com sucesso | tarefa_id=%d nome=%s",
+                            tarefa.id,
+                            tarefa.nome
+                        )
+                        continue
+                    else:
+                        logger.info(
+                            "TarefaEnvio reexecutando - última execução incompleta | tarefa_id=%d nome=%s",
+                            tarefa.id,
+                            tarefa.nome
+                        )
 
                 # Verifica dia da semana + período do mês
                 if not tarefa.deve_executar_hoje():
@@ -1838,9 +1935,16 @@ def run_scheduled_tasks_from_db():
 
                     # Lock adquirido com sucesso - marca como em execução
                     tarefa = tarefa_locked
+
+                    # Salvar ultimo_envio anterior para possível reversão em caso de erro
+                    ultimo_envio_anterior = tarefa.ultimo_envio
+
+                    # Marcar como execução em andamento (não completa)
                     tarefa.em_execucao = True
                     tarefa.execucao_iniciada_em = agora
-                    tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
+                    tarefa.execucao_completa = False
+                    tarefa.ultimo_envio = agora
+                    tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em', 'execucao_completa', 'ultimo_envio'])
 
                 logger.info(
                     "Iniciando execução de TarefaEnvio | tarefa_id=%d nome=%s tipo=%s usuario=%s",
@@ -1889,12 +1993,13 @@ def run_scheduled_tasks_from_db():
                         duracao_segundos=duracao
                     )
 
-                    # Atualiza tarefa (marca como não mais em execução)
+                    # Atualiza tarefa (marca execução como completa)
+                    tarefa.execucao_completa = True
                     tarefa.ultimo_envio = agora
                     tarefa.total_envios += resultado['enviados']
                     tarefa.em_execucao = False
                     tarefa.execucao_iniciada_em = None
-                    tarefa.save(update_fields=['ultimo_envio', 'total_envios', 'em_execucao', 'execucao_iniciada_em'])
+                    tarefa.save(update_fields=['execucao_completa', 'ultimo_envio', 'total_envios', 'em_execucao', 'execucao_iniciada_em'])
 
                     logger.info(
                         "TarefaEnvio concluída | tarefa_id=%d nome=%s status=%s enviados=%d erros=%d duracao=%ds",
@@ -1907,10 +2012,12 @@ def run_scheduled_tasks_from_db():
                     )
 
                 except Exception as e:
-                    # Garante que em_execucao é resetado mesmo em caso de erro interno
+                    # Garante que em_execucao é resetado e reverte ultimo_envio em caso de erro interno
+                    tarefa.ultimo_envio = ultimo_envio_anterior
+                    tarefa.execucao_completa = False
                     tarefa.em_execucao = False
                     tarefa.execucao_iniciada_em = None
-                    tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
+                    tarefa.save(update_fields=['ultimo_envio', 'execucao_completa', 'em_execucao', 'execucao_iniciada_em'])
                     raise  # Re-lança a exceção para o handler externo
 
             except Exception as e:
@@ -1920,17 +2027,21 @@ def run_scheduled_tasks_from_db():
                     tarefa.nome,
                     str(e)
                 )
-                # Garante que em_execucao é resetado
+                # Garante que em_execucao é resetado e reverte ultimo_envio para permitir reexecução
                 try:
+                    tarefa.ultimo_envio = ultimo_envio_anterior if 'ultimo_envio_anterior' in locals() else tarefa.ultimo_envio
+                    tarefa.execucao_completa = False
                     tarefa.em_execucao = False
                     tarefa.execucao_iniciada_em = None
-                    tarefa.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
+                    tarefa.save(update_fields=['ultimo_envio', 'execucao_completa', 'em_execucao', 'execucao_iniciada_em'])
                 except:
                     pass
                 # Registra erro no histórico
                 HistoricoExecucaoTarefa.objects.create(
                     tarefa=tarefa,
                     status='erro',
+                    quantidade_enviada=0,
+                    quantidade_erros=0,
                     detalhes=json.dumps({'erro': str(e)}),
                     duracao_segundos=int(time.time() - inicio) if 'inicio' in locals() else 0
                 )

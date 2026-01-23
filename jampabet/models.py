@@ -639,6 +639,13 @@ class APIConfig(models.Model):
         help_text='Bloquear palpites X minutos antes do inicio'
     )
 
+    # Configuracoes de seguranca
+    require_2fa = models.BooleanField(
+        default=False,
+        verbose_name='Exigir verificacao por e-mail (2FA)',
+        help_text='Se ativado, envia codigo de verificacao por e-mail ao fazer login'
+    )
+
     # Configuracoes de pontuacao
     points_exact_victory = models.IntegerField(
         default=3,

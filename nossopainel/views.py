@@ -11250,6 +11250,11 @@ def tarefas_envio_stats_api(request):
         qs.filter(em_execucao=True).values_list('id', flat=True)
     )
 
+    # Tarefas pausadas por notificação (aguardando notificações de vencimento/atrasos)
+    tarefas_pausadas_notificacao = list(
+        qs.filter(pausado_por_notificacao=True).values_list('id', flat=True)
+    )
+
     return JsonResponse({
         'success': True,
         'stats': {
@@ -11268,6 +11273,7 @@ def tarefas_envio_stats_api(request):
             } if proxima_execucao else None
         },
         'tarefas_em_execucao': tarefas_em_execucao,
+        'tarefas_pausadas_notificacao': tarefas_pausadas_notificacao,
         'timestamp': agora.isoformat()
     })
 
@@ -14122,12 +14128,15 @@ def revendedores_automacoes_status(request):
     Endpoint leve para atualização dinâmica dos spinners sem recarregar a tabela inteira.
 
     Returns:
-        JSON com detalhes das automações em execução:
+        JSON com detalhes das automações em execução e pausadas:
         {
             "success": true,
             "automacoes": {
                 "tarefa_envio": [
                     {"user_id": 1, "tarefa_id": 5, "nome": "Campanha", "iniciado_em": "08:30"},
+                ],
+                "tarefa_pausada_notificacao": [
+                    {"user_id": 1, "tarefa_id": 6, "nome": "Promo"},
                 ],
                 "horario_envio": [
                     {"user_id": 2, "tipo": "mensalidades_a_vencer", "iniciado_em": "10:00"},
@@ -14140,6 +14149,11 @@ def revendedores_automacoes_status(request):
     tarefas_ativas = TarefaEnvio.objects.filter(
         em_execucao=True
     ).values('usuario_id', 'id', 'nome', 'execucao_iniciada_em')
+
+    # Busca TarefaEnvio pausadas por notificação
+    tarefas_pausadas = TarefaEnvio.objects.filter(
+        pausado_por_notificacao=True
+    ).values('usuario_id', 'id', 'nome')
 
     # Busca HorarioEnvios em execução com detalhes
     horarios_ativos = HorarioEnvios.objects.filter(
@@ -14157,6 +14171,14 @@ def revendedores_automacoes_status(request):
                     'iniciado_em': t['execucao_iniciada_em'].strftime('%H:%M') if t['execucao_iniciada_em'] else None
                 }
                 for t in tarefas_ativas
+            ],
+            'tarefa_pausada_notificacao': [
+                {
+                    'user_id': t['usuario_id'],
+                    'tarefa_id': t['id'],
+                    'nome': t['nome']
+                }
+                for t in tarefas_pausadas
             ],
             'horario_envio': [
                 {

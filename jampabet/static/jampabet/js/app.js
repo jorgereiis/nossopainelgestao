@@ -143,6 +143,115 @@ function hideSplash() {
 // ==================== CARD PRINCIPAL - PROXIMA PARTIDA ====================
 let heroMatchData = null;
 let countdownInterval = null;
+let livePollingInterval = null;
+let livePollingActive = false;
+
+// Configuracoes de polling
+const POLLING_CONFIG = {
+    LIVE_INTERVAL: 20000,      // 20 segundos quando ao vivo
+    UPCOMING_INTERVAL: 60000,  // 60 segundos quando aguardando inicio
+    FINISHED_CHECK: 120000     // 2 minutos para verificar proxima partida apos encerramento
+};
+
+/**
+ * Sistema inteligente de polling para partidas ao vivo.
+ * - Detecta quando uma partida inicia (upcoming -> live)
+ * - Atualiza frequentemente durante a partida
+ * - Para apos encerramento (com uma atualizacao final)
+ * - Retoma verificacao periodica para proxima partida
+ */
+function initLiveMatchPolling() {
+    // Inicia verificacao com base no estado atual
+    scheduleNextPoll();
+}
+
+function scheduleNextPoll() {
+    // Limpa intervalo anterior se existir
+    if (livePollingInterval) {
+        clearTimeout(livePollingInterval);
+        livePollingInterval = null;
+    }
+
+    if (!heroMatchData) {
+        // Sem partida - verifica a cada 2 minutos
+        livePollingInterval = setTimeout(async () => {
+            await loadNextBahiaMatch();
+            scheduleNextPoll();
+        }, POLLING_CONFIG.FINISHED_CHECK);
+        return;
+    }
+
+    const status = heroMatchData.status;
+    const previousStatus = heroMatchData._previousStatus;
+
+    // Partida ao vivo - polling frequente
+    if (status === 'live') {
+        livePollingActive = true;
+        livePollingInterval = setTimeout(async () => {
+            heroMatchData._previousStatus = status;
+            await loadNextBahiaMatch();
+            scheduleNextPoll();
+        }, POLLING_CONFIG.LIVE_INTERVAL);
+    }
+    // Partida encerrada
+    else if (status === 'finished') {
+        // Se acabou de encerrar (transicao live -> finished), faz uma ultima atualizacao
+        if (previousStatus === 'live' && livePollingActive) {
+            console.log('[Polling] Partida encerrada - ultima atualizacao');
+            livePollingActive = false;
+            // Agenda verificacao para proxima partida
+            livePollingInterval = setTimeout(async () => {
+                await loadNextBahiaMatch();
+                scheduleNextPoll();
+            }, POLLING_CONFIG.FINISHED_CHECK);
+        } else {
+            // Partida ja estava encerrada - verifica periodicamente por nova partida
+            livePollingInterval = setTimeout(async () => {
+                await loadNextBahiaMatch();
+                scheduleNextPoll();
+            }, POLLING_CONFIG.FINISHED_CHECK);
+        }
+    }
+    // Partida agendada (upcoming) - verifica se vai comecar
+    else if (status === 'upcoming') {
+        // Calcula tempo ate o inicio
+        const matchDate = new Date(heroMatchData.date);
+        const now = new Date();
+        const timeUntilStart = matchDate - now;
+
+        // Se falta menos de 5 minutos, verifica com mais frequencia
+        if (timeUntilStart > 0 && timeUntilStart < 5 * 60 * 1000) {
+            livePollingInterval = setTimeout(async () => {
+                heroMatchData._previousStatus = status;
+                await loadNextBahiaMatch();
+                scheduleNextPoll();
+            }, 15000); // 15 segundos quando perto de comecar
+        }
+        // Se ja passou do horario de inicio, verifica frequentemente (pode ter comecado)
+        else if (timeUntilStart <= 0) {
+            livePollingInterval = setTimeout(async () => {
+                heroMatchData._previousStatus = status;
+                await loadNextBahiaMatch();
+                scheduleNextPoll();
+            }, POLLING_CONFIG.LIVE_INTERVAL);
+        }
+        // Ainda falta tempo - verifica menos frequentemente
+        else {
+            livePollingInterval = setTimeout(async () => {
+                heroMatchData._previousStatus = status;
+                await loadNextBahiaMatch();
+                scheduleNextPoll();
+            }, POLLING_CONFIG.UPCOMING_INTERVAL);
+        }
+    }
+    // Outros status (cancelled, postponed) - verifica periodicamente
+    else {
+        livePollingInterval = setTimeout(async () => {
+            await loadNextBahiaMatch();
+            scheduleNextPoll();
+        }, POLLING_CONFIG.FINISHED_CHECK);
+    }
+}
 
 async function loadNextBahiaMatch() {
     try {
@@ -1407,9 +1516,13 @@ function renderStandings(data) {
 
 function renderFormIndicators(form) {
     if (!form) return '';
-    return form.split('').map(char =>
-        `<span class="form-indicator form-${char}">${char}</span>`
-    ).join('');
+    // Converte letras do ingles para portugues
+    // W (Win) -> V (Vitoria), D (Draw) -> E (Empate), L (Loss) -> D (Derrota)
+    const translations = { 'W': 'V', 'D': 'E', 'L': 'D' };
+    return form.split('').map(char => {
+        const ptChar = translations[char] || char;
+        return `<span class="form-indicator form-${ptChar}">${ptChar}</span>`;
+    }).join('');
 }
 
 function getZoneClass(position) {
@@ -1933,12 +2046,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Inicializa gerenciamento de partidas (DEV ONLY)
     initMatchManagement();
 
-    // Atualiza card principal a cada 30 segundos (para jogos ao vivo)
-    setInterval(() => {
-        if (heroMatchData && heroMatchData.status === 'live') {
-            loadNextBahiaMatch();
-        }
-    }, 30000);
+    // Sistema inteligente de polling para partidas ao vivo
+    initLiveMatchPolling();
 
     // Inicializa modal de menu do usuario
     initUserMenuModal();
@@ -3411,6 +3520,13 @@ async function loadAPIConfig() {
         // Atualiza status do polling
         updatePollingStatus(config.last_poll_status, config.last_poll_message, config.last_poll_at);
 
+        // Atualiza campos do formulario - Seguranca
+        const require2fa = document.getElementById('config-require-2fa');
+        if (require2fa) require2fa.checked = config.require_2fa || false;
+
+        // Atualiza status visual do 2FA
+        update2FAStatus(config.require_2fa);
+
         // Atualiza campos do formulario - Pontuacao
         const pointsVictory = document.getElementById('config-points-victory');
         const pointsDraw = document.getElementById('config-points-draw');
@@ -3436,6 +3552,49 @@ function updateScoringInfo(pointsVictory, pointsDraw, roundCost) {
     if (infoVictory) infoVictory.textContent = pointsVictory || 3;
     if (infoDraw) infoDraw.textContent = pointsDraw || 1;
     if (infoCost) infoCost.textContent = (roundCost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function update2FAStatus(enabled) {
+    const statusEl = document.getElementById('info-2fa-status');
+    if (!statusEl) return;
+
+    if (enabled) {
+        statusEl.innerHTML = '<i class="fas fa-lock text-green"></i> Ativado';
+    } else {
+        statusEl.innerHTML = '<i class="fas fa-lock-open text-muted"></i> Desativado';
+    }
+}
+
+async function saveSecurityConfig() {
+    const require2fa = document.getElementById('config-require-2fa');
+
+    const configData = {
+        require_2fa: require2fa ? require2fa.checked : false
+    };
+
+    try {
+        const response = await fetch('/app/bahia/api/admin/config/update/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(configData)
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showToast('Configuracoes de seguranca salvas com sucesso', 'success');
+            update2FAStatus(configData.require_2fa);
+        } else {
+            showToast(data.error || 'Erro ao salvar configuracoes', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar configuracoes de seguranca:', error);
+        showToast('Erro ao salvar configuracoes', 'error');
+    }
 }
 
 function updatePollingStatus(status, message, lastPoll) {
@@ -3560,6 +3719,12 @@ async function saveScoringConfig() {
 }
 
 function initAPIConfig() {
+    // Botao salvar Seguranca
+    const btnSaveSecurity = document.getElementById('btn-save-security-config');
+    if (btnSaveSecurity) {
+        btnSaveSecurity.addEventListener('click', saveSecurityConfig);
+    }
+
     // Botao salvar API
     const btnSave = document.getElementById('btn-save-api-config');
     if (btnSave) {
