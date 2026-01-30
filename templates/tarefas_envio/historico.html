@@ -1197,11 +1197,11 @@ $(document).ready(function() {
 
         $('#resumo-content').html(resumoHtml);
 
-        // Tab Erros
-        const errosArray = detalhes.erros || detalhes.falhas || [];
-        if (errosArray.length > 0) {
+        // Tab Erros (usa errosArray já declarado acima, mas verifica falhas também)
+        const errosParaExibir = detalhes.erros || detalhes.falhas || [];
+        if (errosParaExibir.length > 0) {
             let errosHtml = '';
-            errosArray.forEach(function(erro) {
+            errosParaExibir.forEach(function(erro) {
                 const telefone = erro.telefone || erro.numero || 'Desconhecido';
                 const clienteNome = erro.cliente_nome || '';
                 const motivo = erro.motivo || erro.erro || erro.message || 'Erro desconhecido';
@@ -1240,8 +1240,10 @@ $(document).ready(function() {
         // Tab JSON
         $('#json-content').text(JSON.stringify(detalhes, null, 2));
 
-        // Abre modal
-        $('#modal-detalhes').modal('show');
+        // Abre modal (Bootstrap 5)
+        const modalEl = document.getElementById('modal-detalhes');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
     });
 
     // Copiar JSON
