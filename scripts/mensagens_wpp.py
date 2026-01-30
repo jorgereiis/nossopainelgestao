@@ -1171,7 +1171,8 @@ def envia_mensagem_personalizada(
     filtro_estados: list = None,
     filtro_cidades: list = None,
     dias_cancelamento: int = 10,
-    limite_envios: int = None
+    limite_envios: int = None,
+    tarefa_id: int = None
 ) -> dict:
     """
     Envia mensagens via WhatsApp para grupos de clientes com base no tipo de envio:
@@ -1190,16 +1191,17 @@ def envia_mensagem_personalizada(
         filtro_cidades (list): Lista de cidades para filtrar clientes.
         dias_cancelamento (int): Dias mínimos de cancelamento para tipo 'cancelados' (padrão: 10).
         limite_envios (int): Limite máximo de envios por execução (padrão: ConfiguracaoEnvio).
+        tarefa_id (int): ID da tarefa de envio (controle de duplicidade por tarefa).
 
     Retorna:
-        dict: {'enviados': int, 'erros': int, 'detalhes': list}
+        dict: {'enviados': int, 'erros': int, 'ja_receberam': int, 'detalhes': list, 'total_destinatarios': int}
 
-    A mensagem só é enviada se:
-    - O número for validado via API do WhatsApp.
-    - Ainda não tiver sido enviada naquele dia.
+    Controle de duplicidade:
+    - Com tarefa_id: Permite 1 envio por tarefa por mês para cada telefone.
+    - Sem tarefa_id (legado): Permite 1 envio por dia para cada telefone.
     """
     # Resultado para retorno
-    resultado = {'enviados': 0, 'erros': 0, 'detalhes': []}
+    resultado = {'enviados': 0, 'erros': 0, 'ja_receberam': 0, 'detalhes': []}
 
     # Determina o usuário
     if usuario_id:
@@ -1347,46 +1349,86 @@ def envia_mensagem_personalizada(
             })
             break
 
-        # Ignora se já enviado hoje
-        if MensagemEnviadaWpp.objects.filter(usuario=usuario, telefone=telefone, data_envio=localtime().now().date()).exists():
-            registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já foi feito envio hoje!", usuario, DIR_LOGS_AGENDADOS)
-            registrar_log_auditoria({
-                "funcao": "envia_mensagem_personalizada",
-                "status": "ignorado_envio_diario",
-                "usuario": usuario.username,
-                "tipo_envio": tipo_envio,
-                "telefone": telefone,
-                "cliente_nome": cliente_nome,
-                "cliente_id": cliente_id,
-            })
-            continue
+        # Controle de duplicidade - depende se tem tarefa_id ou não
+        hoje = localtime()
 
-        # ignora se já enviado neste mês (avulso, ativos e cancelados)
-        if tipo_envio in ["avulso", "ativos", "cancelados"]:
-            hoje = localtime()
+        if tarefa_id:
+            # MODO TAREFA: Verifica se já enviou ESTA TAREFA para este telefone ESTE MÊS
             if MensagemEnviadaWpp.objects.filter(
                 usuario=usuario,
                 telefone=telefone,
+                tarefa_id=tarefa_id,
                 data_envio__year=hoje.year,
                 data_envio__month=hoje.month
             ).exists():
                 logger.debug(
-                    "Envio ignorado (já enviado este mês) | telefone=%s tipo=%s usuario=%s",
+                    "Envio ignorado (já enviado esta tarefa este mês) | telefone=%s tarefa_id=%s usuario=%s",
                     telefone,
-                    tipo_envio,
+                    tarefa_id,
                     usuario.username
                 )
-                registrar_log(f"[{hoje.strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já recebeu envio este mês (avulso)", usuario, DIR_LOGS_AGENDADOS)
+                registrar_log(f"[{hoje.strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já recebeu esta tarefa este mês", usuario, DIR_LOGS_AGENDADOS)
                 registrar_log_auditoria({
                     "funcao": "envia_mensagem_personalizada",
-                    "status": "ignorado_envio_mensal",
+                    "status": "ignorado_tarefa_mensal",
+                    "usuario": usuario.username,
+                    "tipo_envio": tipo_envio,
+                    "telefone": telefone,
+                    "cliente_nome": cliente_nome,
+                    "cliente_id": cliente_id,
+                    "tarefa_id": tarefa_id,
+                })
+                resultado['ja_receberam'] += 1
+                continue
+        else:
+            # MODO LEGADO (sem tarefa): Mantém comportamento original
+            # Ignora se já enviado hoje
+            if MensagemEnviadaWpp.objects.filter(
+                usuario=usuario,
+                telefone=telefone,
+                tarefa_id__isnull=True,
+                data_envio=hoje.date()
+            ).exists():
+                registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já foi feito envio hoje!", usuario, DIR_LOGS_AGENDADOS)
+                registrar_log_auditoria({
+                    "funcao": "envia_mensagem_personalizada",
+                    "status": "ignorado_envio_diario",
                     "usuario": usuario.username,
                     "tipo_envio": tipo_envio,
                     "telefone": telefone,
                     "cliente_nome": cliente_nome,
                     "cliente_id": cliente_id,
                 })
+                resultado['ja_receberam'] += 1
                 continue
+
+            # Ignora se já enviado neste mês (modo legado)
+            if tipo_envio in ["avulso", "ativos", "cancelados"]:
+                if MensagemEnviadaWpp.objects.filter(
+                    usuario=usuario,
+                    telefone=telefone,
+                    tarefa_id__isnull=True,
+                    data_envio__year=hoje.year,
+                    data_envio__month=hoje.month
+                ).exists():
+                    logger.debug(
+                        "Envio ignorado (já enviado este mês) | telefone=%s tipo=%s usuario=%s",
+                        telefone,
+                        tipo_envio,
+                        usuario.username
+                    )
+                    registrar_log(f"[{hoje.strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Já recebeu envio este mês (legado)", usuario, DIR_LOGS_AGENDADOS)
+                    registrar_log_auditoria({
+                        "funcao": "envia_mensagem_personalizada",
+                        "status": "ignorado_envio_mensal",
+                        "usuario": usuario.username,
+                        "tipo_envio": tipo_envio,
+                        "telefone": telefone,
+                        "cliente_nome": cliente_nome,
+                        "cliente_id": cliente_id,
+                    })
+                    resultado['ja_receberam'] += 1
+                    continue
 
         if not telefone:
             log = TEMPLATE_LOG_TELEFONE_INVALIDO.format(localtime().strftime('%d-%m-%Y %H:%M:%S'), tipo_envio.upper(), usuario, telefone)
@@ -1434,6 +1476,13 @@ def envia_mensagem_personalizada(
                 )
                 registrar_log(f"[{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}] {telefone} - ⚠️ Marcado como inválido (avulso)", usuario, DIR_LOGS_AGENDADOS)
             resultado['erros'] += 1
+            resultado['detalhes'].append({
+                'telefone': telefone,
+                'cliente_nome': cliente_nome,
+                'cliente_id': cliente_id,
+                'motivo': 'Número não possui WhatsApp',
+                'tipo': 'numero_invalido'
+            })
             continue
 
         # Obter mensagem: usa mensagem_direta (TarefaEnvio) ou template (legado)
@@ -1519,7 +1568,8 @@ def envia_mensagem_personalizada(
                     try:
                         registro_envio = MensagemEnviadaWpp.objects.create(
                             usuario=usuario,
-                            telefone=telefone
+                            telefone=telefone,
+                            tarefa_id=tarefa_id  # None para envios legados
                         )
                         registro_criado = True
                     except IntegrityError:
@@ -1605,8 +1655,20 @@ def envia_mensagem_personalizada(
         else:
             # Se saiu do loop sem sucesso (todas tentativas falharam)
             resultado['erros'] += 1
+            resultado['detalhes'].append({
+                'telefone': telefone,
+                'cliente_nome': cliente_nome,
+                'cliente_id': cliente_id,
+                'motivo': f'Falha no envio após 3 tentativas: {error_message}',
+                'tipo': 'falha_envio',
+                'http_status': status_code,
+                'ultima_resposta': str(response_payload)[:200] if response_payload else None
+            })
 
         time.sleep(random.uniform(30, 180))
+
+    # Adiciona total de destinatarios ao resultado
+    resultado['total_destinatarios'] = len(destinatarios)
 
     # Retorna resultado para uso em TarefaEnvio
     return resultado
@@ -2004,6 +2066,7 @@ def run_scheduled_tasks_from_db():
                         filtro_estados=tarefa.filtro_estados or None,
                         filtro_cidades=tarefa.filtro_cidades or None,
                         dias_cancelamento=tarefa.dias_cancelamento or 10,
+                        tarefa_id=tarefa.id,  # Controle de duplicidade por tarefa
                     )
 
                     duracao = int(time.time() - inicio)
@@ -2013,16 +2076,27 @@ def run_scheduled_tasks_from_db():
                         status = 'sucesso'
                     elif resultado['enviados'] > 0:
                         status = 'parcial'
+                    elif resultado['erros'] == 0 and resultado['ja_receberam'] > 0:
+                        # Nenhum envio, nenhum erro, mas há contatos que já receberam
+                        status = 'concluido'
                     else:
                         status = 'erro'
 
                     # Registra histórico
+                    # Estrutura detalhes como objeto com chave 'erros' para compatibilidade com frontend
+                    detalhes_estruturados = {
+                        'erros': resultado.get('detalhes', []),
+                        'total_destinatarios': resultado.get('total_destinatarios', 0),
+                        'enviados': resultado['enviados'],
+                        'falhas': resultado['erros'],
+                        'ja_receberam': resultado.get('ja_receberam', 0)
+                    }
                     HistoricoExecucaoTarefa.objects.create(
                         tarefa=tarefa,
                         status=status,
                         quantidade_enviada=resultado['enviados'],
                         quantidade_erros=resultado['erros'],
-                        detalhes=json.dumps(resultado.get('detalhes', {})),
+                        detalhes=json.dumps(detalhes_estruturados),
                         duracao_segundos=duracao
                     )
 

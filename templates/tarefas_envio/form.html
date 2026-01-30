@@ -677,7 +677,7 @@
                             </div>
                             <small class="text-muted d-block mt-2">
                                 <strong>Recorrente:</strong> repete nos dias/período selecionados |
-                                <strong>Unico:</strong> executa apenas uma vez na data específica
+                                <strong>Único:</strong> executa apenas uma vez na data específica
                             </small>
                         </div>
 
@@ -754,7 +754,7 @@
                                 <div class="input-group">
                                     {{ form.horario }}
                                     <button type="button" class="btn btn-outline-secondary" id="btn-sugestao-horarios"
-                                            data-bs-toggle="tooltip" title="Ver sugestoes de horarios">
+                                            data-bs-toggle="tooltip" title="Ver sugestões de horários">
                                         <i class="bi bi-lightbulb-fill"></i>
                                     </button>
                                 </div>
@@ -1406,7 +1406,7 @@ $(document).ready(function() {
                 const d = new Date(data + 'T00:00:00');
                 $('#resumo-agendamento').text(d.toLocaleDateString('pt-BR'));
             } else {
-                $('#resumo-agendamento').text('Unico (selecione data)');
+                $('#resumo-agendamento').text('Único (selecione data)');
             }
         } else {
             const diasSelecionados = [];

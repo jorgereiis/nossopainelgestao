@@ -501,7 +501,7 @@
                   <i data-feather="clock"></i>
                   {% if not job.bloqueado and job.horario|length == 5 and ':' in job.horario %}
                   <!-- Job com horário fixo editável -->
-                  <span><strong>Horario:</strong></span>
+                  <span><strong>Horário:</strong></span>
                   <input type="time"
                          class="time-input"
                          value="{{ job.horario }}"

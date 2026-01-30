@@ -607,7 +607,7 @@
               <div class="steps-indicator">
                 <div class="step active" id="step1-indicator">
                   <span class="step-number">1</span>
-                  <span class="d-none d-sm-inline">Instituicao</span>
+                  <span class="d-none d-sm-inline">Instituição</span>
                 </div>
                 <div class="step-connector"></div>
                 <div class="step" id="step2-indicator">
@@ -624,7 +624,7 @@
                   <div class="form-section">
                     <h5 class="section-title">
                       <i class="bi bi-bank2"></i>
-                      Selecione a Instituicao Bancaria
+                      Selecione a Instituição Bancária
                     </h5>
 
                     <div class="row g-3">
@@ -942,7 +942,7 @@
                                 </span>
                                 <span class="tipo-cobranca-limitacao">
                                   <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                                  Valido por 20 minutos
+                                  Válido por 20 minutos
                                 </span>
                               </div>
                               <div class="tipo-cobranca-check">
@@ -1440,9 +1440,9 @@
                     <thead>
                       <tr>
                         <th class="ps-4">Forma de Pagamento</th>
-                        <th>Instituicao</th>
+                        <th>Instituição</th>
                         <th class="text-center" style="width: 100px;">Clientes</th>
-                        <th class="text-center" style="width: 60px;">Acoes</th>
+                        <th class="text-center" style="width: 60px;">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1561,7 +1561,7 @@
             <!-- Alerta de clientes associados -->
             <div class="alert alert-danger d-none" id="alertClientesAssociados">
               <i class="bi bi-exclamation-triangle-fill me-2"></i>
-              <strong>Atencao!</strong> Esta forma de pagamento possui
+              <strong>Atenção!</strong> Esta forma de pagamento possui
               <strong id="qtdClientesAssociados">0</strong> cliente(s) associado(s).
               <br><small>Transfira os clientes para outra forma de pagamento antes de excluir.</small>
             </div>
@@ -1653,7 +1653,7 @@
                         <span id="detalhesLimiteMei" class="fw-semibold">-</span>
                       </div>
                       <div id="detalhesInstituicaoLegadoContainer" class="mb-3 d-none">
-                        <small class="text-muted d-block mb-1">Instituicao</small>
+                        <small class="text-muted d-block mb-1">Instituição</small>
                         <span id="detalhesInstituicaoLegado" class="fw-semibold">-</span>
                       </div>
                     </div>
@@ -1716,7 +1716,7 @@
                   <div class="card border-0 shadow-sm">
                     <div class="card-body text-center py-4">
                       <i class="bi bi-info-circle text-muted mb-2" style="font-size: 2rem;"></i>
-                      <p class="text-muted mb-0">Esta forma de pagamento nao possui dados bancarios associados.</p>
+                      <p class="text-muted mb-0">Esta forma de pagamento não possui dados bancários associados.</p>
                     </div>
                   </div>
                 </div>
@@ -1809,7 +1809,7 @@
                       </div>
                       <!-- Instituição -->
                       <div class="col-md-6">
-                        <label class="form-label fw-semibold">Instituicao</label>
+                        <label class="form-label fw-semibold">Instituição</label>
                         <input type="text" class="form-control" id="editarInstituicaoDados" placeholder="Ex: Banco do Brasil, Nubank...">
                       </div>
                       <!-- Beneficiário (oculto para Boleto/Cartão) -->
@@ -2281,7 +2281,7 @@
                     <th>Nome</th>
                     <th>Tipo</th>
                     <th class="text-center">Status</th>
-                    <th class="text-center">Acoes</th>
+                    <th class="text-center">Ações</th>
                   </tr>
                 </thead>
                 <tbody id="listaInstituicoes">
@@ -2943,7 +2943,7 @@
           Swal.fire({
             icon: 'error',
             title: 'Limite Atingido',
-            text: 'Voce atingiu 99% do limite. Nao e possivel adicionar mais clientes.'
+            text: 'Você atingiu 99% do limite. Não é possível adicionar mais clientes.'
           });
           $(this).prop('checked', false);
           return;
@@ -3600,7 +3600,7 @@
         Swal.fire({
           icon: 'success',
           title: 'Excluido!',
-          text: 'Forma de pagamento excluida com sucesso.',
+          text: 'Forma de pagamento excluída com sucesso.',
           timer: 1500
         }).then(() => {
           window.location.reload();
@@ -3610,7 +3610,7 @@
         btn.prop('disabled', false).html('<i class="bi bi-trash me-2"></i>Excluir');
         Swal.fire({
           icon: 'error',
-          title: 'Nao foi possivel excluir',
+          title: 'Não foi possível excluir',
           text: response.responseJSON?.error_delete || 'Erro ao excluir forma de pagamento.'
         });
       }
@@ -3647,7 +3647,7 @@
         Swal.fire({
           icon: 'success',
           title: 'Sucesso!',
-          text: 'Instituicao adicionada com sucesso!',
+          text: 'Instituição adicionada com sucesso!',
           timer: 1500
         }).then(() => {
           window.location.reload();
@@ -3657,7 +3657,7 @@
         Swal.fire({
           icon: 'error',
           title: 'Erro',
-          text: response.responseJSON?.error || 'Erro ao adicionar instituicao'
+          text: response.responseJSON?.error || 'Erro ao adicionar instituição'
         });
       }
     });
@@ -3681,7 +3681,7 @@
           Swal.fire({
             icon: 'success',
             title: response.ativo ? 'Ativada' : 'Desativada',
-            text: 'Instituicao ' + (response.ativo ? 'ativada' : 'desativada') + ' com sucesso!',
+            text: 'Instituição ' + (response.ativo ? 'ativada' : 'desativada') + ' com sucesso!',
             toast: true,
             position: 'top-end',
             timer: 2000,
@@ -3694,7 +3694,7 @@
         Swal.fire({
           icon: 'error',
           title: 'Erro',
-          text: 'Erro ao alterar status da instituicao'
+          text: 'Erro ao alterar status da instituição'
         });
       }
     });
@@ -3711,7 +3711,7 @@
     const nome = $(this).data('nome');
 
     Swal.fire({
-      title: 'Confirmar exclusao?',
+      title: 'Confirmar exclusão?',
       text: 'Deseja excluir a instituicao "' + nome + '"?',
       icon: 'warning',
       showCancelButton: true,
@@ -3731,7 +3731,7 @@
             Swal.fire({
               icon: 'success',
               title: 'Excluido!',
-              text: 'Instituicao excluida com sucesso.',
+              text: 'Instituição excluída com sucesso.',
               timer: 1500
             }).then(() => {
               $('tr[data-id="' + id + '"]').fadeOut(300, function() { $(this).remove(); });
@@ -5444,8 +5444,8 @@
       container.append(`
         <div class="alert alert-warning mb-3">
           <i class="bi bi-exclamation-triangle me-2"></i>
-          <strong>Atencao!</strong> ${planosDivergentes.length} plano(s) tiveram o valor alterado desde a configuracao do link.
-          Verifique se os links estao com os valores corretos.
+          <strong>Atenção!</strong> ${planosDivergentes.length} plano(s) tiveram o valor alterado desde a configuração do link.
+          Verifique se os links estão com os valores corretos.
         </div>
       `);
     }

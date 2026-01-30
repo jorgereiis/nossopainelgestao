@@ -571,9 +571,13 @@ class ClientesCancelados(LoginRequiredMixin, ListView):
         )
         
         if query:
-            queryset = queryset.filter(nome__icontains=query)
+            # Normaliza o termo de busca (remove acentos e converte para minúsculas)
+            query_normalized = unicodedata.normalize(
+                "NFKD", query
+            ).encode("ascii", "ignore").decode("ascii").lower()
+            queryset = queryset.filter(nome_normalizado__icontains=query_normalized)
         return queryset
-    
+
     def get_context_data(self, **kwargs):
         """
         Retorna o contexto dos dados para serem exibidos no template.
@@ -687,16 +691,21 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
         if query:
             # Remove caracteres não numéricos do termo de busca
             query_digits = re.sub(r'\D', '', query)
+            # Normaliza o termo de busca (remove acentos e converte para minúsculas)
+            query_normalized = unicodedata.normalize(
+                "NFKD", query
+            ).encode("ascii", "ignore").decode("ascii").lower()
 
             if query_digits:
-                # Se tem dígitos, busca por nome OU telefone normalizado
+                # Se tem dígitos, busca por nome normalizado OU telefone
                 # Usa regex para buscar os dígitos em qualquer posição do telefone
                 queryset = queryset.filter(
-                    Q(nome__icontains=query) | Q(telefone__regex=rf'.*{query_digits}.*')
+                    Q(nome_normalizado__icontains=query_normalized) |
+                    Q(telefone__regex=rf'.*{query_digits}.*')
                 )
             else:
-                # Se não tem dígitos, busca apenas por nome
-                queryset = queryset.filter(Q(nome__icontains=query))
+                # Se não tem dígitos, busca apenas por nome normalizado
+                queryset = queryset.filter(Q(nome_normalizado__icontains=query_normalized))
 
         # Filtros avançados
         data_vencimento = self.request.GET.get("data_vencimento")
@@ -968,7 +977,11 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             ).distinct()
         )
         if query:
-            queryset = queryset.filter(nome__icontains=query)
+            # Normaliza o termo de busca (remove acentos e converte para minúsculas)
+            query_normalized = unicodedata.normalize(
+                "NFKD", query
+            ).encode("ascii", "ignore").decode("ascii").lower()
+            queryset = queryset.filter(nome_normalizado__icontains=query_normalized)
 
         # Aplicar ordenação server-side
         sort_field, sort_order = self.get_sort_params()
@@ -978,7 +991,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         queryset = queryset.order_by(db_field)
 
         return queryset
-    
+
     def get_context_data(self, **kwargs):
         """
         Retorna o contexto de dados para serem exibidos no dashboard.
@@ -3426,7 +3439,7 @@ def edit_customer(request, cliente_id):
         # Por isso, usamos update_fields para salvar APENAS os campos do formulário,
         # evitando sobrescrever dispositivo/sistema que o signal gerencia
         cliente.save(update_fields=[
-            'nome', 'telefone', 'uf', 'indicado_por', 'servidor',
+            'nome', 'nome_normalizado', 'telefone', 'uf', 'indicado_por', 'servidor',
             'forma_pgto', 'plano', 'data_vencimento', 'nao_enviar_msgs', 'notas'
         ])
         mensalidade.save()
@@ -10872,7 +10885,7 @@ class TarefaEnvioListView(LoginRequiredMixin, ListView):
         ).order_by('-criado_em')
 
     def get_context_data(self, **kwargs):
-        from .models import HistoricoExecucaoTarefa
+        from .models import HistoricoExecucaoTarefa, MensagemEnviadaWpp
         from django.utils import timezone
         from django.db.models import Avg
 
@@ -10880,10 +10893,17 @@ class TarefaEnvioListView(LoginRequiredMixin, ListView):
         qs = TarefaEnvio.objects.filter(usuario=self.request.user)
         context['total_ativas'] = qs.filter(ativo=True).count()
         context['total_inativas'] = qs.filter(ativo=False).count()
-        context['total_envios'] = qs.aggregate(total=Sum('total_envios'))['total'] or 0
 
         # Novas métricas
         agora = timezone.localtime()
+
+        # Total de envios do mês atual (todas as tarefas do usuário)
+        context['total_envios_mes'] = MensagemEnviadaWpp.objects.filter(
+            usuario=self.request.user,
+            tarefa__isnull=False,
+            data_envio__year=agora.year,
+            data_envio__month=agora.month
+        ).count()
         context['total_pausadas'] = qs.filter(pausado_ate__gt=agora).count()
 
         # Taxa de sucesso dos últimos 30 dias
@@ -11194,11 +11214,12 @@ class TarefaEnvioHistoricoView(LoginRequiredMixin, ListView):
         context['total_sucesso'] = historicos.filter(status='sucesso').count()
         context['total_parcial'] = historicos.filter(status='parcial').count()
         context['total_erro'] = historicos.filter(status='erro').count()
+        context['total_concluido'] = historicos.filter(status='concluido').count()
 
-        # Taxa de sucesso
+        # Taxa de sucesso (sucesso + concluido são considerados como execuções bem-sucedidas)
         if context['total_execucoes'] > 0:
             context['taxa_sucesso'] = round(
-                (context['total_sucesso'] / context['total_execucoes']) * 100, 1
+                ((context['total_sucesso'] + context['total_concluido']) / context['total_execucoes']) * 100, 1
             )
         else:
             context['taxa_sucesso'] = 0
@@ -11214,6 +11235,7 @@ def tarefas_envio_stats_api(request):
     """Retorna estatísticas das tarefas de envio em JSON para atualização em tempo real."""
     from django.db.models import Avg
     from django.utils import timezone
+    from .models import MensagemEnviadaWpp
 
     qs = TarefaEnvio.objects.filter(usuario=request.user)
     agora = timezone.localtime()
@@ -11222,7 +11244,14 @@ def tarefas_envio_stats_api(request):
     total_ativas = qs.filter(ativo=True).count()
     total_inativas = qs.filter(ativo=False).count()
     total_pausadas = qs.filter(pausado_ate__gt=agora).count()
-    total_envios = qs.aggregate(total=Sum('total_envios'))['total'] or 0
+
+    # Total de envios do mês atual (todas as tarefas do usuário)
+    total_envios_mes = MensagemEnviadaWpp.objects.filter(
+        usuario=request.user,
+        tarefa__isnull=False,
+        data_envio__year=agora.year,
+        data_envio__month=agora.month
+    ).count()
 
     # Taxa de sucesso dos últimos 30 dias
     data_30_dias = agora - timezone.timedelta(days=30)
@@ -11233,7 +11262,8 @@ def tarefas_envio_stats_api(request):
     total_execucoes = historico_recente.count()
     if total_execucoes > 0:
         sucesso_count = historico_recente.filter(status='sucesso').count()
-        taxa_sucesso = round((sucesso_count / total_execucoes) * 100, 1)
+        concluido_count = historico_recente.filter(status='concluido').count()
+        taxa_sucesso = round(((sucesso_count + concluido_count) / total_execucoes) * 100, 1)
     else:
         taxa_sucesso = None
 
@@ -11261,7 +11291,7 @@ def tarefas_envio_stats_api(request):
             'total_ativas': total_ativas,
             'total_inativas': total_inativas,
             'total_pausadas': total_pausadas,
-            'total_envios': total_envios,
+            'total_envios_mes': total_envios_mes,
             'taxa_sucesso': taxa_sucesso,
             'media_envios_execucao': media_envios_execucao,
             'proxima_execucao': {
@@ -11752,7 +11782,7 @@ def tarefa_envio_historico_api(request, pk):
     Retorna historico filtrado via AJAX para a pagina de historico.
 
     Parametros GET:
-    - status: 'sucesso', 'parcial', 'erro' ou '' (todos)
+    - status: 'sucesso', 'parcial', 'erro', 'concluido' ou '' (todos)
     - data_inicio: YYYY-MM-DD
     - data_fim: YYYY-MM-DD
     - page: numero da pagina (default: 1)
@@ -11770,7 +11800,7 @@ def tarefa_envio_historico_api(request, pk):
     qs = HistoricoExecucaoTarefa.objects.filter(tarefa=tarefa).order_by('-data_execucao')
 
     # Aplica filtros
-    if status_filtro in ['sucesso', 'parcial', 'erro']:
+    if status_filtro in ['sucesso', 'parcial', 'erro', 'concluido']:
         qs = qs.filter(status=status_filtro)
 
     if data_inicio:
@@ -11818,10 +11848,11 @@ def tarefa_envio_historico_api(request, pk):
     sucesso_filtrado = qs.filter(status='sucesso').count()
     parcial_filtrado = qs.filter(status='parcial').count()
     erro_filtrado = qs.filter(status='erro').count()
+    concluido_filtrado = qs.filter(status='concluido').count()
 
     taxa_sucesso = 0
     if total_filtrado > 0:
-        taxa_sucesso = round((sucesso_filtrado / total_filtrado) * 100, 1)
+        taxa_sucesso = round(((sucesso_filtrado + concluido_filtrado) / total_filtrado) * 100, 1)
 
     # Dados para grafico (ultimas 10 execucoes da query original sem paginacao)
     ultimas_10 = list(qs[:10].values('data_execucao', 'quantidade_enviada', 'status'))
@@ -11850,6 +11881,7 @@ def tarefa_envio_historico_api(request, pk):
             'sucesso': sucesso_filtrado,
             'parcial': parcial_filtrado,
             'erro': erro_filtrado,
+            'concluido': concluido_filtrado,
             'taxa_sucesso': taxa_sucesso
         },
         'grafico': grafico_data
