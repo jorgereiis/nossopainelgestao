@@ -9,6 +9,7 @@ from typing import Optional
 import re
 import os
 import time
+import unicodedata
 import uuid
 
 from django.contrib.auth.models import User
@@ -1071,6 +1072,13 @@ class Cliente(models.Model):
 
     # ===== DADOS BÁSICOS DO CLIENTE (Cadastro) =====
     nome = models.CharField(max_length=255)
+    nome_normalizado = models.CharField(
+        max_length=255,
+        blank=True,
+        editable=False,
+        db_index=True,
+        help_text="Nome sem acentos para busca (preenchido automaticamente)"
+    )
     telefone = models.CharField(max_length=20)
     email = models.EmailField(max_length=255, blank=True, null=True)
     uf = models.CharField(max_length=2, blank=True, null=True)
@@ -1134,13 +1142,24 @@ class Cliente(models.Model):
         ordering = ['-data_adesao']
 
     def save(self, *args, **kwargs):
-        """Garante vencimento inicial e sincroniza UF e País a partir do telefone."""
+        """Garante vencimento inicial, normaliza nome e sincroniza UF/País."""
         if self.data_adesao and self.data_vencimento is None:
             self.data_vencimento = self.data_adesao
 
+        # Normaliza o nome para busca sem acentos
+        self.normalizar_nome()
         self.definir_uf()
         self.definir_pais()
         super().save(*args, **kwargs)
+
+    def normalizar_nome(self):
+        """Preenche nome_normalizado removendo acentos e convertendo para minúsculas."""
+        if self.nome:
+            self.nome_normalizado = unicodedata.normalize(
+                "NFKD", self.nome
+            ).encode("ascii", "ignore").decode("ascii").lower()
+        else:
+            self.nome_normalizado = ""
 
     def definir_uf(self):
         """Define a unidade federativa (UF) com base no DDD do telefone apenas se for nacional."""
@@ -3709,23 +3728,28 @@ class MensagemEnviadaWpp(models.Model):
     """
     Registra o histórico de mensagens enviadas ao WhatsApp.
 
-    CONSTRAINT UNIQUE:
-    Previne envio duplicado para o mesmo telefone no mesmo dia pelo mesmo usuário.
-    Protege contra race conditions em requests concorrentes.
+    CONTROLE DE DUPLICIDADE:
+    - Com tarefa: Permite 1 envio por tarefa por mês para cada telefone
+    - Sem tarefa (legado): Permite 1 envio por dia para cada telefone
     """
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     telefone = models.CharField(max_length=20)
     data_envio = models.DateField(auto_now_add=True)
+    tarefa = models.ForeignKey(
+        'TarefaEnvio',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='mensagens_enviadas',
+        help_text="Tarefa que originou o envio (null para envios legados)"
+    )
 
     class Meta:
         db_table = 'cadastros_mensagemenviadawpp'
         verbose_name = "Mensagem Enviada ao WhatsApp"
         verbose_name_plural = "Mensagens Enviadas ao WhatsApp"
-        constraints = [
-            models.UniqueConstraint(
-                fields=['usuario', 'telefone', 'data_envio'],
-                name='unique_msg_por_usuario_telefone_dia'
-            )
+        indexes = [
+            models.Index(fields=['usuario', 'telefone', 'tarefa', 'data_envio']),
         ]
 
     def __str__(self) -> str:
@@ -4831,6 +4855,61 @@ class TarefaEnvio(models.Model):
 
         return texto.strip()
 
+    def get_envios_mes_atual(self):
+        """
+        Retorna a quantidade de envios desta tarefa no mês atual.
+        Conta registros em MensagemEnviadaWpp com esta tarefa no mês/ano atual.
+        """
+        from django.utils import timezone
+        agora = timezone.localtime()
+        return MensagemEnviadaWpp.objects.filter(
+            tarefa=self,
+            data_envio__year=agora.year,
+            data_envio__month=agora.month
+        ).count()
+
+    def get_total_destinatarios(self):
+        """
+        Retorna o total estimado de destinatários para esta tarefa.
+        Baseado no tipo_envio e filtros configurados.
+        """
+        if self.tipo_envio == 'ativos':
+            qs = Cliente.objects.filter(
+                usuario=self.usuario,
+                cancelado=False,
+                nao_enviar_msgs=False
+            )
+            if self.filtro_estados:
+                qs = qs.filter(uf__in=self.filtro_estados)
+            if self.filtro_cidades:
+                qs = qs.filter(cidade__in=self.filtro_cidades)
+            return qs.count()
+
+        elif self.tipo_envio == 'cancelados':
+            from datetime import timedelta
+            from django.utils import timezone
+            data_limite = timezone.localtime().date() - timedelta(days=self.dias_cancelamento or 10)
+            qs = Cliente.objects.filter(
+                usuario=self.usuario,
+                cancelado=True,
+                nao_enviar_msgs=False,
+                data_cancelamento__lte=data_limite
+            )
+            if self.filtro_estados:
+                qs = qs.filter(uf__in=self.filtro_estados)
+            if self.filtro_cidades:
+                qs = qs.filter(cidade__in=self.filtro_cidades)
+            return qs.count()
+
+        elif self.tipo_envio == 'avulso':
+            # Para leads avulsos, conta os telefones válidos do usuário
+            return TelefoneLeads.objects.filter(
+                usuario=self.usuario,
+                valido=True
+            ).count()
+
+        return 0
+
     def save(self, *args, **kwargs):
         # Gera versão plaintext automaticamente
         if self.mensagem:
@@ -4928,6 +5007,7 @@ class HistoricoExecucaoTarefa(models.Model):
         ('sucesso', 'Sucesso'),
         ('parcial', 'Parcial'),
         ('erro', 'Erro'),
+        ('concluido', 'Concluído'),  # Todos já receberam - sem novos envios
     ]
 
     tarefa = models.ForeignKey(

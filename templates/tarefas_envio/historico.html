@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Historico - {{ tarefa.nome }} | Nosso Painel{% endblock %}
+{% block title %}Histórico - {{ tarefa.nome }} | Nosso Painel{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -203,6 +203,10 @@
     .status-badge.status-erro {
         background: #fee2e2;
         color: #991b1b;
+    }
+    .status-badge.status-concluido {
+        background: #e0f2fe;
+        color: #0369a1;
     }
 
     /* ============================================
@@ -451,10 +455,10 @@
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-2">
                             <li class="breadcrumb-item"><a href="{% url 'tarefas-envio-lista' %}" class="text-decoration-none">Tarefas de Envio</a></li>
-                            <li class="breadcrumb-item active">Historico</li>
+                            <li class="breadcrumb-item active">Histórico</li>
                         </ol>
                     </nav>
-                    <h3 class="mb-0 fw-bold">Historico de Execucoes</h3>
+                    <h3 class="mb-0 fw-bold">Histórico de Execucoes</h3>
                 </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-outline-success" id="btn-exportar-csv" title="Exportar CSV">
@@ -595,7 +599,7 @@
         <div class="col-12">
             <div class="premium-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5><i class="bi bi-clock-history text-primary"></i> Historico de Execucoes</h5>
+                    <h5><i class="bi bi-clock-history text-primary"></i> Histórico de Execuções</h5>
                     <span class="badge bg-light text-dark" id="total-registros">{{ total_execucoes }} registro(s)</span>
                 </div>
 
@@ -608,6 +612,7 @@
                             <option value="sucesso">Sucesso</option>
                             <option value="parcial">Parcial</option>
                             <option value="erro">Erro</option>
+                            <option value="concluido">Concluído</option>
                         </select>
                     </div>
                     <div class="filtro-group">
@@ -640,7 +645,7 @@
                                     <th><i class="bi bi-flag me-1"></i> Status</th>
                                     <th class="text-center"><i class="bi bi-send me-1"></i> Enviados</th>
                                     <th class="text-center"><i class="bi bi-x-circle me-1"></i> Erros</th>
-                                    <th class="col-duracao"><i class="bi bi-stopwatch me-1"></i> Duracao</th>
+                                    <th class="col-duracao"><i class="bi bi-stopwatch me-1"></i> Duração</th>
                                     <th><i class="bi bi-eye me-1"></i> Detalhes</th>
                                 </tr>
                             </thead>
@@ -660,6 +665,10 @@
                                         {% elif historico.status == 'parcial' %}
                                         <span class="status-badge status-parcial">
                                             <i class="bi bi-exclamation-triangle"></i> Parcial
+                                        </span>
+                                        {% elif historico.status == 'concluido' %}
+                                        <span class="status-badge status-concluido">
+                                            <i class="bi bi-check-all"></i> Concluído
                                         </span>
                                         {% else %}
                                         <span class="status-badge status-erro">
@@ -702,8 +711,8 @@
                                             <div class="empty-icon">
                                                 <i class="bi bi-inbox"></i>
                                             </div>
-                                            <h5>Nenhuma execucao registrada</h5>
-                                            <p>O historico aparecera aqui apos a primeira execucao da tarefa</p>
+                                            <h5>Nenhuma execução registrada</h5>
+                                            <p>O histórico aparecerá aqui após a primeira execução da tarefa</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -752,7 +761,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-file-text me-2"></i>Detalhes da Execucao</h5>
+                <h5 class="modal-title"><i class="bi bi-file-text me-2"></i>Detalhes da Execução</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -837,6 +846,7 @@ $(document).ready(function() {
         const cores = data.map(d => {
             if (d.status === 'sucesso') return '#198754';
             if (d.status === 'parcial') return '#ffc107';
+            if (d.status === 'concluido') return '#0ea5e9';
             return '#dc3545';
         });
 
@@ -931,7 +941,7 @@ $(document).ready(function() {
                 }
             },
             error: function() {
-                Swal.fire('Erro', 'Erro ao carregar historico', 'error');
+                Swal.fire('Erro', 'Erro ao carregar histórico', 'error');
             },
             complete: function() {
                 $('#loading-overlay').addClass('d-none');
@@ -964,6 +974,8 @@ $(document).ready(function() {
                 statusBadge = '<span class="status-badge status-sucesso"><i class="bi bi-check-circle"></i> Sucesso</span>';
             } else if (h.status === 'parcial') {
                 statusBadge = '<span class="status-badge status-parcial"><i class="bi bi-exclamation-triangle"></i> Parcial</span>';
+            } else if (h.status === 'concluido') {
+                statusBadge = '<span class="status-badge status-concluido"><i class="bi bi-check-all"></i> Concluído</span>';
             } else {
                 statusBadge = '<span class="status-badge status-erro"><i class="bi bi-x-circle"></i> Erro</span>';
             }
@@ -1003,7 +1015,7 @@ $(document).ready(function() {
 
     function atualizarEstatisticas(stats) {
         $('#stat-total').text(stats.total);
-        $('#stat-sucesso').text(stats.sucesso);
+        $('#stat-sucesso').text(stats.sucesso + (stats.concluido || 0));
         $('#stat-parcial-erro').text(stats.parcial + stats.erro);
         $('#stat-taxa').text(stats.taxa_sucesso + '%');
     }
@@ -1095,10 +1107,23 @@ $(document).ready(function() {
         }
 
         // Tab Resumo
-        let statusClass = status === 'sucesso' ? 'text-success' : (status === 'parcial' ? 'text-warning' : 'text-danger');
-        let statusText = status.charAt(0).toUpperCase() + status.slice(1);
+        let statusClass = 'text-danger';
+        if (status === 'sucesso') statusClass = 'text-success';
+        else if (status === 'parcial') statusClass = 'text-warning';
+        else if (status === 'concluido') statusClass = 'text-info';
+        let statusText = status === 'concluido' ? 'Concluído' : status.charAt(0).toUpperCase() + status.slice(1);
 
-        $('#resumo-content').html(`
+        // Calcula estatisticas adicionais
+        const jaReceberam = detalhes.ja_receberam || 0;
+        const totalDestinatarios = detalhes.total_destinatarios || (enviados + erros + jaReceberam);
+        const taxaSucesso = totalDestinatarios > 0 ? Math.round((enviados / totalDestinatarios) * 100) : 0;
+
+        // Conta tipos de erros
+        const errosArray = detalhes.erros || [];
+        const errosWhatsApp = errosArray.filter(e => e.tipo === 'numero_invalido').length;
+        const errosEnvio = errosArray.filter(e => e.tipo === 'falha_envio').length;
+
+        let resumoHtml = `
             <div class="col-6 col-md-3">
                 <div class="detalhes-card">
                     <div class="detalhes-label">Status</div>
@@ -1119,11 +1144,58 @@ $(document).ready(function() {
             </div>
             <div class="col-6 col-md-3">
                 <div class="detalhes-card">
-                    <div class="detalhes-label">Duracao</div>
+                    <div class="detalhes-label">Duração</div>
                     <div class="detalhes-value">${duracao}</div>
                 </div>
             </div>
-        `);
+        `;
+
+        // Segunda linha com detalhes adicionais se houver erros
+        if (erros > 0 && errosArray.length > 0) {
+            resumoHtml += `
+                <div class="col-12 mt-3">
+                    <div class="detalhes-card">
+                        <div class="detalhes-label mb-2">Detalhamento dos Erros</div>
+                        <div class="d-flex flex-wrap gap-3">
+                            ${errosWhatsApp > 0 ? `
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-warning text-dark me-2">${errosWhatsApp}</span>
+                                    <span class="small">WhatsApp Inválido</span>
+                                </div>
+                            ` : ''}
+                            ${errosEnvio > 0 ? `
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-danger me-2">${errosEnvio}</span>
+                                    <span class="small">Falha no Envio</span>
+                                </div>
+                            ` : ''}
+                            <div class="d-flex align-items-center ms-auto">
+                                <span class="small text-muted">Taxa de sucesso:</span>
+                                <span class="badge ${taxaSucesso >= 90 ? 'bg-success' : taxaSucesso >= 70 ? 'bg-warning text-dark' : 'bg-danger'} ms-2">${taxaSucesso}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Linha adicional quando há contatos que já receberam
+        if (jaReceberam > 0) {
+            resumoHtml += `
+                <div class="col-12 mt-3">
+                    <div class="detalhes-card" style="background: #e0f2fe; border-left: 3px solid #0ea5e9;">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-info-circle text-info me-2"></i>
+                            <span class="small">
+                                <strong>${jaReceberam}</strong> contato${jaReceberam > 1 ? 's' : ''} já ${jaReceberam > 1 ? 'haviam' : 'havia'} recebido esta tarefa este mês
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        $('#resumo-content').html(resumoHtml);
 
         // Tab Erros
         const errosArray = detalhes.erros || detalhes.falhas || [];
@@ -1131,11 +1203,31 @@ $(document).ready(function() {
             let errosHtml = '';
             errosArray.forEach(function(erro) {
                 const telefone = erro.telefone || erro.numero || 'Desconhecido';
+                const clienteNome = erro.cliente_nome || '';
                 const motivo = erro.motivo || erro.erro || erro.message || 'Erro desconhecido';
+                const tipoErro = erro.tipo || '';
+                const httpStatus = erro.http_status ? `HTTP ${erro.http_status}` : '';
+
+                // Badge de tipo de erro
+                let tipoBadge = '';
+                if (tipoErro === 'numero_invalido') {
+                    tipoBadge = '<span class="badge bg-warning text-dark ms-2">WhatsApp Inválido</span>';
+                } else if (tipoErro === 'falha_envio') {
+                    tipoBadge = '<span class="badge bg-danger ms-2">Falha no Envio</span>';
+                }
+
+                // Badge de status HTTP
+                let httpBadge = httpStatus ? `<span class="badge bg-secondary ms-1">${httpStatus}</span>` : '';
+
                 errosHtml += `
                     <div class="erro-item">
-                        <div class="erro-telefone"><i class="bi bi-telephone me-1"></i>${telefone}</div>
-                        <div class="erro-motivo">${motivo}</div>
+                        <div class="d-flex align-items-center flex-wrap gap-1">
+                            <span class="erro-telefone"><i class="bi bi-telephone me-1"></i>${telefone}</span>
+                            ${clienteNome ? `<span class="text-muted">- ${clienteNome}</span>` : ''}
+                            ${tipoBadge}
+                            ${httpBadge}
+                        </div>
+                        <div class="erro-motivo mt-1">${motivo}</div>
                     </div>
                 `;
             });

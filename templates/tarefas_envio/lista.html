@@ -310,6 +310,33 @@
         background: #f8fafc;
     }
 
+    /* Envios do Mês */
+    .envios-mes-container {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 70px;
+    }
+    .envios-mes-texto {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #334155;
+    }
+    .envios-mes-barra {
+        width: 100%;
+        height: 4px;
+        background: #e2e8f0;
+        border-radius: 2px;
+        margin-top: 4px;
+        overflow: hidden;
+    }
+    .envios-mes-progresso {
+        height: 100%;
+        background: linear-gradient(90deg, #754ffe 0%, #9f7afe 100%);
+        border-radius: 2px;
+        transition: width 0.3s ease;
+    }
+
     /* Calendario */
     .calendario-dia {
         border: 1px solid #e0e6ed;
@@ -914,8 +941,8 @@
                 <div class="card-body py-3">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-2 small fw-semibold">Total Envios</h6>
-                            <div class="stat-value text-primary" id="stat-envios">{{ total_envios|default:0 }}</div>
+                            <h6 class="text-uppercase text-muted mb-2 small fw-semibold">Envios Mês</h6>
+                            <div class="stat-value text-primary" id="stat-envios">{{ total_envios_mes|default:0 }}</div>
                         </div>
                         <div class="stat-icon icon-primary">
                             <i data-feather="send"></i>
@@ -956,7 +983,7 @@
                 <div class="card-body py-3">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-uppercase text-muted mb-2 small fw-semibold">Media por Execucao</h6>
+                            <h6 class="text-uppercase text-muted mb-2 small fw-semibold">Média por Execução</h6>
                             <div class="stat-value text-info" id="stat-media">{{ media_envios_execucao|default:0 }}</div>
                         </div>
                         <div class="stat-icon icon-info">
@@ -974,7 +1001,7 @@
                             <i data-feather="clock"></i>
                         </div>
                         <div>
-                            <h6 class="text-uppercase text-muted mb-1 small fw-semibold">Proxima Execucao</h6>
+                            <h6 class="text-uppercase text-muted mb-1 small fw-semibold">Próxima Execução</h6>
                             <div id="stat-proxima">
                                 {% if proxima_execucao %}
                                 <div class="d-flex align-items-center gap-2">
@@ -985,7 +1012,7 @@
                                 </div>
                                 <small class="text-muted d-block" id="proxima-nome">{{ proxima_execucao.nome }}</small>
                                 {% elif total_ativas > 0 %}
-                                <span class="text-muted">Nenhuma nos proximos 7 dias</span>
+                                <span class="text-muted">Nenhuma nos próximos 7 dias</span>
                                 {% else %}
                                 <span class="text-muted">Sem tarefas ativas</span>
                                 {% endif %}
@@ -1005,7 +1032,7 @@
                     <i data-feather="list" class="icon-xs me-1"></i> Lista
                 </button>
                 <button type="button" class="btn btn-outline-primary" id="btn-view-calendario" data-view="calendario">
-                    <i data-feather="calendar" class="icon-xs me-1"></i> Calendario
+                    <i data-feather="calendar" class="icon-xs me-1"></i> Calendário
                 </button>
             </div>
             {% if user.is_superuser %}
@@ -1014,7 +1041,7 @@
                     <i data-feather="refresh-cw" class="icon-xs me-1"></i> Revisar Leads
                 </button>
                 <button type="button" class="btn btn-outline-secondary" id="btn-configuracao" data-bs-toggle="modal" data-bs-target="#modalConfiguracao">
-                    <i data-feather="settings" class="icon-xs me-1"></i> Configuracoes
+                    <i data-feather="settings" class="icon-xs me-1"></i> Configurações
                 </button>
             </div>
             {% endif %}
@@ -1026,7 +1053,7 @@
         <div class="col-12">
             <div class="card shadow-sm border-0 table-card">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold">Calendario de Tarefas</h5>
+                    <h5 class="mb-0 fw-bold">Calendário de Tarefas</h5>
                     <small class="text-muted">Visualizacao de 7 dias centrada em hoje</small>
                 </div>
                 <div class="card-body">
@@ -1067,10 +1094,10 @@
                                 <th style="text-align: left !important;">Nome</th>
                                 <th class="col-tipo">Tipo</th>
                                 <th class="col-dias">Dias</th>
-                                <th>Horario</th>
-                                <th class="col-ultimo-envio">Ultimo Envio</th>
-                                <th>Envios</th>
-                                <th style="width: 100px;">Acoes</th>
+                                <th>Horário</th>
+                                <th class="col-ultimo-envio">Último Envio</th>
+                                <th>Envios Mês</th>
+                                <th style="width: 100px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tarefas-tbody">
@@ -1085,7 +1112,7 @@
                                         </div>
                                         {% elif tarefa.pausado_por_notificacao %}
                                         <div class="notif-pause-indicator"
-                                             title="Tarefa pausada enquanto ha envios de Notificacao de Vencimentos em andamento. A execucao sera retomada apos conclusao."
+                                             title="Tarefa pausada enquanto há envios de Notificação de Vencimentos em andamento. A execução será retomada após conclusão."
                                              data-bs-toggle="tooltip" data-bs-placement="top">
                                             <div class="notif-pause-icon">
                                                 <i data-feather="bell"></i>
@@ -1115,7 +1142,7 @@
                                                 {{ tarefa.nome }}
                                                 {% if tarefa.pausado_por_notificacao %}
                                                 <span class="badge badge-notif-pause ms-1"
-                                                      title="Tarefa pausada enquanto ha envios de Notificacao de Vencimentos em andamento. A execucao sera retomada apos conclusao."
+                                                      title="Tarefa pausada enquanto há envios de Notificação de Vencimentos em andamento. A execução será retomada após conclusão."
                                                       data-bs-toggle="tooltip" data-bs-placement="top">
                                                     <i data-feather="bell" class="icon-xxs"></i> Aguardando
                                                 </span>
@@ -1159,7 +1186,16 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
-                                    <span class="badge bg-primary rounded-pill px-3">{{ tarefa.total_envios }}</span>
+                                    {% with envios_mes=tarefa.get_envios_mes_atual total_dest=tarefa.get_total_destinatarios %}
+                                    <div class="envios-mes-container" title="Envios neste mês: {{ envios_mes }} de {{ total_dest }}">
+                                        <span class="envios-mes-texto">{{ envios_mes }}/{{ total_dest }}</span>
+                                        {% if total_dest > 0 %}
+                                        <div class="envios-mes-barra">
+                                            <div class="envios-mes-progresso" style="width: {% widthratio envios_mes total_dest 100 %}%"></div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endwith %}
                                 </td>
                                 <td class="text-center">
                                     <div class="dropdown">
@@ -1169,7 +1205,7 @@
                                         <ul class="dropdown-menu dropdown-menu-end">
                                             <li>
                                                 <a class="dropdown-item dropdown-action-history" href="{% url 'tarefas-envio-historico' tarefa.id %}">
-                                                    <i data-feather="clock"></i> Historico
+                                                    <i data-feather="clock"></i> Histórico
                                                 </a>
                                             </li>
                                             <li>
@@ -1216,7 +1252,7 @@
 
                 {% if is_paginated %}
                 <div class="card-footer bg-white border-top">
-                    <nav aria-label="Navegacao de paginas">
+                    <nav aria-label="Navegação de páginas">
                         <ul class="pagination justify-content-center mb-0">
                             {% if page_obj.has_previous %}
                             <li class="page-item">
@@ -1250,14 +1286,14 @@
     </div>
 </div>
 
-<!-- Modal de Configuracoes (apenas admin) -->
+<!-- Modal de Configurações (apenas admin) -->
 {% if user.is_superuser %}
 <div class="modal fade" id="modalConfiguracao" tabindex="-1" aria-labelledby="modalConfiguracaoLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-secondary text-white">
                 <h5 class="modal-title" id="modalConfiguracaoLabel">
-                    <i class="bi bi-gear me-2"></i>Configuracoes de Envio
+                    <i class="bi bi-gear me-2"></i>Configurações de Envio
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
@@ -1270,10 +1306,10 @@
                 <form id="formConfiguracao" class="d-none">
                     <div class="mb-3">
                         <label for="config_limite_envios" class="form-label">
-                            <i class="bi bi-speedometer2 me-1"></i>Limite de Envios por Execucao
+                            <i class="bi bi-speedometer2 me-1"></i>Limite de Envios por Execução
                         </label>
                         <input type="number" class="form-control" id="config_limite_envios" min="1" max="1000" required>
-                        <small class="text-muted">Maximo de mensagens enviadas por execucao de tarefa (1-1000)</small>
+                        <small class="text-muted">Máximo de mensagens enviadas por execução de tarefa (1-1000)</small>
                     </div>
                     <div class="mb-3">
                         <label for="config_intervalo" class="form-label">
@@ -1286,7 +1322,7 @@
                         <div class="col-6">
                             <div class="mb-3">
                                 <label for="config_horario_inicio" class="form-label">
-                                    <i class="bi bi-sunrise me-1"></i>Horario Inicio
+                                    <i class="bi bi-sunrise me-1"></i>Horário Início
                                 </label>
                                 <input type="time" class="form-control" id="config_horario_inicio" required>
                             </div>
@@ -1294,7 +1330,7 @@
                         <div class="col-6">
                             <div class="mb-3">
                                 <label for="config_horario_fim" class="form-label">
-                                    <i class="bi bi-sunset me-1"></i>Horario Fim
+                                    <i class="bi bi-sunset me-1"></i>Horário Fim
                                 </label>
                                 <input type="time" class="form-control" id="config_horario_fim" required>
                             </div>
@@ -1475,7 +1511,7 @@ $(document).ready(function() {
         total_ativas: {{ total_ativas }},
         total_inativas: {{ total_inativas }},
         total_pausadas: {{ total_pausadas }},
-        total_envios: {{ total_envios|default:0 }},
+        total_envios_mes: {{ total_envios_mes|default:0 }},
         taxa_sucesso: {% if taxa_sucesso is not None %}{{ taxa_sucesso|stringformat:"g" }}{% else %}null{% endif %},
         media_envios_execucao: {{ media_envios_execucao|default:0|stringformat:"g" }}
     };
@@ -1492,7 +1528,7 @@ $(document).ready(function() {
                     atualizarValor('#stat-ativas', '#card-ativas', stats.total_ativas, ultimosStats.total_ativas);
                     atualizarValor('#stat-inativas', '#card-inativas', stats.total_inativas, ultimosStats.total_inativas);
                     atualizarValor('#stat-pausadas', '#card-pausadas', stats.total_pausadas, ultimosStats.total_pausadas);
-                    atualizarValor('#stat-envios', '#card-envios', stats.total_envios, ultimosStats.total_envios);
+                    atualizarValor('#stat-envios', '#card-envios', stats.total_envios_mes, ultimosStats.total_envios_mes);
                     atualizarValor('#stat-media', '#card-media', stats.media_envios_execucao, ultimosStats.media_envios_execucao);
 
                     // Taxa de sucesso (com formatacao especial)
@@ -1521,7 +1557,7 @@ $(document).ready(function() {
                             <small class="text-muted d-block">${stats.proxima_execucao.nome}</small>
                         `);
                     } else if (stats.total_ativas > 0) {
-                        $('#stat-proxima').html('<span class="text-muted">Nenhuma nos proximos 7 dias</span>');
+                        $('#stat-proxima').html('<span class="text-muted">Nenhuma nos próximos 7 dias</span>');
                     } else {
                         $('#stat-proxima').html('<span class="text-muted">Sem tarefas ativas</span>');
                     }
@@ -1644,7 +1680,7 @@ $(document).ready(function() {
                 $statusCell.data('was-checked', isChecked);
                 $statusCell.html(`
                     <div class="notif-pause-indicator"
-                         title="Tarefa pausada enquanto ha envios de Notificacao de Vencimentos em andamento. A execucao sera retomada apos conclusao."
+                         title="Tarefa pausada enquanto há envios de Notificação de Vencimentos em andamento. A execução será retomada após conclusão."
                          data-bs-toggle="tooltip" data-bs-placement="top">
                         <div class="notif-pause-icon">
                             <i data-feather="bell"></i>
@@ -1658,7 +1694,7 @@ $(document).ready(function() {
                     $nomeCell.html(`
                         ${nomeTarefa}
                         <span class="badge badge-notif-pause ms-1"
-                              title="Tarefa pausada enquanto ha envios de Notificacao de Vencimentos em andamento. A execucao sera retomada apos conclusao."
+                              title="Tarefa pausada enquanto há envios de Notificação de Vencimentos em andamento. A execução será retomada após conclusão."
                               data-bs-toggle="tooltip" data-bs-placement="top">
                             <i data-feather="bell" class="icon-xxs"></i> Aguardando
                         </span>
@@ -1910,7 +1946,8 @@ $(document).ready(function() {
                 dias: {{ tarefa.dias_semana|safe }},
                 horario: "{{ tarefa.horario|time:'H:i' }}",
                 periodo: "{{ tarefa.get_periodo_mes_display|escapejs }}",
-                totalEnvios: {{ tarefa.total_envios }},
+                enviosMes: {{ tarefa.get_envios_mes_atual }},
+                totalDestinatarios: {{ tarefa.get_total_destinatarios }},
                 ativo: {{ tarefa.ativo|yesno:"true,false" }},
                 pausada: {{ tarefa.esta_pausada|yesno:"true,false" }}
             }{% if not forloop.last %},{% endif %}
@@ -1972,11 +2009,11 @@ $(document).ready(function() {
                                 <span class="tarefa-tooltip-value">${t.tipoDisplay}</span>
                             </div>
                             <div class="tarefa-tooltip-row">
-                                <span class="tarefa-tooltip-label">Horario:</span>
+                                <span class="tarefa-tooltip-label">Horário:</span>
                                 <span class="tarefa-tooltip-value">${t.horario}</span>
                             </div>
                             <div class="tarefa-tooltip-row">
-                                <span class="tarefa-tooltip-label">Periodo:</span>
+                                <span class="tarefa-tooltip-label">Período:</span>
                                 <span class="tarefa-tooltip-value">${t.periodo}</span>
                             </div>
                             <div class="tarefa-tooltip-row">
