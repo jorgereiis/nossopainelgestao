@@ -4910,6 +4910,63 @@ class TarefaEnvio(models.Model):
 
         return 0
 
+    def tem_capacidade_insuficiente(self):
+        """
+        Verifica se a configuração atual da tarefa é insuficiente para
+        atingir todo o público-alvo em um mês.
+
+        Retorna: (bool, dict) - True se insuficiente, com detalhes do cálculo
+        """
+        # Só verifica para tarefas recorrentes
+        if self.tipo_agendamento == 'unico':
+            return False, {}
+
+        # Obtém configurações globais
+        config = ConfiguracaoEnvio.objects.first()
+        if not config:
+            return False, {}
+
+        # Total de destinatários
+        total_destinatarios = self.get_total_destinatarios()
+        if total_destinatarios == 0:
+            return False, {}
+
+        # Dias de execução por semana
+        dias_semana = len(self.dias_semana) if self.dias_semana else 0
+        if dias_semana == 0:
+            return False, {}
+
+        # Calcula janela de tempo diária (em segundos)
+        inicio = config.horario_inicio_permitido
+        fim = config.horario_fim_permitido
+        janela_minutos = (fim.hour * 60 + fim.minute) - (inicio.hour * 60 + inicio.minute)
+        janela_segundos = janela_minutos * 60
+
+        # Intervalo médio entre mensagens
+        intervalo_medio = (config.intervalo_minimo + config.intervalo_maximo) / 2
+
+        # Mensagens por dia (limitado pelo limite global)
+        mensagens_por_dia = min(
+            int(janela_segundos / intervalo_medio),
+            config.limite_envios_por_execucao
+        )
+
+        # Dias por mês (~4.3 semanas)
+        dias_por_mes = int(dias_semana * 4.3)
+
+        # Capacidade mensal
+        capacidade_mensal = mensagens_por_dia * dias_por_mes
+
+        # Verifica se é insuficiente
+        insuficiente = capacidade_mensal < total_destinatarios
+
+        return insuficiente, {
+            'capacidade_mensal': capacidade_mensal,
+            'total_destinatarios': total_destinatarios,
+            'percentual': round((capacidade_mensal / total_destinatarios) * 100) if total_destinatarios > 0 else 0,
+            'faltam': total_destinatarios - capacidade_mensal if insuficiente else 0
+        }
+
     def save(self, *args, **kwargs):
         # Gera versão plaintext automaticamente
         if self.mensagem:

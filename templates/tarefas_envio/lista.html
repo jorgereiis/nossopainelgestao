@@ -514,6 +514,25 @@
         cursor: help;
     }
 
+    /* Badge de capacidade insuficiente (pulsante) */
+    .badge-capacity-warning {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%) !important;
+        color: #dc2626 !important;
+        border: 1px solid #f87171;
+        cursor: help;
+        animation: pulse-warning 2s ease-in-out infinite;
+    }
+    @keyframes pulse-warning {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.7;
+            transform: scale(1.1);
+        }
+    }
+
     /* Tooltip personalizado para tarefas do calendario */
     .calendario-tarefa {
         position: relative;
@@ -1148,6 +1167,15 @@
                                         <div>
                                             <h6 class="mb-0 fw-semibold">
                                                 {{ tarefa.nome }}
+                                                {% with tarefa.tem_capacidade_insuficiente as capacidade %}
+                                                {% if capacidade.0 %}
+                                                <span class="badge badge-capacity-warning ms-1"
+                                                      title="Atenção: apenas {{ capacidade.1.percentual }}% do público será atingido ({{ capacidade.1.capacidade_mensal }} de {{ capacidade.1.total_destinatarios }} contatos/mês)"
+                                                      data-bs-toggle="tooltip" data-bs-placement="top">
+                                                    <i data-feather="alert-triangle" class="icon-xxs"></i>
+                                                </span>
+                                                {% endif %}
+                                                {% endwith %}
                                                 {% if tarefa.pausado_por_notificacao %}
                                                 <span class="badge badge-notif-pause ms-1"
                                                       title="Tarefa pausada enquanto há envios de Notificação de Vencimentos em andamento. A execução será retomada após conclusão."

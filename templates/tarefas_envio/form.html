@@ -704,6 +704,21 @@
                             {% if form.dias_semana.errors %}
                             <div class="text-danger small mt-2">{{ form.dias_semana.errors.0 }}</div>
                             {% endif %}
+
+                            <!-- Alerta de Capacidade de Envio -->
+                            <div class="alert alert-warning mt-3 mb-0 d-none" id="alerta-capacidade">
+                                <div class="d-flex align-items-start">
+                                    <i class="bi bi-exclamation-triangle-fill me-2 mt-1 flex-shrink-0"></i>
+                                    <div>
+                                        <strong>Atenção: Configuração pode não atingir todo o público</strong>
+                                        <p class="mb-2 mt-1" id="alerta-capacidade-texto"></p>
+                                        <small class="text-muted d-block">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Considere aumentar os dias de execução ou solicitar ao administrador que ajuste as configurações globais de envio.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Data Envio Unico -->
@@ -1098,6 +1113,16 @@ $(document).ready(function() {
     const tarefaId = '{{ object.pk|default:"" }}';
     const tarefaEmExecucao = {{ tarefa_em_execucao|yesno:"true,false" }};
     let confirmouSalvarEmExecucao = false;
+    let alcanceAtual = 0; // Armazena o total de contatos do público
+
+    // Configurações globais de envio (definidas pelo admin)
+    const configEnvio = {
+        intervaloMinimo: {{ config_envio.intervalo_minimo }},
+        intervaloMaximo: {{ config_envio.intervalo_maximo }},
+        horarioInicio: '{{ config_envio.horario_inicio }}',
+        horarioFim: '{{ config_envio.horario_fim }}',
+        limitePorExecucao: {{ config_envio.limite_por_execucao }}
+    };
 
     // ============================================
     // QUILL EDITOR
@@ -1212,6 +1237,7 @@ $(document).ready(function() {
                 },
                 success: function(response) {
                     if (response.success) {
+                        alcanceAtual = response.total;
                         $('#alcance-numero').text(response.total.toLocaleString('pt-BR'));
                         // Label dinamico baseado no tipo (usa response do backend)
                         if (response.tipo_envio === 'avulso') {
@@ -1219,12 +1245,15 @@ $(document).ready(function() {
                         } else {
                             $('#alcance-label').text('clientes serao atingidos');
                         }
+                        // Valida capacidade de envio
+                        validarCapacidadeEnvio();
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('Erro ao carregar alcance:', status, error);
                     $('#alcance-numero').text('-');
                     $('#alcance-label').text('Erro ao calcular');
+                    alcanceAtual = 0;
                 },
                 complete: function() {
                     $('#alcance-badge').removeClass('loading updating');
@@ -1245,6 +1274,67 @@ $(document).ready(function() {
     // Carrega estado inicial
     atualizarExibicaoPorTipo();
     carregarAlcance();
+
+    // ============================================
+    // VALIDAR CAPACIDADE DE ENVIO
+    // ============================================
+    function validarCapacidadeEnvio() {
+        const tipoAgendamento = $('input[name="tipo_agendamento"]:checked').val();
+
+        // Só valida para tarefas recorrentes
+        if (tipoAgendamento === 'unico') {
+            $('#alerta-capacidade').addClass('d-none');
+            return;
+        }
+
+        // Conta dias selecionados
+        const diasSelecionados = $('input[name="dias_semana"]:checked').length;
+
+        if (diasSelecionados === 0 || alcanceAtual === 0) {
+            $('#alerta-capacidade').addClass('d-none');
+            return;
+        }
+
+        // Calcula janela de tempo diária (em segundos)
+        const [inicioH, inicioM] = configEnvio.horarioInicio.split(':').map(Number);
+        const [fimH, fimM] = configEnvio.horarioFim.split(':').map(Number);
+        const janelaMinutos = (fimH * 60 + fimM) - (inicioH * 60 + inicioM);
+        const janelaSegundos = janelaMinutos * 60;
+
+        // Intervalo médio entre mensagens
+        const intervaloMedio = (configEnvio.intervaloMinimo + configEnvio.intervaloMaximo) / 2;
+
+        // Quantas mensagens cabem em uma execução diária (limitado pelo limite global)
+        const mensagensPorDia = Math.min(
+            Math.floor(janelaSegundos / intervaloMedio),
+            configEnvio.limitePorExecucao
+        );
+
+        // Dias de execução por mês (considerando ~4.3 semanas por mês)
+        const diasPorMes = Math.floor(diasSelecionados * 4.3);
+
+        // Capacidade total mensal
+        const capacidadeMensal = mensagensPorDia * diasPorMes;
+
+        // Verifica se capacidade é suficiente
+        if (capacidadeMensal < alcanceAtual) {
+            const percentual = Math.round((capacidadeMensal / alcanceAtual) * 100);
+            const faltam = alcanceAtual - capacidadeMensal;
+
+            let texto = `Com a configuração atual, você conseguirá enviar para aproximadamente <strong>${capacidadeMensal.toLocaleString('pt-BR')}</strong> `;
+            texto += `de <strong>${alcanceAtual.toLocaleString('pt-BR')}</strong> contatos por mês (${percentual}%). `;
+            texto += `<br><strong>${faltam.toLocaleString('pt-BR')} contatos</strong> podem não receber a mensagem.`;
+
+            $('#alerta-capacidade-texto').html(texto);
+            $('#alerta-capacidade').removeClass('d-none');
+        } else {
+            $('#alerta-capacidade').addClass('d-none');
+        }
+    }
+
+    // Recalcula quando mudar os dias da semana
+    $('input[name="dias_semana"]').on('change', validarCapacidadeEnvio);
+    $('input[name="tipo_agendamento"]').on('change', validarCapacidadeEnvio);
 
     // ============================================
     // VERIFICAR CONFLITO DE HORARIO
