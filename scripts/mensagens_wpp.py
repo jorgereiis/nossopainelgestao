@@ -1486,8 +1486,9 @@ def envia_mensagem_personalizada(
             continue
 
         # Obter mensagem: usa mensagem_direta (TarefaEnvio) ou template (legado)
+        # Ambos os modos agora usam ChatGPT para variar a mensagem e evitar detecção de spam
         if mensagem_direta:
-            message = mensagem_direta
+            message = variar_mensagem_chatgpt(mensagem_original=mensagem_direta, usuario=usuario)
         else:
             message = obter_mensagem_personalizada(nome=nome_msg, tipo=tipo_envio, usuario=usuario)
         if not message:
@@ -1665,7 +1666,55 @@ def envia_mensagem_personalizada(
                 'ultima_resposta': str(response_payload)[:200] if response_payload else None
             })
 
-        time.sleep(random.uniform(30, 180))
+        # Usa intervalo configurado (min/max) para delay entre mensagens
+        intervalo_delay = random.uniform(config_envio.intervalo_minimo, config_envio.intervalo_maximo)
+        time.sleep(intervalo_delay)
+
+        # ============================================================
+        # VERIFICAÇÃO DE CONFLITO DURANTE EXECUÇÃO
+        # Pausa se notificações estão prestes a iniciar ou em execução
+        # ============================================================
+        if tarefa_id:
+            tem_conflito, motivo = verificar_conflito_notificacoes(usuario.id)
+            if tem_conflito:
+                logger.info(
+                    "Tarefa pausada durante execução por conflito | tarefa_id=%d motivo=%s enviados_ate_agora=%d",
+                    tarefa_id, motivo, resultado['enviados']
+                )
+                # Atualiza status da tarefa no banco
+                try:
+                    tarefa_obj = TarefaEnvio.objects.get(id=tarefa_id)
+                    tarefa_obj.pausado_por_notificacao = True
+                    tarefa_obj.pausado_motivo = motivo
+                    tarefa_obj.save(update_fields=['pausado_por_notificacao', 'pausado_motivo'])
+                except TarefaEnvio.DoesNotExist:
+                    pass
+
+                # Aguarda até que o conflito seja resolvido (verifica a cada 30 segundos)
+                tempo_aguardando = 0
+                max_espera = 3600  # Máximo 1 hora de espera
+                while tem_conflito and tempo_aguardando < max_espera:
+                    time.sleep(30)
+                    tempo_aguardando += 30
+                    tem_conflito, motivo = verificar_conflito_notificacoes(usuario.id)
+                    if tempo_aguardando % 300 == 0:  # Log a cada 5 minutos
+                        logger.info(
+                            "Tarefa ainda aguardando | tarefa_id=%d tempo_aguardando=%d min motivo=%s",
+                            tarefa_id, tempo_aguardando // 60, motivo
+                        )
+
+                # Conflito resolvido - retoma execução
+                logger.info(
+                    "Tarefa retomando execução | tarefa_id=%d tempo_aguardado=%d seg",
+                    tarefa_id, tempo_aguardando
+                )
+                try:
+                    tarefa_obj = TarefaEnvio.objects.get(id=tarefa_id)
+                    tarefa_obj.pausado_por_notificacao = False
+                    tarefa_obj.pausado_motivo = ""
+                    tarefa_obj.save(update_fields=['pausado_por_notificacao', 'pausado_motivo'])
+                except TarefaEnvio.DoesNotExist:
+                    pass
 
     # Adiciona total de destinatarios ao resultado
     resultado['total_destinatarios'] = len(destinatarios)
@@ -1784,6 +1833,59 @@ def obter_mensagem_personalizada(nome: str, tipo: str, usuario: User = None) -> 
             exc_info=True
         )
         return None
+
+
+def variar_mensagem_chatgpt(mensagem_original: str, usuario: User = None) -> str:
+    """
+    Gera uma variação da mensagem usando ChatGPT para evitar detecção de spam.
+
+    Args:
+        mensagem_original (str): Texto original da mensagem configurada na tarefa.
+        usuario (User, opcional): Usuário responsável pelo envio.
+
+    Returns:
+        str: Mensagem reescrita com variações, ou a mensagem original em caso de erro.
+    """
+    if not mensagem_original or not mensagem_original.strip():
+        return mensagem_original
+
+    try:
+        prompt = (
+            "Você é um redator especialista em marketing pelo WhatsApp. "
+            "Reescreva o texto abaixo mantendo a mesma intenção e informações, "
+            "mas com frases ligeiramente diferentes, trocando algumas palavras por sinônimos, "
+            "variando a ordem quando possível, e ajustando emojis se houver. "
+            "O texto deve parecer natural, envolvente e adequado para WhatsApp. "
+            "IMPORTANTE: Mantenha todos os dados importantes (valores, datas, nomes, links) exatamente como estão. "
+            "Responda APENAS com o texto reescrito, sem explicações.\n\n"
+            f"{mensagem_original}"
+        )
+
+        mensagem_variada = consultar_chatgpt(pergunta=prompt, user=usuario)
+
+        if mensagem_variada and mensagem_variada.strip():
+            logger.info(
+                "Mensagem variada com sucesso via ChatGPT | usuario=%s | tamanho_original=%d | tamanho_variada=%d",
+                usuario.username if usuario else "N/A",
+                len(mensagem_original),
+                len(mensagem_variada)
+            )
+            return mensagem_variada
+        else:
+            logger.warning(
+                "ChatGPT retornou vazio, usando mensagem original | usuario=%s",
+                usuario.username if usuario else "N/A"
+            )
+            return mensagem_original
+
+    except Exception as e:
+        logger.error(
+            "Erro ao variar mensagem via ChatGPT, usando original | erro=%s | usuario=%s",
+            str(e),
+            usuario.username if usuario else "N/A",
+            exc_info=True
+        )
+        return mensagem_original
 #### FIM #####
 
 

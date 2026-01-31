@@ -679,7 +679,7 @@
                                   data-servidor="{{plano.id}}"
                                   data-nome="{{plano.nome}}"
                                   data-telas="{{plano.telas}}"
-                                  data-valor="{{plano.valor}}"
+                                  data-valor="{{plano.valor|unlocalize}}"
                                   data-campanha-ativa="{{plano.campanha_ativa|yesno:'true,false'}}"
                                   data-campanha-tipo="{{plano.campanha_tipo|default:''}}"
                                   data-campanha-data-inicio="{{plano.campanha_data_inicio|date:'Y-m-d'|default:''}}"

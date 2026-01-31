@@ -636,6 +636,7 @@ Enquanto isso, informe aqui como podemos ajudá-lo(a).</div>
                                                     class="btn btn-sm-config ${btnClass}"
                                                     type="button"
                                                     data-horario-id="${horario.id}"
+                                                    data-tipo-envio="${horario.tipo_envio}"
                                                     data-status="${horario.status ? "on" : "off"}"
                                                     data-sessao-wpp="${sessao_wpp ? "true" : ""}"
                                                     onclick="toggleHorarioAtivo(this)"
@@ -661,9 +662,21 @@ Enquanto isso, informe aqui como podemos ajudá-lo(a).</div>
             });
     }
 
+    // Função auxiliar para calcular diferença em minutos entre dois horários
+    function calcularDiferencaMinutos(horario1, horario2) {
+        const [h1, m1] = horario1.split(':').map(Number);
+        const [h2, m2] = horario2.split(':').map(Number);
+
+        const minutos1 = h1 * 60 + m1;
+        const minutos2 = h2 * 60 + m2;
+
+        return Math.abs(minutos1 - minutos2);
+    }
+
     // Função para ativar/desativar um horário
     function toggleHorarioAtivo(botao) {
         const horarioId = botao.getAttribute('data-horario-id');
+        const tipoEnvio = botao.getAttribute('data-tipo-envio');
         const statusAtual = botao.getAttribute('data-status'); // "on" ou "off"
         const inputHorario = document.getElementById('horario_envio_' + horarioId);
         let horarioValue = inputHorario ? inputHorario.value : "";
@@ -691,6 +704,47 @@ Enquanto isso, informe aqui como podemos ajudá-lo(a).</div>
             botao.disabled = false;
             botao.textContent = "Ativar";
             return;
+        }
+
+        // --- Validação: diferença mínima de 1 hora entre Vencimentos e Atrasos ---
+        if (novoStatus && horarioValue) {
+            // Determinar qual é o OUTRO tipo de notificação
+            const outroTipo = tipoEnvio === 'mensalidades_a_vencer'
+                ? 'obter_mensalidades_vencidas'
+                : 'mensalidades_a_vencer';
+
+            // Buscar o botão do outro horário
+            const outroBotao = document.querySelector(`button[data-tipo-envio="${outroTipo}"]`);
+
+            if (outroBotao) {
+                const outroHorarioId = outroBotao.getAttribute('data-horario-id');
+                const outroStatus = outroBotao.getAttribute('data-status');
+                const outroInputHorario = document.getElementById('horario_envio_' + outroHorarioId);
+                const outroHorarioValue = outroInputHorario ? outroInputHorario.value : "";
+
+                // Se o outro horário está ativo E tem um valor definido
+                if (outroStatus === 'on' && outroHorarioValue) {
+                    const diferencaMinutos = calcularDiferencaMinutos(horarioValue, outroHorarioValue);
+
+                    if (diferencaMinutos < 60) {
+                        const nomeAtual = tipoEnvio === 'mensalidades_a_vencer'
+                            ? 'Notificação de Vencimentos'
+                            : 'Notificação de Atrasos';
+                        const nomeOutro = tipoEnvio === 'mensalidades_a_vencer'
+                            ? 'Notificação de Atrasos'
+                            : 'Notificação de Vencimentos';
+
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Horários muito próximos',
+                            html: `O horário de <strong>${nomeAtual}</strong> (${horarioValue}) está com menos de 1 hora de diferença do horário de <strong>${nomeOutro}</strong> (${outroHorarioValue}).<br><br>Defina um intervalo de pelo menos <strong>1 hora</strong> entre os dois envios.`,
+                        });
+                        botao.disabled = false;
+                        botao.textContent = "Ativar";
+                        return;
+                    }
+                }
+            }
         }
 
         // Ao desativar, limpar valor antes de enviar

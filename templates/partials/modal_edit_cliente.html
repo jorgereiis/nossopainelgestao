@@ -1,3 +1,4 @@
+{% load l10n %}
 <div class="modal fade" id="edit-cliente-modal" tabindex="-1" role="dialog" aria-labelledby="edit-cliente-label">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl modal-fullscreen-md-down">
         <div class="modal-content" style="position: relative;">
@@ -168,11 +169,11 @@
                                                     data-telas="{{ plano.telas }}"
                                                     data-campanha="{{ plano.campanha_ativa|yesno:'true,false' }}"
                                                     data-nome="{{ plano.nome }}"
-                                                    data-valor="{{ plano.valor }}"
+                                                    data-valor="{{ plano.valor|unlocalize }}"
                                                     data-campanha-tipo="{{ plano.campanha_tipo|default:'' }}"
                                                     data-campanha-duracao="{{ plano.campanha_duracao_meses|default:'0' }}"
-                                                    data-campanha-valor-fixo="{{ plano.campanha_valor_fixo|default:'0' }}"
-                                                    data-valores-personalizados="{% if plano.campanha_tipo == 'PERSONALIZADO' %}{{ plano.campanha_valor_mes_1|default:'0' }},{{ plano.campanha_valor_mes_2|default:'0' }},{{ plano.campanha_valor_mes_3|default:'0' }},{{ plano.campanha_valor_mes_4|default:'0' }},{{ plano.campanha_valor_mes_5|default:'0' }},{{ plano.campanha_valor_mes_6|default:'0' }},{{ plano.campanha_valor_mes_7|default:'0' }},{{ plano.campanha_valor_mes_8|default:'0' }},{{ plano.campanha_valor_mes_9|default:'0' }},{{ plano.campanha_valor_mes_10|default:'0' }},{{ plano.campanha_valor_mes_11|default:'0' }},{{ plano.campanha_valor_mes_12|default:'0' }}{% endif %}">
+                                                    data-campanha-valor-fixo="{{ plano.campanha_valor_fixo|default:'0'|unlocalize }}"
+                                                    data-valores-personalizados="{% if plano.campanha_tipo == 'PERSONALIZADO' %}{{ plano.campanha_valor_mes_1|default:'0'|unlocalize }},{{ plano.campanha_valor_mes_2|default:'0'|unlocalize }},{{ plano.campanha_valor_mes_3|default:'0'|unlocalize }},{{ plano.campanha_valor_mes_4|default:'0'|unlocalize }},{{ plano.campanha_valor_mes_5|default:'0'|unlocalize }},{{ plano.campanha_valor_mes_6|default:'0'|unlocalize }},{{ plano.campanha_valor_mes_7|default:'0'|unlocalize }},{{ plano.campanha_valor_mes_8|default:'0'|unlocalize }},{{ plano.campanha_valor_mes_9|default:'0'|unlocalize }},{{ plano.campanha_valor_mes_10|default:'0'|unlocalize }},{{ plano.campanha_valor_mes_11|default:'0'|unlocalize }},{{ plano.campanha_valor_mes_12|default:'0'|unlocalize }}{% endif %}">
                                                 {% if plano.campanha_ativa %}(Promo){% else %}(Regular){% endif %}
                                                 {{ plano.nome }} - R$ {{ plano.valor }} - {{ plano.telas }} tela{{ plano.telas|pluralize }}
                                             </option>

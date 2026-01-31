@@ -836,7 +836,7 @@ class TemplateMensagemAdmin(admin.ModelAdmin):
 class ConfiguracaoEnvioAdmin(admin.ModelAdmin):
     """Admin para configurações de envio (singleton)."""
     list_display = (
-        "limite_envios_por_execucao", "intervalo_entre_mensagens",
+        "limite_envios_por_execucao", "intervalo_minimo", "intervalo_maximo",
         "horario_inicio_permitido", "horario_fim_permitido", "atualizado_em"
     )
     readonly_fields = ("atualizado_em",)

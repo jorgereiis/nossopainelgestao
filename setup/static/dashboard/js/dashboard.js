@@ -454,19 +454,9 @@ function renderContasCards(contas) {
 
         input.addEventListener('input', function() {
             let deviceId = this.value.replace(/[^0-9A-Fa-f]/g, '');
-            let formattedDeviceId = '';
-
             if (deviceId.length > 0) {
-                formattedDeviceId = deviceId.match(/.{1,2}/g).join(':');
-                if (formattedDeviceId.startsWith(':')) {
-                    formattedDeviceId = formattedDeviceId.substring(1);
-                }
-                if (formattedDeviceId.endsWith(':')) {
-                    formattedDeviceId = formattedDeviceId.slice(0, -1);
-                }
+                this.value = deviceId.match(/.{1,2}/g).join(':').toUpperCase();
             }
-
-            this.value = formattedDeviceId;
         });
     });
 }
@@ -681,8 +671,9 @@ function adicionarEventListenersContas() {
                 return;
             }
 
-            // Gerar campos condicionais
+            // Gerar campos condicionais baseado no tipo de aplicativo
             if (appNome.includes('clouddy')) {
+                // Clouddy: E-mail + Senha
                 credenciaisContainer.innerHTML = `
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">
@@ -697,13 +688,34 @@ function adicionarEventListenersContas() {
                         <input type="text" class="form-control" name="conta_${contaId}_device_key" placeholder="Digite a senha">
                     </div>
                 `;
+            } else if (appNome.includes('xcloud')) {
+                // XCLOUD TV e XCLOUD Mobile: Device ID 6 caracteres + Device Key opcional
+                credenciaisContainer.innerHTML = `
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-upc-scan text-success me-2"></i>Device ID
+                        </label>
+                        <input type="text" class="form-control xcloud-device-id" name="conta_${contaId}_device_id"
+                               placeholder="Ex: AAAAAA" minlength="6" maxlength="6"
+                               style="text-transform: uppercase;">
+                        <small class="text-muted">Código de 6 caracteres alfanuméricos</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-key-fill text-warning me-2"></i>Device Key <span class="badge bg-light text-muted">Opcional</span>
+                        </label>
+                        <input type="text" class="form-control" name="conta_${contaId}_device_key"
+                               placeholder="Digite a senha (opcional)">
+                    </div>
+                `;
             } else {
+                // Demais apps: MAC Address + Device Key opcional
                 credenciaisContainer.innerHTML = `
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">
                             <i class="bi bi-upc-scan text-success me-2"></i>Device ID (MAC)
                         </label>
-                        <input type="text" class="form-control" name="conta_${contaId}_device_id"
+                        <input type="text" class="form-control mac-address-input" name="conta_${contaId}_device_id"
                                placeholder="AA:BB:CC:DD:EE:FF" maxlength="17">
                         <small class="text-muted">Formato: AA:BB:CC:DD:EE:FF</small>
                     </div>
@@ -715,6 +727,17 @@ function adicionarEventListenersContas() {
                                placeholder="Digite a senha (opcional)">
                     </div>
                 `;
+
+                // Aplicar máscara de MAC Address ao novo campo
+                const macInput = credenciaisContainer.querySelector('.mac-address-input');
+                if (macInput) {
+                    macInput.addEventListener('input', function() {
+                        let deviceId = this.value.replace(/[^0-9A-Fa-f]/g, '');
+                        if (deviceId.length > 0) {
+                            this.value = deviceId.match(/.{1,2}/g).join(':').toUpperCase();
+                        }
+                    });
+                }
             }
         });
     });

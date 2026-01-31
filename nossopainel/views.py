@@ -1106,6 +1106,14 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             usuario=self.request.user,
         ).count()
 
+        # Clientes reativados no mês (usando histórico de planos)
+        clientes_reativados_qtd = ClientePlanoHistorico.objects.filter(
+            usuario=self.request.user,
+            motivo=ClientePlanoHistorico.MOTIVO_REACTIVATE,
+            inicio__year=ano_atual,
+            inicio__month=mes_atual,
+        ).values('cliente').distinct().count()
+
         anos_adesao = (
             Cliente.objects.filter(usuario=self.request.user)
             .annotate(ano=ExtractYear('data_adesao'))
@@ -1252,6 +1260,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "valor_total_pago_qtd": total_pago_qtd,
                 "valor_total_receber_qtd": total_receber_qtd,
                 "clientes_cancelados_qtd": clientes_cancelados_qtd,
+                "clientes_reativados_qtd": clientes_reativados_qtd,
                 "clientes_sem_forma_pgto": clientes_sem_forma_pgto,
                 "total_telas_ativas": int(total_telas),
                 'planos_resumo': planos_resumo,
@@ -2704,7 +2713,7 @@ def reactivate_customer(request, cliente_id):
     # ⭐ FASE 2: Gerenciamento de campanha na reativação
     # REGRA:
     #   - Se cancelado há ≤ 7 dias: PRESERVA campanha anterior (não chama enroll que zera)
-    #   - Se cancelado há > 7 dias: REMOVE campanha (cliente deve trocar plano para nova promoção)
+    #   - Se cancelado há > 7 dias: REMOVE campanha e inscreve na nova (se plano for promocional)
     try:
         from nossopainel.models import AssinaturaCliente
 
@@ -2720,7 +2729,7 @@ def reactivate_customer(request, cliente_id):
                 f"Campanha anterior preservada."
             )
         else:
-            # > 7 dias: Remove campanha - cliente precisa trocar plano para nova promoção
+            # > 7 dias: Remove campanha anterior e inscreve na nova (se plano for promocional)
             try:
                 assinatura = AssinaturaCliente.objects.filter(cliente=cliente, ativo=True).first()
                 if assinatura and assinatura.em_campanha:
@@ -2731,10 +2740,24 @@ def reactivate_customer(request, cliente_id):
                     assinatura.save()
                     logger.info(
                         f"[CAMPANHA] Cliente {cliente.id} reativado após {dias_cancelado} dias. "
-                        f"Campanha removida - deve trocar plano para nova promoção."
+                        f"Campanha anterior removida."
                     )
+
+                # ⭐ CORREÇÃO: Se o plano selecionado é promocional, inscreve na nova campanha
+                if cliente.plano and cliente.plano.campanha_ativa:
+                    inscrito = enroll_client_in_campaign_if_eligible(cliente)
+                    if inscrito:
+                        logger.info(
+                            f"[CAMPANHA] Cliente {cliente.id} inscrito na campanha do plano {cliente.plano.nome}"
+                        )
+                    else:
+                        logger.warning(
+                            f"[CAMPANHA] Cliente {cliente.id} não foi inscrito na campanha "
+                            f"(plano {cliente.plano.nome} pode estar fora do período válido)"
+                        )
+
             except Exception as e:
-                logger.error(f"Erro ao remover campanha do cliente {cliente.id}: {e}", exc_info=True)
+                logger.error(f"Erro ao gerenciar campanha do cliente {cliente.id}: {e}", exc_info=True)
 
     except Exception as e:
         logger.error(f"Erro ao gerenciar campanha durante reativação: {e}", exc_info=True)
@@ -4730,6 +4753,45 @@ def edit_horario_envios(request):
                 horario_envio.status = status.lower() in ("1", "true", "on")
             else:
                 horario_envio.status = bool(status)
+
+        # Validação: diferença mínima de 1 hora entre Vencimentos e Atrasos
+        if horario_envio.status and horario_envio.horario:
+            # Determinar qual é o OUTRO tipo de notificação
+            if horario_envio.tipo_envio == 'mensalidades_a_vencer':
+                outro_tipo = 'obter_mensalidades_vencidas'
+            else:
+                outro_tipo = 'mensalidades_a_vencer'
+
+            # Buscar o outro horário do mesmo usuário
+            outro_horario = HorarioEnvios.objects.filter(
+                usuario=usuario,
+                tipo_envio=outro_tipo,
+                status=True
+            ).first()
+
+            if outro_horario and outro_horario.horario:
+                from datetime import datetime, timedelta
+                # Calcular diferença em minutos
+                horario_atual_minutos = horario_envio.horario.hour * 60 + horario_envio.horario.minute
+                outro_horario_minutos = outro_horario.horario.hour * 60 + outro_horario.horario.minute
+                diferenca_minutos = abs(horario_atual_minutos - outro_horario_minutos)
+
+                if diferenca_minutos < 60:
+                    nome_atual = "Notificação de Vencimentos" if horario_envio.tipo_envio == 'mensalidades_a_vencer' else "Notificação de Atrasos"
+                    nome_outro = "Notificação de Atrasos" if horario_envio.tipo_envio == 'mensalidades_a_vencer' else "Notificação de Vencimentos"
+                    logger.warning(
+                        "Tentativa de definir horários com menos de 1h de diferença (user=%s, ip=%s): %s=%s, %s=%s",
+                        request.user,
+                        ip_address,
+                        nome_atual,
+                        horario_envio.horario.strftime("%H:%M"),
+                        nome_outro,
+                        outro_horario.horario.strftime("%H:%M"),
+                    )
+                    return JsonResponse({
+                        "success": False,
+                        "error": f"O horário de {nome_atual} ({horario_envio.horario.strftime('%H:%M')}) está com menos de 1 hora de diferença do horário de {nome_outro} ({outro_horario.horario.strftime('%H:%M')}). Defina um intervalo de pelo menos 1 hora entre os dois envios."
+                    }, status=400)
 
         try:
             horario_envio.save()
@@ -10993,7 +11055,9 @@ class TarefaEnvioUpdateView(LoginRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         # Trata remoção de imagem (checkbox imagem-clear)
-        if self.request.POST.get('imagem-clear') == 'true':
+        # Só remove se NÃO houver uma nova imagem sendo enviada
+        nova_imagem_enviada = self.request.FILES.get('imagem')
+        if self.request.POST.get('imagem-clear') == 'true' and not nova_imagem_enviada:
             form.instance.imagem = None
 
         try:
@@ -11640,7 +11704,8 @@ def tarefas_envio_configuracao_get(request):
             'success': True,
             'config': {
                 'limite_envios_por_execucao': config.limite_envios_por_execucao,
-                'intervalo_entre_mensagens': config.intervalo_entre_mensagens,
+                'intervalo_minimo': config.intervalo_minimo,
+                'intervalo_maximo': config.intervalo_maximo,
                 'horario_inicio_permitido': horario_inicio,
                 'horario_fim_permitido': horario_fim,
                 'atualizado_em': atualizado_em
@@ -11684,11 +11749,21 @@ def tarefas_envio_configuracao_salvar(request):
             return JsonResponse({'success': False, 'error': 'Limite deve ser entre 1 e 1000'}, status=400)
         config.limite_envios_por_execucao = limite
 
-    if 'intervalo_entre_mensagens' in data:
-        intervalo = int(data['intervalo_entre_mensagens'])
-        if intervalo < 1 or intervalo > 300:
-            return JsonResponse({'success': False, 'error': 'Intervalo deve ser entre 1 e 300 segundos'}, status=400)
-        config.intervalo_entre_mensagens = intervalo
+    if 'intervalo_minimo' in data:
+        intervalo_min = int(data['intervalo_minimo'])
+        if intervalo_min < 1 or intervalo_min > 600:
+            return JsonResponse({'success': False, 'error': 'Intervalo mínimo deve ser entre 1 e 600 segundos'}, status=400)
+        config.intervalo_minimo = intervalo_min
+
+    if 'intervalo_maximo' in data:
+        intervalo_max = int(data['intervalo_maximo'])
+        if intervalo_max < 1 or intervalo_max > 600:
+            return JsonResponse({'success': False, 'error': 'Intervalo máximo deve ser entre 1 e 600 segundos'}, status=400)
+        config.intervalo_maximo = intervalo_max
+
+    # Valida que intervalo mínimo não seja maior que o máximo
+    if config.intervalo_minimo > config.intervalo_maximo:
+        return JsonResponse({'success': False, 'error': 'Intervalo mínimo não pode ser maior que o máximo'}, status=400)
 
     if 'horario_inicio_permitido' in data:
         from datetime import datetime as dt
@@ -11711,7 +11786,8 @@ def tarefas_envio_configuracao_salvar(request):
         'message': 'Configurações salvas com sucesso!',
         'config': {
             'limite_envios_por_execucao': config.limite_envios_por_execucao,
-            'intervalo_entre_mensagens': config.intervalo_entre_mensagens,
+            'intervalo_minimo': config.intervalo_minimo,
+            'intervalo_maximo': config.intervalo_maximo,
             'horario_inicio_permitido': config.horario_inicio_permitido.strftime('%H:%M'),
             'horario_fim_permitido': config.horario_fim_permitido.strftime('%H:%M')
         }
