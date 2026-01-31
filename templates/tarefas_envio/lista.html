@@ -31,6 +31,14 @@
         overflow: visible !important;
     }
 
+    /* Responsividade dos botões de ação */
+    @media (min-width: 768px) {
+        .btn-md-normal {
+            padding: 0.375rem 0.75rem !important;
+            font-size: 1rem !important;
+        }
+    }
+
     /* ===== DROPDOWN PREMIUM (Estilo Dashboard) ===== */
     .table-modern .dropdown-menu {
         min-width: 220px;
@@ -1026,7 +1034,7 @@
 
     <!-- Toggle de Visualizacao -->
     <div class="row mb-3">
-        <div class="col-12 d-flex justify-content-between align-items-center">
+        <div class="col-12 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
             <div class="btn-group view-toggle" role="group">
                 <button type="button" class="btn btn-primary active" id="btn-view-lista" data-view="lista">
                     <i data-feather="list" class="icon-xs me-1"></i> Lista
@@ -1036,12 +1044,12 @@
                 </button>
             </div>
             {% if user.is_superuser %}
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-warning" id="btn-revisar-leads" onclick="revisarNumerosLeads()">
-                    <i data-feather="refresh-cw" class="icon-xs me-1"></i> Revisar Leads
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-warning btn-sm btn-md-normal" id="btn-revisar-leads" onclick="revisarNumerosLeads()">
+                    <i data-feather="refresh-cw" class="icon-xs me-1"></i> <span class="d-none d-sm-inline">Revisar</span> Leads
                 </button>
-                <button type="button" class="btn btn-outline-secondary" id="btn-configuracao" data-bs-toggle="modal" data-bs-target="#modalConfiguracao">
-                    <i data-feather="settings" class="icon-xs me-1"></i> Configurações
+                <button type="button" class="btn btn-outline-secondary btn-sm btn-md-normal" id="btn-configuracao" data-bs-toggle="modal" data-bs-target="#modalConfiguracao">
+                    <i data-feather="settings" class="icon-xs me-1"></i> <span class="d-none d-sm-inline">Configurações</span><span class="d-sm-none">Config</span>
                 </button>
             </div>
             {% endif %}
@@ -1311,12 +1319,35 @@
                         <input type="number" class="form-control" id="config_limite_envios" min="1" max="1000" required>
                         <small class="text-muted">Máximo de mensagens enviadas por execução de tarefa (1-1000)</small>
                     </div>
-                    <div class="mb-3">
-                        <label for="config_intervalo" class="form-label">
-                            <i class="bi bi-clock me-1"></i>Intervalo entre Mensagens (segundos)
-                        </label>
-                        <input type="number" class="form-control" id="config_intervalo" min="1" max="300" required>
-                        <small class="text-muted">Segundos de espera entre cada mensagem (1-300)</small>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label for="config_intervalo_min" class="form-label">
+                                    <i class="bi bi-hourglass-top me-1"></i>Intervalo Mínimo (seg)
+                                </label>
+                                <input type="number" class="form-control config-intervalo-input" id="config_intervalo_min" min="1" max="600" required>
+                                <small class="text-muted">Mínimo: 1 seg</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label for="config_intervalo_max" class="form-label">
+                                    <i class="bi bi-hourglass-bottom me-1"></i>Intervalo Máximo (seg)
+                                </label>
+                                <input type="number" class="form-control config-intervalo-input" id="config_intervalo_max" min="1" max="600" required>
+                                <small class="text-muted">Máximo: 600 seg</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info py-2 mb-3" id="tempo-estimado-container">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-clock-history me-2"></i>
+                            <div>
+                                <strong>Tempo estimado por execução:</strong>
+                                <span id="tempo-estimado-valor" class="ms-1">-</span>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-1" id="tempo-estimado-detalhe"></small>
                     </div>
                     <div class="row">
                         <div class="col-6">
@@ -1373,30 +1404,85 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     $('#config_limite_envios').val(response.config.limite_envios_por_execucao);
-                    $('#config_intervalo').val(response.config.intervalo_entre_mensagens);
+                    $('#config_intervalo_min').val(response.config.intervalo_minimo);
+                    $('#config_intervalo_max').val(response.config.intervalo_maximo);
                     $('#config_horario_inicio').val(response.config.horario_inicio_permitido);
                     $('#config_horario_fim').val(response.config.horario_fim_permitido);
                     if (response.config.atualizado_em) {
-                        $('#config-ultima-atualizacao').html('<i class="bi bi-clock-history me-1"></i>Ultima atualizacao: ' + response.config.atualizado_em);
+                        $('#config-ultima-atualizacao').html('<i class="bi bi-clock-history me-1"></i>Última atualização: ' + response.config.atualizado_em);
                     }
                     $('#config-loading').addClass('d-none');
                     $('#formConfiguracao').removeClass('d-none');
                     $('#btn-salvar-config').prop('disabled', false);
+                    calcularTempoEstimado();
                 } else {
                     $('#config-error').text(response.error).removeClass('d-none');
                     $('#config-loading').addClass('d-none');
                 }
             },
             error: function() {
-                $('#config-error').text('Erro ao carregar configuracoes').removeClass('d-none');
+                $('#config-error').text('Erro ao carregar configurações').removeClass('d-none');
                 $('#config-loading').addClass('d-none');
             }
         });
     });
 
+    // Calcula tempo estimado quando os valores mudam
+    $('#config_limite_envios, #config_intervalo_min, #config_intervalo_max').on('input', function() {
+        calcularTempoEstimado();
+    });
+
+    function calcularTempoEstimado() {
+        const limite = parseInt($('#config_limite_envios').val()) || 0;
+        const intervaloMin = parseInt($('#config_intervalo_min').val()) || 0;
+        const intervaloMax = parseInt($('#config_intervalo_max').val()) || 0;
+
+        if (limite > 0 && intervaloMin > 0 && intervaloMax > 0) {
+            // Tempo mínimo e máximo em segundos
+            const tempoMinSeg = limite * intervaloMin;
+            const tempoMaxSeg = limite * intervaloMax;
+            const tempoMedioSeg = (tempoMinSeg + tempoMaxSeg) / 2;
+
+            // Formata o tempo
+            function formatarTempo(segundos) {
+                if (segundos < 60) {
+                    return segundos + ' segundos';
+                } else if (segundos < 3600) {
+                    const min = Math.floor(segundos / 60);
+                    const seg = segundos % 60;
+                    return min + ' min' + (seg > 0 ? ' ' + seg + ' seg' : '');
+                } else {
+                    const horas = Math.floor(segundos / 3600);
+                    const min = Math.floor((segundos % 3600) / 60);
+                    return horas + 'h ' + min + 'min';
+                }
+            }
+
+            const tempoMinFormatado = formatarTempo(tempoMinSeg);
+            const tempoMaxFormatado = formatarTempo(tempoMaxSeg);
+            const tempoMedioFormatado = formatarTempo(Math.round(tempoMedioSeg));
+
+            $('#tempo-estimado-valor').html('<strong>' + tempoMedioFormatado + '</strong> (média)');
+            $('#tempo-estimado-detalhe').text('Mínimo: ' + tempoMinFormatado + ' | Máximo: ' + tempoMaxFormatado + ' para ' + limite + ' mensagens');
+        } else {
+            $('#tempo-estimado-valor').text('-');
+            $('#tempo-estimado-detalhe').text('');
+        }
+    }
+
     $('#btn-salvar-config').on('click', function() {
         const $btn = $(this);
-        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Salvando...');
+
+        // Validação: intervalo mínimo não pode ser maior que o máximo
+        const intervaloMin = parseInt($('#config_intervalo_min').val());
+        const intervaloMax = parseInt($('#config_intervalo_max').val());
+        if (intervaloMin > intervaloMax) {
+            $('#config-error').text('Intervalo mínimo não pode ser maior que o máximo').removeClass('d-none');
+            return;
+        }
+
+        $btn.prop('disabled', true).html('<span class="loading-dots"><span></span><span></span><span></span></span>');
+        $('#config-error').addClass('d-none');
 
         $.ajax({
             url: '{% url "tarefas-envio-configuracao-salvar" %}',
@@ -1405,29 +1491,22 @@ $(document).ready(function() {
             headers: {'X-CSRFToken': '{{ csrf_token }}'},
             data: JSON.stringify({
                 limite_envios_por_execucao: parseInt($('#config_limite_envios').val()),
-                intervalo_entre_mensagens: parseInt($('#config_intervalo').val()),
+                intervalo_minimo: intervaloMin,
+                intervalo_maximo: intervaloMax,
                 horario_inicio_permitido: $('#config_horario_inicio').val(),
                 horario_fim_permitido: $('#config_horario_fim').val()
             }),
             success: function(response) {
                 if (response.success) {
-                    $('#modalConfiguracao').modal('hide');
-                    // Toast de sucesso
-                    Toastify({
-                        text: response.message,
-                        duration: 3000,
-                        gravity: 'top',
-                        position: 'right',
-                        backgroundColor: '#28a745'
-                    }).showToast();
+                    // Recarrega a página para aplicar as novas configurações
+                    window.location.reload();
                 } else {
                     $('#config-error').text(response.error).removeClass('d-none');
+                    $btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>Salvar');
                 }
             },
             error: function() {
-                $('#config-error').text('Erro ao salvar configuracoes').removeClass('d-none');
-            },
-            complete: function() {
+                $('#config-error').text('Erro ao salvar configurações').removeClass('d-none');
                 $btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>Salvar');
             }
         });

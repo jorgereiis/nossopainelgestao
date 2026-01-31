@@ -82,6 +82,9 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
+    .min-width-0 {
+        min-width: 0;
+    }
 
     /* ============================================
        PREMIUM CARD GERAL
@@ -362,11 +365,6 @@
        RESPONSIVIDADE MOBILE
        ============================================ */
     @media (max-width: 767px) {
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-        }
         .stats-grid .stat-card .stat-value {
             font-size: 1.5rem;
         }
@@ -374,6 +372,9 @@
             width: 44px;
             height: 44px;
             font-size: 1.25rem;
+        }
+        .stats-grid .stat-card .card-body {
+            padding: 1rem;
         }
         .filtros-container {
             flex-direction: column;
@@ -391,6 +392,24 @@
         .tarefa-info-card {
             flex-direction: column;
             text-align: center;
+        }
+    }
+
+    /* Telas muito pequenas (< 400px) */
+    @media (max-width: 400px) {
+        .stats-grid .stat-card .stat-value {
+            font-size: 1.25rem;
+        }
+        .stats-grid .stat-card .stat-label {
+            font-size: 0.6875rem;
+        }
+        .stats-grid .stat-card .stat-icon {
+            width: 36px;
+            height: 36px;
+            font-size: 1rem;
+        }
+        .stats-grid .stat-card .card-body {
+            padding: 0.75rem;
         }
     }
 
@@ -473,61 +492,61 @@
     </div>
 
     <!-- Cards de estatisticas -->
-    <div class="row mb-4 stats-grid">
-        <div class="col-xl-3 col-lg-3 col-md-6 col-6 mb-4 mb-xl-0">
+    <div class="row g-3 mb-4 stats-grid">
+        <div class="col-6 col-md-6 col-lg-3">
             <div class="stat-card h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
-                        <div>
+                        <div class="flex-grow-1 min-width-0">
                             <div class="stat-value" id="stat-total">{{ total_execucoes }}</div>
-                            <div class="stat-label">Execucoes</div>
+                            <div class="stat-label">Execuções</div>
                         </div>
-                        <div class="stat-icon icon-primary">
+                        <div class="stat-icon icon-primary flex-shrink-0 ms-2">
                             <i class="bi bi-activity"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-3 col-md-6 col-6 mb-4 mb-xl-0">
+        <div class="col-6 col-md-6 col-lg-3">
             <div class="stat-card card-success h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
-                        <div>
+                        <div class="flex-grow-1 min-width-0">
                             <div class="stat-value text-success" id="stat-sucesso">{{ total_sucesso }}</div>
                             <div class="stat-label">Sucesso</div>
                         </div>
-                        <div class="stat-icon icon-success">
+                        <div class="stat-icon icon-success flex-shrink-0 ms-2">
                             <i class="bi bi-check-circle"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-3 col-md-6 col-6 mb-4 mb-xl-0">
+        <div class="col-6 col-md-6 col-lg-3">
             <div class="stat-card card-warning h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
-                        <div>
+                        <div class="flex-grow-1 min-width-0">
                             <div class="stat-value text-warning" id="stat-parcial-erro">{{ total_parcial|add:total_erro }}</div>
                             <div class="stat-label">Parcial/Erro</div>
                         </div>
-                        <div class="stat-icon icon-warning">
+                        <div class="stat-icon icon-warning flex-shrink-0 ms-2">
                             <i class="bi bi-exclamation-triangle"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-3 col-md-6 col-6">
+        <div class="col-6 col-md-6 col-lg-3">
             <div class="stat-card card-info h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
-                        <div>
+                        <div class="flex-grow-1 min-width-0">
                             <div class="stat-value text-info" id="stat-taxa">{{ taxa_sucesso }}%</div>
                             <div class="stat-label">Taxa Sucesso</div>
                         </div>
-                        <div class="stat-icon icon-info">
+                        <div class="stat-icon icon-info flex-shrink-0 ms-2">
                             <i class="bi bi-percent"></i>
                         </div>
                     </div>

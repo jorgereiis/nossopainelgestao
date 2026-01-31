@@ -5089,10 +5089,16 @@ class ConfiguracaoEnvio(models.Model):
         help_text='Máximo de mensagens enviadas por execução de tarefa'
     )
 
-    intervalo_entre_mensagens = models.PositiveIntegerField(
-        default=5,
-        verbose_name='Intervalo Entre Mensagens (seg)',
-        help_text='Segundos de espera entre cada mensagem enviada'
+    intervalo_minimo = models.PositiveIntegerField(
+        default=30,
+        verbose_name='Intervalo Mínimo (seg)',
+        help_text='Segundos mínimos de espera entre cada mensagem'
+    )
+
+    intervalo_maximo = models.PositiveIntegerField(
+        default=120,
+        verbose_name='Intervalo Máximo (seg)',
+        help_text='Segundos máximos de espera entre cada mensagem'
     )
 
     horario_inicio_permitido = models.TimeField(
