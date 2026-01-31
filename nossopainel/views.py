@@ -11034,6 +11034,26 @@ class TarefaEnvioCreateView(LoginRequiredMixin, CreateView):
         context['botao_submit'] = 'Criar Tarefa'
         context['page'] = 'tarefas-envio'
         context['page_group'] = 'admin'
+
+        # Configurações globais de envio para validação de capacidade
+        config_envio = ConfiguracaoEnvio.objects.first()
+        if config_envio:
+            context['config_envio'] = {
+                'intervalo_minimo': config_envio.intervalo_minimo,
+                'intervalo_maximo': config_envio.intervalo_maximo,
+                'horario_inicio': config_envio.horario_inicio_permitido.strftime('%H:%M'),
+                'horario_fim': config_envio.horario_fim_permitido.strftime('%H:%M'),
+                'limite_por_execucao': config_envio.limite_envios_por_execucao,
+            }
+        else:
+            # Valores padrão se não houver configuração
+            context['config_envio'] = {
+                'intervalo_minimo': 30,
+                'intervalo_maximo': 120,
+                'horario_inicio': '08:00',
+                'horario_fim': '20:00',
+                'limite_por_execucao': 100,
+            }
         return context
 
 
@@ -11087,6 +11107,26 @@ class TarefaEnvioUpdateView(LoginRequiredMixin, UpdateView):
         context['page_group'] = 'admin'
         # Passa informação de execução para o template (para modal informativo)
         context['tarefa_em_execucao'] = self.object.em_execucao if self.object else False
+
+        # Configurações globais de envio para validação de capacidade
+        config_envio = ConfiguracaoEnvio.objects.first()
+        if config_envio:
+            context['config_envio'] = {
+                'intervalo_minimo': config_envio.intervalo_minimo,
+                'intervalo_maximo': config_envio.intervalo_maximo,
+                'horario_inicio': config_envio.horario_inicio_permitido.strftime('%H:%M'),
+                'horario_fim': config_envio.horario_fim_permitido.strftime('%H:%M'),
+                'limite_por_execucao': config_envio.limite_envios_por_execucao,
+            }
+        else:
+            # Valores padrão se não houver configuração
+            context['config_envio'] = {
+                'intervalo_minimo': 30,
+                'intervalo_maximo': 120,
+                'horario_inicio': '08:00',
+                'horario_fim': '20:00',
+                'limite_por_execucao': 100,
+            }
         return context
 
 
