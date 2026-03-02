@@ -260,18 +260,21 @@ LABELS_CORES_FIXAS = {
     "LEADS": "#F0B330",
     "CLUB": "#8B6990",
     "PLAY": "#792138",
+    "PLAYON": "#792138",
     "REVENDA": "#6E257E",
     "CANCELADOS": "#F0B330",
     "NOVOS": "#A62C71",
     "SEVEN": "#26C4DC",
     "WAREZ": "#54C265",
     "GENIAL": "#54C265",
+    "GF": "#57C9FF",
 }
 
 
 def _sincronizar_etiqueta_async(
     chat_id,
     label_desejada,
+    hex_color,
     token_str,
     sessao_usuario,
     telefone_anterior,
@@ -283,6 +286,8 @@ def _sincronizar_etiqueta_async(
 
     Recebe apenas valores escalares (strings, int) para evitar dependências
     de ORM ou conexões de banco de dados em threads de background.
+    O hex_color é resolvido antes do dispatch: cor do servidor tem prioridade
+    sobre o dicionário LABELS_CORES_FIXAS.
     """
     func_name = "_sincronizar_etiqueta_async"
 
@@ -322,8 +327,6 @@ def _sincronizar_etiqueta_async(
 
     # Cria/obtém ID da etiqueta e aplica ao contato
     try:
-        hex_color = LABELS_CORES_FIXAS.get(label_desejada.upper())
-
         logger.debug(
             f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
             f"Label desejada='{label_desejada}' | hex_color={hex_color}"
@@ -482,16 +485,12 @@ def cliente_post_save(sender, instance, created, **kwargs):
         f"PROCESSANDO sincronização de label..."
     )
 
-    # =========================================================================
-    # IDENTIFICADOR DO CHAT: Usar LID quando disponível, senão telefone
-    # Contatos com isContactSyncCompleted=0 usam @lid para operações de label
-    # =========================================================================
-    telefone = str(instance.telefone)
-    chat_id = instance.whatsapp_lid if instance.whatsapp_lid else telefone
+    # Operações de label sempre usam o número de telefone como identificador.
+    chat_id = str(instance.telefone)
 
     logger.debug(
         f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-        f"Usando chat_id={chat_id} (whatsapp_lid={instance.whatsapp_lid}, telefone={telefone})"
+        f"Usando chat_id={chat_id} (telefone)"
     )
 
     token = SessaoWpp.objects.filter(usuario=instance.usuario, is_active=True).first()
@@ -522,6 +521,13 @@ def cliente_post_save(sender, instance, created, **kwargs):
     else:
         label_desejada = instance.servidor.nome
 
+    # Resolve cor da etiqueta: campo do servidor tem prioridade sobre o dicionário fixo.
+    # Calculado aqui (com acesso ao ORM) antes de entrar na thread daemon.
+    if not cliente_foi_cancelado and instance.servidor and instance.servidor.cor_etiqueta:
+        hex_color = instance.servidor.cor_etiqueta
+    else:
+        hex_color = LABELS_CORES_FIXAS.get(label_desejada.upper())
+
     # Despacha toda a comunicação com o WPPConnect para thread daemon,
     # evitando bloquear o worker HTTP durante as chamadas à API.
     threading.Thread(
@@ -529,6 +535,7 @@ def cliente_post_save(sender, instance, created, **kwargs):
         kwargs={
             "chat_id": chat_id,
             "label_desejada": label_desejada,
+            "hex_color": hex_color,
             "token_str": token.token,
             "sessao_usuario": str(token),
             "telefone_anterior": telefone_anterior if telefone_foi_modificado else None,

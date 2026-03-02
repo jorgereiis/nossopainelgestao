@@ -344,12 +344,8 @@ def get_all_labels(token, user):
         'Authorization': f'Bearer {token}'
     }
 
-    body = {
-        "phone": MEU_NUM_CLARO,
-    }
-
     try:
-        response = requests.get(url, headers=headers, json=body, timeout=REQUEST_TIMEOUT)
+        response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
 
         if response.status_code in [200, 201]:
             response_data = response.json()
@@ -388,23 +384,13 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
         f"label_name={label_name} | telefone={telefone}"
     )
 
-    # Normalizar identificador do chat:
-    # - Se for @lid: manter formato completo (ex: 277742767599622@lid)
-    # - Se for telefone: remover + e @c.us (ex: 554588334558)
-    if '@lid' in telefone:
-        # É um LID - manter o formato completo, apenas limpar espaços
-        chat_id = telefone.strip()
-    else:
-        # É um telefone - limpar formatação
-        chat_id = telefone.replace('+', '').replace('@c.us', '').strip()
+    # Normalizar número de telefone: remover + e @c.us
+    telefone = telefone.replace('+', '').replace('@c.us', '').strip()
 
-    # DEBUG: Log do chat_id após normalização
+    # DEBUG: Log do telefone após normalização
     logger.debug(
-        f"[LABEL_DEBUG] add_or_remove_label_contact chat_id normalizado: {chat_id}"
+        f"[LABEL_DEBUG] add_or_remove_label_contact telefone normalizado: {telefone}"
     )
-
-    # Renomear variável interna para usar chat_id
-    telefone = chat_id
 
     labels_atual = label_id_2 if isinstance(label_id_2, list) else [label_id_2]
 
@@ -530,7 +516,7 @@ def add_or_remove_label_contact(label_id_1, label_id_2, label_name, telefone, to
 # --- Função para remover todas as labels de um contato ---
 def remover_todas_labels_contato(telefone, labels, token, user):
     """Remove todas as labels de um contato no WhatsApp."""
-    telefone = telefone.replace('+', '').replace('@c.us', '').replace('@lid', '').strip()
+    telefone = telefone.replace('+', '').replace('@c.us', '').strip()
 
     if not labels:
         return 200, {"status": "skipped", "message": "Nenhuma label para remover"}

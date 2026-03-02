@@ -358,6 +358,14 @@ class Servidor(models.Model):
 
     nome = models.CharField(max_length=255, choices=CHOICES)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    cor_etiqueta = models.CharField(
+        max_length=7,
+        blank=True,
+        default='',
+        verbose_name='Cor da etiqueta (hex)',
+        help_text='Cor hexadecimal para a etiqueta do WhatsApp (ex: #4CAF50). '
+                  'Tem prioridade sobre o dicionário fixo. Deixe vazio para usar o padrão.',
+    )
     imagem_admin = models.ImageField(
         upload_to=servidor_upload_path,
         null=True,
