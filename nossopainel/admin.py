@@ -57,7 +57,7 @@ from .models import (
 class ServidorAdmin(admin.ModelAdmin):
     list_display = ("id", "nome", "usuario", "imagem_admin")
     list_filter = ("usuario",)
-    search_fields = ("nome", "usuario")
+    search_fields = ("nome", "usuario__username")
     ordering = ("-id", "nome",)
 
 
@@ -87,22 +87,22 @@ class Tipos_pgtoAdmin(admin.ModelAdmin):
 class DispositivoAdmin(admin.ModelAdmin):
     list_display = ("id", "nome", "usuario")
     list_filter = ("usuario",)
-    search_fields = ("nome", "usuario",)
+    search_fields = ("nome", "usuario__username")
     ordering = ("-id", "nome",)
 
 
 class AplicativoAdmin(admin.ModelAdmin):
     list_display = ("id", "nome", "device_has_mac", "usuario")
     list_filter = ("usuario",)
-    search_fields = ("nome", "usuario")
+    search_fields = ("nome", "usuario__username")
     list_editable = ("device_has_mac",)
     ordering = ("-id", "nome",)
 
 
 class PlanoAdmin(admin.ModelAdmin):
-    list_display = ("nome", "telas", "valor", "usuario")
-    list_filter = ("usuario",)
-    search_fields = ("nome", "usuario")
+    list_display = ("id", "nome", "telas", "max_dispositivos", "valor", "campanha_ativa", "campanha_tipo", "usuario")
+    list_filter = ("usuario", "nome", "campanha_ativa", "campanha_tipo")
+    search_fields = ("nome", "usuario__username")
     list_editable = ("telas",)
     ordering = ("nome", "valor")
 
@@ -111,12 +111,35 @@ class ClienteAdmin(admin.ModelAdmin):
     list_display = (
         "id", "nome", "telefone", "uf", "pais", "servidor", "dispositivo", "sistema",
         "data_vencimento", "forma_pgto", "plano", "data_adesao",
-        "data_cancelamento", "ultimo_pagamento", "indicado_por", "notas",
-        "cancelado", "nao_enviar_msgs", "usuario",
+        "data_cancelamento", "ultimo_pagamento", "indicado_por",
+        "cancelado", "nao_enviar_msgs", "tem_assinatura", "usuario",
     )
-    list_filter = ("servidor", "usuario", "forma_pgto", "data_vencimento", "cancelado", "sistema", "pais")
-    search_fields = ("nome", "telefone")
+    list_filter = ("servidor", "usuario", "forma_pgto", "data_vencimento", "cancelado", "sistema", "pais", "tem_assinatura", "nao_enviar_msgs")
+    search_fields = ("nome", "telefone", "nome_normalizado", "email", "cpf")
+    autocomplete_fields = ("servidor", "dispositivo", "sistema", "plano", "forma_pgto")
+    readonly_fields = ("nome_normalizado", "whatsapp_lid", "ultimo_acesso_painel", "dados_atualizados_painel")
     ordering = ("-data_adesao",)
+    date_hierarchy = "data_adesao"
+
+    fieldsets = (
+        ("Dados Básicos", {
+            "fields": ("usuario", "nome", "nome_normalizado", "telefone", "email", "cpf", "uf", "pais", "notas")
+        }),
+        ("Assinatura", {
+            "fields": ("servidor", "dispositivo", "sistema", "plano", "forma_pgto", "indicado_por", "tem_assinatura")
+        }),
+        ("Datas e Status", {
+            "fields": ("data_adesao", "data_vencimento", "data_cancelamento", "ultimo_pagamento", "cancelado", "nao_enviar_msgs", "enviado_oferta_promo")
+        }),
+        ("Painel do Cliente", {
+            "fields": ("dados_atualizados_painel", "ultimo_acesso_painel"),
+            "classes": ("collapse",),
+        }),
+        ("WhatsApp", {
+            "fields": ("whatsapp_lid",),
+            "classes": ("collapse",),
+        }),
+    )
 
 
 class MensalidadeAdmin(admin.ModelAdmin):
@@ -156,16 +179,17 @@ class ContaDoAplicativoAdmin(admin.ModelAdmin):
 
 
 class SessaoWppAdmin(admin.ModelAdmin):
-    list_display = ("usuario", "token", "dt_inicio", "is_active")
-    list_filter = ("usuario", "dt_inicio")
-    search_fields = ("usuario", "token")
+    list_display = ("usuario", "user", "token", "dt_inicio", "is_active", "reject_call_enabled")
+    list_filter = ("is_active", "reject_call_enabled")
+    search_fields = ("usuario", "token", "user__username")
     ordering = ("-dt_inicio",)
 
 
 class SecretTokenAPIAdmin(admin.ModelAdmin):
     list_display = ("id", "token", "usuario", "dt_criacao")
     list_filter = ("usuario", "dt_criacao")
-    search_fields = ("token", "usuario")
+    search_fields = ("token", "usuario__username")
+    readonly_fields = ("dt_criacao",)
     ordering = ("-dt_criacao",)
 
 
@@ -307,9 +331,10 @@ class ConteudoM3U8Admin(admin.ModelAdmin):
 
 
 class HorarioEnviosAdmin(admin.ModelAdmin):
-    list_display = ("id", "nome", "tipo_envio",  "descricao", "exemplo", "horario", "usuario", "ultimo_envio", "status", "ativo")
-    list_filter = ("usuario", "horario", "ativo")
-    search_fields = ("usuario", "horario")
+    list_display = ("id", "nome", "tipo_envio", "descricao", "exemplo", "horario", "usuario", "ultimo_envio", "status", "ativo")
+    list_filter = ("usuario", "ativo", "tipo_envio")
+    search_fields = ("nome", "usuario__username")
+    readonly_fields = ("ultimo_envio",)
     ordering = ("-id",)
 
 
@@ -338,7 +363,7 @@ class EnviosLeadsAdmin(admin.ModelAdmin):
 class MensagensLeadsAdmin(admin.ModelAdmin):
     list_display = ("id", "nome", "tipo", "mensagem", "usuario")
     list_filter = ("usuario", "tipo")
-    search_fields = ("telefone",)
+    search_fields = ("nome", "mensagem")
     ordering = ("-id",)
 
 
@@ -350,12 +375,21 @@ class NotificationReadAdmin(admin.ModelAdmin):
 
 
 class UserActionLogAdmin(admin.ModelAdmin):
-    list_display = ("criado_em", "usuario", "acao", "entidade", "objeto_repr")
+    list_display = ("criado_em", "usuario", "acao", "entidade", "objeto_repr", "ip")
     list_filter = ("acao", "entidade", "usuario")
-    search_fields = ("objeto_repr", "mensagem", "usuario__username", "objeto_id")
+    search_fields = ("objeto_repr", "mensagem", "usuario__username", "objeto_id", "ip")
     readonly_fields = ("usuario", "acao", "entidade", "objeto_id", "objeto_repr", "mensagem", "extras", "ip", "request_path", "criado_em")
     ordering = ("-criado_em",)
     list_per_page = 50
+    date_hierarchy = "criado_em"
+
+    def has_add_permission(self, request):
+        """Logs de ação não podem ser criados manualmente."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Logs de ação são somente leitura."""
+        return False
 
 
 class LoginLogAdmin(admin.ModelAdmin):
@@ -585,6 +619,15 @@ class HistoricoExecucaoTarefaAdmin(admin.ModelAdmin):
     search_fields = ('tarefa__nome',)
     readonly_fields = ('tarefa', 'data_execucao', 'status', 'quantidade_enviada', 'quantidade_erros', 'detalhes', 'duracao_segundos')
     ordering = ('-data_execucao',)
+    date_hierarchy = "data_execucao"
+
+    def has_add_permission(self, request):
+        """Histórico é gerado automaticamente pelo sistema."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Histórico de execução é somente leitura."""
+        return False
 
 
 admin.site.register(TarefaEnvio, TarefaEnvioAdmin)
@@ -688,7 +731,7 @@ class CredencialAPIAdmin(admin.ModelAdmin):
 
 class ConfiguracaoLimiteAdmin(admin.ModelAdmin):
     """Admin para configuração de limite MEI (singleton)."""
-    list_display = ("valor_anual", "margem_seguranca", "valor_alerta_display", "atualizado_em", "atualizado_por")
+    list_display = ("valor_anual", "valor_anual_pf", "margem_seguranca", "valor_alerta_display", "atualizado_em", "atualizado_por")
     readonly_fields = ("atualizado_em",)
 
     def valor_alerta_display(self, obj):
@@ -862,11 +905,11 @@ class VarianteMensagemAdmin(admin.ModelAdmin):
 
 class ConfiguracaoAgendamentoAdmin(admin.ModelAdmin):
     """Admin para configurações de agendamento."""
-    list_display = ("nome", "nome_exibicao", "horario", "ativo", "atualizado_em")
-    list_filter = ("ativo",)
+    list_display = ("ordem", "nome", "nome_exibicao", "horario", "ativo", "bloqueado", "atualizado_em")
+    list_filter = ("ativo", "bloqueado")
     search_fields = ("nome", "nome_exibicao", "descricao")
-    readonly_fields = ("atualizado_em",)
-    ordering = ("nome",)
+    readonly_fields = ("criado_em", "atualizado_em")
+    ordering = ("ordem", "nome")
 
 
 # Registro dos modelos adicionais
