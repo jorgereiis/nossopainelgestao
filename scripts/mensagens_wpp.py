@@ -2364,6 +2364,25 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
                 h.execucao_iniciada_em = agora
                 h.save(update_fields=['ultimo_envio', 'em_execucao', 'execucao_iniciada_em'])
 
+                # ============================================================
+                # MARCA TODAS AS TAREFAS DO USUÁRIO COMO PAUSADAS
+                # Isso garante que o frontend mostre "Aguardando" para todas
+                # ============================================================
+                tipo_nome = "Vencimentos" if h.tipo_envio == "mensalidades_a_vencer" else "Atrasos"
+                tarefas_atualizadas = TarefaEnvio.objects.filter(
+                    usuario=h.usuario,
+                    ativo=True,
+                    pausado_por_notificacao=False
+                ).update(
+                    pausado_por_notificacao=True,
+                    pausado_motivo=f"Notificação de {tipo_nome} em execução"
+                )
+                if tarefas_atualizadas > 0:
+                    logger.info(
+                        "[NOTIFICACOES] Tarefas marcadas como pausadas | usuario=%s tipo=%s qtd=%d",
+                        h.usuario, h.tipo_envio, tarefas_atualizadas
+                    )
+
                 logger.info(
                     "Lock adquirido - iniciando envios | thread=%s usuario=%s tipo=%s horario=%s",
                     threading.current_thread().name,
@@ -2392,6 +2411,28 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
                 h.em_execucao = False
                 h.execucao_iniciada_em = None
                 h.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
+
+                # ============================================================
+                # LIMPA FLAGS DE TAREFAS PAUSADAS (se não houver outras notificações)
+                # ============================================================
+                outras_notificacoes = HorarioEnvios.objects.filter(
+                    usuario=h.usuario,
+                    em_execucao=True
+                ).exclude(id=h.id).exists()
+
+                if not outras_notificacoes:
+                    tarefas_despausadas = TarefaEnvio.objects.filter(
+                        usuario=h.usuario,
+                        pausado_por_notificacao=True
+                    ).update(
+                        pausado_por_notificacao=False,
+                        pausado_motivo=""
+                    )
+                    if tarefas_despausadas > 0:
+                        logger.info(
+                            "[NOTIFICACOES] Tarefas despausadas após conclusão | usuario=%s qtd=%d",
+                            h.usuario, tarefas_despausadas
+                        )
 
                 logger.info(
                     "Envios concluídos | thread=%s usuario=%s tipo=%s",
@@ -2438,6 +2479,28 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
                 h.em_execucao = False
                 h.execucao_iniciada_em = None
                 h.save(update_fields=['ultimo_envio', 'em_execucao', 'execucao_iniciada_em'])
+
+                # ============================================================
+                # LIMPA FLAGS DE TAREFAS PAUSADAS (se não houver outras notificações)
+                # ============================================================
+                outras_notificacoes = HorarioEnvios.objects.filter(
+                    usuario=h.usuario,
+                    em_execucao=True
+                ).exclude(id=h.id).exists()
+
+                if not outras_notificacoes:
+                    tarefas_despausadas = TarefaEnvio.objects.filter(
+                        usuario=h.usuario,
+                        pausado_por_notificacao=True
+                    ).update(
+                        pausado_por_notificacao=False,
+                        pausado_motivo=""
+                    )
+                    if tarefas_despausadas > 0:
+                        logger.info(
+                            "[NOTIFICACOES] Tarefas despausadas após erro | usuario=%s qtd=%d",
+                            h.usuario, tarefas_despausadas
+                        )
 
                 registrar_log_auditoria({
                     "funcao": "executar_envio_para_usuario",
@@ -2500,6 +2563,26 @@ def executar_envios_agendados():
             h_travado.em_execucao = False
             h_travado.execucao_iniciada_em = None
             h_travado.save(update_fields=['em_execucao', 'execucao_iniciada_em'])
+
+            # Limpa flags de tarefas pausadas se não houver outras notificações
+            outras_notificacoes = HorarioEnvios.objects.filter(
+                usuario_id=h_travado.usuario_id,
+                em_execucao=True
+            ).exclude(id=h_travado.id).exists()
+
+            if not outras_notificacoes:
+                tarefas_despausadas = TarefaEnvio.objects.filter(
+                    usuario_id=h_travado.usuario_id,
+                    pausado_por_notificacao=True
+                ).update(
+                    pausado_por_notificacao=False,
+                    pausado_motivo=""
+                )
+                if tarefas_despausadas > 0:
+                    logger.info(
+                        "[NOTIFICACOES] Tarefas despausadas após reset de travamento | usuario_id=%d qtd=%d",
+                        h_travado.usuario_id, tarefas_despausadas
+                    )
 
     # Busca horários elegíveis (sem lock ainda)
     horarios_candidatos = HorarioEnvios.objects.filter(

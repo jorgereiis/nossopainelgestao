@@ -711,7 +711,7 @@
                                     <td>
                                         {% if historico.detalhes %}
                                         <button class="btn btn-sm btn-light btn-ver-detalhes"
-                                                data-detalhes="{{ historico.detalhes|escapejs }}"
+                                                data-detalhes="{{ historico.detalhes }}"
                                                 data-enviados="{{ historico.quantidade_enviada }}"
                                                 data-erros="{{ historico.quantidade_erros }}"
                                                 data-duracao="{{ historico.get_duracao_formatada }}"

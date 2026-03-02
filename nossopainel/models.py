@@ -342,6 +342,7 @@ class Servidor(models.Model):
     FIVE = "FIVE"
     GF = "GF"
     WAREZ = "WAREZ"
+    GENIAL = "GENIAL"
 
     CHOICES = (
         (CLUB, CLUB),
@@ -351,7 +352,8 @@ class Servidor(models.Model):
         (SEVEN, SEVEN),
         (FIVE, FIVE),
         (GF, GF),
-        (WAREZ, WAREZ)
+        (WAREZ, WAREZ),
+        (GENIAL, GENIAL)
     )
 
     nome = models.CharField(max_length=255, choices=CHOICES)
@@ -761,6 +763,7 @@ class Aplicativo(models.Model):
             'gf.png': ['globalfilmes', 'gf'],
             'club.png': ['club', 'cplayer', 'clite'],
             'seven.png': ['sevenxc', 'seven', '7flix'],
+            'genial.png': ['genial', 'legacy'],
         }
 
         # Matching por prioridade (3 níveis)
