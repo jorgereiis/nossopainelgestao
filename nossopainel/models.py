@@ -342,6 +342,7 @@ class Servidor(models.Model):
     FIVE = "FIVE"
     GF = "GF"
     WAREZ = "WAREZ"
+    GENIAL = "GENIAL"
 
     CHOICES = (
         (CLUB, CLUB),
@@ -351,11 +352,20 @@ class Servidor(models.Model):
         (SEVEN, SEVEN),
         (FIVE, FIVE),
         (GF, GF),
-        (WAREZ, WAREZ)
+        (WAREZ, WAREZ),
+        (GENIAL, GENIAL)
     )
 
     nome = models.CharField(max_length=255, choices=CHOICES)
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    cor_etiqueta = models.CharField(
+        max_length=7,
+        blank=True,
+        default='',
+        verbose_name='Cor da etiqueta (hex)',
+        help_text='Cor hexadecimal para a etiqueta do WhatsApp (ex: #4CAF50). '
+                  'Tem prioridade sobre o dicionário fixo. Deixe vazio para usar o padrão.',
+    )
     imagem_admin = models.ImageField(
         upload_to=servidor_upload_path,
         null=True,
@@ -761,6 +771,7 @@ class Aplicativo(models.Model):
             'gf.png': ['globalfilmes', 'gf'],
             'club.png': ['club', 'cplayer', 'clite'],
             'seven.png': ['sevenxc', 'seven', '7flix'],
+            'genial.png': ['genial', 'legacy'],
         }
 
         # Matching por prioridade (3 níveis)

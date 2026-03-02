@@ -11956,7 +11956,7 @@ def tarefa_envio_historico_api(request, pk):
             'quantidade_enviada': h.quantidade_enviada,
             'quantidade_erros': h.quantidade_erros,
             'duracao': h.get_duracao_formatada(),
-            'detalhes': h.detalhes or ''
+            'detalhes': json.loads(h.detalhes) if h.detalhes else {}
         })
 
     # Estatisticas filtradas

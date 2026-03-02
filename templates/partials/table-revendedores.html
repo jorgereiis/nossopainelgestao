@@ -15,6 +15,12 @@
                         <i class="bi bi-chevron-expand sort-icon"></i>
                     </span>
                 </th>
+                <th data-sort-field="last_login" class="sortable-header">
+                    <span class="d-flex align-items-center gap-1">
+                        Último Login
+                        <i class="bi bi-chevron-expand sort-icon"></i>
+                    </span>
+                </th>
                 <th class="text-center">Automações</th>
                 <th class="text-center">Ações</th>
             </tr>
@@ -69,6 +75,21 @@
                     <span class="text-muted">{{ revendedor.date_joined|date:"d/m/Y" }}</span>
                     <br>
                     <small class="text-muted">{{ revendedor.date_joined|time:"H:i" }}</small>
+                </td>
+                <td>
+                    {% if revendedor.last_login %}
+                    <span class="text-muted"
+                          data-bs-toggle="tooltip"
+                          title="{{ revendedor.last_login|date:'d/m/Y \à\s H:i' }}">
+                        {{ revendedor.last_login|date:"d/m/Y" }}
+                    </span>
+                    <br>
+                    <small class="text-muted">{{ revendedor.last_login|time:"H:i" }}</small>
+                    {% else %}
+                    <span class="text-muted small">
+                        <i class="bi bi-dash"></i> Nunca
+                    </span>
+                    {% endif %}
                 </td>
                 <td class="text-start" style="min-width: 200px;">
                     <div class="automacoes-lista small" data-user-id="{{ revendedor.id }}">
@@ -198,7 +219,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="4" class="text-center text-muted py-5">
+                <td colspan="5" class="text-center text-muted py-5">
                     <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                     Nenhum revendedor encontrado
                 </td>

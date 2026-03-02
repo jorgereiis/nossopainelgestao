@@ -5,6 +5,7 @@ além de orquestrar a sincronização de labels do WhatsApp após alterações.
 """
 
 import logging
+import threading
 from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
@@ -259,12 +260,124 @@ LABELS_CORES_FIXAS = {
     "LEADS": "#F0B330",
     "CLUB": "#8B6990",
     "PLAY": "#792138",
+    "PLAYON": "#792138",
     "REVENDA": "#6E257E",
     "CANCELADOS": "#F0B330",
     "NOVOS": "#A62C71",
     "SEVEN": "#26C4DC",
     "WAREZ": "#54C265",
+    "GENIAL": "#54C265",
+    "GF": "#57C9FF",
 }
+
+
+def _sincronizar_etiqueta_async(
+    chat_id,
+    label_desejada,
+    hex_color,
+    token_str,
+    sessao_usuario,
+    telefone_anterior,
+    cliente_pk,
+    cliente_nome,
+    cliente_usuario,
+):
+    """Executa toda a comunicação com o WPPConnect em thread daemon.
+
+    Recebe apenas valores escalares (strings, int) para evitar dependências
+    de ORM ou conexões de banco de dados em threads de background.
+    O hex_color é resolvido antes do dispatch: cor do servidor tem prioridade
+    sobre o dicionário LABELS_CORES_FIXAS.
+    """
+    func_name = "_sincronizar_etiqueta_async"
+
+    # Se telefone mudou, remover etiquetas do número antigo
+    if telefone_anterior:
+        try:
+            labels_telefone_antigo = get_label_contact(telefone_anterior, token_str, user=sessao_usuario)
+            if labels_telefone_antigo:
+                remover_todas_labels_contato(telefone_anterior, labels_telefone_antigo, token_str, sessao_usuario)
+                logger.info(
+                    "[%s] [%s] Etiquetas removidas do telefone antigo: %s",
+                    func_name, cliente_usuario, telefone_anterior,
+                )
+        except Exception as error:
+            logger.error(
+                "[%s] [%s] Erro ao remover etiquetas do telefone antigo %s: %s",
+                func_name, cliente_usuario, telefone_anterior, error, exc_info=True,
+            )
+
+    # Busca etiquetas atuais do contato
+    try:
+        logger.debug(
+            f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
+            f"Buscando labels atuais do chat_id {chat_id}..."
+        )
+        labels_atuais = get_label_contact(chat_id, token_str, user=sessao_usuario)
+        logger.debug(
+            f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
+            f"Labels atuais do contato: {labels_atuais}"
+        )
+    except Exception as error:
+        logger.error(
+            "[%s] [%s] Erro ao obter labels atuais do contato: %s",
+            func_name, cliente_usuario, error, exc_info=True,
+        )
+        labels_atuais = []
+
+    # Cria/obtém ID da etiqueta e aplica ao contato
+    try:
+        logger.debug(
+            f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
+            f"Label desejada='{label_desejada}' | hex_color={hex_color}"
+        )
+
+        nova_label_id = criar_label_se_nao_existir(
+            label_desejada, token_str, user=sessao_usuario, hex_color=hex_color
+        )
+
+        logger.debug(
+            f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
+            f"nova_label_id={nova_label_id} para label '{label_desejada}'"
+        )
+
+        if not nova_label_id:
+            logger.info(
+                "[%s] [%s] Não foi possível obter ou criar a label '%s'.",
+                func_name, cliente_usuario, label_desejada,
+            )
+            return
+
+        logger.debug(
+            f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
+            f"Chamando add_or_remove_label_contact com label_id_1={nova_label_id}, "
+            f"label_id_2={labels_atuais}, chat_id={chat_id}"
+        )
+
+        add_or_remove_label_contact(
+            label_id_1=nova_label_id,
+            label_id_2=labels_atuais,
+            label_name=label_desejada,
+            telefone=chat_id,
+            token=token_str,
+            user=sessao_usuario,
+        )
+
+        logger.debug(
+            f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
+            f"Sincronização de label CONCLUÍDA com sucesso!"
+        )
+
+    except Exception as error:
+        logger.debug(
+            f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
+            f"ERRO na sincronização: {error}"
+        )
+        logger.error(
+            "[%s] [%s] Erro ao alterar label do contato: %s",
+            func_name, cliente_usuario, error, exc_info=True,
+        )
+
 
 @receiver(pre_save, sender=Cliente)
 def registrar_valores_anteriores(sender, instance, **kwargs):
@@ -372,16 +485,12 @@ def cliente_post_save(sender, instance, created, **kwargs):
         f"PROCESSANDO sincronização de label..."
     )
 
-    # =========================================================================
-    # IDENTIFICADOR DO CHAT: Usar LID quando disponível, senão telefone
-    # Contatos com isContactSyncCompleted=0 usam @lid para operações de label
-    # =========================================================================
-    telefone = str(instance.telefone)
-    chat_id = instance.whatsapp_lid if instance.whatsapp_lid else telefone
+    # Operações de label sempre usam o número de telefone como identificador.
+    chat_id = str(instance.telefone)
 
     logger.debug(
         f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-        f"Usando chat_id={chat_id} (whatsapp_lid={instance.whatsapp_lid}, telefone={telefone})"
+        f"Usando chat_id={chat_id} (telefone)"
     )
 
     token = SessaoWpp.objects.filter(usuario=instance.usuario, is_active=True).first()
@@ -395,94 +504,53 @@ def cliente_post_save(sender, instance, created, **kwargs):
 
     logger.debug(
         f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-        f"Sessão WhatsApp encontrada. Iniciando sincronização de labels..."
+        f"Sessão WhatsApp encontrada. Determinando label e despachando para thread..."
     )
 
-    # Se telefone mudou, remover etiquetas do número antigo
-    if telefone_foi_modificado and telefone_anterior:
-        try:
-            labels_telefone_antigo = get_label_contact(telefone_anterior, token.token, user=token)
-            if labels_telefone_antigo:
-                remover_todas_labels_contato(telefone_anterior, labels_telefone_antigo, token.token, token)
-                _log_event(logging.INFO, instance, func_name, f"Etiquetas removidas do telefone antigo: {telefone_anterior}")
-        except Exception as error:
-            _log_event(logging.ERROR, instance, func_name, f"Erro ao remover etiquetas do telefone antigo {telefone_anterior}", exc_info=error)
-
-    try:
-        logger.debug(
-            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-            f"Buscando labels atuais do chat_id {chat_id}..."
+    # Determina label desejada (lógica pura, sem chamada de API)
+    if cliente_foi_cancelado:
+        label_desejada = "CANCELADOS"
+    elif not instance.servidor:
+        _log_event(
+            logging.WARNING,
+            instance,
+            func_name,
+            "Cliente sem servidor atribuído — sincronização de etiqueta ignorada.",
         )
-        labels_atuais = get_label_contact(chat_id, token.token, user=token)
-        logger.debug(
-            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-            f"Labels atuais do contato: {labels_atuais}"
-        )
-    except Exception as error:
-        _log_event(logging.ERROR, instance, func_name, "Erro ao obter labels atuais do contato.", exc_info=error)
-        labels_atuais = []
+        return
+    else:
+        label_desejada = instance.servidor.nome
 
-    # Se labels_atuais está vazio, simplesmente prosseguir
-    # A função add_or_remove_label_contact já trata lista vazia corretamente
-    if not labels_atuais:
-        logger.debug(
-            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-            f"Contato sem labels existentes - apenas adicionando nova label"
-        )
-        labels_atuais = []
-
-    try:
-        label_desejada = "CANCELADOS" if cliente_foi_cancelado else instance.servidor.nome
+    # Resolve cor da etiqueta: campo do servidor tem prioridade sobre o dicionário fixo.
+    # Calculado aqui (com acesso ao ORM) antes de entrar na thread daemon.
+    if not cliente_foi_cancelado and instance.servidor and instance.servidor.cor_etiqueta:
+        hex_color = instance.servidor.cor_etiqueta
+    else:
         hex_color = LABELS_CORES_FIXAS.get(label_desejada.upper())
 
-        logger.debug(
-            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-            f"Label desejada='{label_desejada}' | hex_color={hex_color} | "
-            f"Servidor atual: {instance.servidor.nome if instance.servidor else None}"
-        )
+    # Despacha toda a comunicação com o WPPConnect para thread daemon,
+    # evitando bloquear o worker HTTP durante as chamadas à API.
+    threading.Thread(
+        target=_sincronizar_etiqueta_async,
+        kwargs={
+            "chat_id": chat_id,
+            "label_desejada": label_desejada,
+            "hex_color": hex_color,
+            "token_str": token.token,
+            "sessao_usuario": str(token),
+            "telefone_anterior": telefone_anterior if telefone_foi_modificado else None,
+            "cliente_pk": instance.pk,
+            "cliente_nome": instance.nome,
+            "cliente_usuario": instance.usuario,
+        },
+        daemon=True,
+        name=f"LabelSync-{instance.pk}",
+    ).start()
 
-        nova_label_id = criar_label_se_nao_existir(label_desejada, token.token, user=token, hex_color=hex_color)
-
-        logger.debug(
-            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-            f"nova_label_id={nova_label_id} para label '{label_desejada}'"
-        )
-
-        if not nova_label_id:
-            _log_event(
-                logging.INFO,
-                instance,
-                func_name,
-                f"Não foi possível obter ou criar a label '{label_desejada}'.",
-            )
-            return
-
-        logger.debug(
-            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-            f"Chamando add_or_remove_label_contact com label_id_1={nova_label_id}, "
-            f"label_id_2={labels_atuais}, chat_id={chat_id}"
-        )
-
-        add_or_remove_label_contact(
-            label_id_1=nova_label_id,
-            label_id_2=labels_atuais,
-            label_name=label_desejada,
-            telefone=chat_id,  # Usa LID quando disponível, senão telefone
-            token=token.token,
-            user=token,
-        )
-
-        logger.debug(
-            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-            f"Sincronização de label CONCLUÍDA com sucesso!"
-        )
-
-    except Exception as error:
-        logger.debug(
-            f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
-            f"ERRO na sincronização: {error}"
-        )
-        _log_event(logging.ERROR, instance, func_name, "Erro ao alterar label do contato.", exc_info=error)
+    logger.debug(
+        f"[LABEL_DEBUG] POST_SAVE cliente ID={instance.pk} ({instance.nome}): "
+        f"Thread de sincronização disparada (label='{label_desejada}')."
+    )
 
 
 # ============================================================================
