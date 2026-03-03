@@ -242,6 +242,73 @@ def get_label_contact(telefone, token, user):
         logger.exception("[get_label_contact] %s | Falha na requisição: %s", user, exc)
         return []
 
+
+# --- Verificação de labels via /all-contacts filtrando pelo @lid ---
+def get_label_contact_via_all_contacts(whatsapp_lid, token, user):
+    """Verifica as labels de um contato buscando em /all-contacts pelo @lid serializado.
+
+    Usado como verificação após tentativa de aplicação de label via @lid,
+    pois para contatos lid-type o endpoint /contact/{phone} sempre retorna labels vazias.
+
+    Args:
+        whatsapp_lid: Identificador serializado do contato (ex: "8221070766297@lid").
+        token: Token de autenticação da sessão WPP.
+        user: Nome da sessão WPP (ex: "jrg").
+
+    Returns:
+        list  — lista de labels do contato se encontrado (pode ser []).
+        None  — se o contato não foi encontrado em all-contacts ou a requisição falhou.
+    """
+    url = f'{API_WPP_URL_PROD}/{user}/all-contacts'
+    headers = {
+        'Accept': 'application/json',
+        'Authorization': f'Bearer {token}',
+    }
+
+    logger.debug(
+        f"[LABEL_DEBUG] get_label_contact_via_all_contacts chamado | whatsapp_lid={whatsapp_lid} | url={url}"
+    )
+
+    try:
+        response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+
+        if response.status_code in [200, 201]:
+            contacts = response.json().get('response', [])
+            lid_user = whatsapp_lid.replace('@lid', '')
+
+            for contact in contacts:
+                cid = contact.get('id', {})
+                if cid.get('_serialized') == whatsapp_lid or cid.get('user') == lid_user:
+                    labels = contact.get('labels', [])
+                    logger.debug(
+                        f"[LABEL_DEBUG] get_label_contact_via_all_contacts | @lid={whatsapp_lid} | labels={labels}"
+                    )
+                    return labels
+
+            logger.warning(
+                "[get_label_contact_via_all_contacts] %s | @lid '%s' não encontrado em all-contacts.",
+                user, whatsapp_lid,
+            )
+            return None
+
+        logger.error(
+            "[get_label_contact_via_all_contacts] %s | Erro (%s): %s",
+            user, response.status_code, response.text,
+        )
+        return None
+
+    except requests.Timeout:
+        logger.error(
+            "[get_label_contact_via_all_contacts] %s | Timeout ao buscar all-contacts.", user
+        )
+        return None
+    except requests.RequestException as exc:
+        logger.exception(
+            "[get_label_contact_via_all_contacts] %s | Falha na requisição: %s", user, exc
+        )
+        return None
+
+
 # --- Função para verificar se o número existe no WhatsApp ---
 def check_number_status(telefone, token, user):
     """Verifica se o telefone informado está registrado no WhatsApp.
