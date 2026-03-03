@@ -334,7 +334,6 @@ class HorarioEnviosAdmin(admin.ModelAdmin):
     list_display = ("id", "nome", "tipo_envio", "descricao", "exemplo", "horario", "usuario", "ultimo_envio", "status", "ativo")
     list_filter = ("usuario", "ativo", "tipo_envio")
     search_fields = ("nome", "usuario__username")
-    readonly_fields = ("ultimo_envio",)
     ordering = ("-id",)
 
 
