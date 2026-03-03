@@ -6,6 +6,7 @@ além de orquestrar a sincronização de labels do WhatsApp após alterações.
 
 import logging
 import threading
+import time
 from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
@@ -14,7 +15,13 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from .models import Cliente, Mensalidade, SessaoWpp, UserProfile, AssinaturaCliente
-from wpp.api_connection import add_or_remove_label_contact, criar_label_se_nao_existir, get_label_contact, remover_todas_labels_contato
+from wpp.api_connection import (
+    add_or_remove_label_contact,
+    criar_label_se_nao_existir,
+    get_label_contact,
+    get_label_contact_via_all_contacts,
+    remover_todas_labels_contato,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -270,6 +277,11 @@ LABELS_CORES_FIXAS = {
     "GF": "#57C9FF",
 }
 
+# Tempo de espera (s) antes de verificar se a label foi propagada no mesmo endpoint.
+# Para contatos phone-type, a propagação ocorre em segundos; para lid-type, o endpoint
+# de telefone nunca reflete as labels (estrutural, não delay), o que aciona o fallback @lid.
+LABEL_VERIFY_DELAY = 5
+
 
 def _sincronizar_etiqueta_async(
     chat_id,
@@ -281,6 +293,8 @@ def _sincronizar_etiqueta_async(
     cliente_pk,
     cliente_nome,
     cliente_usuario,
+    whatsapp_lid,
+    usuario_pk,
 ):
     """Executa toda a comunicação com o WPPConnect em thread daemon.
 
@@ -288,6 +302,14 @@ def _sincronizar_etiqueta_async(
     de ORM ou conexões de banco de dados em threads de background.
     O hex_color é resolvido antes do dispatch: cor do servidor tem prioridade
     sobre o dicionário LABELS_CORES_FIXAS.
+
+    Fluxo de sincronização de label:
+    1. Aplica via telefone (remove antigas + adiciona nova).
+    2. Verifica via /contact/{phone}: se confirmada, encerra.
+    3. Se não confirmada, tenta via @lid (contatos lid-type nunca refletem
+       labels em queries por telefone — comportamento estrutural, não delay).
+    4. Verifica via /all-contacts filtrando pelo @lid.
+    5. Em caso de falha final, cria NotificacaoSistema para o usuário.
     """
     func_name = "_sincronizar_etiqueta_async"
 
@@ -325,36 +347,39 @@ def _sincronizar_etiqueta_async(
         )
         labels_atuais = []
 
-    # Cria/obtém ID da etiqueta e aplica ao contato
+    # --- Bloco A: Cria/obtém ID da label (separado do apply) ---
     try:
         logger.debug(
             f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
             f"Label desejada='{label_desejada}' | hex_color={hex_color}"
         )
-
         nova_label_id = criar_label_se_nao_existir(
             label_desejada, token_str, user=sessao_usuario, hex_color=hex_color
         )
-
         logger.debug(
             f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
             f"nova_label_id={nova_label_id} para label '{label_desejada}'"
         )
-
         if not nova_label_id:
             logger.info(
                 "[%s] [%s] Não foi possível obter ou criar a label '%s'.",
                 func_name, cliente_usuario, label_desejada,
             )
             return
+    except Exception as error:
+        logger.error(
+            "[%s] [%s] Erro ao criar/obter label '%s': %s",
+            func_name, cliente_usuario, label_desejada, error, exc_info=True,
+        )
+        return
 
+    # --- Bloco B: Aplica via telefone ---
+    try:
         logger.debug(
             f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
-            f"Chamando add_or_remove_label_contact com label_id_1={nova_label_id}, "
-            f"label_id_2={labels_atuais}, chat_id={chat_id}"
+            f"Aplicando label via telefone | chat_id={chat_id} | label_id={nova_label_id} | labels_atuais={labels_atuais}"
         )
-
-        add_or_remove_label_contact(
+        _, resp_data = add_or_remove_label_contact(
             label_id_1=nova_label_id,
             label_id_2=labels_atuais,
             label_name=label_desejada,
@@ -362,21 +387,147 @@ def _sincronizar_etiqueta_async(
             token=token_str,
             user=sessao_usuario,
         )
-
+        if isinstance(resp_data, dict) and resp_data.get("status") == "skipped":
+            logger.debug(
+                f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
+                f"Label já atribuída via telefone — sync encerrada."
+            )
+            return
         logger.debug(
             f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
-            f"Sincronização de label CONCLUÍDA com sucesso!"
+            f"Operação via telefone concluída. Aguardando verificação..."
         )
-
     except Exception as error:
+        logger.error(
+            "[%s] [%s] Erro ao aplicar label '%s' via telefone: %s",
+            func_name, cliente_usuario, label_desejada, error, exc_info=True,
+        )
+        # Não retorna — ainda tentará @lid abaixo
+
+    # --- Bloco C: Verifica via /contact/{phone} ---
+    time.sleep(LABEL_VERIFY_DELAY)
+    try:
+        labels_pos_phone = get_label_contact(chat_id, token_str, user=sessao_usuario)
         logger.debug(
             f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
-            f"ERRO na sincronização: {error}"
+            f"Verificação via telefone | labels={labels_pos_phone} | esperado={nova_label_id}"
         )
+        if nova_label_id in labels_pos_phone:
+            logger.info(
+                "[%s] [%s] Label '%s' confirmada via telefone.",
+                func_name, cliente_usuario, label_desejada,
+            )
+            return
+        logger.info(
+            "[%s] [%s] Label '%s' não confirmada via telefone (labels=%s). Iniciando fallback @lid.",
+            func_name, cliente_usuario, label_desejada, labels_pos_phone,
+        )
+    except Exception as error:
+        logger.warning(
+            "[%s] [%s] Erro na verificação via telefone para label '%s': %s. Iniciando fallback @lid.",
+            func_name, cliente_usuario, label_desejada, error,
+        )
+
+    # --- Sem @lid: notifica e encerra ---
+    if not whatsapp_lid:
+        logger.warning(
+            "[%s] [%s] Label '%s' não confirmada via telefone e @lid não disponível para cliente ID=%s.",
+            func_name, cliente_usuario, label_desejada, cliente_pk,
+        )
+        from .models import NotificacaoSistema
+        NotificacaoSistema.objects.create(
+            usuario_id=usuario_pk,
+            tipo='aviso',
+            prioridade='alta',
+            titulo='Falha na sincronização de etiqueta WhatsApp',
+            mensagem=(
+                f'Não foi possível confirmar a aplicação da etiqueta "{label_desejada}" '
+                f'para o cliente {cliente_nome} (ID {cliente_pk}). '
+                f'O contato não possui @lid registrado e a verificação via telefone falhou. '
+                f'Verifique manualmente no WhatsApp.'
+            ),
+            dados_extras={
+                'cliente_pk': cliente_pk,
+                'cliente_nome': cliente_nome,
+                'label_desejada': label_desejada,
+                'chat_id': chat_id,
+            },
+        )
+        return
+
+    # --- Bloco D: Fallback — aplica via @lid ---
+    logger.info(
+        "[%s] [%s] Tentando aplicar label '%s' via @lid '%s'.",
+        func_name, cliente_usuario, label_desejada, whatsapp_lid,
+    )
+    try:
+        labels_lid = get_label_contact_via_all_contacts(whatsapp_lid, token_str, sessao_usuario) or []
+        logger.debug(
+            f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
+            f"Labels atuais via @lid (all-contacts): {labels_lid}"
+        )
+        add_or_remove_label_contact(
+            label_id_1=nova_label_id,
+            label_id_2=labels_lid,
+            label_name=label_desejada,
+            telefone=whatsapp_lid,
+            token=token_str,
+            user=sessao_usuario,
+        )
+        logger.debug(
+            f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
+            f"Operação via @lid concluída. Aguardando verificação..."
+        )
+    except Exception as error:
         logger.error(
-            "[%s] [%s] Erro ao alterar label do contato: %s",
-            func_name, cliente_usuario, error, exc_info=True,
+            "[%s] [%s] Erro ao aplicar label '%s' via @lid '%s': %s",
+            func_name, cliente_usuario, label_desejada, whatsapp_lid, error, exc_info=True,
         )
+        # Não retorna — ainda tenta verificar via all-contacts
+
+    # --- Bloco E: Verifica via /all-contacts filtrando pelo @lid ---
+    time.sleep(LABEL_VERIFY_DELAY)
+    labels_pos_lid = get_label_contact_via_all_contacts(whatsapp_lid, token_str, sessao_usuario)
+    logger.debug(
+        f"[LABEL_DEBUG] {func_name} cliente ID={cliente_pk} ({cliente_nome}): "
+        f"Verificação via all-contacts/@lid | labels={labels_pos_lid} | esperado={nova_label_id}"
+    )
+    if labels_pos_lid is not None and nova_label_id in labels_pos_lid:
+        logger.info(
+            "[%s] [%s] Label '%s' confirmada via @lid '%s' (all-contacts).",
+            func_name, cliente_usuario, label_desejada, whatsapp_lid,
+        )
+        return
+
+    motivo = (
+        "contato não encontrado em all-contacts"
+        if labels_pos_lid is None
+        else f"labels retornadas: {labels_pos_lid}"
+    )
+    logger.warning(
+        "[%s] [%s] Label '%s' NÃO confirmada via @lid '%s': %s.",
+        func_name, cliente_usuario, label_desejada, whatsapp_lid, motivo,
+    )
+    from .models import NotificacaoSistema
+    NotificacaoSistema.objects.create(
+        usuario_id=usuario_pk,
+        tipo='aviso',
+        prioridade='alta',
+        titulo='Falha na sincronização de etiqueta WhatsApp',
+        mensagem=(
+            f'Não foi possível confirmar a aplicação da etiqueta "{label_desejada}" '
+            f'para o cliente {cliente_nome} (ID {cliente_pk}), '
+            f'nem via telefone nem via @lid ({whatsapp_lid}). '
+            f'Verifique manualmente no WhatsApp.'
+        ),
+        dados_extras={
+            'cliente_pk': cliente_pk,
+            'cliente_nome': cliente_nome,
+            'label_desejada': label_desejada,
+            'whatsapp_lid': whatsapp_lid,
+            'labels_verificacao_lid': labels_pos_lid,
+        },
+    )
 
 
 @receiver(pre_save, sender=Cliente)
@@ -542,6 +693,8 @@ def cliente_post_save(sender, instance, created, **kwargs):
             "cliente_pk": instance.pk,
             "cliente_nome": instance.nome,
             "cliente_usuario": instance.usuario,
+            "whatsapp_lid": instance.whatsapp_lid or "",
+            "usuario_pk": instance.usuario_id,
         },
         daemon=True,
         name=f"LabelSync-{instance.pk}",

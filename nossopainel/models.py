@@ -746,6 +746,7 @@ class Aplicativo(models.Model):
             'capplayer.png': ['capplayer', 'capp', 'cap'],
             'xtreamplayer.png': ['xtreamplayer', 'xtream'],
             'smarters.png': ['smartersplayer', 'smarters'],
+            'vertu.png': ['vertuplay', 'vertuplayer', 'vertu'],
             'ultraplayer.png': ['ultraplayer', 'ultraplay', 'ultra'],
             'webcastvideo.png': ['webcastvideo', 'castvideo', 'cast'],
             
