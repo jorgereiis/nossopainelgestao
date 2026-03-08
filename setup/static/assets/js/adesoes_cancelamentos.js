@@ -91,11 +91,37 @@
     if (canvas) canvas.classList.remove('d-none');
   }
 
-  function buildSummary(summary, meta) {
+  function buildSummary(summary, meta, context) {
     const summaryBox = $summary();
     if (!summaryBox) return;
-    // Removido conforme solicitado - os totais agora aparecem nas legendas
-    summaryBox.textContent = '';
+
+    const inicio = context?.clientes_inicio;
+    const fim = context?.clientes_fim;
+
+    if (inicio === null || inicio === undefined) {
+      summaryBox.innerHTML = '';
+      return;
+    }
+
+    const variacao = fim - inicio;
+    const sinal = variacao >= 0 ? '+' : '';
+    const corVariacao = variacao >= 0 ? 'text-success' : 'text-danger';
+
+    summaryBox.innerHTML = `
+      <span class="me-3">
+        <i class="bi bi-people"></i>
+        Início do período: <strong>${inicio}</strong> ativos
+      </span>
+      <span class="text-muted me-3">→</span>
+      <span class="me-3">
+        <i class="bi bi-people-fill"></i>
+        Fim do período: <strong>${fim}</strong> ativos
+      </span>
+      <span class="text-muted me-3">·</span>
+      <span class="${corVariacao}">
+        <strong>${sinal}${variacao}</strong> no período
+      </span>
+    `;
   }
 
   function composeDatasets(series, summary) {
@@ -103,6 +129,7 @@
     const totals = {
       adesoes: summary?.total_adesoes || 0,
       cancelamentos: summary?.total_cancelamentos || 0,
+      reativados: summary?.total_reativados || 0,
       saldo: summary?.saldo || 0,
     };
 
@@ -112,6 +139,7 @@
     const saldoSerie = (series || []).find(s => s.key === 'saldo');
     const adesoesSerie = (series || []).find(s => s.key === 'adesoes');
     const cancelamentosSerie = (series || []).find(s => s.key === 'cancelamentos');
+    const reativadosSerie = (series || []).find(s => s.key === 'reativados');
 
     // 1. Barra de Adesões (verde) - lado esquerdo
     if (adesoesSerie) {
@@ -130,7 +158,7 @@
       });
     }
 
-    // 2. Barra de Cancelamentos (vermelho) - lado direito
+    // 2. Barra de Cancelamentos (vermelho)
     if (cancelamentosSerie) {
       const total = totals.cancelamentos || 0;
       const cancelamentosData = (cancelamentosSerie.data || []).map((value) => Number(value || 0));
@@ -147,7 +175,24 @@
       });
     }
 
-    // 3. Linha de Saldo (azul/roxo) - eixo Y secundário
+    // 3. Barra de Reativados (ciano)
+    if (reativadosSerie) {
+      const total = totals.reativados || 0;
+      const reativadosData = (reativadosSerie.data || []).map((value) => Number(value || 0));
+      datasets.push({
+        type: 'bar',
+        label: `${reativadosSerie.name || 'Reativados'}: ${total}`,
+        data: reativadosData,
+        backgroundColor: '#06b6d4',
+        borderRadius: 6,
+        borderSkipped: false,
+        barPercentage: 0.7,
+        categoryPercentage: 0.6,
+        order: 4,
+      });
+    }
+
+    // 4. Linha de Saldo (azul/roxo) - eixo Y secundário
     if (saldoSerie) {
       const saldoData = (saldoSerie.data || []).map((value) => Number(value || 0));
       const total = totals.saldo || 0;
@@ -212,7 +257,7 @@
     }
 
     hideEmpty();
-    buildSummary(payload.summary, payload.meta);
+    buildSummary(payload.summary, payload.meta, payload.context);
 
     const data = {
       labels: categories,

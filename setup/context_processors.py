@@ -9,6 +9,9 @@ def notifications(request):
     if not hasattr(request, 'user') or not request.user.is_authenticated:
         return {}
 
+    # Se for atendente, mostra notificações do owner
+    data_owner = getattr(request, 'data_owner', request.user)
+
     hoje = timezone.localdate()
     tipos = [Tipos_pgto.CARTAO, Tipos_pgto.BOLETO]
 
@@ -16,7 +19,7 @@ def notifications(request):
     mensalidades_vencidas = (
         Mensalidade.objects.select_related("cliente", "cliente__forma_pgto", "cliente__plano")
         .filter(
-            usuario=request.user,
+            usuario=data_owner,
             pgto=False,
             cancelado=False,
             cliente__cancelado=False,
@@ -35,7 +38,7 @@ def notifications(request):
 
     # Notificações do sistema não lidas
     notificacoes_sistema = NotificacaoSistema.objects.filter(
-        usuario=request.user,
+        usuario=data_owner,
         lida=False
     )
 
@@ -78,5 +81,21 @@ def impersonation(request):
     return {
         "is_impersonating": is_impersonating,
         "impersonate_admin_username": admin_username,
+    }
+
+
+def atendente_context(request):
+    """
+    Disponibiliza em todos os templates as informações de atendente:
+      - is_atendente: True se o usuário logado é um atendente
+      - atendente_permissoes: objeto PermissoesAtendente ou None
+      - data_owner: usuário dono dos dados (owner ou o próprio usuário)
+    """
+    if not hasattr(request, 'user') or not request.user.is_authenticated:
+        return {}
+    return {
+        'is_atendente': getattr(request, 'is_atendente', False),
+        'atendente_permissoes': getattr(request, 'atendente_permissoes', None),
+        'data_owner': getattr(request, 'data_owner', request.user),
     }
 

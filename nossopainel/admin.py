@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django import forms
 from .models import (
     Plano,
     Cliente,
@@ -50,6 +51,14 @@ from .models import (
     ConfiguracaoEnvio,
     VarianteMensagem,
     ConfiguracaoAgendamento,
+    # Atendimentos
+    CategoriaAtendimento,
+    TipoAtendimento,
+    RegistroAtendimento,
+    AtendimentoImagem,
+    # Atendentes
+    PerfilAtendente,
+    PermissoesAtendente,
 )
 
 # --- ADMINISTRADORES ---
@@ -927,6 +936,85 @@ admin.site.register(TemplateMensagem, TemplateMensagemAdmin)
 admin.site.register(ConfiguracaoEnvio, ConfiguracaoEnvioAdmin)
 admin.site.register(VarianteMensagem, VarianteMensagemAdmin)
 admin.site.register(ConfiguracaoAgendamento, ConfiguracaoAgendamentoAdmin)
+
+
+# ─── ATENDIMENTOS ─────────────────────────────────────────────────────────────
+
+class CategoriaAtendimentoForm(forms.ModelForm):
+    cor = forms.CharField(
+        widget=forms.TextInput(attrs={'type': 'color', 'style': 'width:60px;height:36px;padding:2px;cursor:pointer;'}),
+        label='Cor',
+    )
+
+    class Meta:
+        model  = CategoriaAtendimento
+        fields = '__all__'
+
+
+@admin.register(CategoriaAtendimento)
+class CategoriaAtendimentoAdmin(admin.ModelAdmin):
+    form          = CategoriaAtendimentoForm
+    list_display  = ('nome', 'cor_preview', 'ativo', 'criado_em')
+    list_filter   = ('ativo',)
+    search_fields = ('nome',)
+
+    @admin.display(description='Cor')
+    def cor_preview(self, obj):
+        from django.utils.html import format_html
+        return format_html(
+            '<span style="display:inline-block;width:20px;height:20px;border-radius:4px;'
+            'background:{};border:1px solid #ccc;vertical-align:middle;"></span>&nbsp;{}',
+            obj.cor, obj.cor
+        )
+
+
+@admin.register(TipoAtendimento)
+class TipoAtendimentoAdmin(admin.ModelAdmin):
+    list_display  = ('nome', 'categoria', 'ativo', 'criado_em')
+    list_filter   = ('ativo', 'categoria')
+    search_fields = ('nome', 'categoria__nome')
+
+
+class AtendimentoImagemInline(admin.TabularInline):
+    model  = AtendimentoImagem
+    extra  = 0
+    fields = ('imagem',)
+
+
+@admin.register(RegistroAtendimento)
+class RegistroAtendimentoAdmin(admin.ModelAdmin):
+    list_display    = ('cliente', 'categoria', 'tipo', 'status', 'usuario', 'criado_em')
+    list_filter     = ('categoria', 'tipo', 'status')
+    search_fields   = ('cliente__nome', 'detalhes')
+    readonly_fields = ('usuario', 'criado_em')
+    inlines         = [AtendimentoImagemInline]
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(usuario=request.user)
+
+
+class PermissoesAtendenteInline(admin.StackedInline):
+    model = PermissoesAtendente
+    can_delete = False
+    extra = 0
+
+
+@admin.register(PerfilAtendente)
+class PerfilAtendenteAdmin(admin.ModelAdmin):
+    list_display  = ('user', 'owner', 'ativo', 'criado_em')
+    list_filter   = ('ativo',)
+    search_fields = ('user__username', 'user__first_name', 'owner__username')
+    readonly_fields = ('criado_em',)
+    inlines       = [PermissoesAtendenteInline]
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(owner=request.user)
 
 
 # Configurações adicionais do admin

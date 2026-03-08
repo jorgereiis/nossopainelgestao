@@ -114,6 +114,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "nossopainel.middleware.AtendenteContextMiddleware",
     "painel_cliente.middleware.PainelClienteSessionMiddleware",  # Sessao do cliente no painel
     "axes.middleware.AxesMiddleware",  # django-axes deve vir após AuthenticationMiddleware
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -220,6 +221,7 @@ TEMPLATES[0]["OPTIONS"]["context_processors"] += [
     "setup.context_processors.notifications",
     "setup.context_processors.user_profile",
     "setup.context_processors.impersonation",
+    "setup.context_processors.atendente_context",
 ]
 
 WSGI_APPLICATION = "setup.wsgi.application"

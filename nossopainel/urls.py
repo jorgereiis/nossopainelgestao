@@ -187,6 +187,28 @@ from .views import (
     revendedor_dados,
     revendedor_editar,
     revendedor_criar,
+    # Atendimentos
+    registrar_atendimento,
+    listar_categorias_atendimento,
+    listar_tipos_atendimento,
+    criar_categoria_atendimento,
+    criar_tipo_atendimento,
+    historico_atendimentos,
+    listar_atendimentos_dashboard,
+    ver_atendimento,
+    editar_atendimento,
+    marcar_atendimento_resolvido,
+    # Atendentes
+    atendentes_page,
+    atendentes_lista,
+    criar_atendente,
+    editar_atendente_permissoes,
+    editar_atendente_dados,
+    toggle_atendente,
+    deletar_atendente,
+    api_produtividade_atendentes,
+    api_periodos_produtividade,
+    api_timeline_atendente,
 )
 
 urlpatterns = [
@@ -425,4 +447,28 @@ urlpatterns = [
     path("revendedores/<int:user_id>/editar/", revendedor_editar, name="revendedor-editar"),
     path("revendedores/criar/", revendedor_criar, name="revendedor-criar"),
     path("impersonate/encerrar/", impersonate_encerrar, name="impersonate-encerrar"),
+
+    ########### Atendimentos ###########
+    path("registrar-atendimento/", registrar_atendimento, name="registrar-atendimento"),
+    path("atendimento/categorias/", listar_categorias_atendimento, name="listar-categorias-atendimento"),
+    path("atendimento/tipos/", listar_tipos_atendimento, name="listar-tipos-atendimento"),
+    path("atendimento/criar-categoria/", criar_categoria_atendimento, name="criar-categoria-atendimento"),
+    path("atendimento/criar-tipo/", criar_tipo_atendimento, name="criar-tipo-atendimento"),
+    path("atendimento/historico/<int:cliente_id>/", historico_atendimentos, name="historico-atendimentos"),
+    path("atendimento/dashboard/", listar_atendimentos_dashboard, name="listar-atendimentos-dashboard"),
+    path("atendimento/ver/", ver_atendimento, name="ver-atendimento"),
+    path("atendimento/editar/", editar_atendimento, name="editar-atendimento"),
+    path("atendimento/resolver/", marcar_atendimento_resolvido, name="marcar-atendimento-resolvido"),
+
+    ########### Atendentes ###########
+    path("atendentes/", atendentes_page, name="atendentes"),
+    path("atendentes/lista/", atendentes_lista, name="atendentes-lista"),
+    path("atendentes/criar/", criar_atendente, name="criar-atendente"),
+    path("atendentes/<int:atendente_id>/permissoes/", editar_atendente_permissoes, name="editar-atendente-permissoes"),
+    path("atendentes/<int:atendente_id>/editar/", editar_atendente_dados, name="editar-atendente-dados"),
+    path("atendentes/<int:atendente_id>/toggle/", toggle_atendente, name="toggle-atendente"),
+    path("atendentes/<int:atendente_id>/deletar/", deletar_atendente, name="deletar-atendente"),
+    path("atendentes/produtividade/", api_produtividade_atendentes, name="atendentes-produtividade"),
+    path("atendentes/periodos/", api_periodos_produtividade, name="atendentes-periodos"),
+    path("atendentes/<int:atendente_id>/timeline/", api_timeline_atendente, name="atendente-timeline"),
 ]

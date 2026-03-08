@@ -94,6 +94,14 @@ from .models import (
     # Tarefas de Envio WhatsApp
     ConfiguracaoEnvio,
     TelefoneLeads,
+    # Atendimentos
+    CategoriaAtendimento,
+    TipoAtendimento,
+    RegistroAtendimento,
+    AtendimentoImagem,
+    # Atendentes
+    PerfilAtendente,
+    PermissoesAtendente,
 )
 from .utils import (
     envio_apos_novo_cadastro,
@@ -112,6 +120,7 @@ from .utils import (
     get_or_create_aplicativo,
     get_or_create_servidor,
     enroll_client_in_campaign_if_eligible,
+    get_data_owner,
 )
 from .wpp_views import (
     cancelar_sessao_wpp,
@@ -422,10 +431,11 @@ class CarregarContasDoAplicativo(LoginRequiredMixin, View):
 
     def get(self, request):
         """Lista contas do cliente autenticado já serializadas para o modal."""
+        owner = get_data_owner(self.request)
         cliente_id = self.request.GET.get("cliente_id")
-        cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
+        cliente = get_object_or_404(Cliente, id=cliente_id, usuario=owner)
         conta_app = (
-            ContaDoAplicativo.objects.filter(cliente=cliente, usuario=self.request.user)
+            ContaDoAplicativo.objects.filter(cliente=cliente, usuario=owner)
             .select_related('app', 'dispositivo', 'cliente__dispositivo')
         )
 
@@ -454,11 +464,12 @@ class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
 
     def get(self, request):
         """Calcula as contagens por status e devolve um payload JSON para o modal."""
+        owner = get_data_owner(self.request)
         cliente_id = self.request.GET.get("cliente_id")
-        cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
+        cliente = get_object_or_404(Cliente, id=cliente_id, usuario=owner)
         hoje = timezone.localtime().date()
         mensalidades_totais = Mensalidade.objects.filter(
-            usuario=self.request.user,
+            usuario=owner,
             cliente=cliente
         ).select_related('cliente__assinatura').order_by('-id').values(
             'id', 'dt_vencimento', 'dt_pagamento', 'valor', 'pgto', 'cancelado',
@@ -472,9 +483,9 @@ class CarregarQuantidadesMensalidades(LoginRequiredMixin, View):
             'tipo_campanha',
             'numero_mes_campanha'
         )
-        mensalidades_pagas = Mensalidade.objects.filter(usuario=self.request.user, pgto=True, cliente=cliente)
-        mensalidades_pendentes = Mensalidade.objects.filter(usuario=self.request.user, dt_pagamento=None, pgto=False, cancelado=False, dt_cancelamento=None, dt_vencimento__lt=hoje, cliente=cliente)
-        mensalidades_canceladas = Mensalidade.objects.filter(usuario=self.request.user, cancelado=True, cliente=cliente)
+        mensalidades_pagas = Mensalidade.objects.filter(usuario=owner, pgto=True, cliente=cliente)
+        mensalidades_pendentes = Mensalidade.objects.filter(usuario=owner, dt_pagamento=None, pgto=False, cancelado=False, dt_cancelamento=None, dt_vencimento__lt=hoje, cliente=cliente)
+        mensalidades_canceladas = Mensalidade.objects.filter(usuario=owner, cancelado=True, cliente=cliente)
 
         qtd_mensalidades_pagas = 0
         for mensalidade in mensalidades_pagas:
@@ -507,9 +518,10 @@ class CarregarInidicacoes(LoginRequiredMixin, View):
         from nossopainel.utils import calcular_desconto_progressivo_total
         from .models import DescontoProgressivoIndicacao
 
+        owner = get_data_owner(self.request)
         cliente_id = self.request.GET.get("cliente_id")
-        cliente = get_object_or_404(Cliente, id=cliente_id, usuario=self.request.user)
-        indicados = Cliente.objects.filter(indicado_por=cliente, usuario=self.request.user).order_by('-id')
+        cliente = get_object_or_404(Cliente, id=cliente_id, usuario=owner)
+        indicados = Cliente.objects.filter(indicado_por=cliente, usuario=owner).order_by('-id')
 
         # Calcular informações sobre descontos progressivos
         desconto_info = calcular_desconto_progressivo_total(cliente)
@@ -564,9 +576,10 @@ class ClientesCancelados(LoginRequiredMixin, ListView):
         Filtra os clientes do usuário atual e os ordena pela data de adesão.
         Se houver uma consulta (q) na URL, filtra os clientes cujo nome contenha o valor da consulta.
         """
+        owner = get_data_owner(self.request)
         query = self.request.GET.get("q")
         queryset = (
-            Cliente.objects.filter(usuario=self.request.user, cancelado=True)
+            Cliente.objects.filter(usuario=owner, cancelado=True)
             .order_by("-data_cancelamento")
         )
         
@@ -657,6 +670,7 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
         Realiza a operação distinct() para evitar duplicatas na listagem.
         Caso haja um valor de busca na URL (parâmetro 'q'), filtra a queryset pelos clientes cujo nome contém o valor de busca.
         """
+        owner = get_data_owner(self.request)
         query = self.request.GET.get("q")
         queryset = (
             Cliente.objects
@@ -685,7 +699,7 @@ class TabelaDashboardAjax(LoginRequiredMixin, ListView):
                 mensalidade__dt_cancelamento=None,
                 mensalidade__dt_pagamento=None,
                 mensalidade__pgto=False,
-                usuario=self.request.user,
+                usuario=owner,
             ).distinct()
         )
         if query:
@@ -944,7 +958,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         return sort_field, sort_order
 
     def get_queryset(self):
-
+        owner = get_data_owner(self.request)
         query = self.request.GET.get("q")
         queryset = (
             Cliente.objects
@@ -973,7 +987,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 mensalidade__dt_cancelamento=None,
                 mensalidade__dt_pagamento=None,
                 mensalidade__pgto=False,
-                usuario=self.request.user,
+                usuario=owner,
             ).distinct()
         )
         if query:
@@ -1013,6 +1027,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         """
         moeda = "BRL"
         page = 'dashboard'
+        owner = get_data_owner(self.request)
         hoje = timezone.localtime().date()
         f_name = self.request.user.first_name
         ano_atual = timezone.localtime().year
@@ -1023,12 +1038,12 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         mes_atual = timezone.localtime().date().month
 
         # Variáveis para context do modal de edição do cadastro do cliente
-        indicadores = Cliente.objects.filter(usuario=self.request.user).order_by('nome')
-        servidores = Servidor.objects.filter(usuario=self.request.user).order_by('nome')
-        formas_pgtos = Tipos_pgto.objects.filter(usuario=self.request.user).select_related('conta_bancaria__instituicao', 'dados_bancarios').order_by('nome')
-        planos = Plano.objects.filter(usuario=self.request.user).order_by('nome', 'telas', 'valor')
-        dispositivos = Dispositivo.objects.filter(usuario=self.request.user).order_by('nome')
-        aplicativos = Aplicativo.objects.filter(usuario=self.request.user).order_by('nome')
+        indicadores = Cliente.objects.filter(usuario=owner).order_by('nome')
+        servidores = Servidor.objects.filter(usuario=owner).order_by('nome')
+        formas_pgtos = Tipos_pgto.objects.filter(usuario=owner).select_related('conta_bancaria__instituicao', 'dados_bancarios').order_by('nome')
+        planos = Plano.objects.filter(usuario=owner).order_by('nome', 'telas', 'valor')
+        dispositivos = Dispositivo.objects.filter(usuario=owner).order_by('nome')
+        aplicativos = Aplicativo.objects.filter(usuario=owner).order_by('nome')
 
         # Serializa dispositivos e aplicativos para JSON (para uso no JavaScript do modal de edição)
         dispositivos_json = [
@@ -1046,7 +1061,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             mensalidade__dt_pagamento=None,
             mensalidade__pgto=False,
             mensalidade__dt_vencimento__lt=hoje,
-            usuario=self.request.user,
+            usuario=owner,
         ).count()
 
         valor_total_pago = (
@@ -1054,7 +1069,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 cancelado=False,
                 dt_pagamento__year=ano_atual,
                 dt_pagamento__month=mes_atual,
-                usuario=self.request.user,
+                usuario=owner,
                 pgto=True,
             ).aggregate(valor_total=Sum("valor"))["valor_total"]
             or 0
@@ -1065,7 +1080,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             cancelado=False,
             dt_pagamento__year=ano_atual,
             dt_pagamento__month=mes_atual,
-            usuario=self.request.user,
+            usuario=owner,
             pgto=True,
         ).count()
 
@@ -1074,7 +1089,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 cancelado=False,
                 dt_vencimento__year=ano_atual,
                 dt_vencimento__month=mes_atual,
-                usuario=self.request.user,
+                usuario=owner,
                 pgto=False,
             ).aggregate(valor_total=Sum("valor"))["valor_total"]
             or 0
@@ -1086,7 +1101,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             dt_vencimento__year=ano_atual,
             dt_vencimento__month=mes_atual,
             dt_vencimento__day__gte=hoje.day,
-            usuario=self.request.user,
+            usuario=owner,
             pgto=False,
         ).count()
 
@@ -1095,7 +1110,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 cancelado=False,
                 data_adesao__year=ano_atual,
                 data_adesao__month=mes_atual,
-                usuario=self.request.user,
+                usuario=owner,
             )
         ).count()
 
@@ -1103,19 +1118,20 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
             cancelado=True,
             data_cancelamento__year=ano_atual,
             data_cancelamento__month=mes_atual,
-            usuario=self.request.user,
+            usuario=owner,
         ).count()
 
         # Clientes reativados no mês (usando histórico de planos)
         clientes_reativados_qtd = ClientePlanoHistorico.objects.filter(
-            usuario=self.request.user,
+            usuario=owner,
             motivo=ClientePlanoHistorico.MOTIVO_REACTIVATE,
             inicio__year=ano_atual,
             inicio__month=mes_atual,
+            cliente__cancelado=False,
         ).values('cliente').distinct().count()
 
         anos_adesao = (
-            Cliente.objects.filter(usuario=self.request.user)
+            Cliente.objects.filter(usuario=owner)
             .annotate(ano=ExtractYear('data_adesao'))
             .values_list('ano', flat=True)
             .distinct()
@@ -1125,14 +1141,14 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         # Resumo dos planos de adesão
         planos_adesao = (
             Cliente.objects
-            .filter(usuario=self.request.user, cancelado=False)
+            .filter(usuario=owner, cancelado=False)
             .annotate(nome_norm=Upper(Trim(F('plano__nome'))))
             .values('nome_norm')
             .annotate(qtd_adesoes=Count('id'))
             .order_by('nome_norm')
         )
         planos_cadastrados_norm = list(
-            Plano.objects.filter(usuario=self.request.user)
+            Plano.objects.filter(usuario=owner)
             .annotate(nome_norm=Upper(Trim(F('nome'))))
             .values_list('nome_norm', flat=True)
             .distinct()
@@ -1163,7 +1179,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 
         query_telas = (
             Cliente.objects
-            .filter(usuario=self.request.user, cancelado=False, plano__usuario=self.request.user)
+            .filter(usuario=owner, cancelado=False, plano__usuario=owner)
             .select_related("plano")
             .only("id", "plano__telas", "plano__nome")
         )
@@ -1175,7 +1191,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 
         # Contar clientes ativos sem forma de pagamento
         clientes_sem_forma_pgto = Cliente.objects.filter(
-            usuario=self.request.user,
+            usuario=owner,
             cancelado=False,
             forma_pgto__isnull=True
         ).count()
@@ -1191,14 +1207,14 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
 
         # Verificar se usuário tem conta FastDePix com link_fastdepix
         contas_fastdepix = ContaBancaria.objects.filter(
-            usuario=self.request.user,
+            usuario=owner,
             instituicao__tipo_integracao='fastdepix',
             tipo_cobranca_fastdepix='link_fastdepix',
             ativo=True
         ).select_related('instituicao')
 
         if contas_fastdepix.exists():
-            planos_usuario = Plano.objects.filter(usuario=self.request.user)
+            planos_usuario = Plano.objects.filter(usuario=owner)
 
             for conta in contas_fastdepix:
                 # Buscar links existentes para esta conta
@@ -1239,10 +1255,15 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
         # VERIFICAÇÃO SESSÃO WHATSAPP - Alerta no dashboard
         # ============================================================
         sessao_wpp = SessaoWpp.objects.filter(
-            usuario=self.request.user.username,
+            usuario=owner.username,
             is_active=True
         ).first()
         sessao_wpp_ativa = sessao_wpp is not None
+
+        atend_pendentes_count = RegistroAtendimento.objects.filter(
+            cliente__usuario=owner,
+            status=RegistroAtendimento.STATUS_PENDENTE,
+        ).count()
 
         context.update(
             {
@@ -1250,6 +1271,7 @@ class TabelaDashboard(LoginRequiredMixin, ListView):
                 "page": page,
                 "range": range_num,
                 "nome_user": f_name,
+                "atend_pendentes_count": atend_pendentes_count,
                 "aplicativos": aplicativos,
                 "data_criacao_user": dt_inicio,
                 "total_clientes": total_clientes,
@@ -1389,19 +1411,20 @@ def profile_page(request):
     localizacao = get_location_from_ip(ip)
 
     # ========== ESTATÍSTICAS DO USUÁRIO ==========
+    owner = get_data_owner(request)
     # Total de clientes ativos
-    total_clientes = Cliente.objects.filter(usuario=user, cancelado=False).count()
+    total_clientes = Cliente.objects.filter(usuario=owner, cancelado=False).count()
 
     # Valor de negócio (soma dos valores dos planos dos clientes ativos)
     receita_mensal = Cliente.objects.filter(
-        usuario=user,
+        usuario=owner,
         cancelado=False
     ).aggregate(
         total=Sum('plano__valor')
     )['total'] or 0
 
-    # Dias no sistema
-    dias_sistema = (timezone.now().date() - user.date_joined.date()).days if user.date_joined else 0
+    # Dias no sistema (sempre do owner)
+    dias_sistema = (timezone.now().date() - owner.date_joined.date()).days if owner.date_joined else 0
 
     # Última atividade registrada
     ultima_acao = UserActionLog.objects.filter(usuario=user).order_by('-criado_em').first()
@@ -1421,13 +1444,13 @@ def profile_page(request):
         ultima_atividade = "Nunca"
 
     # Total de clientes cancelados
-    total_cancelados = Cliente.objects.filter(usuario=user, cancelado=True).count()
+    total_cancelados = Cliente.objects.filter(usuario=owner, cancelado=True).count()
 
     # Total de mensalidades recebidas este mês
     mes_atual = timezone.now().month
     ano_atual = timezone.now().year
     mensalidades_mes = Mensalidade.objects.filter(
-        usuario=user,
+        usuario=owner,
         pgto=True,
         dt_pagamento__month=mes_atual,
         dt_pagamento__year=ano_atual
@@ -1760,6 +1783,15 @@ def _month_abbr_pt(month: int) -> str:
     return str(month)
 
 
+def _count_clientes_ativos_em(usuario, data):
+    return ClientePlanoHistorico.objects.filter(
+        usuario=usuario,
+        inicio__lte=data,
+    ).filter(
+        Q(fim__isnull=True) | Q(fim__gt=data)
+    ).values('cliente').distinct().count()
+
+
 def _dataset_adesao_cancelamentos_mensal(usuario, year: int, month: int):
     dados_adesoes = (
         Cliente.objects.filter(
@@ -1773,39 +1805,69 @@ def _dataset_adesao_cancelamentos_mensal(usuario, year: int, month: int):
         .order_by("dia")
     )
 
+    plan_change_subquery = ClientePlanoHistorico.objects.filter(
+        cliente=OuterRef('cliente'),
+        usuario=OuterRef('usuario'),
+        inicio=OuterRef('fim'),
+        motivo=ClientePlanoHistorico.MOTIVO_PLAN_CHANGE,
+    )
+
     dados_cancelamentos = (
-        Cliente.objects.filter(
-            data_cancelamento__year=year,
-            data_cancelamento__month=month,
+        ClientePlanoHistorico.objects.filter(
             usuario=usuario,
+            fim__year=year,
+            fim__month=month,
         )
-        .annotate(dia=ExtractDay("data_cancelamento"))
+        .exclude(Exists(plan_change_subquery))
+        .annotate(dia=ExtractDay("fim"))
         .values("dia")
-        .annotate(total=Count("id"))
+        .annotate(total=Count("cliente", distinct=True))
+        .order_by("dia")
+    )
+
+    dados_reativados = (
+        ClientePlanoHistorico.objects.filter(
+            usuario=usuario,
+            motivo=ClientePlanoHistorico.MOTIVO_REACTIVATE,
+            inicio__year=year,
+            inicio__month=month,
+        )
+        .annotate(dia=ExtractDay("inicio"))
+        .values("dia")
+        .annotate(total=Count("cliente", distinct=True))
         .order_by("dia")
     )
 
     adesoes_dict = {item["dia"]: item["total"] for item in dados_adesoes}
     cancelamentos_dict = {item["dia"]: item["total"] for item in dados_cancelamentos}
+    reativados_dict = {item["dia"]: item["total"] for item in dados_reativados}
 
     categorias = []
     adesoes = []
     cancelamentos = []
+    reativados = []
     saldo = []
 
     total_dias = calendar.monthrange(year, month)[1]
     for dia in range(1, total_dias + 1):
-        if dia in adesoes_dict or dia in cancelamentos_dict:
+        if dia in adesoes_dict or dia in cancelamentos_dict or dia in reativados_dict:
             valor_adesao = adesoes_dict.get(dia, 0)
             valor_cancelamento = cancelamentos_dict.get(dia, 0)
+            valor_reativacao = reativados_dict.get(dia, 0)
             categorias.append(str(dia))
             adesoes.append(valor_adesao)
             cancelamentos.append(valor_cancelamento)
-            saldo.append(valor_adesao - valor_cancelamento)
+            reativados.append(valor_reativacao)
+            saldo.append(valor_adesao + valor_reativacao - valor_cancelamento)
 
     total_adesoes = sum(adesoes)
     total_cancelamentos = sum(cancelamentos)
-    saldo_final = total_adesoes - total_cancelamentos
+    saldo_final = total_adesoes + sum(reativados) - total_cancelamentos
+
+    data_inicio_periodo = date(year, month, 1) - timedelta(days=1)
+    data_fim_periodo = date(year, month, calendar.monthrange(year, month)[1])
+    clientes_inicio = _count_clientes_ativos_em(usuario, data_inicio_periodo)
+    clientes_fim = _count_clientes_ativos_em(usuario, data_fim_periodo)
 
     return {
         "mode": "monthly",
@@ -1813,11 +1875,13 @@ def _dataset_adesao_cancelamentos_mensal(usuario, year: int, month: int):
         "series": [
             {"key": "adesoes", "name": "Ades\u00f5es", "type": "bar", "data": adesoes},
             {"key": "cancelamentos", "name": "Cancelamentos", "type": "bar", "data": cancelamentos},
+            {"key": "reativados", "name": "Reativados", "type": "bar", "data": reativados},
             {"key": "saldo", "name": "Saldo", "type": "line", "data": saldo},
         ],
         "summary": {
             "total_adesoes": total_adesoes,
             "total_cancelamentos": total_cancelamentos,
+            "total_reativados": sum(reativados),
             "saldo": saldo_final,
             "saldo_label": f"{'+' if saldo_final > 0 else ''}{saldo_final}",
         },
@@ -1827,6 +1891,10 @@ def _dataset_adesao_cancelamentos_mensal(usuario, year: int, month: int):
             "month_name": _month_name_pt(month),
             "year": year,
             "range_label": f"{_month_name_pt(month)} {year}",
+        },
+        "context": {
+            "clientes_inicio": clientes_inicio,
+            "clientes_fim": clientes_fim,
         },
     }
 
@@ -1840,35 +1908,61 @@ def _dataset_adesao_cancelamentos_lifetime(usuario):
         .order_by("ano", "mes")
     )
 
+    plan_change_subquery = ClientePlanoHistorico.objects.filter(
+        cliente=OuterRef('cliente'),
+        usuario=OuterRef('usuario'),
+        inicio=OuterRef('fim'),
+        motivo=ClientePlanoHistorico.MOTIVO_PLAN_CHANGE,
+    )
+
     dados_cancelamentos = (
-        Cliente.objects.filter(usuario=usuario, data_cancelamento__isnull=False)
-        .annotate(ano=ExtractYear("data_cancelamento"), mes=ExtractMonth("data_cancelamento"))
+        ClientePlanoHistorico.objects.filter(
+            usuario=usuario,
+            fim__isnull=False,
+        )
+        .exclude(Exists(plan_change_subquery))
+        .annotate(ano=ExtractYear("fim"), mes=ExtractMonth("fim"))
         .values("ano", "mes")
-        .annotate(total=Count("id"))
+        .annotate(total=Count("cliente", distinct=True))
+        .order_by("ano", "mes")
+    )
+
+    dados_reativados = (
+        ClientePlanoHistorico.objects.filter(
+            usuario=usuario,
+            motivo=ClientePlanoHistorico.MOTIVO_REACTIVATE,
+        )
+        .annotate(ano=ExtractYear("inicio"), mes=ExtractMonth("inicio"))
+        .values("ano", "mes")
+        .annotate(total=Count("cliente", distinct=True))
         .order_by("ano", "mes")
     )
 
     adesoes_dict = {(item["ano"], item["mes"]): item["total"] for item in dados_adesoes}
     cancelamentos_dict = {(item["ano"], item["mes"]): item["total"] for item in dados_cancelamentos}
+    reativados_dict = {(item["ano"], item["mes"]): item["total"] for item in dados_reativados}
 
-    todos_periodos = sorted(set(adesoes_dict.keys()) | set(cancelamentos_dict.keys()))
+    todos_periodos = sorted(set(adesoes_dict.keys()) | set(cancelamentos_dict.keys()) | set(reativados_dict.keys()))
 
     categorias = []
     adesoes = []
     cancelamentos = []
+    reativados = []
     saldo = []
 
     for ano, mes in todos_periodos:
         valor_adesao = adesoes_dict.get((ano, mes), 0)
         valor_cancelamento = cancelamentos_dict.get((ano, mes), 0)
+        valor_reativacao = reativados_dict.get((ano, mes), 0)
         categorias.append(f"{_month_abbr_pt(mes)} {ano}")
         adesoes.append(valor_adesao)
         cancelamentos.append(valor_cancelamento)
-        saldo.append(valor_adesao - valor_cancelamento)
+        reativados.append(valor_reativacao)
+        saldo.append(valor_adesao + valor_reativacao - valor_cancelamento)
 
     total_adesoes = sum(adesoes)
     total_cancelamentos = sum(cancelamentos)
-    saldo_final = total_adesoes - total_cancelamentos
+    saldo_final = total_adesoes + sum(reativados) - total_cancelamentos
 
     meta = {
         "mode": "lifetime",
@@ -1886,6 +1980,13 @@ def _dataset_adesao_cancelamentos_lifetime(usuario):
                 "range_label": f"De {_month_abbr_pt(mes_inicio)} {ano_inicio} a {_month_abbr_pt(mes_fim)} {ano_fim}",
             }
         )
+        first_ano, first_mes = todos_periodos[0]
+        data_inicio_periodo = date(first_ano, first_mes, 1) - timedelta(days=1)
+        clientes_inicio = _count_clientes_ativos_em(usuario, data_inicio_periodo)
+        clientes_fim = _count_clientes_ativos_em(usuario, date.today())
+    else:
+        clientes_inicio = None
+        clientes_fim = None
 
     return {
         "mode": "lifetime",
@@ -1893,15 +1994,21 @@ def _dataset_adesao_cancelamentos_lifetime(usuario):
         "series": [
             {"key": "adesoes", "name": "Ades\u00f5es", "type": "bar", "data": adesoes},
             {"key": "cancelamentos", "name": "Cancelamentos", "type": "bar", "data": cancelamentos},
+            {"key": "reativados", "name": "Reativados", "type": "bar", "data": reativados},
             {"key": "saldo", "name": "Saldo", "type": "line", "data": saldo},
         ],
         "summary": {
             "total_adesoes": total_adesoes,
             "total_cancelamentos": total_cancelamentos,
+            "total_reativados": sum(reativados),
             "saldo": saldo_final,
             "saldo_label": f"{'+' if saldo_final > 0 else ''}{saldo_final}",
         },
         "meta": meta,
+        "context": {
+            "clientes_inicio": clientes_inicio,
+            "clientes_fim": clientes_fim,
+        },
     }
 
 
@@ -1914,34 +2021,67 @@ def _dataset_adesao_cancelamentos_anual(usuario, year: int):
         .order_by("mes")
     )
 
+    plan_change_subquery = ClientePlanoHistorico.objects.filter(
+        cliente=OuterRef('cliente'),
+        usuario=OuterRef('usuario'),
+        inicio=OuterRef('fim'),
+        motivo=ClientePlanoHistorico.MOTIVO_PLAN_CHANGE,
+    )
+
     dados_cancelamentos = (
-        Cliente.objects.filter(data_cancelamento__year=year, usuario=usuario)
-        .annotate(mes=ExtractMonth("data_cancelamento"))
+        ClientePlanoHistorico.objects.filter(
+            usuario=usuario,
+            fim__year=year,
+        )
+        .exclude(Exists(plan_change_subquery))
+        .annotate(mes=ExtractMonth("fim"))
         .values("mes")
-        .annotate(total=Count("id"))
+        .annotate(total=Count("cliente", distinct=True))
+        .order_by("mes")
+    )
+
+    dados_reativados = (
+        ClientePlanoHistorico.objects.filter(
+            usuario=usuario,
+            motivo=ClientePlanoHistorico.MOTIVO_REACTIVATE,
+            inicio__year=year,
+        )
+        .annotate(mes=ExtractMonth("inicio"))
+        .values("mes")
+        .annotate(total=Count("cliente", distinct=True))
         .order_by("mes")
     )
 
     adesoes_dict = {item["mes"]: item["total"] for item in dados_adesoes}
     cancelamentos_dict = {item["mes"]: item["total"] for item in dados_cancelamentos}
+    reativados_dict = {item["mes"]: item["total"] for item in dados_reativados}
 
     categorias = []
     adesoes = []
     cancelamentos = []
+    reativados = []
     saldo = []
 
     for mes in range(1, 13):
         valor_adesao = adesoes_dict.get(mes, 0)
         valor_cancelamento = cancelamentos_dict.get(mes, 0)
-        if valor_adesao or valor_cancelamento:
+        valor_reativacao = reativados_dict.get(mes, 0)
+        if valor_adesao or valor_cancelamento or valor_reativacao:
             categorias.append(_month_abbr_pt(mes))
             adesoes.append(valor_adesao)
             cancelamentos.append(valor_cancelamento)
-            saldo.append(valor_adesao - valor_cancelamento)
+            reativados.append(valor_reativacao)
+            saldo.append(valor_adesao + valor_reativacao - valor_cancelamento)
 
     total_adesoes = sum(adesoes)
     total_cancelamentos = sum(cancelamentos)
-    saldo_final = total_adesoes - total_cancelamentos
+    saldo_final = total_adesoes + sum(reativados) - total_cancelamentos
+
+    hoje = date.today()
+    data_inicio_periodo = date(year - 1, 12, 31)
+    data_fim_periodo = min(date(year, 12, 31), hoje)
+    clientes_inicio = _count_clientes_ativos_em(usuario, data_inicio_periodo)
+    clientes_fim = _count_clientes_ativos_em(usuario, data_fim_periodo)
 
     return {
         "mode": "annual",
@@ -1949,11 +2089,13 @@ def _dataset_adesao_cancelamentos_anual(usuario, year: int):
         "series": [
             {"key": "adesoes", "name": "Ades\u00f5es", "type": "bar", "data": adesoes},
             {"key": "cancelamentos", "name": "Cancelamentos", "type": "bar", "data": cancelamentos},
+            {"key": "reativados", "name": "Reativados", "type": "bar", "data": reativados},
             {"key": "saldo", "name": "Saldo", "type": "line", "data": saldo},
         ],
         "summary": {
             "total_adesoes": total_adesoes,
             "total_cancelamentos": total_cancelamentos,
+            "total_reativados": sum(reativados),
             "saldo": saldo_final,
             "saldo_label": f"{'+' if saldo_final > 0 else ''}{saldo_final}",
         },
@@ -1961,6 +2103,10 @@ def _dataset_adesao_cancelamentos_anual(usuario, year: int):
             "mode": "annual",
             "year": year,
             "range_label": str(year),
+        },
+        "context": {
+            "clientes_inicio": clientes_inicio,
+            "clientes_fim": clientes_fim,
         },
     }
 
@@ -1970,7 +2116,7 @@ def _dataset_adesao_cancelamentos_anual(usuario, year: int):
 def adesoes_cancelamentos_api(request):
     modo = (request.GET.get("mode", "monthly") or "monthly").lower()
     hoje = timezone.localdate()
-    usuario = request.user
+    usuario = get_data_owner(request)
 
     try:
         ano = int(request.GET.get("year", hoje.year))
@@ -2003,7 +2149,7 @@ def api_listar_todos_clientes(request):
     API para listar todos os clientes do usuário ordenados por data de adesão (mais recente primeiro).
     Retorna: nome, telefone, tem_assinatura, cancelado, data_adesao, logo_servidor
     """
-    usuario = request.user
+    usuario = get_data_owner(request)
     clientes = Cliente.objects.filter(usuario=usuario).select_related('servidor').order_by('-data_adesao')
 
     resultado = []
@@ -2396,13 +2542,14 @@ def clientes_servidor_data(request):
 @never_cache
 def notifications_dropdown(request):
     hoje = timezone.localdate()
+    owner = get_data_owner(request)
     tipos = [Tipos_pgto.CARTAO, Tipos_pgto.BOLETO]
 
     # Mensalidades vencidas
     mensalidades_vencidas = (
         Mensalidade.objects.select_related("cliente", "cliente__forma_pgto", "cliente__plano")
         .filter(
-            usuario=request.user,
+            usuario=owner,
             pgto=False,
             cancelado=False,
             cliente__cancelado=False,
@@ -2420,7 +2567,7 @@ def notifications_dropdown(request):
 
     # Notificações do sistema (limite MEI, mudança de plano, etc.)
     notificacoes_sistema = NotificacaoSistema.objects.filter(
-        usuario=request.user,
+        usuario=owner,
         lida=False
     ).order_by('-criada_em')[:10]
 
@@ -2436,10 +2583,11 @@ def notifications_dropdown(request):
 @require_POST
 def notifications_mark_all_read(request):
     hoje = timezone.localdate()
+    owner = get_data_owner(request)
     tipos = [Tipos_pgto.CARTAO, Tipos_pgto.BOLETO]
     ids = list(
         Mensalidade.objects.filter(
-            usuario=request.user,
+            usuario=owner,
             pgto=False, cancelado=False,
             cliente__cancelado=False,
             cliente__forma_pgto__nome__in=tipos,
@@ -2455,7 +2603,7 @@ def notifications_mark_all_read(request):
 
     # Marcar também notificações do sistema como lidas
     notif_sistema_marcadas = NotificacaoSistema.objects.filter(
-        usuario=request.user,
+        usuario=owner,
         lida=False
     ).update(lida=True, data_leitura=timezone.now())
 
@@ -2471,11 +2619,12 @@ class NotificationsModalView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         hoje = timezone.localdate()
+        owner = get_data_owner(self.request)
         return (
             Mensalidade.objects
             .select_related("cliente", "cliente__forma_pgto", "cliente__plano")
             .filter(
-                usuario=self.request.user,
+                usuario=owner,
                 pgto=False,
                 cancelado=False,
                 cliente__cancelado=False,
@@ -2498,9 +2647,10 @@ class NotificationsModalView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        owner = get_data_owner(self.request)
         # Adicionar notificações do sistema
         context['notificacoes_sistema'] = NotificacaoSistema.objects.filter(
-            usuario=self.request.user,
+            usuario=owner,
             lida=False
         ).order_by('-criada_em')[:50]
         return context
@@ -2508,13 +2658,14 @@ class NotificationsModalView(LoginRequiredMixin, ListView):
 @login_required
 def notifications_count(request):
     hoje = timezone.localdate()
+    owner = get_data_owner(request)
     tipos = [Tipos_pgto.CARTAO, Tipos_pgto.BOLETO]
 
     # Contagem de mensalidades vencidas
     count_mensalidades = (
         Mensalidade.objects
         .filter(
-            usuario=request.user,
+            usuario=owner,
             pgto=False, cancelado=False,
             cliente__cancelado=False,
             cliente__forma_pgto__nome__in=tipos,
@@ -2526,7 +2677,7 @@ def notifications_count(request):
 
     # Contagem de notificações do sistema
     count_sistema = NotificacaoSistema.objects.filter(
-        usuario=request.user,
+        usuario=owner,
         lida=False
     ).count()
 
@@ -2537,9 +2688,9 @@ class MensalidadeDetailView(LoginRequiredMixin, DetailView):
     template_name = "mensalidades/detalhe.html"
 
     def get_queryset(self):
-        # Restringe ao usuário logado
+        owner = get_data_owner(self.request)
         return Mensalidade.objects.select_related("cliente", "cliente__plano", "cliente__forma_pgto").filter(
-            usuario=self.request.user
+            usuario=owner
         )
 
 ############################################ UPDATE VIEW ############################################
@@ -2581,9 +2732,10 @@ def session_wpp(request):
     """
     Função de view para criar ou deletar uma sessão do WhatsApp
     """
+    owner = get_data_owner(request)
     if request.method == 'DELETE':
         try:
-            sessao = SessaoWpp.objects.filter(usuario=request.user)
+            sessao = SessaoWpp.objects.filter(usuario=owner)
             sessao.delete()
             # Realizar outras ações necessárias após a exclusão, se houver
             return JsonResponse({"success_message_session": "Sessão deletada com sucesso."}, status=200)
@@ -2597,9 +2749,9 @@ def session_wpp(request):
         token = body.get('token')
         try:
             sessao, created = SessaoWpp.objects.update_or_create(
-                usuario=request.user.username,
+                usuario=owner.username,
                 defaults={
-                    "user": request.user,
+                    "user": owner,
                     "token": token,
                     "dt_inicio": timezone.localtime(),
                 }
@@ -2625,8 +2777,9 @@ def reactivate_customer(request, cliente_id):
     - Se cancelado há mais de 7 dias: cria nova mensalidade com vencimento atual
     - Sempre verifica se já existe mensalidade em aberto para evitar duplicação
     """
+    owner = get_data_owner(request)
     try:
-        cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
+        cliente = Cliente.objects.get(pk=cliente_id, usuario=owner)
     except Cliente.DoesNotExist:
         return JsonResponse({"error_message": "Cliente não encontrado."}, status=404)
 
@@ -2648,7 +2801,7 @@ def reactivate_customer(request, cliente_id):
     forma_pgto = None  # Inicializar para uso posterior nos dados de pagamento
     if forma_pgto_id:
         try:
-            forma_pgto = Tipos_pgto.objects.get(id=forma_pgto_id, usuario=request.user)
+            forma_pgto = Tipos_pgto.objects.get(id=forma_pgto_id, usuario=owner)
             cliente.forma_pgto = forma_pgto
 
             logger.info('[%s] [USER][%s] Cliente ID %s associado à forma de pagamento ID %s',
@@ -2688,13 +2841,13 @@ def reactivate_customer(request, cliente_id):
         cliente.telefone = telefone.strip()
     if servidor_id:
         try:
-            servidor = Servidor.objects.get(id=servidor_id, usuario=request.user)
+            servidor = Servidor.objects.get(id=servidor_id, usuario=owner)
             cliente.servidor = servidor
         except Servidor.DoesNotExist:
             pass
     if plano_id:
         try:
-            plano = Plano.objects.get(id=plano_id, usuario=request.user)
+            plano = Plano.objects.get(id=plano_id, usuario=owner)
             cliente.plano = plano
         except Plano.DoesNotExist:
             pass
@@ -2927,9 +3080,10 @@ def pay_monthly_fee(request, mensalidade_id):
     try:
         with transaction.atomic():
             # Bloqueia a mensalidade para evitar processamento duplicado
+            owner = get_data_owner(request)
             mensalidade = Mensalidade.objects.select_for_update(nowait=True).get(
                 pk=mensalidade_id,
-                usuario=request.user
+                usuario=owner
             )
 
             # PROTEÇÃO: Verifica se já está paga
@@ -2993,7 +3147,8 @@ def pay_monthly_fee(request, mensalidade_id):
 @login_required
 def cancel_customer(request, cliente_id):
     if request.user.is_authenticated:
-        cliente = Cliente.objects.get(pk=cliente_id, usuario=request.user)
+        owner = get_data_owner(request)
+        cliente = Cliente.objects.get(pk=cliente_id, usuario=owner)
 
         # Realiza as modificações no cliente
         cliente.cancelado = True
@@ -3072,7 +3227,8 @@ def api_cliente_contas(request, cliente_id):
     Retorna JSON com todas as contas incluindo dispositivo, app, credenciais e status principal.
     """
     try:
-        cliente = Cliente.objects.get(id=cliente_id, usuario=request.user)
+        owner = get_data_owner(request)
+        cliente = Cliente.objects.get(id=cliente_id, usuario=owner)
 
         # Busca todas as contas do cliente com relacionamentos
         contas = ContaDoAplicativo.objects.filter(cliente=cliente).select_related(
@@ -3123,7 +3279,7 @@ def edit_customer(request, cliente_id):
 
     try:
         post = request.POST
-        user = request.user
+        user = get_data_owner(request)
         token = SessaoWpp.objects.filter(usuario=user, is_active=True).first()
         cliente = get_object_or_404(Cliente, pk=cliente_id, usuario=user)
         mensalidade = get_object_or_404(Mensalidade, cliente=cliente, pgto=False, cancelado=False, usuario=user)
@@ -3514,12 +3670,13 @@ def edit_customer(request, cliente_id):
 def cliente_logs_ajax(request, cliente_id):
     """Retorna os logs de ações de um cliente específico."""
     try:
-        cliente = get_object_or_404(Cliente, pk=cliente_id, usuario=request.user)
+        owner = get_data_owner(request)
+        cliente = get_object_or_404(Cliente, pk=cliente_id, usuario=owner)
         cliente_id_str = str(cliente_id)
 
         # Buscar logs de múltiplas entidades relacionadas ao cliente
         logs = UserActionLog.objects.filter(
-            usuario=request.user
+            usuario=owner
         ).filter(
             # Cliente diretamente
             Q(entidade="Cliente", objeto_id=cliente_id_str) |
@@ -3585,7 +3742,8 @@ def edit_payment_plan(request, plano_id):
     """
     Função de view para editar um plano de adesão mensal.
     """
-    plano_mensal = get_object_or_404(Plano, pk=plano_id, usuario=request.user)
+    owner = get_data_owner(request)
+    plano_mensal = get_object_or_404(Plano, pk=plano_id, usuario=owner)
 
     original_plano = {
         "nome": plano_mensal.nome,
@@ -3617,7 +3775,7 @@ def edit_payment_plan(request, plano_id):
                     nome=nome,
                     valor=Decimal(valor.replace(',', '.')),
                     telas=telas,
-                    usuario=request.user,
+                    usuario=owner,
                     campanha_ativa=campanha_ativa_nova
                 ).exclude(pk=plano_mensal.pk)
 
@@ -3741,10 +3899,11 @@ def edit_payment_plan(request, plano_id):
 # AÇÃO PARA EDITAR O OBJETO SERVIDOR
 @login_required
 def edit_server(request, servidor_id):
-    servidor = get_object_or_404(Servidor, pk=servidor_id, usuario=request.user)
+    owner = get_data_owner(request)
+    servidor = get_object_or_404(Servidor, pk=servidor_id, usuario=owner)
     original_nome = servidor.nome
 
-    servidores = Servidor.objects.filter(usuario=request.user).order_by('nome')
+    servidores = Servidor.objects.filter(usuario=owner).order_by('nome')
 
     if request.method == "POST":
         nome = request.POST.get("nome")
@@ -3763,7 +3922,7 @@ def edit_server(request, servidor_id):
                     from .models import ServidorImagem
                     servidor_imagem, created = ServidorImagem.objects.get_or_create(
                         servidor=servidor,
-                        usuario=request.user
+                        usuario=owner
                     )
                     servidor_imagem.imagem = imagem
                     servidor_imagem.save()
@@ -3815,10 +3974,11 @@ def edit_server(request, servidor_id):
 # AÇÃO PARA EDITAR O OBJETO DISPOSITIVO
 @login_required
 def edit_device(request, dispositivo_id):
-    dispositivo = get_object_or_404(Dispositivo, pk=dispositivo_id, usuario=request.user)
+    owner = get_data_owner(request)
+    dispositivo = get_object_or_404(Dispositivo, pk=dispositivo_id, usuario=owner)
     original_nome = dispositivo.nome
 
-    dispositivos = Dispositivo.objects.filter(usuario=request.user).order_by('nome')
+    dispositivos = Dispositivo.objects.filter(usuario=owner).order_by('nome')
 
     if request.method == "POST":
         nome = request.POST.get("nome")
@@ -3876,9 +4036,10 @@ def edit_device(request, dispositivo_id):
 # AÇÃO PARA EDITAR O OBJETO APLICATIVO
 @login_required
 def editar_app(request, aplicativo_id):
-    aplicativo = get_object_or_404(Aplicativo, pk=aplicativo_id, usuario=request.user)
+    owner = get_data_owner(request)
+    aplicativo = get_object_or_404(Aplicativo, pk=aplicativo_id, usuario=owner)
 
-    aplicativos = Aplicativo.objects.filter(usuario=request.user).order_by('nome')
+    aplicativos = Aplicativo.objects.filter(usuario=owner).order_by('nome')
 
     if request.method == "POST":
         nome = request.POST.get("nome")
@@ -4647,12 +4808,13 @@ def edit_horario_envios(request):
             "ativo": True,
         },
     ]
-    usuario = request.user
+    usuario = get_data_owner(request)
     sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
     sessao_wpp = bool(sessao)
 
     if request.method == "GET":
         # Criação automática dos horários obrigatórios, se não existirem
+        novos_horarios = []
         with transaction.atomic():
             for horario_data in HORARIOS_OBRIGATORIOS:
                 if not HorarioEnvios.objects.filter(usuario=usuario, tipo_envio=horario_data["tipo_envio"]).exists():
@@ -4664,17 +4826,21 @@ def edit_horario_envios(request):
                         status=horario_data["status"],
                         ativo=horario_data["ativo"],
                     )
-                    log_user_action(
-                        request=request,
-                        action=UserActionLog.ACTION_CREATE,
-                        instance=novo_horario,
-                        message="Horário de envio criado automaticamente.",
-                        extra={
-                            "tipo_envio": novo_horario.tipo_envio,
-                            "status": novo_horario.status,
-                            "ativo": novo_horario.ativo,
-                        },
-                    )
+                    novos_horarios.append(novo_horario)
+
+        # Log fora do bloco atomic para não corromper a transação em caso de falha
+        for novo_horario in novos_horarios:
+            log_user_action(
+                request=request,
+                action=UserActionLog.ACTION_CREATE,
+                instance=novo_horario,
+                message="Horário de envio criado automaticamente.",
+                extra={
+                    "tipo_envio": novo_horario.tipo_envio,
+                    "status": novo_horario.status,
+                    "ativo": novo_horario.ativo,
+                },
+            )
         horarios = HorarioEnvios.objects.filter(usuario=usuario)
         horarios_json = []
         for h in horarios:
@@ -4915,12 +5081,13 @@ def edit_referral_plan(request):
         {"tipo_plano": "anuidade", "valor": 0.00, "valor_minimo_mensalidade": 10.00, "limite_indicacoes": 0},
         {"tipo_plano": "desconto_progressivo", "valor": 0.00, "valor_minimo_mensalidade": 10.00, "limite_indicacoes": 0},
     ]
-    usuario = request.user
+    usuario = get_data_owner(request)
     sessao = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
     sessao_wpp = bool(sessao)
 
     if request.method == "GET":
         # Criação automática dos planos se não existirem
+        novos_planos = []
         with transaction.atomic():
             for plano_data in PLANOS_OBRIGATORIOS:
                 # Define se o plano é ativo por padrão (anuidade é inativo)
@@ -4937,21 +5104,25 @@ def edit_referral_plan(request):
                         status=False,
                         ativo=ativo,
                     )
-                    log_user_action(
-                        request=request,
-                        action=UserActionLog.ACTION_CREATE,
-                        instance=novo_plano,
-                        message="Plano de indicação criado automaticamente.",
-                        extra={
-                            "tipo_plano": novo_plano.tipo_plano,
-                            "valor": str(novo_plano.valor),
-                            "valor_minimo_mensalidade": str(novo_plano.valor_minimo_mensalidade),
-                            "status": novo_plano.status,
-                            "ativo": novo_plano.ativo,
-                        },
-                    )
+                    novos_planos.append(novo_plano)
 
-        planos = PlanoIndicacao.objects.filter(usuario=request.user, ativo=True)
+        # Log fora do bloco atomic para não corromper a transação em caso de falha
+        for novo_plano in novos_planos:
+            log_user_action(
+                request=request,
+                action=UserActionLog.ACTION_CREATE,
+                instance=novo_plano,
+                message="Plano de indicação criado automaticamente.",
+                extra={
+                    "tipo_plano": novo_plano.tipo_plano,
+                    "valor": str(novo_plano.valor),
+                    "valor_minimo_mensalidade": str(novo_plano.valor_minimo_mensalidade),
+                    "status": novo_plano.status,
+                    "ativo": novo_plano.ativo,
+                },
+            )
+
+        planos = PlanoIndicacao.objects.filter(usuario=usuario, ativo=True)
         planos_json = []
         for plano in planos:
             planos_json.append({
@@ -5166,9 +5337,10 @@ def create_app_account(request):
     dispositivo_id = request.POST.get('dispositivo_id')
     force_create = request.POST.get('force_create') == 'true'  # Prosseguir mesmo com aviso
 
-    app = get_object_or_404(Aplicativo, id=app_id, usuario=request.user)
-    cliente = get_object_or_404(Cliente, id=cliente_id, usuario=request.user)
-    dispositivo = get_object_or_404(Dispositivo, id=dispositivo_id, usuario=request.user)
+    owner = get_data_owner(request)
+    app = get_object_or_404(Aplicativo, id=app_id, usuario=owner)
+    cliente = get_object_or_404(Cliente, id=cliente_id, usuario=owner)
+    dispositivo = get_object_or_404(Dispositivo, id=dispositivo_id, usuario=owner)
 
     device_id = request.POST.get('device-id') or None
     device_key = request.POST.get('device-key') or None
@@ -5232,7 +5404,7 @@ def create_app_account(request):
         device_id=device_id,
         device_key=device_key,
         email=app_email,
-        usuario=request.user,
+        usuario=owner,
         is_principal=is_primeira_conta,  # Primeira conta = principal
     )
 
@@ -5926,7 +6098,7 @@ def cadastrar_cliente_basico(request):
     NÃO cria mensalidade nem envia mensagem de confirmação.
     O cliente fica com tem_assinatura=False até criar uma assinatura.
     """
-    usuario = request.user
+    usuario = get_data_owner(request)
     token = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
     page_group = "clientes"
     page = "cadastro-cliente"
@@ -6065,7 +6237,7 @@ def cadastrar_assinatura(request):
     - Envia mensagem de confirmação de pagamento
     - Processa indicação e descontos progressivos
     """
-    usuario = request.user
+    usuario = get_data_owner(request)
     token = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
     page_group = "clientes"
     page = "cadastro-assinatura"
@@ -6378,8 +6550,9 @@ def cadastrar_assinatura(request):
 # AÇÃO PARA CRIAR NOVO OBJETO PLANO MENSAL
 @login_required
 def create_payment_plan(request):
-    planos_mensalidades = Plano.objects.filter(usuario=request.user).order_by('nome', 'telas', 'valor')
-    usuario = request.user
+    owner = get_data_owner(request)
+    planos_mensalidades = Plano.objects.filter(usuario=owner).order_by('nome', 'telas', 'valor')
+    usuario = owner
     page_group = "nossopainel"
     page = "plano_adesao"
 
@@ -6498,8 +6671,9 @@ def create_payment_plan(request):
 # AÇÃO PARA CRIAR NOVO OBJETO SERVIDOR
 @login_required
 def create_server(request):
-    servidores = Servidor.objects.filter(usuario=request.user).order_by('nome')
-    usuario = request.user
+    owner = get_data_owner(request)
+    servidores = Servidor.objects.filter(usuario=owner).order_by('nome')
+    usuario = owner
     page_group = "nossopainel"
     page = "servidor"
 
@@ -6572,8 +6746,9 @@ def create_server(request):
 # ACAO PARA CRIAR NOVO OBJETO FORMA DE PAGAMENTO (TIPOS_PGTO) - Versao simples para usuarios comuns
 @login_required
 def create_payment_method(request):
-    formas_pgto = Tipos_pgto.objects.filter(usuario=request.user).annotate(clientes_count=Count('cliente')).order_by('nome')
-    usuario = request.user
+    owner = get_data_owner(request)
+    formas_pgto = Tipos_pgto.objects.filter(usuario=owner).annotate(clientes_count=Count('cliente')).order_by('nome')
+    usuario = owner
     page_group = "nossopainel"
     page = "forma_pgto"
 
@@ -7092,8 +7267,9 @@ def api_contas_bancarias(request):
     API JSON para listar contas bancárias do usuário.
     Retorna lista de contas ativas do usuário logado.
     """
+    owner = get_data_owner(request)
     contas = ContaBancaria.objects.filter(
-        usuario=request.user,
+        usuario=owner,
         ativo=True
     ).select_related('instituicao').order_by('nome_identificacao')
 
@@ -8102,11 +8278,12 @@ def gerar_cobranca_pix(request, mensalidade_id):
     from nossopainel.services.payment_integrations import get_payment_integration, PaymentIntegrationError
 
     try:
+        owner = get_data_owner(request)
         # Buscar mensalidade
         mensalidade = Mensalidade.objects.select_related(
             'cliente', 'cliente__forma_pgto', 'cliente__forma_pgto__conta_bancaria',
             'cliente__forma_pgto__conta_bancaria__instituicao'
-        ).get(id=mensalidade_id, usuario=request.user)
+        ).get(id=mensalidade_id, usuario=owner)
 
         # Verificar se já foi paga
         if mensalidade.data_pagamento:
@@ -8638,8 +8815,9 @@ def cancelar_cobranca_pix(request, cobranca_id):
 # AÇÃO PARA CRIAR NOVO OBJETO DISPOSITIVO
 @login_required
 def create_device(request):
-    dispositivos = Dispositivo.objects.filter(usuario=request.user).order_by('nome')
-    usuario = request.user
+    owner = get_data_owner(request)
+    dispositivos = Dispositivo.objects.filter(usuario=owner).order_by('nome')
+    usuario = owner
     page_group = "nossopainel"
     page = "dispositivo"
 
@@ -8701,8 +8879,9 @@ def create_device(request):
 # AÇÃO PARA CRIAR NOVO OBJETO APLICATIVO
 @login_required
 def create_app(request):
-    aplicativos = Aplicativo.objects.filter(usuario=request.user).order_by('nome')
-    usuario = request.user
+    owner = get_data_owner(request)
+    aplicativos = Aplicativo.objects.filter(usuario=owner).order_by('nome')
+    usuario = owner
     page_group = "nossopainel"
     page = "aplicativo"
 
@@ -8774,7 +8953,8 @@ def create_app(request):
 def delete_app_account(request, pk):
     if request.method == "DELETE":
         try:
-            conta_app = ContaDoAplicativo.objects.get(pk=pk, usuario=request.user)
+            owner = get_data_owner(request)
+            conta_app = ContaDoAplicativo.objects.get(pk=pk, usuario=owner)
 
             # ========== VALIDAÇÃO 1: Não pode deletar conta principal ==========
             if conta_app.is_principal:
@@ -8832,8 +9012,9 @@ def delete_app_account(request, pk):
 
 @login_required
 def delete_app(request, pk):
+    owner = get_data_owner(request)
     try:
-        aplicativo = Aplicativo.objects.get(pk=pk, usuario=request.user)
+        aplicativo = Aplicativo.objects.get(pk=pk, usuario=owner)
         log_extra = {"id": aplicativo.id, "nome": aplicativo.nome}
         aplicativo.delete()
         log_user_action(
@@ -8860,8 +9041,9 @@ def delete_app(request, pk):
 
 @login_required
 def delete_device(request, pk):
+    owner = get_data_owner(request)
     try:
-        dispositivo = Dispositivo.objects.get(pk=pk, usuario=request.user)
+        dispositivo = Dispositivo.objects.get(pk=pk, usuario=owner)
         log_extra = {"id": dispositivo.id, "nome": dispositivo.nome}
         dispositivo.delete()
         log_user_action(
@@ -8888,11 +9070,12 @@ def delete_device(request, pk):
 
 @login_required
 def delete_payment_method(request, pk):
+    owner = get_data_owner(request)
     try:
-        formapgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
+        formapgto = Tipos_pgto.objects.get(pk=pk, usuario=owner)
 
         # Verificar se existem clientes ATIVOS usando esta forma de pagamento
-        clientes_count = Cliente.objects.filter(forma_pgto=formapgto, usuario=request.user, cancelado=False).count()
+        clientes_count = Cliente.objects.filter(forma_pgto=formapgto, usuario=owner, cancelado=False).count()
         if clientes_count > 0:
             error_msg = f'Esta Forma de Pagamento não pode ser excluída pois possui {clientes_count} cliente(s) ativo(s) associado(s). Transfira os clientes para outra forma de pagamento antes de excluir.'
             return JsonResponse({'error_delete': error_msg}, status=400)
@@ -8938,8 +9121,9 @@ def delete_payment_method(request, pk):
 
 @login_required
 def delete_server(request, pk):
+    owner = get_data_owner(request)
     try:
-        servidor = Servidor.objects.get(pk=pk, usuario=request.user)
+        servidor = Servidor.objects.get(pk=pk, usuario=owner)
         log_extra = {"id": servidor.id, "nome": servidor.nome}
         servidor.delete()
         log_user_action(
@@ -8966,8 +9150,9 @@ def delete_server(request, pk):
 
 @login_required
 def delete_payment_plan(request, pk):
+    owner = get_data_owner(request)
     try:
-        plano_mensal = Plano.objects.get(pk=pk, usuario=request.user)
+        plano_mensal = Plano.objects.get(pk=pk, usuario=owner)
         log_extra = {"id": plano_mensal.id, "nome": plano_mensal.nome}
         plano_mensal.delete()
         log_user_action(
@@ -9037,7 +9222,7 @@ def evolucao_patrimonio(request):
     today_month = timezone.localdate().replace(day=1)
     months_list = []
 
-    historico_qs = ClientePlanoHistorico.objects.filter(usuario=request.user)
+    historico_qs = ClientePlanoHistorico.objects.filter(usuario=get_data_owner(request))
 
     if months_value is None:
         first_inicio = historico_qs.aggregate(Min('inicio'))['inicio__min']
@@ -9131,7 +9316,7 @@ def api_receita_anual(request):
     if periodo not in {'current', 'last5', 'all'}:
         periodo = 'current'
 
-    usuario = request.user
+    usuario = get_data_owner(request)
     hoje = timezone.localdate()
     ano_atual = hoje.year
 
@@ -13960,10 +14145,11 @@ def relatorio_pagamentos(request):
     except ValueError:
         data_fim = hoje
 
+    owner = get_data_owner(request)
     # ========== TRANSAÇÕES PIX ==========
     # Base query para todas as cobranças PIX do período
     cobrancas_pix_base = CobrancaPix.objects.filter(
-        usuario=request.user,
+        usuario=owner,
         criado_em__date__gte=data_inicio,
         criado_em__date__lte=data_fim
     ).select_related('cliente', 'mensalidade', 'conta_bancaria')
@@ -13986,7 +14172,7 @@ def relatorio_pagamentos(request):
     )
 
     pagamentos_manuais = Mensalidade.objects.filter(
-        cliente__usuario=request.user,
+        cliente__usuario=owner,
         pgto=True,
         dt_pagamento__isnull=False,
         dt_pagamento__gte=data_inicio,
@@ -14662,3 +14848,953 @@ def revendedor_criar(request):
         'message': f'Revendedor {user.username} criado com sucesso.',
         'user_id': user.id
     })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ATENDIMENTOS
+# ──────────────────────────────────────────────────────────────────────────────
+
+@login_required
+def listar_categorias_atendimento(request):
+    """Retorna as categorias de atendimento ativas (globais)."""
+    categorias = CategoriaAtendimento.objects.filter(
+        ativo=True
+    ).values('id', 'nome', 'cor')
+    return JsonResponse(list(categorias), safe=False)
+
+
+@login_required
+def listar_tipos_atendimento(request):
+    """Retorna os tipos de atendimento ativos de uma categoria, filtrados por categoria_id."""
+    categoria_id = request.GET.get('categoria_id')
+    if not categoria_id:
+        return JsonResponse([], safe=False)
+    tipos = TipoAtendimento.objects.filter(
+        categoria_id=categoria_id,
+        ativo=True,
+    ).values('id', 'nome')
+    return JsonResponse(list(tipos), safe=False)
+
+
+@login_required
+def criar_categoria_atendimento(request):
+    """Cria uma nova categoria de atendimento. Restrito a superusuários."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Permissão negada.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método não permitido.'}, status=405)
+
+    nome = request.POST.get('nome', '').strip()
+    if not nome:
+        return JsonResponse({'error': 'O nome é obrigatório.'}, status=400)
+
+    cor = request.POST.get('cor', '#0dcaf0').strip()
+    categoria, created = CategoriaAtendimento.objects.get_or_create(
+        nome=nome,
+        defaults={'ativo': True, 'cor': cor},
+    )
+    return JsonResponse({'success': True, 'id': categoria.id, 'nome': categoria.nome, 'cor': categoria.cor, 'created': created})
+
+
+@login_required
+def criar_tipo_atendimento(request):
+    """Cria um novo tipo de atendimento vinculado a uma categoria. Restrito a superusuários."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Permissão negada.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método não permitido.'}, status=405)
+
+    nome = request.POST.get('nome', '').strip()
+    categoria_id = request.POST.get('categoria_id')
+    if not nome or not categoria_id:
+        return JsonResponse({'error': 'Nome e categoria são obrigatórios.'}, status=400)
+
+    try:
+        categoria = CategoriaAtendimento.objects.get(id=categoria_id)
+    except CategoriaAtendimento.DoesNotExist:
+        return JsonResponse({'error': 'Categoria não encontrada.'}, status=404)
+
+    tipo, created = TipoAtendimento.objects.get_or_create(
+        nome=nome,
+        categoria=categoria,
+        defaults={'ativo': True},
+    )
+    return JsonResponse({'success': True, 'id': tipo.id, 'nome': tipo.nome, 'created': created})
+
+
+@login_required
+def registrar_atendimento(request):
+    """Registra um atendimento realizado com um cliente."""
+    if request.method != 'POST':
+        return JsonResponse({'error_message': 'Método não permitido.'}, status=405)
+
+    cliente_id   = request.POST.get('cliente_id')
+    categoria_id = request.POST.get('categoria_id')
+    tipo_id      = request.POST.get('tipo_id')
+    status       = request.POST.get('status', '').strip()
+    detalhes     = request.POST.get('detalhes', '').strip()
+
+    STATUS_VALIDOS = [RegistroAtendimento.STATUS_PENDENTE, RegistroAtendimento.STATUS_RESOLVIDO]
+
+    # Validações básicas
+    if not all([cliente_id, categoria_id, tipo_id, status, detalhes]):
+        return JsonResponse({'error_message': 'Preencha todos os campos obrigatórios.'}, status=400)
+
+    owner = get_data_owner(request)
+    try:
+        cliente = Cliente.objects.get(id=cliente_id, usuario=owner)
+    except Cliente.DoesNotExist:
+        return JsonResponse({'error_message': 'Cliente não encontrado.'}, status=404)
+
+    try:
+        categoria = CategoriaAtendimento.objects.get(id=categoria_id, ativo=True)
+    except CategoriaAtendimento.DoesNotExist:
+        return JsonResponse({'error_message': 'Categoria não encontrada.'}, status=404)
+
+    try:
+        tipo = TipoAtendimento.objects.get(id=tipo_id, categoria=categoria, ativo=True)
+    except TipoAtendimento.DoesNotExist:
+        return JsonResponse({'error_message': 'Tipo não encontrado ou não pertence à categoria selecionada.'}, status=404)
+
+    if status not in STATUS_VALIDOS:
+        return JsonResponse({'error_message': 'Status inválido.'}, status=400)
+
+    atendimento = RegistroAtendimento.objects.create(
+        cliente=cliente,
+        usuario=request.user,
+        categoria=categoria,
+        tipo=tipo,
+        status=status,
+        detalhes=detalhes,
+    )
+
+    # Salva até 3 imagens
+    imagens = request.FILES.getlist('imagens')
+    for imagem in imagens[:3]:
+        AtendimentoImagem.objects.create(atendimento=atendimento, imagem=imagem)
+
+    try:
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_CREATE,
+            instance=atendimento,
+            message=f'Atendimento registrado para {cliente.nome}: {categoria} / {tipo}.',
+            extra={'cliente_id': cliente.id, 'categoria': str(categoria), 'tipo': str(tipo)},
+        )
+    except Exception as e:
+        logger.error('[ATENDIMENTO] Erro ao registrar log: %s', e, exc_info=True)
+
+    return JsonResponse({'success_message': 'Atendimento registrado com sucesso!'})
+
+
+@login_required
+def historico_atendimentos(request, cliente_id):
+    """Retorna o histórico de atendimentos de um cliente em JSON."""
+    owner = get_data_owner(request)
+    try:
+        cliente = Cliente.objects.get(id=cliente_id, usuario=owner)
+    except Cliente.DoesNotExist:
+        return JsonResponse({'error': 'Cliente não encontrado.'}, status=404)
+
+    atendimentos = RegistroAtendimento.objects.filter(
+        cliente=cliente
+    ).select_related('categoria', 'tipo', 'usuario').prefetch_related('imagens')
+
+    data = []
+    for a in atendimentos:
+        data.append({
+            'id': a.id,
+            'criado_em': timezone.localtime(a.criado_em).strftime('%d/%m/%Y %H:%M'),
+            'categoria': str(a.categoria),
+            'categoria_cor': a.categoria.cor,
+            'tipo': str(a.tipo),
+            'status': a.status,
+            'detalhes': a.detalhes,
+            'usuario': a.usuario.get_full_name() or a.usuario.username,
+            'imagens': [img.imagem.url for img in a.imagens.all()],
+        })
+
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+def listar_atendimentos_dashboard(request):
+    """Lista todos os atendimentos do usuário para a aba Atendimentos do dashboard."""
+    from django.core.paginator import Paginator
+
+    ATEND_SORT_FIELDS = {
+        'cliente__nome': 'cliente__nome',
+        'categoria__nome': 'categoria__nome',
+        'tipo__nome': 'tipo__nome',
+        'status': 'status',
+        'criado_em': 'criado_em',
+        'usuario__username': 'usuario__username',
+    }
+
+    q = request.GET.get('q', '').strip()
+    status_filtro = request.GET.get('status', '').strip()
+    categoria_id = request.GET.get('categoria_id', '').strip()
+    data_inicio = request.GET.get('data_inicio', '').strip()
+    data_fim = request.GET.get('data_fim', '').strip()
+    sort = request.GET.get('sort', 'criado_em')
+    order = request.GET.get('order', 'desc')
+    page = request.GET.get('page', 1)
+    per_page_raw = request.GET.get('per_page', '')
+
+    try:
+        per_page = int(per_page_raw)
+        if per_page not in PAGINATION_OPTIONS:
+            per_page = DEFAULT_PAGINATION
+    except (ValueError, TypeError):
+        per_page = DEFAULT_PAGINATION
+
+    sort_field = ATEND_SORT_FIELDS.get(sort, 'criado_em')
+    if order == 'asc':
+        order_expr = sort_field
+    else:
+        order_expr = f'-{sort_field}'
+
+    owner = get_data_owner(request)
+    qs = (
+        RegistroAtendimento.objects
+        .select_related('cliente', 'categoria', 'tipo', 'usuario')
+        .filter(cliente__usuario=owner)
+    )
+
+    if q:
+        import unicodedata as _ud
+        q_norm = _ud.normalize('NFKD', q).encode('ascii', 'ignore').decode('ascii').lower()
+        qs = qs.filter(
+            Q(cliente__nome_normalizado__icontains=q_norm) |
+            Q(cliente__nome__icontains=q)
+        )
+
+    if status_filtro in [RegistroAtendimento.STATUS_PENDENTE, RegistroAtendimento.STATUS_RESOLVIDO]:
+        qs = qs.filter(status=status_filtro)
+
+    if categoria_id:
+        qs = qs.filter(categoria_id=categoria_id)
+
+    if data_inicio:
+        dt_ini = parse_date(data_inicio)
+        if dt_ini:
+            qs = qs.filter(criado_em__date__gte=dt_ini)
+
+    if data_fim:
+        dt_fim = parse_date(data_fim)
+        if dt_fim:
+            qs = qs.filter(criado_em__date__lte=dt_fim)
+
+    qs = qs.order_by(order_expr)
+
+    paginator = Paginator(qs, per_page)
+    try:
+        page_obj = paginator.page(page)
+    except Exception:
+        page_obj = paginator.page(1)
+
+    categorias = CategoriaAtendimento.objects.filter(ativo=True).order_by('nome')
+
+    pendentes_count = RegistroAtendimento.objects.filter(
+        cliente__usuario=owner,
+        status=RegistroAtendimento.STATUS_PENDENTE,
+    ).count()
+
+    context = {
+        'atendimentos': page_obj,
+        'page_obj': page_obj,
+        'categorias_filtro': categorias,
+        'pagination_options': PAGINATION_OPTIONS,
+        'current_per_page': per_page,
+        'sort': sort,
+        'order': order,
+        'pendentes_count': pendentes_count,
+    }
+    return render(request, 'partials/table-atendimentos.html', context)
+
+
+@login_required
+def ver_atendimento(request):
+    """Retorna os detalhes de um atendimento em JSON."""
+    atend_id = request.GET.get('id')
+    if not atend_id:
+        return JsonResponse({'error': 'ID não informado.'}, status=400)
+
+    try:
+        a = RegistroAtendimento.objects.select_related(
+            'cliente', 'categoria', 'tipo', 'usuario'
+        ).prefetch_related('imagens').get(id=atend_id)
+    except RegistroAtendimento.DoesNotExist:
+        return JsonResponse({'error': 'Atendimento não encontrado.'}, status=404)
+
+    # Verifica acesso: cliente deve pertencer ao owner do usuário logado
+    owner = get_data_owner(request)
+    if not request.user.is_superuser and a.cliente.usuario != owner:
+        return JsonResponse({'error': 'Acesso negado.'}, status=403)
+
+    return JsonResponse({
+        'id': a.id,
+        'cliente_nome': a.cliente.nome,
+        'categoria_id': a.categoria.id,
+        'categoria_nome': a.categoria.nome,
+        'categoria_cor': a.categoria.cor,
+        'tipo_id': a.tipo.id,
+        'tipo_nome': a.tipo.nome,
+        'status': a.status,
+        'detalhes': a.detalhes,
+        'criado_em': timezone.localtime(a.criado_em).strftime('%d/%m/%Y %H:%M'),
+        'registrado_por': a.usuario.get_full_name() or a.usuario.username,
+        'imagens': [img.imagem.url for img in a.imagens.all()],
+    })
+
+
+@login_required
+def editar_atendimento(request):
+    """Edita um atendimento existente."""
+    if request.method != 'POST':
+        return JsonResponse({'error_message': 'Método não permitido.'}, status=405)
+
+    atend_id = request.POST.get('id')
+    categoria_id = request.POST.get('categoria_id')
+    tipo_id = request.POST.get('tipo_id')
+    status = request.POST.get('status', '').strip()
+    detalhes = request.POST.get('detalhes', '').strip()
+
+    STATUS_VALIDOS = [RegistroAtendimento.STATUS_PENDENTE, RegistroAtendimento.STATUS_RESOLVIDO]
+
+    if not all([atend_id, categoria_id, tipo_id, status, detalhes]):
+        return JsonResponse({'error_message': 'Preencha todos os campos obrigatórios.'}, status=400)
+
+    try:
+        atendimento = RegistroAtendimento.objects.select_related('cliente', 'categoria', 'tipo').get(id=atend_id)
+    except RegistroAtendimento.DoesNotExist:
+        return JsonResponse({'error_message': 'Atendimento não encontrado.'}, status=404)
+
+    owner = get_data_owner(request)
+    if not request.user.is_superuser and atendimento.cliente.usuario != owner:
+        return JsonResponse({'error_message': 'Acesso negado.'}, status=403)
+
+    if atendimento.status == RegistroAtendimento.STATUS_RESOLVIDO:
+        return JsonResponse({'error_message': 'Atendimentos resolvidos não podem ser editados.'}, status=400)
+
+    try:
+        categoria = CategoriaAtendimento.objects.get(id=categoria_id, ativo=True)
+    except CategoriaAtendimento.DoesNotExist:
+        return JsonResponse({'error_message': 'Categoria não encontrada.'}, status=404)
+
+    try:
+        tipo = TipoAtendimento.objects.get(id=tipo_id, categoria=categoria, ativo=True)
+    except TipoAtendimento.DoesNotExist:
+        return JsonResponse({'error_message': 'Tipo não encontrado ou não pertence à categoria selecionada.'}, status=404)
+
+    if status not in STATUS_VALIDOS:
+        return JsonResponse({'error_message': 'Status inválido.'}, status=400)
+
+    atendimento.categoria = categoria
+    atendimento.tipo = tipo
+    atendimento.status = status
+    atendimento.detalhes = detalhes
+    atendimento.save()
+
+    try:
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=atendimento,
+            message=f'Atendimento #{atendimento.id} editado: {categoria} / {tipo}.',
+            extra={'categoria': str(categoria), 'tipo': str(tipo), 'status': status},
+        )
+    except Exception as e:
+        logger.error('[ATENDIMENTO] Erro ao registrar log de edição: %s', e, exc_info=True)
+
+    return JsonResponse({'success_message': 'Atendimento atualizado com sucesso!'})
+
+
+@login_required
+def marcar_atendimento_resolvido(request):
+    """Marca um atendimento pendente como resolvido."""
+    if request.method != 'POST':
+        return JsonResponse({'error_message': 'Método não permitido.'}, status=405)
+
+    atend_id = request.POST.get('id')
+    if not atend_id:
+        return JsonResponse({'error_message': 'ID não informado.'}, status=400)
+
+    try:
+        atendimento = RegistroAtendimento.objects.select_related('cliente', 'categoria', 'tipo').get(id=atend_id)
+    except RegistroAtendimento.DoesNotExist:
+        return JsonResponse({'error_message': 'Atendimento não encontrado.'}, status=404)
+
+    owner = get_data_owner(request)
+    if not request.user.is_superuser and atendimento.cliente.usuario != owner:
+        return JsonResponse({'error_message': 'Acesso negado.'}, status=403)
+
+    if atendimento.status == RegistroAtendimento.STATUS_RESOLVIDO:
+        return JsonResponse({'error_message': 'Este atendimento já está resolvido.'}, status=400)
+
+    atendimento.status = RegistroAtendimento.STATUS_RESOLVIDO
+    atendimento.save(update_fields=['status'])
+
+    try:
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=atendimento,
+            message=f'Atendimento #{atendimento.id} marcado como resolvido.',
+            extra={'cliente': atendimento.cliente.nome, 'categoria': str(atendimento.categoria)},
+        )
+    except Exception as e:
+        logger.error('[ATENDIMENTO] Erro ao registrar log de resolução: %s', e, exc_info=True)
+
+    return JsonResponse({'success_message': 'Atendimento marcado como resolvido!'})
+
+
+# =============================================================================
+# ATENDENTES — Gestão de sub-usuários com permissões configuráveis
+# =============================================================================
+
+@login_required
+def atendentes_page(request):
+    """Página principal de gestão de atendentes."""
+    if request.is_atendente:
+        return redirect('dashboard')
+    return render(request, 'pages/atendentes.html', {
+        'page': 'atendentes',
+        'page_group': 'atendentes',
+    })
+
+
+@login_required
+def atendentes_lista(request):
+    """AJAX: retorna fragmento HTML com a tabela de atendentes do owner."""
+    if request.is_atendente:
+        return JsonResponse({'error': 'Acesso negado.'}, status=403)
+
+    from django.core.paginator import Paginator
+
+    q = request.GET.get('q', '').strip()
+    page = request.GET.get('page', 1)
+    per_page = int(request.GET.get('per_page', 10))
+
+    qs = PerfilAtendente.objects.filter(owner=request.user).select_related('user', 'permissoes').order_by('user__first_name', 'user__username')
+
+    if q:
+        from django.db.models import Q
+        qs = qs.filter(
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q) |
+            Q(user__username__icontains=q) |
+            Q(user__email__icontains=q)
+        )
+
+    paginator = Paginator(qs, per_page)
+    atendentes = paginator.get_page(page)
+
+    return render(request, 'partials/table-lista-atendentes.html', {
+        'atendentes': atendentes,
+        'per_page': per_page,
+    })
+
+
+def _validar_e_parsear_horario(data):
+    """Valida e converte os campos de horário de expediente do payload JSON.
+    Retorna (erro_str | None, dict_campos).
+    """
+    from datetime import time as _time
+
+    def parse_time(val):
+        if not val:
+            return None
+        try:
+            h, m = val.strip().split(':')
+            return _time(int(h), int(m))
+        except (ValueError, AttributeError):
+            return None
+
+    hi_raw = data.get('horario_inicio') or ''
+    hf_raw = data.get('horario_fim') or ''
+    tem    = bool(data.get('tem_intervalo'))
+    ii_raw = data.get('intervalo_inicio') or ''
+    if_raw = data.get('intervalo_fim') or ''
+
+    hi = parse_time(hi_raw)
+    hf = parse_time(hf_raw)
+
+    if not hi or not hf:
+        return 'Horário de início e fim do expediente são obrigatórios.', {}
+    if hf <= hi:
+        return 'O horário de fim deve ser posterior ao de início.', {}
+
+    ii = if_ = None
+    if tem:
+        ii = parse_time(ii_raw)
+        if_ = parse_time(if_raw)
+        if not ii or not if_:
+            return 'Informe os horários de início e fim do intervalo.', {}
+        if not (hi < ii < if_ < hf):
+            return 'Os horários do intervalo devem estar dentro do expediente (início < início-intervalo < fim-intervalo < fim).', {}
+
+    return None, {
+        'horario_inicio':   hi,
+        'horario_fim':      hf,
+        'tem_intervalo':    tem,
+        'intervalo_inicio': ii,
+        'intervalo_fim':    if_,
+    }
+
+
+@login_required
+@require_http_methods(["POST"])
+def criar_atendente(request):
+    """Cria um novo atendente (Django User + PerfilAtendente + PermissoesAtendente)."""
+    if request.is_atendente:
+        return JsonResponse({'error_message': 'Acesso negado.'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error_message': 'Dados inválidos.'}, status=400)
+
+    first_name = data.get('first_name', '').strip()
+    last_name  = data.get('last_name', '').strip()
+    username   = data.get('username', '').strip()
+    email      = data.get('email', '').strip()
+    password   = data.get('password', '')
+    password2  = data.get('password2', '')
+
+    if not all([first_name, username, password]):
+        return JsonResponse({'error_message': 'Nome, usuário e senha são obrigatórios.'}, status=400)
+
+    if password != password2:
+        return JsonResponse({'error_message': 'As senhas não coincidem.'}, status=400)
+
+    if len(password) < 6:
+        return JsonResponse({'error_message': 'A senha deve ter no mínimo 6 caracteres.'}, status=400)
+
+    if User.objects.filter(username=username).exists():
+        return JsonResponse({'error_message': 'Este nome de usuário já está em uso.'}, status=400)
+
+    if email and User.objects.filter(email=email).exists():
+        return JsonResponse({'error_message': 'Este e-mail já está em uso.'}, status=400)
+
+    # Limite de atendentes por conta
+    MAX_ATENDENTES = 10
+    if PerfilAtendente.objects.filter(owner=request.user).count() >= MAX_ATENDENTES:
+        return JsonResponse({'error_message': f'Limite de {MAX_ATENDENTES} atendentes atingido.'}, status=400)
+
+    # Validação e parse do horário de expediente
+    horario_err, horario_fields = _validar_e_parsear_horario(data)
+    if horario_err:
+        return JsonResponse({'error_message': horario_err}, status=400)
+
+    user = User.objects.create_user(
+        username=username,
+        email=email,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        is_staff=False,
+        is_superuser=False,
+    )
+    perfil = PerfilAtendente.objects.create(user=user, owner=request.user, **horario_fields)
+
+    PERM_FIELDS = [
+        'nav_clientes', 'nav_cadastros', 'nav_whatsapp',
+        'nav_relatorios', 'nav_logs', 'nav_configuracoes',
+        'perfil_estatisticas', 'perfil_exportar',
+        'dash_card_clientes', 'dash_card_recebido', 'dash_card_a_receber',
+        'dash_card_planos', 'dash_card_adesao', 'dash_card_estados', 'dash_card_servidor',
+        'dash_tab_evolucao', 'dash_tab_adesao', 'dash_tab_receita',
+    ]
+    permissoes_data = data.get('permissoes') if isinstance(data.get('permissoes'), dict) else {}
+    perm_kwargs = {f: bool(permissoes_data.get(f)) for f in PERM_FIELDS}
+    PermissoesAtendente.objects.create(atendente=perfil, **perm_kwargs)
+
+    try:
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_CREATE,
+            instance=perfil,
+            message=f'Atendente criado: {username}',
+        )
+    except Exception as e:
+        logger.error('[ATENDENTE] Erro ao registrar log: %s', e, exc_info=True)
+
+    return JsonResponse({'success_message': f'Atendente {first_name} ({username}) criado com sucesso!'})
+
+
+@login_required
+def editar_atendente_permissoes(request, atendente_id):
+    """GET: retorna permissões atuais. POST: atualiza as permissões de um atendente."""
+    if request.is_atendente:
+        return JsonResponse({'error_message': 'Acesso negado.'}, status=403)
+
+    perfil = get_object_or_404(PerfilAtendente, id=atendente_id, owner=request.user)
+
+    if request.method == 'GET':
+        permissoes = perfil.permissoes
+        campos = [
+            'nav_clientes', 'nav_cadastros', 'nav_whatsapp',
+            'nav_relatorios', 'nav_logs', 'nav_configuracoes',
+            'perfil_estatisticas', 'perfil_exportar',
+            'dash_card_clientes', 'dash_card_recebido', 'dash_card_a_receber',
+            'dash_card_planos', 'dash_card_adesao', 'dash_card_estados', 'dash_card_servidor',
+            'dash_tab_evolucao', 'dash_tab_adesao', 'dash_tab_receita',
+        ]
+        return JsonResponse({
+            'nome': perfil.user.get_full_name() or perfil.user.username,
+            'permissoes': {campo: getattr(permissoes, campo) for campo in campos},
+        })
+
+    if request.method != 'POST':
+        return JsonResponse({'error_message': 'Método não permitido.'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error_message': 'Dados inválidos.'}, status=400)
+
+    permissoes = perfil.permissoes
+
+    campos = [
+        'nav_clientes', 'nav_cadastros', 'nav_whatsapp',
+        'nav_relatorios', 'nav_logs', 'nav_configuracoes',
+        'perfil_estatisticas', 'perfil_exportar',
+        'dash_card_clientes', 'dash_card_recebido', 'dash_card_a_receber',
+        'dash_card_planos', 'dash_card_adesao', 'dash_card_estados', 'dash_card_servidor',
+        'dash_tab_evolucao', 'dash_tab_adesao', 'dash_tab_receita',
+    ]
+
+    for campo in campos:
+        setattr(permissoes, campo, bool(data.get(campo, False)))
+
+    permissoes.save()
+
+    try:
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=perfil,
+            message=f'Permissões atualizadas para atendente: {perfil.user.username}',
+        )
+    except Exception as e:
+        logger.error('[ATENDENTE] Erro ao registrar log: %s', e, exc_info=True)
+
+    return JsonResponse({'success_message': 'Permissões atualizadas com sucesso!'})
+
+
+@login_required
+@require_http_methods(["POST"])
+def toggle_atendente(request, atendente_id):
+    """Ativa ou desativa um atendente."""
+    if request.is_atendente:
+        return JsonResponse({'error': 'Acesso negado.'}, status=403)
+
+    perfil = get_object_or_404(PerfilAtendente, id=atendente_id, owner=request.user)
+    perfil.ativo = not perfil.ativo
+    perfil.save(update_fields=['ativo'])
+
+    # Também reflete no Django User (ativo/inativo = login permitido)
+    perfil.user.is_active = perfil.ativo
+    perfil.user.save(update_fields=['is_active'])
+
+    estado = 'ativado' if perfil.ativo else 'desativado'
+    return JsonResponse({'success': True, 'ativo': perfil.ativo, 'success_message': f'Atendente {estado} com sucesso!'})
+
+
+@login_required
+@require_http_methods(["POST"])
+def deletar_atendente(request, atendente_id):
+    """Remove um atendente e seu usuário Django."""
+    if request.is_atendente:
+        return JsonResponse({'error_message': 'Acesso negado.'}, status=403)
+
+    perfil = get_object_or_404(PerfilAtendente, id=atendente_id, owner=request.user)
+    nome = perfil.user.get_full_name() or perfil.user.username
+    username = perfil.user.username
+
+    try:
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_DELETE,
+            instance=perfil,
+            message=f'Atendente removido: {username}',
+        )
+    except Exception as e:
+        logger.error('[ATENDENTE] Erro ao registrar log: %s', e, exc_info=True)
+
+    # Remover registros com on_delete=PROTECT que possam ter sido criados para este user
+    PlanoIndicacao.objects.filter(usuario=perfil.user).delete()
+    HorarioEnvios.objects.filter(usuario=perfil.user).delete()
+
+    try:
+        # Deletar o user apaga o PerfilAtendente em cascata
+        perfil.user.delete()
+    except Exception as e:
+        logger.error('[ATENDENTE] Erro ao deletar user do atendente: %s', e, exc_info=True)
+        return JsonResponse({'error_message': 'Não foi possível remover o atendente. Ele pode ter dados vinculados no sistema.'}, status=400)
+
+    return JsonResponse({'success_message': f'Atendente {nome} removido com sucesso.'})
+
+
+@login_required
+def editar_atendente_dados(request, atendente_id):
+    """GET: retorna dados do atendente. POST: atualiza dados e, opcionalmente, senha."""
+    if request.is_atendente:
+        return JsonResponse({'error_message': 'Acesso negado.'}, status=403)
+
+    perfil = get_object_or_404(PerfilAtendente, id=atendente_id, owner=request.user)
+    user = perfil.user
+
+    if request.method == 'GET':
+        fmt = lambda t: t.strftime('%H:%M') if t else None
+        return JsonResponse({
+            'first_name':      user.first_name,
+            'last_name':       user.last_name,
+            'username':        user.username,
+            'email':           user.email,
+            'horario_inicio':  fmt(perfil.horario_inicio),
+            'horario_fim':     fmt(perfil.horario_fim),
+            'tem_intervalo':   perfil.tem_intervalo,
+            'intervalo_inicio': fmt(perfil.intervalo_inicio),
+            'intervalo_fim':   fmt(perfil.intervalo_fim),
+        })
+
+    if request.method != 'POST':
+        return JsonResponse({'error_message': 'Método não permitido.'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error_message': 'Dados inválidos.'}, status=400)
+
+    first_name = data.get('first_name', '').strip()
+    last_name  = data.get('last_name', '').strip()
+    username   = data.get('username', '').strip()
+    email      = data.get('email', '').strip()
+    nova_senha  = data.get('nova_senha', '')
+    nova_senha2 = data.get('nova_senha2', '')
+
+    if not first_name or not username:
+        return JsonResponse({'error_message': 'Nome e usuário são obrigatórios.'}, status=400)
+
+    # Verificar duplicidade de username (excluindo o próprio usuário)
+    if User.objects.filter(username=username).exclude(pk=user.pk).exists():
+        return JsonResponse({'error_message': 'Este nome de usuário já está em uso.'}, status=400)
+
+    # Verificar duplicidade de email (excluindo o próprio usuário)
+    if email and User.objects.filter(email=email).exclude(pk=user.pk).exists():
+        return JsonResponse({'error_message': 'Este e-mail já está em uso.'}, status=400)
+
+    if nova_senha:
+        if nova_senha != nova_senha2:
+            return JsonResponse({'error_message': 'As senhas não coincidem.'}, status=400)
+        if len(nova_senha) < 6:
+            return JsonResponse({'error_message': 'A senha deve ter no mínimo 6 caracteres.'}, status=400)
+        user.set_password(nova_senha)
+
+    # Validação e parse do horário de expediente
+    horario_err, horario_fields = _validar_e_parsear_horario(data)
+    if horario_err:
+        return JsonResponse({'error_message': horario_err}, status=400)
+
+    user.first_name = first_name
+    user.last_name  = last_name
+    user.username   = username
+    user.email      = email
+    user.save()
+
+    for field, value in horario_fields.items():
+        setattr(perfil, field, value)
+    perfil.save(update_fields=list(horario_fields.keys()))
+
+    try:
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_UPDATE,
+            instance=perfil,
+            message=f'Dados do atendente atualizados: {username}',
+        )
+    except Exception as e:
+        logger.error('[ATENDENTE] Erro ao registrar log: %s', e, exc_info=True)
+
+    return JsonResponse({'success_message': 'Dados atualizados com sucesso!'})
+
+
+@login_required
+@require_GET
+def api_timeline_atendente(request, atendente_id):
+    """Retorna logs individuais do atendente para um dia específico (scatter por hora x minuto)."""
+    if request.is_atendente:
+        return JsonResponse({'error': 'Acesso negado.'}, status=403)
+
+    import calendar as cal
+
+    perfil = get_object_or_404(PerfilAtendente, id=atendente_id, owner=request.user)
+
+    today = timezone.localdate()
+    try:
+        day   = int(request.GET.get('day',   today.day))
+        month = int(request.GET.get('month', today.month))
+        year  = int(request.GET.get('year',  today.year))
+        if not (1 <= month <= 12 and 1900 <= year <= 2100):
+            raise ValueError
+        days_in_month = cal.monthrange(year, month)[1]
+        if not (1 <= day <= days_in_month):
+            day = today.day if (today.month == month and today.year == year) else 1
+    except (ValueError, TypeError):
+        day, month, year = today.day, today.month, today.year
+        days_in_month = cal.monthrange(year, month)[1]
+
+    sem_horario = not perfil.horario_inicio or not perfil.horario_fim
+
+    logs_qs = UserActionLog.objects.filter(
+        usuario=perfil.user,
+        criado_em__year=year,
+        criado_em__month=month,
+        criado_em__day=day,
+    ).order_by('criado_em')
+
+    fmt_t = lambda t: t.strftime('%H:%M') if t else None
+
+    logs_data = []
+    for log in logs_qs:
+        local_dt = timezone.localtime(log.criado_em)
+        logs_data.append({
+            'hora':        local_dt.hour,
+            'minuto':      local_dt.minute,
+            'acao':        log.acao,
+            'acao_label':  log.get_acao_display(),
+            'entidade':    log.entidade or '',
+            'objeto_repr': log.objeto_repr or '',
+            'mensagem':    log.mensagem or '',
+        })
+
+    return JsonResponse({
+        'sem_horario':      sem_horario,
+        'horario_inicio':   fmt_t(perfil.horario_inicio),
+        'horario_fim':      fmt_t(perfil.horario_fim),
+        'tem_intervalo':    perfil.tem_intervalo,
+        'intervalo_inicio': fmt_t(perfil.intervalo_inicio),
+        'intervalo_fim':    fmt_t(perfil.intervalo_fim),
+        'day':              day,
+        'month':            month,
+        'year':             year,
+        'days_in_month':    days_in_month,
+        'logs':             logs_data,
+    })
+
+
+@login_required
+@require_GET
+def api_periodos_produtividade(request):
+    """Retorna os anos e meses que possuem clientes cadastrados (data_adesao) para o owner."""
+    if request.is_atendente:
+        return JsonResponse({'error': 'Acesso negado.'}, status=403)
+
+    owner = get_data_owner(request)
+
+    datas = (
+        Cliente.objects
+        .filter(usuario=owner)
+        .dates('data_adesao', 'month', order='DESC')
+    )
+
+    periodos = {}
+    for d in datas:
+        periodos.setdefault(d.year, []).append(d.month)
+
+    today = timezone.localdate()
+    return JsonResponse({
+        'periodos': periodos,
+        'current': {'year': today.year, 'month': today.month},
+    })
+
+
+def api_produtividade_atendentes(request):
+    """Retorna cadastros de clientes por atendente.
+    mode=monthly → por dia no mês (padrão)
+    mode=annual  → por mês no ano
+    """
+    if request.is_atendente:
+        return JsonResponse({'error': 'Acesso negado.'}, status=403)
+
+    import calendar as cal
+    from django.db.models import Count as _Count
+
+    today = timezone.localdate()
+    mode = request.GET.get('mode', 'monthly')
+
+    try:
+        year = int(request.GET.get('year', today.year))
+        if not (1900 <= year <= 2100):
+            raise ValueError
+    except (ValueError, TypeError):
+        year = today.year
+
+    atendentes_qs = PerfilAtendente.objects.filter(
+        owner=request.user, ativo=True
+    ).select_related('user')
+
+    if mode == 'annual':
+        labels = list(range(1, 13))  # meses 1-12
+        result = []
+        for perfil in atendentes_qs:
+            logs = (
+                UserActionLog.objects
+                .filter(
+                    usuario=perfil.user,
+                    acao=UserActionLog.ACTION_CREATE,
+                    entidade='Cliente',
+                    criado_em__year=year,
+                )
+                .values('criado_em__month')
+                .annotate(total=_Count('id'))
+            )
+            month_counts = {row['criado_em__month']: row['total'] for row in logs}
+            data = [month_counts.get(m, 0) for m in labels]
+            result.append({
+                'nome':     perfil.user.get_full_name() or perfil.user.username,
+                'username': perfil.user.username,
+                'data':     data,
+                'total':    sum(data),
+            })
+        result.sort(key=lambda x: x['total'], reverse=True)
+        return JsonResponse({'mode': 'annual', 'labels': labels, 'year': year, 'atendentes': result})
+
+    # mode == monthly
+    try:
+        month = int(request.GET.get('month', today.month))
+        if not (1 <= month <= 12):
+            raise ValueError
+    except (ValueError, TypeError):
+        month = today.month
+
+    days_in_month = cal.monthrange(year, month)[1]
+    days = list(range(1, days_in_month + 1))
+
+    result = []
+    for perfil in atendentes_qs:
+        logs = (
+            UserActionLog.objects
+            .filter(
+                usuario=perfil.user,
+                acao=UserActionLog.ACTION_CREATE,
+                entidade='Cliente',
+                criado_em__year=year,
+                criado_em__month=month,
+            )
+            .values('criado_em__day')
+            .annotate(total=_Count('id'))
+        )
+        day_counts = {row['criado_em__day']: row['total'] for row in logs}
+        data = [day_counts.get(d, 0) for d in days]
+        result.append({
+            'nome':     perfil.user.get_full_name() or perfil.user.username,
+            'username': perfil.user.username,
+            'data':     data,
+            'total':    sum(data),
+        })
+
+    result.sort(key=lambda x: x['total'], reverse=True)
+    return JsonResponse({'mode': 'monthly', 'days': days, 'month': month, 'year': year, 'atendentes': result})

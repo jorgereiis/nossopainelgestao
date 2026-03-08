@@ -2,6 +2,7 @@
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from functools import wraps
 from pathlib import Path
 import logging
 import os
@@ -45,6 +46,40 @@ DIR_LOGS_INDICACOES = os.getenv("DIR_LOGS_INDICACOES")
 TEMPLATE_LOG_MSG_SUCESSO = os.getenv("TEMPLATE_LOG_MSG_SUCESSO")
 TEMPLATE_LOG_MSG_FALHOU = os.getenv("TEMPLATE_LOG_MSG_FALHOU")
 TEMPLATE_LOG_TELEFONE_INVALIDO = os.getenv("TEMPLATE_LOG_TELEFONE_INVALIDO")
+
+
+# =============================================================================
+# ATENDENTES — Helpers de isolamento de dados e controle de permissões
+# =============================================================================
+
+def get_data_owner(request):
+    """
+    Retorna o usuário dono dos dados para queries ORM.
+    Se o usuário logado é um atendente, retorna o owner; caso contrário, o próprio usuário.
+    """
+    return getattr(request, 'data_owner', request.user)
+
+
+def requer_permissao_atendente(perm_name, redirect_url='dashboard', api=False):
+    """
+    Decorator que bloqueia atendentes sem a permissão especificada.
+    - api=True: retorna JsonResponse 403
+    - api=False: redireciona para redirect_url
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if getattr(request, 'is_atendente', False):
+                permissoes = getattr(request, 'atendente_permissoes', None)
+                if not permissoes or not getattr(permissoes, perm_name, False):
+                    if api:
+                        from django.http import JsonResponse
+                        return JsonResponse({'error': 'Acesso negado.'}, status=403)
+                    from django.shortcuts import redirect
+                    return redirect(redirect_url)
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
 # =============================================================================

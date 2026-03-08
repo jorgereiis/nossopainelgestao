@@ -1,0 +1,272 @@
+<!-- Modal: Criar Atendente -->
+<div class="modal fade" id="modal-criar-atendente" tabindex="-1" aria-labelledby="modal-criar-atendente-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-criar-atendente-label">
+                    <i class="bi bi-person-plus-fill me-2 text-primary"></i>Novo Atendente
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-criar-atendente" novalidate>
+                    {% csrf_token %}
+
+                    <!-- Dados do atendente -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <label for="atend-create-first-name" class="form-label fw-semibold">
+                                Nome <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" id="atend-create-first-name" class="form-control"
+                                   placeholder="Nome" maxlength="150" autocomplete="off">
+                        </div>
+                        <div class="col-6">
+                            <label for="atend-create-last-name" class="form-label fw-semibold">Sobrenome</label>
+                            <input type="text" id="atend-create-last-name" class="form-control"
+                                   placeholder="Sobrenome" maxlength="150" autocomplete="off">
+                        </div>
+                        <div class="col-12">
+                            <label for="atend-create-username" class="form-label fw-semibold">
+                                Nome de usuário <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" id="atend-create-username" class="form-control"
+                                   placeholder="usuario123" maxlength="150" autocomplete="off">
+                            <div class="form-text">Usado para login. Apenas letras, números e @/./+/-/_</div>
+                        </div>
+                        <div class="col-12">
+                            <label for="atend-create-email" class="form-label fw-semibold">E-mail</label>
+                            <input type="email" id="atend-create-email" class="form-control"
+                                   placeholder="email@exemplo.com" maxlength="254" autocomplete="off">
+                        </div>
+                        <div class="col-6">
+                            <label for="atend-create-password" class="form-label fw-semibold">
+                                Senha <span class="text-danger">*</span>
+                            </label>
+                            <input type="password" id="atend-create-password" class="form-control"
+                                   placeholder="Mínimo 6 caracteres">
+                        </div>
+                        <div class="col-6">
+                            <label for="atend-create-password2" class="form-label fw-semibold">
+                                Confirmar senha <span class="text-danger">*</span>
+                            </label>
+                            <input type="password" id="atend-create-password2" class="form-control"
+                                   placeholder="Repita a senha">
+                        </div>
+                    </div>
+
+                    <!-- Horário de Expediente -->
+                    <div class="border-top pt-4 mb-4">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-clock me-2 text-primary"></i>Horário de Expediente</h6>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label for="atend-create-horario-inicio" class="form-label fw-semibold">
+                                    Início <span class="text-danger">*</span>
+                                </label>
+                                <input type="time" id="atend-create-horario-inicio" class="form-control" required>
+                            </div>
+                            <div class="col-6">
+                                <label for="atend-create-horario-fim" class="form-label fw-semibold">
+                                    Fim <span class="text-danger">*</span>
+                                </label>
+                                <input type="time" id="atend-create-horario-fim" class="form-control" required>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="atend-create-tem-intervalo"
+                                           onchange="document.getElementById('atend-create-intervalo-block').classList.toggle('d-none', !this.checked)">
+                                    <label class="form-check-label" for="atend-create-tem-intervalo">Possui intervalo / almoço</label>
+                                </div>
+                            </div>
+                            <div id="atend-create-intervalo-block" class="col-12 d-none">
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <label for="atend-create-intervalo-inicio" class="form-label fw-semibold">
+                                            Início do intervalo <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="time" id="atend-create-intervalo-inicio" class="form-control">
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="atend-create-intervalo-fim" class="form-label fw-semibold">
+                                            Fim do intervalo <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="time" id="atend-create-intervalo-fim" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Permissões -->
+                    <div class="border-top pt-4">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-shield-lock me-2 text-primary"></i>Permissões de acesso</h6>
+
+                        <!-- Menu Principal -->
+                        <div class="mb-3">
+                            <p class="text-uppercase text-muted small fw-semibold mb-2 border-bottom pb-1">
+                                <i class="bi bi-list me-1"></i>Menu Principal (Sidebar)
+                            </p>
+                            <div class="row g-2">
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-nav_clientes" name="nav_clientes" checked>
+                                        <label class="form-check-label" for="create-perm-nav_clientes"><i class="bi bi-people me-1 text-muted"></i>Clientes</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-nav_cadastros" name="nav_cadastros">
+                                        <label class="form-check-label" for="create-perm-nav_cadastros"><i class="bi bi-file-earmark-plus me-1 text-muted"></i>Cadastros</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-nav_whatsapp" name="nav_whatsapp">
+                                        <label class="form-check-label" for="create-perm-nav_whatsapp"><i class="bi bi-whatsapp me-1 text-muted"></i>WhatsApp</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-nav_relatorios" name="nav_relatorios">
+                                        <label class="form-check-label" for="create-perm-nav_relatorios"><i class="bi bi-bar-chart-line me-1 text-muted"></i>Relatórios</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-nav_logs" name="nav_logs">
+                                        <label class="form-check-label" for="create-perm-nav_logs"><i class="bi bi-journal-text me-1 text-muted"></i>Logs</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-nav_configuracoes" name="nav_configuracoes">
+                                        <label class="form-check-label" for="create-perm-nav_configuracoes"><i class="bi bi-gear me-1 text-muted"></i>Configurações</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dashboard Cards -->
+                        <div class="mb-3">
+                            <p class="text-uppercase text-muted small fw-semibold mb-2 border-bottom pb-1">
+                                <i class="bi bi-grid me-1"></i>Dashboard — Cards
+                            </p>
+                            <div class="row g-2">
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-dash_card_clientes" name="dash_card_clientes" checked>
+                                        <label class="form-check-label" for="create-perm-dash_card_clientes">Clientes Ativos</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-dash_card_recebido" name="dash_card_recebido">
+                                        <label class="form-check-label" for="create-perm-dash_card_recebido">Valor Recebido</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-dash_card_a_receber" name="dash_card_a_receber">
+                                        <label class="form-check-label" for="create-perm-dash_card_a_receber">À Receber</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-dash_card_planos" name="dash_card_planos">
+                                        <label class="form-check-label" for="create-perm-dash_card_planos">Resumo de Planos</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-dash_card_adesao" name="dash_card_adesao">
+                                        <label class="form-check-label" for="create-perm-dash_card_adesao">Adesões/Cancelamentos</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-dash_card_estados" name="dash_card_estados">
+                                        <label class="form-check-label" for="create-perm-dash_card_estados">Clientes por Estado</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-dash_card_servidor" name="dash_card_servidor">
+                                        <label class="form-check-label" for="create-perm-dash_card_servidor">Clientes por Servidor</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dashboard Abas -->
+                        <div class="mb-3">
+                            <p class="text-uppercase text-muted small fw-semibold mb-2 border-bottom pb-1">
+                                <i class="bi bi-layout-tabs me-1"></i>Dashboard — Abas
+                            </p>
+                            <div class="row g-2">
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" checked disabled>
+                                        <label class="form-check-label text-muted"><i class="bi bi-lock-fill me-1" style="font-size:0.7rem;"></i>Renovações</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" checked disabled>
+                                        <label class="form-check-label text-muted"><i class="bi bi-lock-fill me-1" style="font-size:0.7rem;"></i>Atendimentos</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-dash_tab_evolucao" name="dash_tab_evolucao">
+                                        <label class="form-check-label" for="create-perm-dash_tab_evolucao">Evolução de Patrimônio</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-dash_tab_adesao" name="dash_tab_adesao">
+                                        <label class="form-check-label" for="create-perm-dash_tab_adesao">Adesão e Cancelamentos</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-dash_tab_receita" name="dash_tab_receita">
+                                        <label class="form-check-label" for="create-perm-dash_tab_receita">Receita Anual</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Perfil -->
+                        <div class="mb-2">
+                            <p class="text-uppercase text-muted small fw-semibold mb-2 border-bottom pb-1">
+                                <i class="bi bi-person-circle me-1"></i>Perfil
+                            </p>
+                            <div class="row g-2">
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-perfil_estatisticas" name="perfil_estatisticas">
+                                        <label class="form-check-label" for="create-perm-perfil_estatisticas">Estatísticas</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input create-perm-check" type="checkbox" id="create-perm-perfil_exportar" name="perfil_exportar">
+                                        <label class="form-check-label" for="create-perm-perfil_exportar">Exportar Dados</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="atend-create-error" class="alert alert-danger mt-3 d-none" role="alert"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="btn-criar-atendente" class="btn btn-primary" onclick="submeterCriarAtendente()">
+                    <i class="bi bi-person-plus-fill me-1"></i>Criar Atendente
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

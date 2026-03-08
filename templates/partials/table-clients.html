@@ -256,6 +256,15 @@
                                     <i class="bi bi-pencil me-2 text-primary"></i>Editar Informações
                                 </button>
                             </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        type="button"
+                                        data-id="{{cliente.id}}"
+                                        data-nome="{{cliente.nome}}"
+                                        onclick="exibirModalAtendimento(this)">
+                                    <i class="bi bi-headset me-2 text-info"></i>Registrar Atendimento
+                                </button>
+                            </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <button class="dropdown-item"

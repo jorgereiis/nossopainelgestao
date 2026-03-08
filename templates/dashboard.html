@@ -48,6 +48,7 @@
 
                     <!-- LINHA DE CARDS -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 row-cols-xl-5 g-4 mt-6">
+                        {% if not is_atendente or atendente_permissoes.dash_card_clientes %}
                         <div class="col objeto">
                             <!-- card superior 1 -->
                             <div class="card dashboard-stat-card">
@@ -67,7 +68,9 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
 
+                        {% if not is_atendente or atendente_permissoes.dash_card_recebido %}
                         <div class="col objeto">
                             <!-- card superior 2 -->
                             <div class="card dashboard-stat-card">
@@ -91,7 +94,9 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
 
+                        {% if not is_atendente or atendente_permissoes.dash_card_a_receber %}
                         <div class="col objeto">
                             <!-- card superior 3 -->
                             <div class="card dashboard-stat-card">
@@ -120,7 +125,9 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
 
+                        {% if not is_atendente or atendente_permissoes.dash_card_planos %}
                         <div class="col objeto">
                             <!-- card superior 4 -->
                             <div class="card dashboard-stat-card">
@@ -143,7 +150,9 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
 
+                        {% if not is_atendente or atendente_permissoes.dash_card_adesao %}
                         <div class="col objeto">
                             <!-- card superior 5 -->
                             <div class="card dashboard-stat-card">
@@ -171,9 +180,11 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                     
                     <div class="row g-4 mt-6">
+                        {% if not is_atendente or atendente_permissoes.dash_card_estados %}
                         <div class="col-12 col-lg-7 col-xl-7 objeto">
                             <div class="card mapa-clientes-card h-100">
                                 <div class="card-body">
@@ -251,6 +262,9 @@
                             </div>
                         </div>
 
+                        {% endif %}{# fim guard dash_card_estados #}
+
+                        {% if not is_atendente or atendente_permissoes.dash_card_servidor %}
                         <div class="col-12 col-lg-5 col-xl-5 objeto">
                             <div class="card clientes-servidor-card h-100">
                                 <div class="card-body d-flex flex-column">
@@ -272,6 +286,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}{# fim guard dash_card_servidor #}
                     </div>
                     </div>
 
@@ -338,6 +353,22 @@
                                             </button>
                                         </li>
                                         <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="tab-atendimentos" data-bs-toggle="tab" data-bs-target="#pane-atendimentos" type="button" role="tab" aria-controls="pane-atendimentos" aria-selected="false">
+                                                <span class="dashboard-tab-icon tab-icon-atendimentos">
+                                                    <i class="bi bi-headset"></i>
+                                                </span>
+                                                <span class="dashboard-tab-label">
+                                                    Atendimentos
+                                                    <span id="badge-atend-pendentes"
+                                                          class="badge rounded-pill bg-warning text-dark ms-1 badge-pulse-warning {% if not atend_pendentes_count %}d-none{% endif %}"
+                                                          style="font-size:0.65rem;vertical-align:middle;">
+                                                        {{ atend_pendentes_count }}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        </li>
+                                        {% if not is_atendente or atendente_permissoes.dash_tab_evolucao %}
+                                        <li class="nav-item" role="presentation">
                                             <button class="nav-link" id="tab-evolucao" data-bs-toggle="tab" data-bs-target="#pane-evolucao" type="button" role="tab" aria-controls="pane-evolucao" aria-selected="false">
                                                 <span class="dashboard-tab-icon tab-icon-evolucao">
                                                     <i class="bi bi-graph-up"></i>
@@ -345,6 +376,8 @@
                                                 <span class="dashboard-tab-label">Evolu&ccedil;&atilde;o do Patrim&ocirc;nio</span>
                                             </button>
                                         </li>
+                                        {% endif %}
+                                        {% if not is_atendente or atendente_permissoes.dash_tab_adesao %}
                                         <li class="nav-item" role="presentation">
                                             <button class="nav-link" id="tab-adesao-cancelamentos" data-bs-toggle="tab" data-bs-target="#pane-adesao-cancelamentos" type="button" role="tab" aria-controls="pane-adesao-cancelamentos" aria-selected="false">
                                                 <span class="dashboard-tab-icon tab-icon-adesao">
@@ -353,6 +386,8 @@
                                                 <span class="dashboard-tab-label">Ades&atilde;o e Cancelamentos</span>
                                             </button>
                                         </li>
+                                        {% endif %}
+                                        {% if not is_atendente or atendente_permissoes.dash_tab_receita %}
                                         <li class="nav-item" role="presentation">
                                             <button class="nav-link" id="tab-receita-anual" data-bs-toggle="tab" data-bs-target="#pane-receita-anual" type="button" role="tab" aria-controls="pane-receita-anual" aria-selected="false">
                                                 <span class="dashboard-tab-icon tab-icon-receita">
@@ -361,6 +396,7 @@
                                                 <span class="dashboard-tab-label">Receita Anual</span>
                                             </button>
                                         </li>
+                                        {% endif %}
                                         {% if user.is_superuser %}
                                         <li class="nav-item" role="presentation">
                                             <button class="nav-link" id="tab-revendedores" data-bs-toggle="tab" data-bs-target="#pane-revendedores" type="button" role="tab" aria-controls="pane-revendedores" aria-selected="false">
@@ -443,6 +479,75 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        <!-- Aba Atendimentos -->
+                                        <div class="tab-pane fade" id="pane-atendimentos" role="tabpanel" aria-labelledby="tab-atendimentos">
+                                            <div class="dashboard-tab-body">
+                                                <!-- Filtros Avançados -->
+                                                <div class="row g-2 mb-3">
+                                                    <div class="col-6 col-md-2">
+                                                        <label class="form-label small fw-semibold text-muted mb-1">
+                                                            <i class="bi bi-flag me-1"></i>Status
+                                                        </label>
+                                                        <select id="atendFiltroStatus" class="form-select form-select-sm">
+                                                            <option value="">Todos</option>
+                                                            <option value="pendente">Pendente</option>
+                                                            <option value="resolvido">Resolvido</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-6 col-md-3">
+                                                        <label class="form-label small fw-semibold text-muted mb-1">
+                                                            <i class="bi bi-tag me-1"></i>Categoria
+                                                        </label>
+                                                        <select id="atendFiltroCategoria" class="form-select form-select-sm">
+                                                            <option value="">Todas</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-6 col-md-2">
+                                                        <label class="form-label small fw-semibold text-muted mb-1">
+                                                            <i class="bi bi-calendar-event me-1"></i>Data início
+                                                        </label>
+                                                        <input type="date" id="atendFiltroDataInicio" class="form-control form-control-sm">
+                                                    </div>
+                                                    <div class="col-6 col-md-2">
+                                                        <label class="form-label small fw-semibold text-muted mb-1">
+                                                            <i class="bi bi-calendar-event me-1"></i>Data fim
+                                                        </label>
+                                                        <input type="date" id="atendFiltroDataFim" class="form-control form-control-sm">
+                                                    </div>
+                                                    <div class="col-12 col-md-1 d-flex align-items-end">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm w-100"
+                                                                id="btnLimparFiltrosAtend"
+                                                                title="Limpar todos os filtros">
+                                                            <i class="bi bi-x-circle"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Campo de Pesquisa -->
+                                                <div class="dashboard-search mb-3">
+                                                    <input type="text" class="form-control"
+                                                           id="atendSearchInput"
+                                                           placeholder="Pesquisar por nome do cliente..."
+                                                           autocomplete="off">
+                                                </div>
+
+                                                <!-- Alerta de atendimentos pendentes -->
+                                                <div id="alert-atend-pendentes" class="alert alert-warning d-flex align-items-start shadow-sm mb-3 d-none" role="alert">
+                                                    <i class="bi bi-exclamation-triangle-fill fs-4 me-3 mt-1 text-warning"></i>
+                                                    <div class="flex-grow-1">
+                                                        <h6 class="alert-heading mb-1 fw-bold">Atendimentos Pendentes</h6>
+                                                        <p class="mb-0">
+                                                            Há <strong id="atend-pendentes-count-label">1</strong> atendimento(s) registrado(s) que ainda
+                                                            <strong>aguardam resolução ou tratativa</strong>. Confira a listagem abaixo e atualize o status quando o assunto for encerrado.
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Tabela via AJAX -->
+                                                <div id="tabela-atendimentos-container"></div>
+                                            </div>
+                                        </div>
+                                        {% if not is_atendente or atendente_permissoes.dash_tab_evolucao %}
                                         <div class="tab-pane fade" id="pane-evolucao" role="tabpanel" aria-labelledby="tab-evolucao">
                                             <div class="dashboard-tab-body">
                                                 <div class="d-flex flex-column flex-xl-row align-items-start align-items-xl-center gap-3 mb-4">
@@ -465,6 +570,8 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        {% endif %}{# fim guard dash_tab_evolucao #}
+                                        {% if not is_atendente or atendente_permissoes.dash_tab_adesao %}
                                         <div class="tab-pane fade" id="pane-adesao-cancelamentos" role="tabpanel" aria-labelledby="tab-adesao-cancelamentos">
                                             <div class="dashboard-tab-body">
                                                 <div class="d-flex flex-column flex-xl-row align-items-start align-items-xl-center gap-3 mb-4">
@@ -509,6 +616,8 @@
                                                 <div id="adesao-cancel-summary" class="text-muted small text-center mt-3"></div>
                                             </div>
                                         </div>
+                                        {% endif %}{# fim guard dash_tab_adesao #}
+                                        {% if not is_atendente or atendente_permissoes.dash_tab_receita %}
                                         <div class="tab-pane fade" id="pane-receita-anual" role="tabpanel" aria-labelledby="tab-receita-anual">
                                             <div class="dashboard-tab-body">
                                                 <div class="d-flex flex-column flex-xl-row align-items-start align-items-xl-center gap-3 mb-4">
@@ -559,6 +668,7 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        {% endif %}{# fim guard dash_tab_receita #}
                                         {% if user.is_superuser %}
                                         <div class="tab-pane fade" id="pane-revendedores" role="tabpanel" aria-labelledby="tab-revendedores">
                                             <div class="dashboard-tab-body">
@@ -570,7 +680,7 @@
                                                                autocomplete="off">
                                                     </div>
                                                     <button type="button" class="btn btn-success" onclick="abrirModalCriarRevendedor()">
-                                                        <i class="bi bi-plus-lg me-1"></i>Novo
+                                                        <i class="bi bi-plus-lg me-1"></i>
                                                     </button>
                                                 </div>
                                                 <div id="tabela-revendedores-container">

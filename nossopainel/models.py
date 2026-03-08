@@ -5397,3 +5397,167 @@ class ConfiguracaoAgendamento(models.Model):
         return "badge-success"
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# REGISTRO DE ATENDIMENTOS
+# ──────────────────────────────────────────────────────────────────────────────
+
+class CategoriaAtendimento(models.Model):
+    nome      = models.CharField(max_length=100, verbose_name='Nome', unique=True)
+    cor       = models.CharField(max_length=7, default='#0dcaf0', verbose_name='Cor', help_text='Cor do badge em hexadecimal (ex: #0dcaf0)')
+    ativo     = models.BooleanField(default=True, verbose_name='Ativo')
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['nome']
+        verbose_name = 'Categoria de Atendimento'
+        verbose_name_plural = 'Categorias de Atendimento'
+
+    def __str__(self):
+        return self.nome
+
+
+class TipoAtendimento(models.Model):
+    nome      = models.CharField(max_length=100, verbose_name='Nome')
+    categoria = models.ForeignKey(CategoriaAtendimento, on_delete=models.CASCADE, related_name='tipos')
+    ativo     = models.BooleanField(default=True, verbose_name='Ativo')
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('nome', 'categoria')
+        ordering = ['nome']
+        verbose_name = 'Tipo de Atendimento'
+        verbose_name_plural = 'Tipos de Atendimento'
+
+    def __str__(self):
+        return self.nome
+
+
+class RegistroAtendimento(models.Model):
+    STATUS_PENDENTE  = 'pendente'
+    STATUS_RESOLVIDO = 'resolvido'
+    STATUS_CHOICES = [
+        (STATUS_PENDENTE,  'Pendente'),
+        (STATUS_RESOLVIDO, 'Resolvido'),
+    ]
+
+    cliente   = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='atendimentos')
+    usuario   = models.ForeignKey(User, on_delete=models.CASCADE, related_name='atendimentos_registrados')
+    categoria = models.ForeignKey(CategoriaAtendimento, on_delete=models.PROTECT, verbose_name='Categoria')
+    tipo      = models.ForeignKey(TipoAtendimento, on_delete=models.PROTECT, verbose_name='Tipo')
+    status    = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDENTE, verbose_name='Status')
+    detalhes  = models.TextField(verbose_name='Detalhes')
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-criado_em']
+        verbose_name = 'Registro de Atendimento'
+        verbose_name_plural = 'Registros de Atendimento'
+
+    def __str__(self):
+        return f'{self.cliente} — {self.categoria} / {self.tipo} ({self.criado_em:%d/%m/%Y})'
+
+
+def atendimento_imagem_upload_path(instance, filename):
+    ext = filename.split('.')[-1].lower()
+    return f'atendimentos/{uuid.uuid4()}.{ext}'
+
+
+class AtendimentoImagem(models.Model):
+    atendimento = models.ForeignKey(RegistroAtendimento, on_delete=models.CASCADE, related_name='imagens')
+    imagem      = models.ImageField(
+        upload_to=atendimento_imagem_upload_path,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+        verbose_name='Imagem',
+    )
+    criado_em   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Imagem de Atendimento'
+        verbose_name_plural = 'Imagens de Atendimento'
+
+
+# =============================================================================
+# ATENDENTES — Sub-usuários de uma conta com permissões configuráveis
+# =============================================================================
+
+class PerfilAtendente(models.Model):
+    """Perfil de atendente: usuário subordinado a um owner (conta principal)."""
+
+    user      = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil_atendente')
+    owner     = models.ForeignKey(User, on_delete=models.CASCADE, related_name='atendentes')
+    ativo     = models.BooleanField(default=True, verbose_name='Ativo')
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    # Horário de expediente
+    tem_intervalo    = models.BooleanField(default=False, verbose_name='Possui intervalo/almoço')
+    horario_inicio   = models.TimeField(null=True, blank=True, verbose_name='Início do expediente')
+    horario_fim      = models.TimeField(null=True, blank=True, verbose_name='Fim do expediente')
+    intervalo_inicio = models.TimeField(null=True, blank=True, verbose_name='Início do intervalo')
+    intervalo_fim    = models.TimeField(null=True, blank=True, verbose_name='Fim do intervalo')
+
+    class Meta:
+        db_table = 'cadastros_perfilatendente'
+        verbose_name = 'Perfil de Atendente'
+        verbose_name_plural = 'Perfis de Atendentes'
+
+    def __str__(self):
+        return f'{self.user.get_full_name() or self.user.username} (atendente de {self.owner.username})'
+
+    def get_periodos_expediente(self):
+        """Retorna lista de tuplas (inicio, fim) representando os turnos de trabalho."""
+        if not self.horario_inicio or not self.horario_fim:
+            return []
+        if self.tem_intervalo and self.intervalo_inicio and self.intervalo_fim:
+            return [(self.horario_inicio, self.intervalo_inicio), (self.intervalo_fim, self.horario_fim)]
+        return [(self.horario_inicio, self.horario_fim)]
+
+    def horario_display(self):
+        """Representação resumida do expediente para exibição na tabela."""
+        if not self.horario_inicio or not self.horario_fim:
+            return None
+        fmt = lambda t: t.strftime('%H:%M')
+        if self.tem_intervalo and self.intervalo_inicio and self.intervalo_fim:
+            return f'{fmt(self.horario_inicio)}–{fmt(self.intervalo_inicio)} / {fmt(self.intervalo_fim)}–{fmt(self.horario_fim)}'
+        return f'{fmt(self.horario_inicio)} – {fmt(self.horario_fim)}'
+
+
+class PermissoesAtendente(models.Model):
+    """Permissões granulares de um atendente, configuradas pelo owner."""
+
+    atendente = models.OneToOneField(PerfilAtendente, on_delete=models.CASCADE, related_name='permissoes')
+
+    # --- Navbar — Menu Principal ---
+    nav_clientes      = models.BooleanField(default=True,  verbose_name='Clientes')
+    nav_cadastros     = models.BooleanField(default=False, verbose_name='Cadastros')
+    nav_whatsapp      = models.BooleanField(default=False, verbose_name='WhatsApp')
+    nav_relatorios    = models.BooleanField(default=False, verbose_name='Relatórios')
+    nav_logs          = models.BooleanField(default=False, verbose_name='Logs')
+    nav_configuracoes = models.BooleanField(default=False, verbose_name='Configurações')
+
+    # --- Perfil ---
+    perfil_estatisticas = models.BooleanField(default=False, verbose_name='Estatísticas (Visão Geral)')
+    perfil_exportar     = models.BooleanField(default=False, verbose_name='Exportar Dados')
+
+    # --- Dashboard — Cards ---
+    dash_card_clientes  = models.BooleanField(default=True,  verbose_name='Card: Clientes Ativos')
+    dash_card_recebido  = models.BooleanField(default=False, verbose_name='Card: Valor Recebido no Mês')
+    dash_card_a_receber = models.BooleanField(default=False, verbose_name='Card: À Receber no Mês')
+    dash_card_planos    = models.BooleanField(default=False, verbose_name='Card: Resumo de Planos')
+    dash_card_adesao    = models.BooleanField(default=False, verbose_name='Card: Adesão e Cancelamentos')
+    dash_card_estados   = models.BooleanField(default=False, verbose_name='Card: Clientes por Estado')
+    dash_card_servidor  = models.BooleanField(default=False, verbose_name='Card: Clientes por Servidor')
+
+    # --- Dashboard — Abas (Renovações e Atendimentos são sempre acessíveis) ---
+    dash_tab_evolucao = models.BooleanField(default=False, verbose_name='Aba: Evolução de Patrimônio')
+    dash_tab_adesao   = models.BooleanField(default=False, verbose_name='Aba: Adesão e Cancelamentos')
+    dash_tab_receita  = models.BooleanField(default=False, verbose_name='Aba: Receita Anual')
+
+    class Meta:
+        db_table = 'cadastros_permissoesatendente'
+        verbose_name = 'Permissões de Atendente'
+        verbose_name_plural = 'Permissões de Atendentes'
+
+    def __str__(self):
+        return f'Permissões de {self.atendente}'
+
+

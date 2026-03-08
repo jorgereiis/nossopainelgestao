@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Atendentes | Nosso Painel{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline-chevron {
+    display: inline-block;
+    transition: transform 0.25s ease;
+}
+.timeline-chevron.open {
+    transform: rotate(90deg);
+}
+</style>
+{% endblock %}
+
+{% block modals %}
+{% include 'partials/modal_criar_atendente.html' %}
+{% include 'partials/modal_editar_permissoes_atendente.html' %}
+{% include 'partials/modal_editar_atendente_dados.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-6">
+
+    <!-- Cabeçalho -->
+    <div class="row mb-4">
+        <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div>
+                <h3 class="mb-1 fw-bold">Atendentes</h3>
+                <p class="text-muted mb-0">Gerencie os funcionários da sua conta e configure as permissões de acesso de cada um.</p>
+            </div>
+            <button class="btn btn-primary" onclick="abrirModalCriarAtendente()">
+                <i class="bi bi-person-plus-fill me-2"></i>Novo Atendente
+            </button>
+        </div>
+    </div>
+
+    <!-- Gráfico de Produtividade -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2 py-3">
+                    <div>
+                        <h6 class="mb-0 fw-bold"><i class="bi bi-bar-chart-line me-2 text-primary"></i>Produtividade — Cadastros de Clientes</h6>
+                        <small class="text-muted" id="prod-subtitle">Clientes cadastrados por atendente ao longo do mês</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Modo de visualização">
+                            <button type="button" class="btn btn-primary" id="prod-mode-monthly">Por Mês</button>
+                            <button type="button" class="btn btn-outline-primary" id="prod-mode-annual">Por Ano</button>
+                        </div>
+                        <select id="prod-month-select" class="form-select form-select-sm" style="width:auto;" disabled></select>
+                        <select id="prod-year-select" class="form-select form-select-sm" style="width:auto;" disabled></select>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="prod-chart-wrapper" style="position:relative; min-height:260px;">
+                        <canvas id="prod-chart" style="max-height:280px;"></canvas>
+                        <div id="prod-empty" class="d-none text-center text-muted py-5">
+                            <i class="bi bi-people" style="font-size:2.5rem;"></i>
+                            <p class="mt-2 mb-0">Nenhum dado de produtividade para o período.</p>
+                            <small id="prod-empty-hint">Verifique se há atendentes ativos ou se houve cadastros no período selecionado.</small>
+                        </div>
+                        <div id="prod-loading" class="text-center py-5">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            <span class="text-muted">Carregando...</span>
+                        </div>
+                    </div>
+                    <!-- Totais por atendente -->
+                    <div id="prod-totais" class="d-flex flex-wrap gap-2 mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Busca -->
+    <div class="row mb-3">
+        <div class="col-12 col-md-5">
+            <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="atendentes-search" class="form-control"
+                       placeholder="Buscar por nome, usuário ou e-mail..." autocomplete="off">
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela via AJAX -->
+    <div id="atendentes-lista-container">
+        <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            Carregando atendentes...
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'assets/js/atendentes.js' %}"></script>
+{% endblock %}

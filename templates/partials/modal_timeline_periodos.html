@@ -1,0 +1,36 @@
+<!-- Modal: Ver outros períodos e exportar relatório de atividade do atendente -->
+<div class="modal fade" id="modal-timeline-periodos" tabindex="-1" aria-labelledby="modal-timeline-periodos-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-timeline-periodos-label">
+                    <i class="bi bi-calendar-range me-2 text-primary"></i>Relatório de Atividade — <strong id="modal-periodos-nome"></strong>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modal-periodos-atend-id">
+                <p class="text-muted small mb-3">
+                    Selecione o intervalo de datas para gerar o relatório de atividade deste atendente.
+                </p>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label for="periodos-data-inicio" class="form-label fw-semibold">Data inicial</label>
+                        <input type="date" id="periodos-data-inicio" class="form-control">
+                    </div>
+                    <div class="col-6">
+                        <label for="periodos-data-fim" class="form-label fw-semibold">Data final</label>
+                        <input type="date" id="periodos-data-fim" class="form-control">
+                    </div>
+                </div>
+                <div id="periodos-error" class="alert alert-danger mt-3 d-none" role="alert"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="exportarPeriodoAtendente()">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Exportar PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

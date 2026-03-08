@@ -1,0 +1,80 @@
+<div class="modal fade" id="modal-editar-atendimento" tabindex="-1" role="dialog" aria-labelledby="modal-editar-atendimento-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title mb-0" id="modal-editar-atendimento-label">
+                    <i class="bi bi-pencil me-2 text-secondary"></i>Editar Atendimento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-editar-atendimento" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" id="atend-edit-id" name="id">
+
+                    <!-- Categoria -->
+                    <div class="mb-3">
+                        <label for="atend-edit-categoria" class="form-label fw-semibold">
+                            <i class="bi bi-tag me-1 text-muted"></i>Categoria <span class="text-danger">*</span>
+                        </label>
+                        <div class="position-relative">
+                            <span id="atend-edit-categoria-cor"
+                                  style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:10px;height:10px;border-radius:50%;background:#dee2e6;pointer-events:none;z-index:5;transition:background .2s;"></span>
+                            <select id="atend-edit-categoria" name="categoria_id" class="form-select" style="padding-left:28px;" required>
+                                <option value="">Selecione uma categoria...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tipo -->
+                    <div class="mb-3">
+                        <label for="atend-edit-tipo" class="form-label fw-semibold">
+                            <i class="bi bi-diagram-3 me-1 text-muted"></i>Tipo <span class="text-danger">*</span>
+                        </label>
+                        <select id="atend-edit-tipo" name="tipo_id" class="form-select" required disabled>
+                            <option value="">Selecione uma categoria primeiro...</option>
+                        </select>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="mb-3">
+                        <label for="atend-edit-status" class="form-label fw-semibold">
+                            <i class="bi bi-flag me-1 text-muted"></i>Status <span class="text-danger">*</span>
+                        </label>
+                        <select id="atend-edit-status" name="status" class="form-select" required>
+                            <option value="">Selecione o status...</option>
+                            <option value="pendente">Pendente</option>
+                            <option value="resolvido">Resolvido</option>
+                        </select>
+                    </div>
+
+                    <!-- Detalhes -->
+                    <div class="mb-3">
+                        <label for="atend-edit-detalhes" class="form-label fw-semibold">
+                            <i class="bi bi-pencil-square me-1 text-muted"></i>Detalhes <span class="text-danger">*</span>
+                        </label>
+                        <textarea id="atend-edit-detalhes" name="detalhes" class="form-control" rows="4"
+                                  placeholder="Descreva o atendimento realizado..." required maxlength="3000"></textarea>
+                        <div class="form-text text-end">
+                            <span id="atend-edit-detalhes-count">0</span>/3000
+                        </div>
+                    </div>
+
+                    <!-- Aviso imagens -->
+                    <p class="text-muted small mb-0">
+                        <i class="bi bi-info-circle me-1"></i>As imagens não podem ser alteradas após o registro.
+                    </p>
+
+                    <!-- Mensagem de erro -->
+                    <div class="text-danger small mt-2" id="atend-edit-error"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="form-editar-atendimento" class="btn btn-primary btn-confirmar-acao" id="btn-salvar-atendimento">
+                    <i class="bi bi-check-lg me-1"></i>Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

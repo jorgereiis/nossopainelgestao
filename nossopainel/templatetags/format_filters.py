@@ -3,6 +3,24 @@ from django import template
 
 register = template.Library()
 
+
+@register.filter
+def contraste_cor(hex_color):
+    """Retorna '#000000' ou '#ffffff' dependendo da luminância da cor de fundo."""
+    try:
+        h = hex_color.lstrip('#')
+        if len(h) == 3:
+            h = ''.join(c * 2 for c in h)
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        r_, g_, b_ = [c / 255.0 for c in (r, g, b)]
+        r_ = r_ / 12.92 if r_ <= 0.03928 else ((r_ + 0.055) / 1.055) ** 2.4
+        g_ = g_ / 12.92 if g_ <= 0.03928 else ((g_ + 0.055) / 1.055) ** 2.4
+        b_ = b_ / 12.92 if b_ <= 0.03928 else ((b_ + 0.055) / 1.055) ** 2.4
+        luminance = 0.2126 * r_ + 0.7152 * g_ + 0.0722 * b_
+        return '#000000' if luminance > 0.179 else '#ffffff'
+    except Exception:
+        return '#ffffff'
+
 @register.filter
 def formatar_telefone(wpp):
     if not wpp:

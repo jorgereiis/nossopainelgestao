@@ -176,7 +176,7 @@
 
         const result = await Swal.fire({
             title: title,
-            text: message,
+            html: message,
             icon: options.icon || 'warning',
             showCancelButton: true,
             confirmButtonColor: options.confirmColor || '#3085d6',
