@@ -124,7 +124,7 @@
                                         <i class="bi bi-cash-stack text-success me-2"></i>Histórico de Cobranças
                                     </h4>
                                     <div class="card p-3 p-md-4 border rounded me-md-4">
-                                        <div class="table-responsive" style="max-height: 350px; overflow-y: auto; padding-right: 8px;">
+                                        <div class="table-responsive" style="max-height: 240px; overflow-y: auto; padding-right: 8px;">
                                             <table class="table text-nowrap mb-0 table-hover table-center table-info-cliente" id="table-invoice">
                                                 <thead class="text-muted fs-6 sticky-top bg-white">
                                                     <tr>
@@ -192,7 +192,7 @@
                                     </div>
 
                                     <div class="card p-3 p-md-4 border rounded me-md-4 mb-4">
-                                        <div class="table-responsive" style="max-height: 350px; overflow-y: auto; padding-right: 8px;">
+                                        <div class="table-responsive" style="max-height: 240px; overflow-y: auto; padding-right: 8px;">
                                             <table class="table text-nowrap mb-0 table-hover table-center table-info-cliente" id="table-indicados">
                                                 <thead class="text-muted fs-6 sticky-top bg-white">
                                                     <tr>
@@ -237,9 +237,31 @@
                                             <p class="text-muted small mt-2 mb-0">Nenhum registro de alteração encontrado.</p>
                                         </div>
 
-                                        <div id="historico-alteracoes-content" style="display: none; max-height: 400px; overflow-y: auto; padding-right: 12px;">
+                                        <div id="historico-alteracoes-content" style="display: none; max-height: 240px; overflow-y: auto; padding-right: 12px;">
                                             <div class="timeline" id="timeline-alteracoes">
                                                 <!-- Logs serão inseridos dinamicamente aqui -->
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Histórico de Atendimentos -->
+                                    <h4 class="fw-bold mb-2 mt-4">
+                                        <i class="bi bi-headset text-info me-2"></i>Atendimentos Registrados
+                                    </h4>
+                                    <div class="card p-3 p-md-4 border rounded me-md-4 mb-4">
+                                        <div id="historico-atendimentos-loading" class="text-center py-4">
+                                            <div class="spinner-border spinner-border-sm text-info" role="status">
+                                                <span class="visually-hidden">Carregando...</span>
+                                            </div>
+                                            <p class="text-muted small mt-2 mb-0">Carregando atendimentos...</p>
+                                        </div>
+                                        <div id="historico-atendimentos-empty" class="text-center py-4" style="display: none;">
+                                            <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+                                            <p class="text-muted small mt-2 mb-0">Nenhum atendimento registrado.</p>
+                                        </div>
+                                        <div id="historico-atendimentos-content" style="display: none; max-height: 240px; overflow-y: auto; padding-right: 12px;">
+                                            <div class="timeline" id="timeline-atendimentos">
+                                                <!-- Atendimentos serão inseridos dinamicamente aqui -->
                                             </div>
                                         </div>
                                     </div>

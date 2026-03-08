@@ -1,0 +1,163 @@
+{% load format_filters %}
+
+{% if atendentes %}
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:1.5rem;"></th>
+                        <th>Nome</th>
+                        <th>Usuário</th>
+                        <th>E-mail</th>
+                        <th class="text-center">Status</th>
+                        <th>Expediente</th>
+                        <th>Cadastrado em</th>
+                        <th class="text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for atend in atendentes %}
+                    {# Linha principal #}
+                    <tr class="atendente-row" data-atend-id="{{ atend.id }}" style="cursor:pointer;">
+                        <td class="ps-2">
+                            <button class="btn btn-sm btn-link p-0 text-muted timeline-toggle"
+                                    data-atend-id="{{ atend.id }}"
+                                    title="Ver gráfico de atividade">
+                                <i class="bi bi-chevron-right timeline-chevron"></i>
+                            </button>
+                        </td>
+                        <td>
+                            <strong>{{ atend.user.get_full_name|default:atend.user.username }}</strong>
+                        </td>
+                        <td>
+                            <span class="text-muted">@{{ atend.user.username }}</span>
+                        </td>
+                        <td>
+                            <span class="text-muted small">{{ atend.user.email|default:"—" }}</span>
+                        </td>
+                        <td class="text-center">
+                            {% if atend.ativo %}
+                            <span class="badge bg-success-subtle text-success border border-success" style="font-size:0.8rem;padding:0.3rem 0.6rem;">
+                                <i class="bi bi-check-circle-fill me-1"></i>Ativo
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary" style="font-size:0.8rem;padding:0.3rem 0.6rem;">
+                                <i class="bi bi-dash-circle-fill me-1"></i>Inativo
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% with horario=atend.horario_display %}
+                            {% if horario %}
+                                <span class="small text-muted"><i class="bi bi-clock me-1"></i>{{ horario }}</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning" style="font-size:0.75rem;">Não configurado</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            <span class="text-muted small">{{ atend.criado_em|date:"d/m/Y" }}</span>
+                        </td>
+                        <td class="text-center text-nowrap">
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    onclick="abrirModalEditarAtendenteDados({{ atend.id }})"
+                                    title="Editar dados e senha">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary ms-1"
+                                    onclick="editarPermissoes({{ atend.id }})"
+                                    title="Editar permissões">
+                                <i class="bi bi-shield-lock"></i>
+                            </button>
+                            <button class="btn btn-sm {% if atend.ativo %}btn-outline-warning{% else %}btn-outline-success{% endif %} ms-1"
+                                    onclick="toggleAtendente({{ atend.id }}, '{{ atend.user.get_full_name|default:atend.user.username }}')"
+                                    title="{% if atend.ativo %}Desativar{% else %}Ativar{% endif %}">
+                                <i class="bi {% if atend.ativo %}bi-person-dash{% else %}bi-person-check{% endif %}"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger ms-1"
+                                    onclick="deletarAtendente({{ atend.id }}, '{{ atend.user.get_full_name|default:atend.user.username }}')"
+                                    title="Remover atendente">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {# Linha colapsável com gráfico #}
+                    <tr class="timeline-row d-none" id="timeline-row-{{ atend.id }}" data-atend-nome="{{ atend.user.get_full_name|default:atend.user.username }}">
+                        <td colspan="8" class="p-0">
+                            <div class="timeline-panel px-4 py-3 bg-light border-top">
+                                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                    <span class="fw-semibold text-muted small">
+                                        <i class="bi bi-activity me-1"></i>Atividade — {{ atend.user.get_full_name|default:atend.user.username }}
+                                    </span>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <select class="form-select form-select-sm timeline-day-sel"
+                                                style="width:auto;" data-atend-id="{{ atend.id }}">
+                                            <!-- Preenchido dinamicamente pelo JS -->
+                                        </select>
+                                        <button class="btn btn-sm btn-outline-secondary"
+                                                onclick="abrirModalPeriodosAtendente({{ atend.id }})"
+                                                title="Ver outros períodos e exportar">
+                                            <i class="bi bi-calendar-range me-1"></i>Ver outros períodos
+                                        </button>
+                                    </div>
+                                </div>
+                                <div style="position:relative; min-height:220px;">
+                                    <canvas id="timeline-canvas-{{ atend.id }}" style="max-height:240px;"></canvas>
+                                    <div class="timeline-loading text-center py-4 text-muted">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>Carregando...
+                                    </div>
+                                    <div class="timeline-empty d-none text-center py-4 text-muted small">
+                                        <i class="bi bi-activity me-1"></i>Nenhuma ação registrada neste dia.
+                                    </div>
+                                    <div class="timeline-no-horario d-none alert alert-warning py-2 small mb-0">
+                                        <i class="bi bi-clock me-1"></i>Horário de expediente não configurado — ações exibidas sem classificação de período.
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if atendentes.paginator.num_pages > 1 %}
+    <div class="card-footer d-flex align-items-center justify-content-between bg-white py-2 px-3">
+        <span class="text-muted small">
+            Exibindo {{ atendentes.start_index }}–{{ atendentes.end_index }} de {{ atendentes.paginator.count }} atendente{{ atendentes.paginator.count|pluralize }}
+        </span>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                {% if atendentes.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="#" data-page="{{ atendentes.previous_page_number }}">&laquo;</a>
+                </li>
+                {% endif %}
+                {% for num in atendentes.paginator.page_range %}
+                <li class="page-item {% if num == atendentes.number %}active{% endif %}">
+                    <a class="page-link" href="#" data-page="{{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if atendentes.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="#" data-page="{{ atendentes.next_page_number }}">&raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
+        <p class="text-muted mt-3 mb-1 fw-semibold">Nenhum atendente encontrado</p>
+        <p class="text-muted small">Cadastre o primeiro atendente clicando em "Novo Atendente".</p>
+    </div>
+</div>
+{% endif %}

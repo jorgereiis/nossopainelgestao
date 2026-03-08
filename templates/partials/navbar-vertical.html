@@ -23,7 +23,8 @@
                 <div class="navbar-heading">Menu Principal</div>
             </li>
 
-            <!-- Nav item -->
+            <!-- Nav item: Clientes -->
+            {% if not is_atendente or atendente_permissoes.nav_clientes %}
             <li class="nav-item">
                 <a class="nav-link has-arrow {% if page_group != 'clientes' %} collapsed {% endif %}" href="#!"
                     data-bs-toggle="collapse" data-bs-target="#navClientes" aria-expanded="false" aria-controls="navClientes">
@@ -58,8 +59,10 @@
                     </ul>
                 </div>
             </li>
+            {% endif %}
 
-            <!-- Nav item -->
+            <!-- Nav item: Cadastros -->
+            {% if not is_atendente or atendente_permissoes.nav_cadastros %}
             <li class="nav-item">
                 <a class="nav-link has-arrow {% if page_group != 'nossopainel' %} collapsed {% endif %}" href="#!"
                     data-bs-toggle="collapse" data-bs-target="#navCadastros" aria-expanded="false" aria-controls="navCadastros">
@@ -99,8 +102,10 @@
                     </ul>
                 </div>
             </li>
+            {% endif %}
 
-            <!-- Nav item -->
+            <!-- Nav item: WhatsApp -->
+            {% if not is_atendente or atendente_permissoes.nav_whatsapp %}
             <li class="nav-item">
                 <a class="nav-link has-arrow {% if page_group != 'whatsapp' %} collapsed {% endif %}" href="#!"
                     data-bs-toggle="collapse" data-bs-target="#navWhatsapp" aria-expanded="false" aria-controls="navWhatsapp">
@@ -121,8 +126,19 @@
                     </ul>
                 </div>
             </li>
+            {% endif %}
 
-            <!-- Nav item -->
+            <!-- Nav item: Atendentes (somente para owners, nunca para atendentes) -->
+            {% if not is_atendente %}
+            <li class="nav-item">
+                <a class="nav-link {% if page == 'atendentes' %} active {% endif %}" href="{% url 'atendentes' %}">
+                    <i data-feather="user-check" class="nav-icon icon-xs me-2"></i> Atendentes
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- Nav item: Relatórios -->
+            {% if not is_atendente or atendente_permissoes.nav_relatorios %}
             <li class="nav-item">
                 <a class="nav-link has-arrow {% if page_group != 'relatorios' %} collapsed {% endif %}" href="#!"
                     data-bs-toggle="collapse" data-bs-target="#navRelatorios" aria-expanded="false" aria-controls="navRelatorios">
@@ -141,8 +157,10 @@
                     </ul>
                 </div>
             </li>
+            {% endif %}
 
-            <!-- Nav item -->
+            <!-- Nav item: Logs -->
+            {% if not is_atendente or atendente_permissoes.nav_logs %}
             <li class="nav-item">
                 <a class="nav-link has-arrow {% if page_group != 'logs' %} collapsed {% endif %}" href="#!"
                     data-bs-toggle="collapse" data-bs-target="#navLogs" aria-expanded="false" aria-controls="navLogs">
@@ -158,6 +176,7 @@
                     </ul>
                 </div>
             </li>
+            {% endif %}
 
             {% if request.user.is_superuser %}
             <!-- Nav item -->

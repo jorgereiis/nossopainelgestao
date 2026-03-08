@@ -31,8 +31,10 @@
             <!-- Modais globais disponíveis em todo o sistema -->
             {% include 'partials/modais_globais.html' %}
 
-            <!-- Offcanvas de Configurações disponível em todo o sistema -->
+            <!-- Offcanvas de Configurações (apenas para owners, não para atendentes) -->
+            {% if not is_atendente %}
             {% include 'partials/offcanvas_configuracoes.html' %}
+            {% endif %}
 
             {% block modals %}{% endblock %}
             {% block content %}{% endblock %}

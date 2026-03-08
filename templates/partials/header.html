@@ -90,6 +90,7 @@
 
           <!-- Menu Items -->
           <ul class="list-unstyled user-menu-items mb-0">
+            {% if not is_atendente %}
             <li>
               <button class="dropdown-item user-menu-item" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasConfigs"
                 aria-controls="offcanvasConfigs">
@@ -97,6 +98,7 @@
                 <span>Configurações</span>
               </button>
             </li>
+            {% endif %}
             <li>
               <form method="POST" action="{% url 'logout' %}" style="display: inline; width: 100%;">
                 {% csrf_token %}

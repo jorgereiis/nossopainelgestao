@@ -85,6 +85,9 @@ function exibirModalDetalhes(botao) {
     carregarQuantidadeMensalidadesPagas(clienteId);
     carregarIndicacoes(clienteId);
     carregarHistoricoAlteracoes(clienteId);
+    if (typeof carregarHistoricoAtendimentos === 'function') {
+        carregarHistoricoAtendimentos(clienteId);
+    }
 }
 
 // Fecha modal de informações quando necessário

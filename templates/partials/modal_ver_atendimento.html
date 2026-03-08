@@ -1,0 +1,54 @@
+<div class="modal fade" id="modal-ver-atendimento" tabindex="-1" role="dialog" aria-labelledby="modal-ver-atendimento-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title mb-0" id="modal-ver-atendimento-label">
+                    <i class="bi bi-headset me-2 text-info"></i>Detalhes do Atendimento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+
+                <!-- Badges de classificação -->
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <span id="ver-categoria-badge" class="badge fs-6"></span>
+                    <span id="ver-tipo-badge" class="badge bg-secondary fs-6"></span>
+                    <span id="ver-status-badge" class="badge fs-6"></span>
+                </div>
+
+                <!-- Cliente e metadados -->
+                <div class="mb-3">
+                    <div class="mb-1">
+                        <span class="text-muted small"><i class="bi bi-person me-1"></i>Cliente:</span>
+                        <strong id="ver-cliente-nome" class="ms-1"></strong>
+                    </div>
+                    <div class="text-muted small">
+                        <i class="bi bi-clock me-1"></i>Registrado em
+                        <span id="ver-data" class="fw-semibold"></span>
+                        por <span id="ver-usuario" class="fw-semibold"></span>
+                    </div>
+                </div>
+
+                <hr class="my-3">
+
+                <!-- Detalhes -->
+                <div class="mb-3">
+                    <p class="small fw-semibold text-muted mb-1"><i class="bi bi-pencil-square me-1"></i>Detalhes</p>
+                    <div id="ver-detalhes"
+                         class="bg-light rounded p-3 small"
+                         style="white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow-y: auto;"></div>
+                </div>
+
+                <!-- Imagens -->
+                <div id="ver-imagens-container" class="mb-1" style="display:none;">
+                    <p class="small fw-semibold text-muted mb-2"><i class="bi bi-images me-1"></i>Imagens</p>
+                    <div id="ver-imagens" class="d-flex flex-wrap gap-2"></div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>

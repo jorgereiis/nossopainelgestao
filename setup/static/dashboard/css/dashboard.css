@@ -1308,6 +1308,12 @@
     animation: pulseAlert 1.5s ease-in-out infinite;
 }
 
+/* Badge "Pendente" pulsante na tabela de Atendimentos e orelha da aba */
+#tabelaAtendimentos .badge-pulse-warning,
+#tab-atendimentos .badge-pulse-warning {
+    animation: pulseAlertWarning 1.5s ease-in-out infinite;
+}
+
 @keyframes pulseAlert {
     0%, 100% {
         box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);

@@ -1,0 +1,147 @@
+<div class="modal fade" id="registrar-atendimento-modal" tabindex="-1" role="dialog" aria-labelledby="registrar-atendimento-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title mb-0" id="registrar-atendimento-label">
+                    <i class="bi bi-headset me-2 text-info"></i>Registrar Atendimento —
+                    <span id="atend-cliente-nome" class="fw-bold"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-registrar-atendimento" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" id="atend-cliente-id" name="cliente_id">
+
+                    <!-- Informativo -->
+                    <div class="mb-4">
+                        <button type="button"
+                                class="btn btn-sm w-100 d-flex align-items-center justify-content-between px-3 py-2"
+                                style="background: #eef6ff; border: 1px solid #b6d9f7; border-radius: 8px; color: #0d6efd;"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#atend-info-panel"
+                                aria-expanded="false"
+                                aria-controls="atend-info-panel">
+                            <span><i class="bi bi-info-circle me-2"></i>O que é o Registro de Atendimento?</span>
+                            <i class="bi bi-chevron-down" id="atend-info-chevron" style="transition: transform .2s;"></i>
+                        </button>
+                        <div class="collapse" id="atend-info-panel">
+                            <div class="mt-2 p-3" style="background: #f7fbff; border: 1px solid #b6d9f7; border-radius: 0 0 8px 8px; font-size: 0.85rem; color: #344054;">
+
+                                <p class="mb-2">
+                                    O <strong>Registro de Atendimento</strong> é um histórico permanente de toda interação relevante que você realiza com um cliente. Ele serve como memória institucional: mesmo que o responsável pelo cliente mude, qualquer pessoa com acesso ao sistema poderá entender o histórico completo daquele relacionamento.
+                                </p>
+
+                                <p class="fw-semibold mb-1 mt-3" style="color: #0d6efd;"><i class="bi bi-grid-3x3-gap me-1"></i>Campos do registro</p>
+                                <ul class="mb-2 ps-3">
+                                    <li class="mb-1"><strong>Categoria</strong> — classifica o tema geral do atendimento (ex.: <em>Suporte Técnico</em>, <em>Financeiro</em>, <em>Comercial</em>).</li>
+                                    <li class="mb-1"><strong>Tipo</strong> — detalha a natureza específica dentro da categoria (ex.: <em>Problema de sinal</em>, <em>Negociação de débito</em>, <em>Cancelamento</em>).</li>
+                                    <li class="mb-1"><strong>Status</strong> — indica se o assunto ainda está <span class="badge bg-warning text-dark">Pendente</span> de resolução ou já foi <span class="badge bg-success">Resolvido</span>.</li>
+                                    <li class="mb-1"><strong>Detalhes</strong> — descreva com clareza o que foi tratado: qual era o problema, o que foi combinado, quais passos foram executados e qual foi o resultado.</li>
+                                    <li><strong>Imagens</strong> — anexe capturas de tela, comprovantes ou evidências visuais que complementem o relato (até 3 imagens, máx. 5 MB cada).</li>
+                                </ul>
+
+                                <p class="fw-semibold mb-1 mt-3" style="color: #0d6efd;"><i class="bi bi-lightbulb me-1"></i>Quando registrar?</p>
+                                <ul class="mb-2 ps-3">
+                                    <li class="mb-1">Toda vez que você contatar ou for contatado pelo cliente sobre um problema, dúvida ou solicitação importante.</li>
+                                    <li class="mb-1">Ao fechar acordos, negociações de pagamento ou definir prazos com o cliente.</li>
+                                    <li class="mb-1">Quando identificar comportamentos recorrentes que possam afetar a permanência do cliente.</li>
+                                    <li>Após resolver uma situação crítica, para documentar a solução aplicada.</li>
+                                </ul>
+
+                                <p class="fw-semibold mb-1 mt-3" style="color: #0d6efd;"><i class="bi bi-eye me-1"></i>Onde visualizar os registros?</p>
+                                <p class="mb-0">
+                                    Todos os atendimentos ficam visíveis na seção <strong>Atendimentos Registrados</strong> dentro do modal de informações do cliente (<em>Ver Informações</em>), exibindo categoria, tipo, status, data/hora, detalhes e o nome de quem realizou o registro.
+                                </p>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Categoria -->
+                    <div class="mb-3">
+                        <label for="atend-categoria" class="form-label fw-semibold">
+                            <i class="bi bi-tag me-1 text-muted"></i>Categoria <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <div class="position-relative flex-grow-1">
+                                <span id="atend-categoria-cor"
+                                      style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:10px;height:10px;border-radius:50%;background:#dee2e6;pointer-events:none;z-index:5;transition:background .2s;"></span>
+                                <select id="atend-categoria" name="categoria_id" class="form-select" style="padding-left:28px;" required>
+                                    <option value="">Selecione uma categoria...</option>
+                                </select>
+                            </div>
+                            {% if request.user.is_superuser %}
+                            <button type="button" class="btn btn-outline-secondary" id="btn-add-categoria" title="Criar nova categoria">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Tipo -->
+                    <div class="mb-3">
+                        <label for="atend-tipo" class="form-label fw-semibold">
+                            <i class="bi bi-diagram-3 me-1 text-muted"></i>Tipo <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <select id="atend-tipo" name="tipo_id" class="form-select" required disabled>
+                                <option value="">Selecione uma categoria primeiro...</option>
+                            </select>
+                            {% if request.user.is_superuser %}
+                            <button type="button" class="btn btn-outline-secondary" id="btn-add-tipo" title="Criar novo tipo" disabled>
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="mb-3">
+                        <label for="atend-status" class="form-label fw-semibold">
+                            <i class="bi bi-flag me-1 text-muted"></i>Status <span class="text-danger">*</span>
+                        </label>
+                        <select id="atend-status" name="status" class="form-select" required>
+                            <option value="">Selecione o status...</option>
+                            <option value="pendente">Pendente</option>
+                            <option value="resolvido">Resolvido</option>
+                        </select>
+                    </div>
+
+                    <!-- Detalhes -->
+                    <div class="mb-3">
+                        <label for="atend-detalhes" class="form-label fw-semibold">
+                            <i class="bi bi-pencil-square me-1 text-muted"></i>Detalhes <span class="text-danger">*</span>
+                        </label>
+                        <textarea id="atend-detalhes" name="detalhes" class="form-control" rows="4"
+                                  placeholder="Descreva a solicitação ou atendimento realizado..." required maxlength="3000"></textarea>
+                        <div class="form-text text-end">
+                            <span id="atend-detalhes-count">0</span>/3000
+                        </div>
+                    </div>
+
+                    <!-- Imagens -->
+                    <div class="mb-3">
+                        <label for="atend-imagens" class="form-label fw-semibold">
+                            <i class="bi bi-images me-1 text-muted"></i>Imagens <span class="text-muted fw-normal">(opcional, máx. 3)</span>
+                        </label>
+                        <input type="file" id="atend-imagens" name="imagens" class="form-control"
+                               accept="image/jpeg,image/png,image/gif,image/webp" multiple>
+                        <div class="form-text">Formatos aceitos: JPG, PNG, GIF, WEBP. Máx. 5MB por imagem.</div>
+                        <!-- Previews -->
+                        <div id="atend-preview-imagens" class="d-flex flex-wrap gap-2 mt-2"></div>
+                    </div>
+
+                    <!-- Mensagem de erro -->
+                    <div class="text-danger small" id="atend-error-message"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="form-registrar-atendimento" class="btn btn-info text-white btn-confirmar-acao" id="btn-registrar-atendimento">
+                    <i class="bi bi-check-lg me-1"></i>Registrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
