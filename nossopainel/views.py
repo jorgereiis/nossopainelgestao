@@ -121,6 +121,7 @@ from .utils import (
     get_or_create_servidor,
     enroll_client_in_campaign_if_eligible,
     get_data_owner,
+    requer_permissao_atendente,
 )
 from .wpp_views import (
     cancelar_sessao_wpp,
@@ -2314,7 +2315,11 @@ def generate_graphic_columns_per_year(request):
 
 
 def user_cache_key(request):
-    return f"user-{request.user.id}" if request.user.is_authenticated else "anonymous"
+    if not request.user.is_authenticated:
+        return "anonymous"
+    # Atendentes compartilham o cache do owner — dados são os mesmos
+    owner = get_data_owner(request)
+    return f"user-{owner.id}"
 
 
 def cache_page_by_user(timeout):
@@ -2330,7 +2335,7 @@ def cache_page_by_user(timeout):
 @login_required
 @cache_page_by_user(60 * 5)
 def mapa_clientes_data(request):
-    usuario = request.user
+    usuario = get_data_owner(request)
 
     dados = dict(
         Cliente.objects.filter(cancelado=False, usuario=usuario)
@@ -2474,7 +2479,7 @@ def mapa_clientes_data(request):
 @login_required
 @cache_page_by_user(60 * 5)
 def clientes_servidor_data(request):
-    usuario = request.user
+    usuario = get_data_owner(request)
 
     servidores = list(
         Servidor.objects.filter(usuario=usuario)
@@ -6745,6 +6750,7 @@ def create_server(request):
 
 # ACAO PARA CRIAR NOVO OBJETO FORMA DE PAGAMENTO (TIPOS_PGTO) - Versao simples para usuarios comuns
 @login_required
+@requer_permissao_atendente('nav_cadastros')
 def create_payment_method(request):
     owner = get_data_owner(request)
     formas_pgto = Tipos_pgto.objects.filter(usuario=owner).annotate(clientes_count=Count('cliente')).order_by('nome')
@@ -7742,6 +7748,7 @@ def api_credenciais_por_tipo(request, tipo_integracao):
 # ============================================================================
 
 @login_required
+@requer_permissao_atendente('nav_cadastros', api=True)
 @require_http_methods(["GET"])
 def api_clientes_ativos_associacao(request):
     """
@@ -7764,6 +7771,7 @@ def api_clientes_ativos_associacao(request):
     GET /api/clientes-ativos-associacao/?conta_id=123
     GET /api/clientes-ativos-associacao/?forma_pgto_id=456
     """
+    owner = get_data_owner(request)
     try:
         from django.db.models import Sum
 
@@ -7784,7 +7792,7 @@ def api_clientes_ativos_associacao(request):
         # Se forma_pgto_id foi fornecido, buscar a conta bancária associada
         if forma_pgto_id and not conta_id_editando:
             try:
-                forma_pgto = Tipos_pgto.objects.get(id=forma_pgto_id, usuario=request.user)
+                forma_pgto = Tipos_pgto.objects.get(id=forma_pgto_id, usuario=owner)
                 if forma_pgto.conta_bancaria:
                     conta_id_editando = str(forma_pgto.conta_bancaria.id)
                 else:
@@ -7795,7 +7803,7 @@ def api_clientes_ativos_associacao(request):
 
         # Buscar todas as associações ativas de clientes com contas bancárias
         associacoes_ativas = ClienteContaBancaria.objects.filter(
-            conta_bancaria__usuario=request.user,
+            conta_bancaria__usuario=owner,
             ativo=True
         ).select_related('conta_bancaria').values(
             'cliente_id',
@@ -9069,6 +9077,7 @@ def delete_device(request, pk):
     
 
 @login_required
+@requer_permissao_atendente('nav_cadastros', api=True)
 def delete_payment_method(request, pk):
     owner = get_data_owner(request)
     try:
@@ -12222,9 +12231,10 @@ def api_formas_pagamento_disponiveis(request):
         limite_mei = float(config.valor_anual)
         limite_pf = float(config.valor_anual_pf)
 
-        # Buscar formas de pagamento do usuário
+        # Buscar formas de pagamento do owner (suporta atendentes)
+        owner = get_data_owner(request)
         formas_pgto = Tipos_pgto.objects.filter(
-            usuario=request.user
+            usuario=owner
         ).select_related(
             'conta_bancaria',
             'conta_bancaria__instituicao',
@@ -12502,18 +12512,20 @@ def api_cliente_dados_reativacao(request, cliente_id):
 
 
 @login_required
+@requer_permissao_atendente('nav_cadastros', api=True)
 @require_http_methods(["GET"])
 def api_forma_pagamento_detalhes(request, pk):
     """
     Retorna os detalhes de uma forma de pagamento.
     Inclui dados da conta bancaria, instituicao e credenciais (mascaradas).
     """
+    owner = get_data_owner(request)
     try:
         forma_pgto = Tipos_pgto.objects.select_related(
             'conta_bancaria',
             'conta_bancaria__instituicao',
             'dados_bancarios'
-        ).get(pk=pk, usuario=request.user)
+        ).get(pk=pk, usuario=owner)
 
         conta = forma_pgto.conta_bancaria
         instituicao = conta.instituicao if conta else None
@@ -12569,7 +12581,7 @@ def api_forma_pagamento_detalhes(request, pk):
         elif not conta:
             # Se nao tem dados_bancarios vinculado E é forma antiga (sem conta_bancaria),
             # buscar DadosBancarios do usuario para pre-preencher (PIX, Cartao ou Boleto antigos)
-            dados_usuario = DadosBancarios.objects.filter(usuario=request.user).first()
+            dados_usuario = DadosBancarios.objects.filter(usuario=owner).first()
             if dados_usuario:
                 data['dados_bancarios'] = {
                     'id': dados_usuario.id,
@@ -12595,14 +12607,16 @@ def api_forma_pagamento_detalhes(request, pk):
 
 
 @login_required
+@requer_permissao_atendente('nav_cadastros', api=True)
 @require_http_methods(["GET"])
 def api_forma_pagamento_clientes_count(request, pk):
     """Retorna quantidade de clientes ATIVOS associados a uma forma de pagamento."""
+    owner = get_data_owner(request)
     try:
-        forma_pgto = Tipos_pgto.objects.get(pk=pk, usuario=request.user)
+        forma_pgto = Tipos_pgto.objects.get(pk=pk, usuario=owner)
         count = Cliente.objects.filter(
             forma_pgto=forma_pgto,
-            usuario=request.user,
+            usuario=owner,
             cancelado=False
         ).count()
         return JsonResponse({'success': True, 'count': count})
@@ -12614,17 +12628,19 @@ def api_forma_pagamento_clientes_count(request, pk):
 
 
 @login_required
+@requer_permissao_atendente('nav_cadastros', api=True)
 @require_http_methods(["POST", "PUT"])
 def api_forma_pagamento_atualizar(request, pk):
     """
     Atualiza uma forma de pagamento existente.
     Permite atualizar dados da conta bancaria e credenciais.
     """
+    owner = get_data_owner(request)
     try:
         forma_pgto = Tipos_pgto.objects.select_related(
             'conta_bancaria',
             'conta_bancaria__instituicao'
-        ).get(pk=pk, usuario=request.user)
+        ).get(pk=pk, usuario=owner)
 
         conta = forma_pgto.conta_bancaria
         if not conta:
@@ -12817,6 +12833,7 @@ def api_forma_pagamento_atualizar(request, pk):
 
 
 @login_required
+@requer_permissao_atendente('nav_cadastros', api=True)
 @require_http_methods(["POST", "PUT"])
 def api_forma_pagamento_antiga_atualizar(request, pk):
     """
@@ -12824,8 +12841,9 @@ def api_forma_pagamento_antiga_atualizar(request, pk):
     Usado para formas PIX, Cartao, Boleto criadas antes do novo sistema.
     Tambem permite editar dados bancarios (modelo DadosBancarios).
     """
+    owner = get_data_owner(request)
     try:
-        forma_pgto = Tipos_pgto.objects.select_related('dados_bancarios').get(pk=pk, usuario=request.user)
+        forma_pgto = Tipos_pgto.objects.select_related('dados_bancarios').get(pk=pk, usuario=owner)
 
         # Parse dos dados
         if request.content_type == 'application/json':

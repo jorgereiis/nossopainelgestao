@@ -351,8 +351,10 @@
       <!-- Modais Globais -->
       {% include 'partials/modais_globais.html' %}
 
-      <!-- Offcanvas de Configurações -->
+      <!-- Offcanvas de Configurações (owners + atendentes com nav_configuracoes) -->
+      {% if not is_atendente or atendente_permissoes.nav_configuracoes %}
       {% include 'partials/offcanvas_configuracoes.html' %}
+      {% endif %}
 
       {% include 'partials/footer.html' %}
       {% include 'partials/scripts.html' %}
