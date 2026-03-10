@@ -90,7 +90,7 @@
 
           <!-- Menu Items -->
           <ul class="list-unstyled user-menu-items mb-0">
-            {% if not is_atendente %}
+            {% if not is_atendente or atendente_permissoes.nav_configuracoes %}
             <li>
               <button class="dropdown-item user-menu-item" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasConfigs"
                 aria-controls="offcanvasConfigs">

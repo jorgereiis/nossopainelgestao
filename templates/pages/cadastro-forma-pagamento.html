@@ -2403,7 +2403,9 @@
       {% include 'partials/modal_adminlogs.html' %}
       {% include 'partials/modal_userlogs.html' %}
       {% include 'partials/modais_globais.html' %}
+      {% if not is_atendente or atendente_permissoes.nav_configuracoes %}
       {% include 'partials/offcanvas_configuracoes.html' %}
+      {% endif %}
 
       <!-- Footer dentro do page-content -->
       {% include 'partials/footer.html' %}
