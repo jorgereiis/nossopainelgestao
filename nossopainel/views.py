@@ -12465,13 +12465,14 @@ def api_cliente_dados_reativacao(request, cliente_id):
     Usado no modal de reativação de clientes cancelados para revisar/editar dados.
     """
     try:
+        owner = get_data_owner(request)
         cliente = Cliente.objects.select_related('servidor', 'plano').get(
             id=cliente_id,
-            usuario=request.user
+            usuario=owner
         )
 
-        servidores = Servidor.objects.filter(usuario=request.user).order_by('nome')
-        planos = Plano.objects.filter(usuario=request.user).order_by('nome', 'valor')
+        servidores = Servidor.objects.filter(usuario=owner).order_by('nome')
+        planos = Plano.objects.filter(usuario=owner).order_by('nome', 'valor')
 
         return JsonResponse({
             'success': True,
