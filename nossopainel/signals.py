@@ -428,7 +428,16 @@ def _sincronizar_etiqueta_async(
             func_name, cliente_usuario, label_desejada, error,
         )
 
-    # --- Sem @lid: notifica e encerra ---
+    # --- Sem @lid: tentar releitura fresca do banco antes de desistir ---
+    if not whatsapp_lid:
+        from .models import Cliente
+        whatsapp_lid = Cliente.objects.filter(pk=cliente_pk).values_list('whatsapp_lid', flat=True).first() or ""
+        if whatsapp_lid:
+            logger.info(
+                "[%s] [%s] @lid obtido via releitura do banco para cliente ID=%s: %s",
+                func_name, cliente_usuario, cliente_pk, whatsapp_lid,
+            )
+
     if not whatsapp_lid:
         logger.warning(
             "[%s] [%s] Label '%s' não confirmada via telefone e @lid não disponível para cliente ID=%s.",

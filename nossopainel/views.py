@@ -3356,6 +3356,7 @@ def edit_customer(request, cliente_id):
             cliente.telefone = telefone_novo
             cliente.uf = extrair_uf_do_telefone(telefone_novo)
             cliente.pais = extrair_pais_do_telefone(telefone_novo)
+            cliente.whatsapp_lid = None  # Invalida @lid do telefone anterior
 
         # Indicação
         indicado_nome = post.get("indicado_por")
@@ -3622,11 +3623,19 @@ def edit_customer(request, cliente_id):
         # é feita automaticamente pelo signal sincronizar_conta_principal quando conta.save() é chamado
         # Por isso, usamos update_fields para salvar APENAS os campos do formulário,
         # evitando sobrescrever dispositivo/sistema que o signal gerencia
-        cliente.save(update_fields=[
+        update_fields = [
             'nome', 'nome_normalizado', 'telefone', 'uf', 'indicado_por', 'servidor',
             'forma_pgto', 'plano', 'data_vencimento', 'nao_enviar_msgs', 'notas'
-        ])
+        ]
+        if cliente.whatsapp_lid is None:
+            update_fields.append('whatsapp_lid')
+        cliente.save(update_fields=update_fields)
         mensalidade.save()
+
+        # Buscar @lid em background se não existir (inclui caso de telefone alterado)
+        if token and cliente.telefone and not cliente.whatsapp_lid:
+            from nossopainel.utils import buscar_e_salvar_lid_async
+            buscar_e_salvar_lid_async(cliente.pk, token.usuario, token.token)
 
         changes = {}
 
@@ -6186,6 +6195,11 @@ def cadastrar_cliente_basico(request):
             # Normaliza para formato do lead (+DIGITOS)
             telefone_lead = telefone if telefone.startswith('+') else '+' + re.sub(r'\D', '', telefone)
             TelefoneLeads.objects.filter(telefone=telefone_lead, usuario=usuario).delete()
+
+            # Buscar @lid do novo cliente em background (se houver sessão ativa)
+            if token and cliente.telefone:
+                from nossopainel.utils import buscar_e_salvar_lid_async
+                buscar_e_salvar_lid_async(cliente.pk, token.usuario, token.token)
 
             # Log de auditoria
             log_user_action(
@@ -14985,6 +14999,8 @@ def registrar_atendimento(request):
         tipo=tipo,
         status=status,
         detalhes=detalhes,
+        resolvido_em=timezone.now() if status == RegistroAtendimento.STATUS_RESOLVIDO else None,
+        resolvido_por=request.user if status == RegistroAtendimento.STATUS_RESOLVIDO else None,
     )
 
     # Salva até 3 imagens
@@ -15141,7 +15157,7 @@ def ver_atendimento(request):
 
     try:
         a = RegistroAtendimento.objects.select_related(
-            'cliente', 'categoria', 'tipo', 'usuario'
+            'cliente', 'categoria', 'tipo', 'usuario', 'resolvido_por'
         ).prefetch_related('imagens').get(id=atend_id)
     except RegistroAtendimento.DoesNotExist:
         return JsonResponse({'error': 'Atendimento não encontrado.'}, status=404)
@@ -15163,6 +15179,8 @@ def ver_atendimento(request):
         'detalhes': a.detalhes,
         'criado_em': timezone.localtime(a.criado_em).strftime('%d/%m/%Y %H:%M'),
         'registrado_por': a.usuario.get_full_name() or a.usuario.username,
+        'resolvido_em': timezone.localtime(a.resolvido_em).strftime('%d/%m/%Y %H:%M') if a.resolvido_em else None,
+        'resolvido_por': (a.resolvido_por.get_full_name() or a.resolvido_por.username) if a.resolvido_por else None,
         'imagens': [img.imagem.url for img in a.imagens.all()],
     })
 
@@ -15213,6 +15231,9 @@ def editar_atendimento(request):
     atendimento.tipo = tipo
     atendimento.status = status
     atendimento.detalhes = detalhes
+    if status == RegistroAtendimento.STATUS_RESOLVIDO and not atendimento.resolvido_em:
+        atendimento.resolvido_em = timezone.now()
+        atendimento.resolvido_por = request.user
     atendimento.save()
 
     try:
@@ -15252,7 +15273,9 @@ def marcar_atendimento_resolvido(request):
         return JsonResponse({'error_message': 'Este atendimento já está resolvido.'}, status=400)
 
     atendimento.status = RegistroAtendimento.STATUS_RESOLVIDO
-    atendimento.save(update_fields=['status'])
+    atendimento.resolvido_em = timezone.now()
+    atendimento.resolvido_por = request.user
+    atendimento.save(update_fields=['status', 'resolvido_em', 'resolvido_por'])
 
     try:
         log_user_action(
