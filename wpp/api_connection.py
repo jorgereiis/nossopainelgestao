@@ -1188,3 +1188,44 @@ def get_phone_from_pn_lid(session: str, token: str, pn_lid: str):
             return phone_number.replace("@c.us", ""), status
 
     return None, status
+
+
+def get_lid_from_phone(session: str, token: str, phone: str):
+    """
+    Obtém o @lid de um contato a partir do número de telefone.
+
+    Usa o endpoint /contact/{phone@c.us} e extrai id._serialized se o contato
+    usar WhatsApp Multi-Device com privacidade (@lid).
+
+    Args:
+        session: Nome da sessão
+        token: Token de autenticação
+        phone: Número de telefone (qualquer formato: +55..., 55..., @c.us)
+
+    Returns:
+        tuple: (lid_string ou None, status_code)
+               lid_string no formato "123456789@lid"
+    """
+    clean_phone = phone.replace('+', '').replace('@c.us', '').replace('@lid', '').strip()
+    phone_id = f"{clean_phone}@c.us"
+
+    url = f"{API_WPP_URL_PROD}/{session}/contact/{phone_id}"
+    headers = {"Authorization": f"Bearer {token}"}
+    data, status = _make_request("GET", url, headers=headers)
+
+    logger.info(
+        "[get_lid_from_phone] session=%s phone=%s status=%s",
+        session, phone_id, status
+    )
+
+    if status == 200 and data:
+        response = data.get("response", {})
+        if isinstance(response, dict):
+            id_obj = response.get("id", {})
+            if isinstance(id_obj, dict):
+                serialized = id_obj.get("_serialized", "")
+                if serialized and "@lid" in serialized:
+                    logger.info("[get_lid_from_phone] @lid encontrado: %s -> %s", phone_id, serialized)
+                    return serialized, status
+
+    return None, status

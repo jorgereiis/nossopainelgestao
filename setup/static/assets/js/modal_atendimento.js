@@ -714,6 +714,18 @@
             if (el('ver-usuario'))      el('ver-usuario').textContent      = d.registrado_por;
             if (el('ver-detalhes'))     el('ver-detalhes').textContent     = d.detalhes;
 
+            // Info de resolução
+            var resolucaoContainer = el('ver-resolucao-container');
+            if (resolucaoContainer) {
+                if (d.status === 'resolvido' && d.resolvido_em) {
+                    if (el('ver-resolvido-em'))  el('ver-resolvido-em').textContent  = d.resolvido_em;
+                    if (el('ver-resolvido-por')) el('ver-resolvido-por').textContent = d.resolvido_por || '—';
+                    resolucaoContainer.style.display = 'block';
+                } else {
+                    resolucaoContainer.style.display = 'none';
+                }
+            }
+
             // Imagens
             var imgContainer = el('ver-imagens-container');
             var imgDiv       = el('ver-imagens');

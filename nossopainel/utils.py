@@ -1911,3 +1911,47 @@ def substituir_dominio_em_url(url_completa: str, dominio_origem: str, dominio_de
             f"Origem='{dominio_origem}', Destino='{dominio_destino}'. Erro: {e}"
         )
         raise Exception(f"Erro ao substituir domínio: {e}")
+
+
+def buscar_e_salvar_lid_async(cliente_id: int, session: str, token: str):
+    """
+    Busca o @lid do cliente via API WPP e salva no banco, em thread separada (daemon).
+
+    Não bloqueia a requisição atual. Usa QuerySet.update() para salvar o @lid sem
+    disparar signals (comportamento padrão do ORM para updates em bulk).
+
+    Args:
+        cliente_id: PK do Cliente
+        session: Nome da sessão WPP (SessaoWpp.usuario — nome da sessão no WPPConnect)
+        token: Token ativo da sessão (SessaoWpp.token)
+    """
+    import threading
+
+    def _buscar():
+        try:
+            from nossopainel.models import Cliente
+            from wpp.api_connection import get_lid_from_phone
+
+            cliente = Cliente.objects.filter(pk=cliente_id).first()
+            if not cliente or not cliente.telefone:
+                return
+
+            lid, status = get_lid_from_phone(session, token, cliente.telefone)
+            if not lid:
+                logger.info(
+                    "[buscar_e_salvar_lid] @lid não encontrado | cliente=%s telefone=%s status=%s",
+                    cliente.nome, cliente.telefone, status
+                )
+                return
+
+            # QuerySet.update() não dispara signals — não é necessário desconectar post_save
+            Cliente.objects.filter(pk=cliente_id).update(whatsapp_lid=lid)
+
+            logger.info(
+                "[buscar_e_salvar_lid] @lid salvo | cliente=%s lid=%s",
+                cliente.nome, lid
+            )
+        except Exception as e:
+            logger.error("[buscar_e_salvar_lid] Erro: %s", e)
+
+    threading.Thread(target=_buscar, daemon=True, name=f"LidFetch-{cliente_id}").start()

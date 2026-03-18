@@ -223,9 +223,11 @@ def _handle_message(payload: dict, session: str):
     )
 
     # ========== CAPTURA DE LID ==========
-    # Ignorar grupos (@g.us) - apenas chats privados
-    if '@g.us' not in msg_from and '@lid' in msg_from:
-        _enqueue_lid_for_sync(msg_from, session)
+    # Desabilitado: @lid agora é obtido proativamente no cadastro/edição do cliente.
+    # A captura reativa gerava chamadas à API a cada mensagem recebida, causando sobrecarga
+    # e desconexões de sessão. LidSyncService e _enqueue_lid_for_sync preservados para reativação.
+    # if '@g.us' not in msg_from and '@lid' in msg_from:
+    #     _enqueue_lid_for_sync(msg_from, session)
 
     elapsed = time_module.time() - start_time
     logger.debug("[WEBHOOK] onmessage processado em %.3fs | session=%s", elapsed, session)

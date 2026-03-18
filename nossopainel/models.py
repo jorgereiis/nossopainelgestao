@@ -9,6 +9,7 @@ from typing import Optional
 import re
 import os
 import time
+import threading
 import unicodedata
 import uuid
 
@@ -3469,7 +3470,7 @@ class CobrancaPix(models.Model):
                     from nossopainel.utils import envio_apos_novo_cadastro
                     envio_apos_novo_cadastro(cliente)
                 else:
-                    # Mensalidades subsequentes - enviar confirmação padrão
+                    # Mensalidades subsequentes - enviar confirmação padrão em thread separada
                     from nossopainel.services.wpp import send_message, MessageSendConfig, get_active_token, LogTemplates
 
                     token = get_active_token(self.usuario.username)
@@ -3498,9 +3499,31 @@ class CobrancaPix(models.Model):
                             log_writer=log_writer,
                             log_templates=log_templates,
                         )
-                        time.sleep(5)  # Aguarda 5 segundos antes de enviar a confirmação
-                        send_message(config)
-                        logger.info(f'[CobrancaPix] Mensagem WhatsApp enviada para {cliente.telefone}')
+
+                        session = self.usuario.username
+
+                        def _enviar_confirmacao_thread(cfg, sess, tkn, telefone):
+                            try:
+                                time.sleep(30)  # Aguarda 30 segundos antes de enviar a confirmação
+                                result = send_message(cfg)
+                                logger.info(f'[CobrancaPix] Mensagem WhatsApp enviada para {telefone}')
+
+                                if result.success:
+                                    from wpp import api_connection
+                                    unread_result, unread_status = api_connection.mark_chat_unread(sess, tkn, telefone)
+                                    if unread_status in (200, 201):
+                                        logger.info(f'[CobrancaPix] Conversa marcada como não lida | phone={telefone}')
+                                    else:
+                                        logger.error(f'[CobrancaPix] Falha ao marcar não lida | phone={telefone} status={unread_status}')
+                            except Exception as exc:
+                                logger.error(f'[CobrancaPix] Erro na thread de confirmação WhatsApp: {exc}')
+
+                        t = threading.Thread(
+                            target=_enviar_confirmacao_thread,
+                            args=(config, session, token, cliente.telefone),
+                            daemon=True,
+                        )
+                        t.start()
                     else:
                         logger.warning(f'[CobrancaPix] Token WPP não encontrado para usuário {self.usuario.username}')
             except Exception as e:
@@ -5444,9 +5467,17 @@ class RegistroAtendimento(models.Model):
     usuario   = models.ForeignKey(User, on_delete=models.CASCADE, related_name='atendimentos_registrados')
     categoria = models.ForeignKey(CategoriaAtendimento, on_delete=models.PROTECT, verbose_name='Categoria')
     tipo      = models.ForeignKey(TipoAtendimento, on_delete=models.PROTECT, verbose_name='Tipo')
-    status    = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDENTE, verbose_name='Status')
-    detalhes  = models.TextField(verbose_name='Detalhes')
-    criado_em = models.DateTimeField(auto_now_add=True)
+    status       = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDENTE, verbose_name='Status')
+    detalhes     = models.TextField(verbose_name='Detalhes')
+    criado_em    = models.DateTimeField(auto_now_add=True)
+    resolvido_em = models.DateTimeField(null=True, blank=True, verbose_name='Resolvido em')
+    resolvido_por = models.ForeignKey(
+        User,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='atendimentos_resolvidos',
+        verbose_name='Resolvido por',
+    )
 
     class Meta:
         ordering = ['-criado_em']
