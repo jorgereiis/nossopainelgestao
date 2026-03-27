@@ -629,6 +629,7 @@
 
                     <div class="row g-3">
                       {% for inst in instituicoes %}
+                      {% if inst.tipo_integracao == 'manual' or 'pagamentos_automatizados' in funcionalidades_ativas %}
                       <div class="col-md-6">
                         <div class="instituicao-card h-100" data-instituicao="{{ inst.tipo_integracao }}" data-nome="{{ inst.nome }}">
                           <div class="card-body text-center">
@@ -663,6 +664,7 @@
                           </div>
                         </div>
                       </div>
+                      {% endif %}
                       {% empty %}
                       <div class="col-12">
                         <div class="alert alert-warning text-center">
@@ -1447,6 +1449,7 @@
                     </thead>
                     <tbody>
                       {% for forma_pgto in formas_pgto %}
+                      {% if not forma_pgto.conta_bancaria or forma_pgto.conta_bancaria.instituicao.tipo_integracao == 'manual' or 'pagamentos_automatizados' in funcionalidades_ativas %}
                       <tr>
                         <td class="ps-4">
                           <div class="d-flex align-items-center">
@@ -1526,6 +1529,7 @@
                           </div>
                         </td>
                       </tr>
+                      {% endif %}
                       {% endfor %}
                     </tbody>
                   </table>

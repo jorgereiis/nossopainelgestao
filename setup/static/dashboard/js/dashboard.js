@@ -969,6 +969,40 @@ document.addEventListener('DOMContentLoaded', initEditPlanoControl);
 
 // FUNÇÃO PARA EXIBIR O MODAL DE EDIÇÃO DOS DADOS DO CLIENTE
 
+    function validarFormaPgtoEdit() {
+        const modal = document.querySelector('#edit-cliente-modal');
+        const select = document.querySelector('#edit-cliente-forma_pgto');
+        const btnSalvar = document.querySelector('#btn-salvar-edit-cliente');
+        const avisoDiv = document.querySelector('#edit-forma-pgto-aviso');
+        const avisoTexto = document.querySelector('#edit-forma-pgto-aviso-texto');
+
+        const temPagamentosAutomatizados = modal.dataset.temPagamentosAutomatizados === 'true';
+        const selectedOption = select.options[select.selectedIndex];
+
+        let bloqueado = false;
+        let mensagem = '';
+
+        if (selectedOption && selectedOption.value) {
+            const tipoIntegracao = selectedOption.dataset.tipoIntegracao || '';
+            const estaBloqueada = selectedOption.dataset.bloqueada === 'true';
+
+            const ehAutomatizada = ['fastdepix', 'mercado_pago', 'efi_bank'].includes(tipoIntegracao);
+
+            if (ehAutomatizada && !temPagamentosAutomatizados) {
+                bloqueado = true;
+                mensagem = 'Esta forma de pagamento requer um plano de assinatura com permissão de <strong>Pagamentos Automatizados</strong>, mas atualmente o seu plano de assinatura não contempla esse recurso. Por favor, selecione outra forma de pagamento para esse cliente.';
+            } else if (estaBloqueada) {
+                bloqueado = true;
+                mensagem = 'Esta forma de pagamento atingiu seu <strong>limite de clientes</strong>. Selecione outra forma de pagamento para continuar.';
+            }
+        }
+
+        btnSalvar.disabled = bloqueado;
+        avisoDiv.style.display = bloqueado ? 'block' : 'none';
+        if (bloqueado) avisoTexto.innerHTML = mensagem;
+        select.classList.toggle('is-invalid', bloqueado);
+    }
+
     function exibirModalEdicao(botao) {
       const clienteId = botao.dataset.id;
       const clienteNome = botao.dataset.nome;
@@ -1002,17 +1036,13 @@ document.addEventListener('DOMContentLoaded', initEditPlanoControl);
       form.querySelector("#edit-cliente-indicado_por").value = clienteIndicadoPor;
       form.querySelector("#edit-cliente-servidor").value = clienteServidor;
 
-      // Habilita temporariamente a opção da forma de pagamento atual do cliente
-      // (caso esteja bloqueada por limite atingido, permite manter a forma atual)
       const selectFormaPgto = form.querySelector("#edit-cliente-forma_pgto");
-      if (clienteFormaPgto) {
-        const opcaoAtual = selectFormaPgto.querySelector(`option[value="${clienteFormaPgto}"]`);
-        if (opcaoAtual && opcaoAtual.disabled) {
-          opcaoAtual.disabled = false;
-          opcaoAtual.dataset.reabilitar = 'true'; // Marca para re-desabilitar se trocar
-        }
-      }
       selectFormaPgto.value = clienteFormaPgto;
+
+      // Validação inicial e listener de troca da forma de pagamento
+      validarFormaPgtoEdit();
+      selectFormaPgto.removeEventListener('change', validarFormaPgtoEdit);
+      selectFormaPgto.addEventListener('change', validarFormaPgtoEdit);
 
       // Preenche campo de plano com estado bloqueado
       preencherPlanoBloqueadoEdit(clientePlano);

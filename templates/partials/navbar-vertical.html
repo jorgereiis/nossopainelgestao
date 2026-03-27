@@ -118,8 +118,6 @@
                         <li class="nav-item">
                             <a class="nav-link {% if page == 'tarefas-envio' %}active{% endif %}" href="{% url 'tarefas-envio-lista' %}">Tarefas de Envio</a>
                         </li>
-                    </ul>
-                    <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link {% if page == 'whatsapp' %}active{% endif %}" style="cursor: pointer;" onclick="modal_whatsapp()">Conexão</a>
                         </li>
@@ -158,6 +156,22 @@
                 </div>
             </li>
             {% endif %}
+
+            <!-- Nav item - Recursos Avançados -->
+            <li class="nav-item">
+                <a class="nav-link has-arrow {% if page_group != 'recursos-avancados' %} collapsed {% endif %}" href="#!"
+                    data-bs-toggle="collapse" data-bs-target="#navRecursosAvancados" aria-expanded="false" aria-controls="navRecursosAvancados">
+                    <i data-feather="tool" class="nav-icon icon-xs me-2"></i> Recursos Avançados
+                </a>
+                <div id="navRecursosAvancados" class="collapse {% if page_group == 'recursos-avancados' %} show {% endif %}"
+                    data-bs-parent="#sideNavbar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if page == 'gestao-dns' %}active{% endif %}" href="{% url 'gestao-dns' %}">Gestão de Domínios DNS</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
 
             <!-- Nav item: Logs -->
             {% if not is_atendente or atendente_permissoes.nav_logs %}
@@ -208,13 +222,6 @@
                 </a>
             </li>
 
-            <!-- Nav item - Gestão DNS -->
-            <li class="nav-item">
-                <a class="nav-link {% if page == 'gestao-dns' %}active{% endif %}" href="{% url 'gestao-dns' %}">
-                    <i data-feather="server" class="nav-icon icon-xs me-2"></i> Gestão de Domínios DNS
-                </a>
-            </li>
-
             <!-- Nav item - Integrações API -->
             <li class="nav-item">
                 <a class="nav-link {% if page == 'integracoes-api' or page == 'integracoes-fastdepix' %}active{% endif %}" href="{% url 'integracoes-api' %}">
@@ -224,8 +231,15 @@
 
             <!-- Nav item - Configuração de Agendamentos -->
             <li class="nav-item">
-                <a class="nav-link {% if page == 'config-agendamentos' %}active{% endif %}" href="{% url 'config-agendamentos' %}">
-                    <i data-feather="calendar" class="nav-icon icon-xs me-2"></i> Agendamentos
+                <a class="nav-link {% if page == 'configs-avancadas' %}active{% endif %}" href="{% url 'configs-avancadas' %}">
+                    <i data-feather="calendar" class="nav-icon icon-xs me-2"></i> Config. Avançadas
+                </a>
+            </li>
+
+            <!-- Nav item - Planos de Assinatura -->
+            <li class="nav-item">
+                <a class="nav-link {% if page == 'admin-planos-assinatura' %}active{% endif %}" href="{% url 'admin-planos-assinatura' %}">
+                    <i data-feather="credit-card" class="nav-icon icon-xs me-2"></i> Planos & Assinatura
                 </a>
             </li>
             {% endif %}

@@ -70,34 +70,47 @@
                     <i class="fe fe-lock me-1"></i>Alterar Senha
                   </button>
                   <div class="ms-2"></div>
+                  {% if request.user.is_superuser or assinatura_plataforma.status == 'ativo' %}
                   <a href="#" class="btn btn-primary d-none d-md-block" data-instituicao="{{instituicao}}"
                   data-beneficiario="{{beneficiario}}" data-tipo_chave="{{tipo_chave}}" data-chave="{{chave}}" data-nome="{{nome_user}}" data-sobrenome="{{sobrenome_user}}" data-email="{{email}}" data-wpp="{{wpp|formatar_telefone}}" onclick="exibirModalEdicaoDp(this)">
                     <i class="fe fe-edit me-1"></i>Editar Dados
                   </a>
+                  {% endif %}
                 </div>
               </div>
               <!-- nav -->
               <ul class="nav nav-lt-tab px-4" id="pills-tab" role="tablist">
+                {% if request.user.is_superuser or assinatura_plataforma.status == 'ativo' %}
                 <li class="nav-item">
                   <a class="nav-link active" id="visao-geral-tab" data-bs-toggle="tab" href="#visao-geral" role="tab">
                     Visão Geral
                   </a>
                 </li>
+                {% endif %}
+                {% if 'perfil_historico' in funcionalidades_ativas %}{% if request.user.is_superuser or assinatura_plataforma.status == 'ativo' %}
                 <li class="nav-item">
                   <a class="nav-link" id="historico-tab" data-bs-toggle="tab" href="#historico" role="tab">
                     Histórico de Atividades
                   </a>
                 </li>
+                {% endif %}{% endif %}
                 <li class="nav-item">
-                  <a class="nav-link" id="configuracoes-tab" data-bs-toggle="tab" href="#configuracoes" role="tab">
+                  <a class="nav-link {% if not request.user.is_superuser and assinatura_plataforma.status != 'ativo' %}active{% endif %}" id="configuracoes-tab" data-bs-toggle="tab" href="#configuracoes" role="tab">
                     <i class="fe fe-settings me-1"></i>Configurações
                   </a>
                 </li>
                 {% if not is_atendente or atendente_permissoes.perfil_exportar %}
                 <li class="nav-item">
+                  {% if 'clientes_exportacao' in funcionalidades_ativas %}
                   <a class="nav-link" id="exportar-tab" data-bs-toggle="tab" href="#exportar" role="tab">
                     <i class="fe fe-download me-1"></i>Exportar Dados
                   </a>
+                  {% else %}
+                  <a class="nav-link disabled text-muted" style="cursor:not-allowed; opacity:0.5;" tabindex="-1"
+                     title="Funcionalidade não disponível no seu plano">
+                    <i class="bi bi-lock-fill me-1"></i>Exportar Dados
+                  </a>
+                  {% endif %}
                 </li>
                 {% endif %}
               </ul>
@@ -108,6 +121,7 @@
         <div class="py-6">
           <div class="tab-content" id="pills-tabContent">
             <!-- Aba Visão Geral -->
+            {% if request.user.is_superuser or assinatura_plataforma.status == 'ativo' %}
             <div class="tab-pane fade show active" id="visao-geral" role="tabpanel">
           <!-- Estatísticas do Usuário -->
           {% if not is_atendente or atendente_permissoes.perfil_estatisticas %}
@@ -284,6 +298,7 @@
         </div>
             </div>
             <!-- Fim Aba Visão Geral -->
+            {% endif %}
 
             <!-- Aba Histórico de Atividades -->
             <div class="tab-pane fade" id="historico" role="tabpanel">
@@ -330,7 +345,7 @@
             <!-- Fim Aba Histórico -->
 
             <!-- Aba Configurações -->
-            <div class="tab-pane fade" id="configuracoes" role="tabpanel">
+            <div class="tab-pane fade {% if not request.user.is_superuser and assinatura_plataforma.status != 'ativo' %}show active{% endif %}" id="configuracoes" role="tabpanel">
               <div class="row">
                 <!-- Tema -->
                 <div class="col-xl-6 col-lg-12 col-md-12 col-12 mb-4">

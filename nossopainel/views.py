@@ -31,6 +31,7 @@ from django.db.models.functions import ExtractMonth, ExtractYear
 from django.views.decorators.http import require_http_methods, require_GET
 from plotly.colors import sample_colorscale, make_colorscale
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.utils.decorators import method_decorator
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.decorators.vary import vary_on_cookie
 from django.views.decorators.http import require_POST
@@ -102,6 +103,11 @@ from .models import (
     # Atendentes
     PerfilAtendente,
     PermissoesAtendente,
+    # Assinatura de Plataforma
+    PlanoAssinatura,
+    FuncionalidadePlano,
+    AssinaturaPlataforma,
+    CobrancaAssinaturaPlataforma,
 )
 from .utils import (
     envio_apos_novo_cadastro,
@@ -122,6 +128,12 @@ from .utils import (
     enroll_client_in_campaign_if_eligible,
     get_data_owner,
     requer_permissao_atendente,
+    GRUPOS_FUNCIONALIDADES,
+    FUNCIONALIDADES_PADRAO,
+    get_ou_criar_assinatura_plataforma,
+    get_funcionalidades_usuario,
+    requer_funcionalidade,
+    requer_pagina_ativa,
 )
 from .wpp_views import (
     cancelar_sessao_wpp,
@@ -1497,6 +1509,7 @@ def profile_page(request):
 
 
 @login_required
+@requer_funcionalidade('clientes_exportacao')
 def exportar_clientes_excel(request):
     """Exporta clientes do usuário para Excel (.xlsx)"""
     import io
@@ -2113,6 +2126,7 @@ def _dataset_adesao_cancelamentos_anual(usuario, year: int):
 
 
 @login_required
+@requer_funcionalidade('relatorio_adesoes_cancelamentos', api=True)
 @require_GET
 def adesoes_cancelamentos_api(request):
     modo = (request.GET.get("mode", "monthly") or "monthly").lower()
@@ -2333,6 +2347,7 @@ def cache_page_by_user(timeout):
 
 
 @login_required
+@requer_funcionalidade('relatorio_mapa_clientes', api=True)
 @cache_page_by_user(60 * 5)
 def mapa_clientes_data(request):
     usuario = get_data_owner(request)
@@ -4804,6 +4819,7 @@ def get_2fa_qr_code(request):
 
 
 @login_required
+@requer_funcionalidade('whatsapp_sessao', api=True)
 @require_http_methods(["GET", "POST"])
 def edit_horario_envios(request):
     HORARIOS_OBRIGATORIOS = [
@@ -5026,6 +5042,7 @@ def edit_horario_envios(request):
 
 
 @login_required
+@requer_funcionalidade('whatsapp_sessao', api=True)
 @require_http_methods(["GET", "POST"])
 def edit_reject_call_config(request):
     """Edita configurações de rejeição automática de chamadas."""
@@ -5087,6 +5104,7 @@ def edit_reject_call_config(request):
 
 
 @login_required
+@requer_funcionalidade('whatsapp_sessao', api=True)
 @require_http_methods(["GET", "POST"])
 def edit_referral_plan(request):
     PLANOS_OBRIGATORIOS = [
@@ -5462,6 +5480,8 @@ def create_app_account(request):
 
 
 @login_required
+@requer_funcionalidade('clientes_importacao_lote')
+@requer_pagina_ativa('importar_clientes')
 def import_customers(request):
     timestamp = localtime().strftime('%d-%m-%Y %H:%M:%S')
     func_name = inspect.currentframe().f_code.co_name
@@ -6242,6 +6262,7 @@ def cadastrar_cliente_basico(request):
 # =============================================================================
 
 @login_required
+@requer_pagina_ativa('cadastro_assinatura')
 def cadastrar_assinatura(request):
     """
     Cria assinatura para um cliente.
@@ -6932,6 +6953,30 @@ def create_payment_method_admin(request):
         # Dados do formulario
         nome = request.POST.get("nome")  # Tipo de pagamento: PIX, Cartao de Credito, Boleto
         tipo_integracao = request.POST.get("tipo_integracao")  # fastdepix, mercado_pago, efi_bank, manual
+
+        # Guard: Pagamentos automatizados (FastDePix, Efi Bank, Mercado Pago)
+        if tipo_integracao in ('fastdepix', 'mercado_pago', 'efi_bank'):
+            _owner = getattr(request, 'data_owner', request.user)
+            _funcs = get_funcionalidades_usuario(_owner)
+            if 'pagamentos_automatizados' not in _funcs:
+                from nossopainel.models import PlanoAssinatura, FuncionalidadePlano, AssinaturaPlataforma
+                from nossopainel.utils import GRUPOS_FUNCIONALIDADES as _GRUPOS
+                _nome = 'Pagamentos automatizados'
+                for _g in _GRUPOS:
+                    for _c, _l in _g['chaves']:
+                        if _c == 'pagamentos_automatizados':
+                            _nome = _l
+                            break
+                _planos_ids = FuncionalidadePlano.objects.filter(chave='pagamentos_automatizados', ativo=True).values_list('plano_id', flat=True)
+                _planos = PlanoAssinatura.objects.filter(pk__in=_planos_ids, ativo=True).order_by('valor')
+                _assinatura = AssinaturaPlataforma.objects.select_related('plano').filter(usuario=_owner).first()
+                return render(request, 'pages/feature_bloqueada.html', {
+                    'chave': 'pagamentos_automatizados',
+                    'nome_funcionalidade': _nome,
+                    'planos_com_acesso': _planos,
+                    'assinatura': _assinatura,
+                }, status=403)
+
         instituicao_id = request.POST.get("instituicao")
         nome_identificacao = request.POST.get("nome_identificacao")
         beneficiario = request.POST.get("beneficiario")
@@ -8159,6 +8204,7 @@ def api_notificacoes_marcar_todas_lidas(request):
 # ============================================================================
 
 @login_required
+@requer_funcionalidade('seguranca_push_notif', api=True)
 @require_http_methods(["POST"])
 def api_push_subscribe(request):
     """
@@ -8254,6 +8300,7 @@ def api_push_unsubscribe(request):
 
 
 @login_required
+@requer_funcionalidade('seguranca_push_notif', api=True)
 @require_http_methods(["GET"])
 def api_push_vapid_public_key(request):
     """
@@ -9225,6 +9272,7 @@ def _last_day_of_month(d: date) -> date:
 
 
 @login_required
+@requer_funcionalidade('relatorio_evolucao_patrimonio', api=True)
 @require_GET
 def evolucao_patrimonio(request):
     """Retorna patrimonio mensal e evolucao para o periodo solicitado (JSON)."""
@@ -9315,6 +9363,7 @@ def evolucao_patrimonio(request):
 
 
 @login_required
+@requer_funcionalidade('relatorio_receita_anual', api=True)
 @require_GET
 def api_receita_anual(request):
     """
@@ -10001,6 +10050,8 @@ class MigrationExecuteView(LoginRequiredMixin, SuperuserRequiredMixin, View):
 # ==================== VIEWS: GESTÃO DE DOMÍNIOS DNS (RESELLER AUTOMATION) ====================
 
 @login_required
+@requer_funcionalidade('avancado_migracao_dns')
+@requer_pagina_ativa('gestao_dns')
 def gestao_dns_page(request):
     """
     Página principal de Gestão de Domínios DNS para automação reseller.
@@ -10081,6 +10132,8 @@ def gestao_dns_page(request):
         'tarefa_selecionada': tarefa_selecionada,
         'dispositivos_tarefa': dispositivos_tarefa,
         'page_title': 'Gestão de Domínios DNS',
+        'page': 'gestao-dns',
+        'page_group': 'recursos-avancados',
     }
 
     return render(request, 'pages/gestao-dns.html', context)
@@ -11142,6 +11195,8 @@ def calcular_proxima_execucao(tarefas_ativas, agora, dias_verificar=7):
     return None
 
 
+@method_decorator(requer_funcionalidade('whatsapp_tarefas_envio'), name='dispatch')
+@method_decorator(requer_pagina_ativa('tarefas_envio'), name='dispatch')
 class TarefaEnvioListView(LoginRequiredMixin, ListView):
     """Lista todas as tarefas de envio do usuário."""
     model = TarefaEnvio
@@ -11203,6 +11258,7 @@ class TarefaEnvioListView(LoginRequiredMixin, ListView):
         return context
 
 
+@method_decorator(requer_funcionalidade('whatsapp_tarefas_envio'), name='dispatch')
 class TarefaEnvioCreateView(LoginRequiredMixin, CreateView):
     """Cria uma nova tarefa de envio."""
     model = TarefaEnvio
@@ -11265,6 +11321,7 @@ class TarefaEnvioCreateView(LoginRequiredMixin, CreateView):
         return context
 
 
+@method_decorator(requer_funcionalidade('whatsapp_tarefas_envio'), name='dispatch')
 class TarefaEnvioUpdateView(LoginRequiredMixin, UpdateView):
     """Edita uma tarefa de envio existente."""
     model = TarefaEnvio
@@ -11338,6 +11395,7 @@ class TarefaEnvioUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
 
+@method_decorator(requer_funcionalidade('whatsapp_tarefas_envio'), name='dispatch')
 class TarefaEnvioDeleteView(LoginRequiredMixin, DeleteView):
     """Deleta uma tarefa de envio."""
     model = TarefaEnvio
@@ -11908,6 +11966,7 @@ def tarefa_envio_salvar_template(request):
 # ============================================================================
 
 @login_required
+@requer_funcionalidade('whatsapp_tarefas_envio', api=True)
 @require_GET
 def tarefas_envio_configuracao_get(request):
     """
@@ -11967,6 +12026,7 @@ def tarefas_envio_configuracao_get(request):
 
 
 @login_required
+@requer_funcionalidade('whatsapp_tarefas_envio', api=True)
 @require_POST
 def tarefas_envio_configuracao_salvar(request):
     """
@@ -12256,11 +12316,17 @@ def api_formas_pagamento_disponiveis(request):
         ).order_by('nome_identificacao', 'nome')
 
         resultado = []
+        from nossopainel.utils import usuario_tem_funcionalidade
+        tem_pagamentos_automatizados = usuario_tem_funcionalidade(owner, 'pagamentos_automatizados')
 
         for forma in formas_pgto:
             conta = forma.conta_bancaria
             instituicao = conta.instituicao if conta else None
             tipo_integracao = instituicao.tipo_integracao if instituicao else None
+
+            # Ocultar formas de pagamento automatizadas se o plano não incluir a feature
+            if tipo_integracao in ('fastdepix', 'mercado_pago', 'efi_bank') and not tem_pagamentos_automatizados:
+                continue
 
             # Nome da instituição (prioriza conta_bancaria, fallback para dados_bancarios legado)
             instituicao_nome = None
@@ -14059,12 +14125,29 @@ def config_agendamentos(request):
     from .models import ConfiguracaoAgendamento
 
     if request.method == 'POST':
-        # Atualizar configuração de um job
-        job_nome = request.POST.get('job_nome')
         acao = request.POST.get('acao')
 
+        # ── Controle de acesso a páginas ──────────────────────────────────────
+        if acao == 'toggle_pagina':
+            from .models import ControleAcessoPagina
+            chave = request.POST.get('chave')
+            try:
+                pagina = ControleAcessoPagina.objects.get(chave=chave)
+                pagina.ativo = not pagina.ativo
+                pagina.save(update_fields=['ativo'])
+                return JsonResponse({
+                    'success': True,
+                    'ativo': pagina.ativo,
+                    'message': f'Página {"ativada" if pagina.ativo else "desativada"} com sucesso.',
+                })
+            except ControleAcessoPagina.DoesNotExist:
+                return JsonResponse({'success': False, 'message': 'Página não encontrada.'})
+
+        # ── Configuração de jobs (agendamentos) ───────────────────────────────
+        job_nome = request.POST.get('job_nome')
+
         if not job_nome:
-            return JsonResponse({'success': False, 'message': 'Job não especificado.'})
+            return JsonResponse({'success': False, 'message': 'Parâmetro inválido.'})
 
         try:
             job = ConfiguracaoAgendamento.objects.get(nome=job_nome)
@@ -14124,13 +14207,16 @@ def config_agendamentos(request):
             logger.error(f'[Agendamentos] Erro ao processar ação: {e}')
             return JsonResponse({'success': False, 'message': f'Erro: {str(e)}'})
 
-    # GET - Exibir página (ordem alfabética pelo nome de exibição)
+    # GET - Exibir página
+    from .models import ControleAcessoPagina
     jobs = ConfiguracaoAgendamento.objects.all().order_by('nome_exibicao')
+    paginas = ControleAcessoPagina.objects.all()
 
     context = {
-        'page': 'config-agendamentos',
+        'page': 'configs-avancadas',
         'page_group': 'admin',
         'jobs': jobs,
+        'paginas': paginas,
     }
 
     return render(request, 'pages/admin/agendamentos.html', context)
@@ -14141,6 +14227,8 @@ def config_agendamentos(request):
 # ============================================================================
 
 @login_required
+@requer_funcionalidade('relatorio_pagamentos')
+@requer_pagina_ativa('relatorio_pagamentos')
 def relatorio_pagamentos(request):
     """
     Relatório de pagamentos e transações PIX.
@@ -14956,6 +15044,7 @@ def criar_tipo_atendimento(request):
 
 
 @login_required
+@requer_funcionalidade('atendimento_registrar', api=True)
 def registrar_atendimento(request):
     """Registra um atendimento realizado com um cliente."""
     if request.method != 'POST':
@@ -15003,10 +15092,13 @@ def registrar_atendimento(request):
         resolvido_por=request.user if status == RegistroAtendimento.STATUS_RESOLVIDO else None,
     )
 
-    # Salva até 3 imagens
+    # Salva até 3 imagens (apenas se funcionalidade habilitada no plano)
     imagens = request.FILES.getlist('imagens')
-    for imagem in imagens[:3]:
-        AtendimentoImagem.objects.create(atendimento=atendimento, imagem=imagem)
+    if imagens:
+        funcionalidades = get_funcionalidades_usuario(getattr(request, 'data_owner', request.user))
+        if 'atendimento_imagens' in funcionalidades:
+            for imagem in imagens[:3]:
+                AtendimentoImagem.objects.create(atendimento=atendimento, imagem=imagem)
 
     try:
         log_user_action(
@@ -15296,6 +15388,7 @@ def marcar_atendimento_resolvido(request):
 # =============================================================================
 
 @login_required
+@requer_funcionalidade('atendentes_gestao')
 def atendentes_page(request):
     """Página principal de gestão de atendentes."""
     if request.is_atendente:
@@ -15753,6 +15846,7 @@ def api_periodos_produtividade(request):
     })
 
 
+@login_required
 def api_produtividade_atendentes(request):
     """Retorna cadastros de clientes por atendente.
     mode=monthly → por dia no mês (padrão)
@@ -15840,3 +15934,684 @@ def api_produtividade_atendentes(request):
 
     result.sort(key=lambda x: x['total'], reverse=True)
     return JsonResponse({'mode': 'monthly', 'days': days, 'month': month, 'year': year, 'atendentes': result})
+
+
+# =============================================================================
+# SISTEMA DE ASSINATURA DE PLATAFORMA
+# =============================================================================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def admin_planos_assinatura(request):
+    """
+    Página de gerenciamento de planos de assinatura da plataforma.
+    GET /admin/planos-assinatura/
+    """
+    planos = PlanoAssinatura.objects.prefetch_related('funcionalidades').order_by('valor')
+
+    # Inicializar planos padrão caso não existam (primeira execução)
+    planos_existentes = {p.tipo for p in planos}
+    planos_padrão = [
+        ('bronze', '69.90', 'Plano Bronze — funcionalidades essenciais.'),
+        ('prata',  '119.90', 'Plano Prata — inclui relatórios e WhatsApp.'),
+        ('ouro',   '219.90', 'Plano Ouro — acesso completo à plataforma.'),
+    ]
+    for tipo, valor, descricao in planos_padrão:
+        if tipo not in planos_existentes:
+            PlanoAssinatura.objects.create(tipo=tipo, valor=valor, descricao=descricao)
+    planos = PlanoAssinatura.objects.prefetch_related('funcionalidades').order_by('valor')
+
+    # Montar mapa chave -> ativo por plano para uso no template
+    planos_map = {}
+    for plano in planos:
+        planos_map[plano.tipo] = {
+            'plano': plano,
+            'features': {f.chave: f.ativo for f in plano.funcionalidades.all()},
+        }
+
+    # Ordenar chaves de cada grupo: padrão primeiro, configuráveis depois
+    grupos_ordenados = []
+    for grupo in GRUPOS_FUNCIONALIDADES:
+        chaves_ordenadas = sorted(
+            grupo['chaves'],
+            key=lambda item: (0 if item[0] in FUNCIONALIDADES_PADRAO else 1)
+        )
+        grupos_ordenados.append({**grupo, 'chaves': chaves_ordenadas})
+
+    return render(request, 'pages/admin_planos_assinatura.html', {
+        'planos': planos,
+        'planos_map': planos_map,
+        'grupos_funcionalidades': grupos_ordenados,
+        'funcionalidades_padrao': FUNCIONALIDADES_PADRAO,
+        'page': 'admin-planos-assinatura',
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def api_toggle_funcionalidade_plano(request):
+    """
+    Ativa/desativa uma funcionalidade em um plano.
+    POST /admin/planos-assinatura/toggle-funcionalidade/
+    Body: { plano_id, chave, ativo }
+    """
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Dados inválidos.'}, status=400)
+
+    plano_id = data.get('plano_id')
+    chave = data.get('chave', '').strip()
+    ativo = bool(data.get('ativo', True))
+
+    if not plano_id or not chave:
+        return JsonResponse({'success': False, 'error': 'plano_id e chave são obrigatórios.'}, status=400)
+
+    plano = get_object_or_404(PlanoAssinatura, pk=plano_id)
+    funcionalidade, created = FuncionalidadePlano.objects.get_or_create(
+        plano=plano,
+        chave=chave,
+        defaults={'ativo': ativo},
+    )
+    if not created:
+        funcionalidade.ativo = ativo
+        funcionalidade.save(update_fields=['ativo'])
+
+    log_user_action(
+        request=request,
+        action=UserActionLog.ACTION_UPDATE,
+        instance=plano,
+        message=f'Funcionalidade "{chave}" {"ativada" if ativo else "desativada"} no plano {plano.get_tipo_display()}.',
+        extra={'plano': plano.tipo, 'chave': chave, 'ativo': ativo},
+    )
+
+    return JsonResponse({'success': True, 'ativo': funcionalidade.ativo, 'created': created})
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def api_atualizar_valor_plano(request, pk):
+    """
+    Atualiza o valor de um plano de assinatura.
+    POST /admin/planos-assinatura/<pk>/atualizar-valor/
+    Body: { valor }
+    """
+    plano = get_object_or_404(PlanoAssinatura, pk=pk)
+    try:
+        data = json.loads(request.body)
+        novo_valor = Decimal(str(data.get('valor', plano.valor)))
+    except (json.JSONDecodeError, ValueError, InvalidOperation):
+        return JsonResponse({'success': False, 'error': 'Valor inválido.'}, status=400)
+
+    if novo_valor <= 0:
+        return JsonResponse({'success': False, 'error': 'O valor deve ser maior que zero.'}, status=400)
+
+    valor_anterior = plano.valor
+    plano.valor = novo_valor
+    plano.save(update_fields=['valor', 'atualizado_em'])
+
+    log_user_action(
+        request=request,
+        action=UserActionLog.ACTION_UPDATE,
+        instance=plano,
+        message=f'Valor do plano {plano.get_tipo_display()} atualizado de R${valor_anterior} para R${novo_valor}.',
+        extra={'plano': plano.tipo, 'valor_anterior': float(valor_anterior), 'novo_valor': float(novo_valor)},
+    )
+
+    return JsonResponse({'success': True, 'valor': float(plano.valor), 'valor_fmt': f'R$ {plano.valor:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')})
+
+
+@login_required
+def minha_assinatura(request):
+    """
+    Página de assinatura do usuário.
+    Exibida quando a assinatura está expirada ou ao acessar diretamente.
+    GET /minha-assinatura/
+    """
+    # Superuser não precisa desta página
+    if request.user.is_superuser:
+        return redirect('dashboard')
+
+    user = getattr(request, 'data_owner', request.user)
+    assinatura = get_ou_criar_assinatura_plataforma(user)
+    planos = PlanoAssinatura.objects.filter(ativo=True).prefetch_related('funcionalidades').order_by('valor')
+
+    # Grupos de features padrão (incluso em todos os planos)
+    grupos_padrao = []
+    for grupo in GRUPOS_FUNCIONALIDADES:
+        itens = [label for chave, label in grupo['chaves'] if chave in FUNCIONALIDADES_PADRAO]
+        if itens:
+            grupos_padrao.append({'nome': grupo['nome'], 'icone': grupo['icone'], 'itens': itens})
+
+    # Pré-processa funcionalidades por plano — lista completa (não delta)
+    planos_com_features = []
+
+    for plano in planos:
+        feat_set = {f.chave for f in plano.funcionalidades.all() if f.ativo}
+        # Mostra apenas features não-padrão ativas no plano
+        nao_padrao_ativas = feat_set - FUNCIONALIDADES_PADRAO
+
+        grupos = []
+        for grupo in GRUPOS_FUNCIONALIDADES:
+            itens = [
+                label
+                for chave, label in grupo['chaves']
+                if chave in nao_padrao_ativas
+            ]
+            if itens:
+                grupos.append({'nome': grupo['nome'], 'icone': grupo['icone'], 'itens': itens})
+
+        is_plano_atual = (
+            assinatura.status == 'ativo'
+            and assinatura.plano_id is not None
+            and assinatura.plano_id == plano.pk
+        )
+
+        # Remove prefixo redundante "Plano X — " da descrição
+        descricao = plano.descricao or ''
+        prefixo = f'Plano {plano.get_tipo_display()} — '
+        if descricao.startswith(prefixo):
+            descricao = descricao[len(prefixo):]
+        descricao = descricao[:1].upper() + descricao[1:] if descricao else ''
+
+        planos_com_features.append({
+            'plano': plano,
+            'grupos': grupos,
+            'is_plano_atual': is_plano_atual,
+            'descricao': descricao,
+        })
+
+    # Última cobrança pendente e não expirada (para exibir QR code existente)
+    cobranca_pendente = CobrancaAssinaturaPlataforma.objects.filter(
+        usuario=user,
+        status='pendente',
+        data_expiracao__gt=timezone.now(),
+    ).order_by('-criado_em').first()
+
+    # Marca como expiradas cobranças pendentes cuja data_expiracao já passou
+    CobrancaAssinaturaPlataforma.objects.filter(
+        usuario=user,
+        status='pendente',
+        data_expiracao__lte=timezone.now(),
+    ).update(status='expirado')
+
+    # Histórico de cobranças
+    historico_cobranças = CobrancaAssinaturaPlataforma.objects.filter(
+        usuario=user,
+    ).order_by('-criado_em')[:10]
+
+    return render(request, 'pages/minha_assinatura.html', {
+        'assinatura': assinatura,
+        'planos': planos,
+        'cobranca_pendente': cobranca_pendente,
+        'historico_cobranças': historico_cobranças,
+        'planos_com_features': planos_com_features,
+        'grupos_padrao': grupos_padrao,
+        'page': 'minha-assinatura',
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def gerar_cobranca_assinatura(request, user_id):
+    """
+    Admin gera cobrança PIX de assinatura para um revendedor.
+    POST /admin/assinaturas/<user_id>/gerar-cobranca/
+    Body: { plano_id, periodo_inicio, periodo_fim }
+    Usa a ContaBancaria FastDePix do admin (superuser logado).
+    """
+    from nossopainel.services.payment_integrations import get_payment_integration, PaymentIntegrationError
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Dados inválidos.'}, status=400)
+
+    target_user = get_object_or_404(User, pk=user_id, is_superuser=False)
+    plano_id = data.get('plano_id')
+    periodo_inicio_str = data.get('periodo_inicio')
+    periodo_fim_str = data.get('periodo_fim')
+
+    if not plano_id:
+        return JsonResponse({'success': False, 'error': 'Informe o plano.'}, status=400)
+
+    plano = get_object_or_404(PlanoAssinatura, pk=plano_id, ativo=True)
+
+    periodo_inicio = None
+    periodo_fim = None
+    if periodo_inicio_str:
+        try:
+            periodo_inicio = date.fromisoformat(periodo_inicio_str)
+        except ValueError:
+            return JsonResponse({'success': False, 'error': 'Data de início inválida.'}, status=400)
+    if periodo_fim_str:
+        try:
+            periodo_fim = date.fromisoformat(periodo_fim_str)
+        except ValueError:
+            return JsonResponse({'success': False, 'error': 'Data de fim inválida.'}, status=400)
+
+    if not periodo_inicio:
+        periodo_inicio = date.today()
+    if not periodo_fim:
+        from dateutil.relativedelta import relativedelta as _rdelta
+        periodo_fim = periodo_inicio + _rdelta(months=1) - timedelta(days=1)
+
+    # Buscar conta FastDePix do admin
+    conta_bancaria = ContaBancaria.objects.filter(
+        usuario=request.user,
+        instituicao__tipo_integracao='fastdepix',
+    ).select_related('instituicao').first()
+
+    if not conta_bancaria:
+        return JsonResponse({
+            'success': False,
+            'error': 'Configure uma conta bancária FastDePix para o admin antes de gerar cobranças de assinatura.',
+        }, status=400)
+
+    assinatura = get_ou_criar_assinatura_plataforma(target_user)
+
+    # Verificar se já existe cobrança pendente, não expirada e com o mesmo valor do plano
+    cobranca_existente = CobrancaAssinaturaPlataforma.objects.filter(
+        usuario=target_user,
+        status='pendente',
+        data_expiracao__gt=timezone.now(),
+        valor=plano.valor,
+    ).order_by('-criado_em').first()
+
+    if cobranca_existente:
+        return JsonResponse({
+            'success': True,
+            'cobranca_id': str(cobranca_existente.id),
+            'qr_code': cobranca_existente.qr_code,
+            'pix_copia_cola': cobranca_existente.pix_copia_cola,
+            'qr_code_url': cobranca_existente.qr_code_url,
+            'valor': float(cobranca_existente.valor),
+            'expira_em': cobranca_existente.data_expiracao.isoformat() if cobranca_existente.data_expiracao else None,
+            'mensagem': 'Já existe uma cobrança pendente para este usuário.',
+            'existente': True,
+        })
+
+    # Gerar cobrança via FastDePix
+    try:
+        integration = get_payment_integration(conta_bancaria)
+        if not integration:
+            return JsonResponse({'success': False, 'error': 'Integração de pagamento indisponível.'}, status=400)
+
+        descricao = f"Assinatura nossopainel — {plano.get_tipo_display()} — {target_user.get_full_name() or target_user.username}"
+        pix_charge = integration.create_pix_charge(
+            amount=plano.valor,
+            description=descricao,
+            external_id=f'assinatura-{target_user.id}-{plano.tipo}',
+            expiration_minutes=60 * 24 * 3,  # 3 dias
+            payer_name=target_user.get_full_name() or target_user.username,
+        )
+
+        cobranca = CobrancaAssinaturaPlataforma.objects.create(
+            usuario=target_user,
+            plano=plano,
+            assinatura=assinatura,
+            valor=pix_charge.amount,
+            status='pendente',
+            cobranca_id_externo=pix_charge.transaction_id,
+            qr_code=pix_charge.qr_code_base64 or pix_charge.qr_code or '',
+            pix_copia_cola=pix_charge.pix_copy_paste or '',
+            qr_code_url=pix_charge.qr_code_url or '',
+            data_expiracao=pix_charge.expiration,
+            periodo_inicio=periodo_inicio,
+            periodo_fim=periodo_fim,
+            criado_por=request.user,
+        )
+
+        log_user_action(
+            request=request,
+            action=UserActionLog.ACTION_CREATE,
+            instance=cobranca,
+            message=f'Cobrança de assinatura gerada para {target_user.username} — plano {plano.get_tipo_display()}.',
+            extra={
+                'usuario_alvo': target_user.username,
+                'plano': plano.tipo,
+                'valor': float(cobranca.valor),
+                'periodo_inicio': str(periodo_inicio),
+                'periodo_fim': str(periodo_fim),
+            },
+        )
+
+        return JsonResponse({
+            'success': True,
+            'cobranca_id': str(cobranca.id),
+            'qr_code': cobranca.qr_code,
+            'pix_copia_cola': cobranca.pix_copia_cola,
+            'qr_code_url': cobranca.qr_code_url,
+            'valor': float(cobranca.valor),
+            'expira_em': cobranca.data_expiracao.isoformat() if cobranca.data_expiracao else None,
+            'mensagem': 'Cobrança de assinatura gerada com sucesso!',
+            'existente': False,
+        })
+
+    except PaymentIntegrationError as e:
+        logger.error(f'[ASSINATURA-PIX] Erro na integração: {e.message}')
+        return JsonResponse({'success': False, 'error': f'Erro na integração: {e.message}'}, status=400)
+    except Exception as e:
+        logger.error(f'[ASSINATURA-PIX] Erro inesperado: {e}', exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao gerar cobrança de assinatura.'}, status=500)
+
+
+@login_required
+@require_POST
+def api_assinar_plano(request, plano_id):
+    """
+    Usuário solicita assinatura de um plano — gera cobrança PIX usando conta FastDePix do admin.
+    POST /minha-assinatura/assinar/<plano_id>/
+    """
+    from nossopainel.services.payment_integrations import get_payment_integration, PaymentIntegrationError
+
+    if request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Superusuários não utilizam esta funcionalidade.'}, status=400)
+
+    user = getattr(request, 'data_owner', request.user)
+    plano = get_object_or_404(PlanoAssinatura, pk=plano_id, ativo=True)
+
+    # Usar conta FastDePix de qualquer superusuário que a tenha configurada
+    conta_bancaria = ContaBancaria.objects.filter(
+        usuario__is_superuser=True,
+        instituicao__tipo_integracao='fastdepix',
+    ).select_related('instituicao').first()
+
+    if not conta_bancaria:
+        return JsonResponse({
+            'success': False,
+            'error': 'Pagamento via PIX indisponível no momento. Entre em contato com o suporte.',
+        }, status=400)
+
+    assinatura = get_ou_criar_assinatura_plataforma(user)
+
+    # Reutilizar cobrança pendente existente para o mesmo plano
+    cobranca_existente = CobrancaAssinaturaPlataforma.objects.filter(
+        usuario=user,
+        status='pendente',
+        data_expiracao__gt=timezone.now(),
+        valor=plano.valor,
+    ).order_by('-criado_em').first()
+
+    if cobranca_existente:
+        return JsonResponse({
+            'success': True,
+            'cobranca_id': str(cobranca_existente.id),
+            'qr_code': cobranca_existente.qr_code,
+            'pix_copia_cola': cobranca_existente.pix_copia_cola,
+            'qr_code_url': cobranca_existente.qr_code_url,
+            'valor': float(cobranca_existente.valor),
+            'expira_em': cobranca_existente.data_expiracao.isoformat() if cobranca_existente.data_expiracao else None,
+            'existente': True,
+        })
+
+    try:
+        integration = get_payment_integration(conta_bancaria)
+        if not integration:
+            return JsonResponse({'success': False, 'error': 'Integração de pagamento indisponível.'}, status=400)
+
+        from dateutil.relativedelta import relativedelta as _rdelta
+        periodo_inicio = date.today()
+        periodo_fim = periodo_inicio + _rdelta(months=1) - timedelta(days=1)
+
+        descricao = f"Assinatura nossopainel — {plano.get_tipo_display()} — {user.get_full_name() or user.username}"
+        pix_charge = integration.create_pix_charge(
+            amount=plano.valor,
+            description=descricao,
+            external_id=f'assinatura-{user.id}-{plano.tipo}',
+            expiration_minutes=60 * 24 * 3,  # 3 dias
+            payer_name=user.get_full_name() or user.username,
+        )
+
+        cobranca = CobrancaAssinaturaPlataforma.objects.create(
+            usuario=user,
+            plano=plano,
+            assinatura=assinatura,
+            valor=pix_charge.amount,
+            status='pendente',
+            cobranca_id_externo=pix_charge.transaction_id,
+            qr_code=pix_charge.qr_code_base64 or pix_charge.qr_code or '',
+            pix_copia_cola=pix_charge.pix_copy_paste or '',
+            qr_code_url=pix_charge.qr_code_url or '',
+            data_expiracao=pix_charge.expiration,
+            periodo_inicio=periodo_inicio,
+            periodo_fim=periodo_fim,
+        )
+
+        return JsonResponse({
+            'success': True,
+            'cobranca_id': str(cobranca.id),
+            'qr_code': cobranca.qr_code,
+            'pix_copia_cola': cobranca.pix_copia_cola,
+            'qr_code_url': cobranca.qr_code_url,
+            'valor': float(cobranca.valor),
+            'expira_em': cobranca.data_expiracao.isoformat() if cobranca.data_expiracao else None,
+            'existente': False,
+        })
+
+    except PaymentIntegrationError as e:
+        logger.error(f'[ASSINAR-PLANO] Erro na integração: {e.message}')
+        return JsonResponse({'success': False, 'error': f'Erro ao gerar cobrança: {e.message}'}, status=400)
+    except Exception as e:
+        logger.error(f'[ASSINAR-PLANO] Erro inesperado: {e}', exc_info=True)
+        return JsonResponse({'success': False, 'error': 'Erro ao gerar cobrança de assinatura.'}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_status_cobranca_assinatura(request, cobranca_id):
+    """
+    Consulta o status de uma cobrança de assinatura (polling pelo usuário ou admin).
+    GET /api/assinatura/cobranca/<cobranca_id>/status/
+    Quando pendente, consulta a API FastDePix ativamente para não depender apenas do webhook.
+    """
+    from nossopainel.services.payment_integrations import get_payment_integration, PaymentIntegrationError, PaymentStatus
+
+    user = getattr(request, 'data_owner', request.user)
+    try:
+        if request.user.is_superuser:
+            cobranca = CobrancaAssinaturaPlataforma.objects.select_related(
+                'usuario', 'plano', 'assinatura'
+            ).get(id=cobranca_id)
+        else:
+            cobranca = CobrancaAssinaturaPlataforma.objects.select_related(
+                'usuario', 'plano', 'assinatura'
+            ).get(id=cobranca_id, usuario=user)
+    except CobrancaAssinaturaPlataforma.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Cobrança não encontrada.'}, status=404)
+
+    # Se ainda pendente, consulta ativamente o FastDePix para não depender só do webhook
+    if cobranca.status == 'pendente' and cobranca.cobranca_id_externo:
+        try:
+            conta_bancaria = ContaBancaria.objects.filter(
+                usuario__is_superuser=True,
+                instituicao__tipo_integracao='fastdepix',
+            ).select_related('instituicao').first()
+
+            if conta_bancaria:
+                integration = get_payment_integration(conta_bancaria)
+                if integration:
+                    status_api = integration.get_charge_status(cobranca.cobranca_id_externo)
+
+                    if status_api == PaymentStatus.PAID:
+                        cobranca.status = 'pago'
+                        cobranca.data_pagamento = timezone.now()
+                        cobranca.save(update_fields=['status', 'data_pagamento', 'atualizado_em'])
+
+                        # Ativar/renovar assinatura
+                        assinatura = cobranca.assinatura or get_ou_criar_assinatura_plataforma(cobranca.usuario)
+                        hoje = date.today()
+                        periodo_inicio = cobranca.periodo_inicio or hoje
+                        periodo_fim = cobranca.periodo_fim or (periodo_inicio + timedelta(days=30))
+                        duracao_dias = max((periodo_fim - periodo_inicio).days, 1)
+                        base = assinatura.data_fim if assinatura.data_fim and assinatura.data_fim > hoje else hoje
+                        assinatura.status = 'ativo'
+                        assinatura.plano = cobranca.plano
+                        if not assinatura.data_inicio:
+                            assinatura.data_inicio = periodo_inicio
+                        assinatura.data_fim = base + timedelta(days=duracao_dias)
+                        assinatura.save(update_fields=['status', 'plano', 'data_inicio', 'data_fim', 'atualizado_em'])
+
+                    elif status_api in (PaymentStatus.EXPIRED, PaymentStatus.CANCELLED):
+                        cobranca.status = 'expirado'
+                        cobranca.save(update_fields=['status', 'atualizado_em'])
+
+        except Exception:
+            pass  # Falha silenciosa — retorna status do banco
+
+    return JsonResponse({
+        'success': True,
+        'cobranca_id': str(cobranca.id),
+        'status': cobranca.status,
+        'status_display': cobranca.get_status_display(),
+        'valor': float(cobranca.valor),
+        'is_pago': cobranca.status == 'pago',
+        'is_expirado': cobranca.status == 'expirado',
+        'data_pagamento': cobranca.data_pagamento.isoformat() if cobranca.data_pagamento else None,
+        'data_expiracao': cobranca.data_expiracao.isoformat() if cobranca.data_expiracao else None,
+        'plano': cobranca.plano.get_tipo_display() if cobranca.plano else None,
+    })
+
+
+@csrf_exempt
+@require_POST
+def webhook_pagamento_assinatura(request):
+    """
+    Recebe webhooks de pagamento (FastDePix) para cobranças de assinatura de plataforma.
+    POST /webhook/assinatura/pix/
+    Ao confirmar pagamento, ativa/renova a assinatura do usuário.
+    """
+    fdpx_logger = logging.getLogger('fastdepix.webhook')
+    fdpx_logger.info("[ASSINATURA-WEBHOOK] Webhook de assinatura recebido.")
+
+    try:
+        raw_body = request.body.decode('utf-8', errors='replace')
+        if not raw_body or not raw_body.strip():
+            return JsonResponse({'status': 'ok', 'info': 'empty body ignored'})
+
+        payload = json.loads(raw_body)
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+
+        data = payload.get('data', payload) if isinstance(payload, dict) else payload
+        transaction_id = str(data.get('id', data.get('transaction_id', '')))
+        status_str = data.get('status', '').lower()
+
+        fdpx_logger.info(f"[ASSINATURA-WEBHOOK] transaction_id={transaction_id} status={status_str}")
+
+        if not transaction_id:
+            return JsonResponse({'status': 'ok', 'info': 'no transaction_id'})
+
+        # Buscar cobrança pelo ID externo
+        try:
+            cobranca = CobrancaAssinaturaPlataforma.objects.select_related(
+                'usuario', 'plano', 'assinatura'
+            ).get(cobranca_id_externo=transaction_id)
+        except CobrancaAssinaturaPlataforma.DoesNotExist:
+            fdpx_logger.warning(f"[ASSINATURA-WEBHOOK] Cobrança não encontrada: {transaction_id}")
+            return JsonResponse({'status': 'ok', 'info': 'not found'})
+
+        if status_str in ('paid', 'pago', 'completed', 'approved'):
+            if cobranca.status != 'pago':
+                cobranca.status = 'pago'
+                cobranca.data_pagamento = timezone.now()
+                cobranca.save(update_fields=['status', 'data_pagamento', 'atualizado_em'])
+
+                # Ativar/renovar assinatura
+                assinatura = cobranca.assinatura
+                if assinatura is None:
+                    assinatura = get_ou_criar_assinatura_plataforma(cobranca.usuario)
+
+                # Calcular nova data_fim acumulando sobre saldo existente
+                hoje = date.today()
+                periodo_inicio = cobranca.periodo_inicio or hoje
+                periodo_fim = cobranca.periodo_fim or (periodo_inicio + timedelta(days=30))
+                duracao_dias = max((periodo_fim - periodo_inicio).days, 1)
+
+                # Se já existe assinatura ativa com saldo futuro, estende a partir do data_fim atual
+                base = (
+                    assinatura.data_fim
+                    if assinatura.data_fim and assinatura.data_fim > hoje
+                    else hoje
+                )
+                nova_data_fim = base + timedelta(days=duracao_dias)
+
+                assinatura.status = 'ativo'
+                assinatura.plano = cobranca.plano
+                if not assinatura.data_inicio:
+                    assinatura.data_inicio = periodo_inicio
+                assinatura.data_fim = nova_data_fim
+                assinatura.save(update_fields=['status', 'plano', 'data_inicio', 'data_fim', 'atualizado_em'])
+
+                fdpx_logger.info(
+                    f"[ASSINATURA-WEBHOOK] Assinatura ativada/renovada: usuario={cobranca.usuario.username} "
+                    f"plano={cobranca.plano.tipo if cobranca.plano else 'N/A'} "
+                    f"base={base} duracao={duracao_dias}d nova_data_fim={nova_data_fim}"
+                )
+
+        elif status_str in ('expired', 'cancelled', 'canceled'):
+            if cobranca.status == 'pendente':
+                cobranca.status = 'expirado' if 'expir' in status_str else 'cancelado'
+                cobranca.save(update_fields=['status', 'atualizado_em'])
+
+        return JsonResponse({'status': 'ok'})
+
+    except Exception as e:
+        fdpx_logger.error(f"[ASSINATURA-WEBHOOK] Erro: {e}", exc_info=True)
+        return JsonResponse({'status': 'error'}, status=500)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def revendedor_conceder_dias_extras(request, user_id):
+    """
+    Admin concede dias extras de acesso gratuito para um revendedor.
+    POST /revendedores/<user_id>/conceder-dias-extras/
+    Body: { dias }
+    """
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Dados inválidos.'}, status=400)
+
+    target_user = get_object_or_404(User, pk=user_id, is_superuser=False)
+    try:
+        dias = int(data.get('dias', 0))
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Número de dias inválido.'}, status=400)
+
+    if dias <= 0 or dias > 365:
+        return JsonResponse({'success': False, 'error': 'Informe entre 1 e 365 dias.'}, status=400)
+
+    assinatura = get_ou_criar_assinatura_plataforma(target_user)
+    assinatura.dias_extras += dias
+    assinatura.save(update_fields=['dias_extras', 'atualizado_em'])
+
+    log_user_action(
+        request=request,
+        action=UserActionLog.ACTION_UPDATE,
+        instance=assinatura,
+        message=f'{dias} dia(s) extra(s) concedido(s) para {target_user.username}. Total: {assinatura.dias_extras} dias.',
+        extra={'usuario_alvo': target_user.username, 'dias_concedidos': dias, 'total_dias_extras': assinatura.dias_extras},
+    )
+
+    return JsonResponse({
+        'success': True,
+        'dias_extras': assinatura.dias_extras,
+        'mensagem': f'{dias} dia(s) extra(s) concedido(s) com sucesso!',
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def api_planos_assinatura_lista(request):
+    """Lista planos de assinatura ativos para o modal de geração de cobrança."""
+    planos = PlanoAssinatura.objects.filter(ativo=True).order_by('valor')
+    return JsonResponse({
+        'success': True,
+        'planos': [{'id': p.id, 'nome': p.get_tipo_display(), 'valor': float(p.valor)} for p in planos],
+    })

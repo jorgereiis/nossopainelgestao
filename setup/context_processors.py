@@ -84,6 +84,44 @@ def impersonation(request):
     }
 
 
+def assinatura_context(request):
+    """
+    Disponibiliza em todos os templates:
+      - assinatura_plataforma: objeto AssinaturaPlataforma ou None
+      - assinatura_valida: bool
+      - funcionalidades_ativas: frozenset de chaves habilitadas
+    """
+    if not hasattr(request, 'user') or not request.user.is_authenticated:
+        return {}
+
+    from nossopainel.utils import TODAS_FUNCIONALIDADES
+
+    user = request.user
+    if user.is_superuser:
+        return {
+            'assinatura_plataforma': None,
+            'assinatura_valida': True,
+            'funcionalidades_ativas': TODAS_FUNCIONALIDADES,
+        }
+
+    user_owner = getattr(request, 'data_owner', user)
+    try:
+        from nossopainel.utils import get_ou_criar_assinatura_plataforma, get_funcionalidades_usuario
+        assinatura = get_ou_criar_assinatura_plataforma(user_owner)
+        funcionalidades = get_funcionalidades_usuario(user_owner)
+        return {
+            'assinatura_plataforma': assinatura,
+            'assinatura_valida': assinatura.is_acesso_valido,
+            'funcionalidades_ativas': funcionalidades,
+        }
+    except Exception:
+        return {
+            'assinatura_plataforma': None,
+            'assinatura_valida': False,
+            'funcionalidades_ativas': frozenset(),
+        }
+
+
 def atendente_context(request):
     """
     Disponibiliza em todos os templates as informações de atendente:

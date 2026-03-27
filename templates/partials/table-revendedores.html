@@ -21,6 +21,7 @@
                         <i class="bi bi-chevron-expand sort-icon"></i>
                     </span>
                 </th>
+                <th class="text-center">Assinatura</th>
                 <th class="text-center">Automações</th>
                 <th class="text-center">Ações</th>
             </tr>
@@ -91,6 +92,49 @@
                     </span>
                     {% endif %}
                 </td>
+                <!-- Coluna: Assinatura -->
+                <td class="text-center">
+                    {% with assinatura=revendedor.assinatura_plataforma %}
+                    {% if revendedor.is_superuser %}
+                    <span class="badge bg-warning-subtle text-warning" data-bs-toggle="tooltip" title="Admin — sem restrições">
+                        <i class="bi bi-shield-fill me-1"></i>Admin
+                    </span>
+                    {% elif assinatura %}
+                        {% if assinatura.status == 'trial' %}
+                            {% if assinatura.is_acesso_valido %}
+                            <span class="badge bg-info-subtle text-info" data-bs-toggle="tooltip" title="Trial ativo — {{ assinatura.dias_restantes }} dia(s) restante(s)">
+                                <i class="bi bi-clock me-1"></i>Trial ({{ assinatura.dias_restantes }}d)
+                            </span>
+                            {% else %}
+                            <span class="badge bg-danger-subtle text-danger" data-bs-toggle="tooltip" title="Trial expirado">
+                                <i class="bi bi-x-circle me-1"></i>Trial expirado
+                            </span>
+                            {% endif %}
+                        {% elif assinatura.status == 'ativo' %}
+                            {% if assinatura.is_acesso_valido %}
+                            <span class="badge bg-success-subtle text-success" data-bs-toggle="tooltip" title="{{ assinatura.plano.get_tipo_display|default:'' }} — vence {{ assinatura.data_fim|date:'d/m/Y' }}">
+                                <i class="bi bi-check-circle me-1"></i>{{ assinatura.plano.get_tipo_display|default:"Ativo" }}
+                            </span>
+                            {% else %}
+                            <span class="badge bg-danger-subtle text-danger" data-bs-toggle="tooltip" title="Assinatura vencida em {{ assinatura.data_fim|date:'d/m/Y' }}">
+                                <i class="bi bi-x-circle me-1"></i>Vencida
+                            </span>
+                            {% endif %}
+                        {% elif assinatura.status == 'suspenso' %}
+                        <span class="badge bg-warning-subtle text-warning">
+                            <i class="bi bi-pause-circle me-1"></i>Suspenso
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary">
+                            <i class="bi bi-dash-circle me-1"></i>Cancelado
+                        </span>
+                        {% endif %}
+                    {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary">Sem assinatura</span>
+                    {% endif %}
+                    {% endwith %}
+                </td>
+
                 <td class="text-start" style="min-width: 200px;">
                     <div class="automacoes-lista small" data-user-id="{{ revendedor.id }}">
                         <!-- HorarioEnvios (Vencimentos e Atrasos) -->
@@ -187,6 +231,20 @@
                                     <i class="bi bi-box-arrow-in-right me-2 text-info"></i>Logar como
                                 </button>
                             </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        type="button"
+                                        onclick="concederDiasExtras({{ revendedor.id }}, '{{ revendedor.get_full_name|default:revendedor.username }}')">
+                                    <i class="bi bi-calendar-plus me-2 text-success"></i>Conceder dias extras
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        type="button"
+                                        onclick="gerarCobrancaAssinatura({{ revendedor.id }}, '{{ revendedor.get_full_name|default:revendedor.username }}')">
+                                    <i class="bi bi-cash-coin me-2 text-success"></i>Gerar cobrança PIX
+                                </button>
+                            </li>
                             <li><hr class="dropdown-divider"></li>
                             {% if revendedor.is_active %}
                             <li>
@@ -219,7 +277,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="5" class="text-center text-muted py-5">
+                <td colspan="6" class="text-center text-muted py-5">
                     <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                     Nenhum revendedor encontrado
                 </td>

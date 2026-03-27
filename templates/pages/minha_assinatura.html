@@ -1,0 +1,595 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Minha Assinatura | Nosso Painel{% endblock %}
+
+{% block extra_css %}
+<style>
+.plano-card-usuario {
+    border-radius: 16px;
+    border: 2px solid #dee2e6;
+    transition: border-color .2s, transform .15s, box-shadow .2s;
+    cursor: pointer;
+}
+.plano-card-usuario:hover,
+.plano-card-usuario.selecionado {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+}
+.plano-card-usuario.bronze { border-color: #cd7f32; }
+.plano-card-usuario.prata  { border-color: #a8a9ad; }
+.plano-card-usuario.ouro   { border-color: #ffd700; }
+
+.badge-plano {
+    font-size: 1rem;
+    padding: .5em .9em;
+    border-radius: 50em;
+}
+.badge-plano.bronze { background: linear-gradient(135deg, #cd7f32, #a0522d); color: #fff; }
+.badge-plano.prata  { background: linear-gradient(135deg, #a8a9ad, #6c757d); color: #fff; }
+.badge-plano.ouro   { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #fff; }
+
+.qr-code-container img {
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.1);
+}
+
+.status-banner {
+    border-radius: 14px;
+    border-left: 5px solid;
+    padding: 1.2rem 1.5rem;
+}
+.status-banner.expirado { border-color: #dc3545; background: #fff5f5; }
+.status-banner.trial    { border-color: #0d6efd; background: #f0f6ff; }
+.status-banner.ativo    { border-color: #198754; background: #f0fff5; }
+
+.feature-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    font-size: .73rem;
+    padding: .25em .55em;
+    border-radius: .4em;
+}
+
+/* Timer circular */
+.assin-timer-wrapper {
+    position: relative;
+    width: 110px;
+    margin: 0 auto 1rem;
+    height: 110px;
+    margin: 0 auto .75rem;
+    flex-shrink: 0;
+}
+.assin-timer-circle {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+.assin-timer-bg {
+    fill: none;
+    stroke: #dee2e6;
+    stroke-width: 8;
+}
+.assin-timer-progress {
+    fill: none;
+    stroke: #0d6efd;
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 283;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s;
+}
+.assin-timer-progress.warning { stroke: #ffc107; }
+.assin-timer-progress.danger  { stroke: #dc3545; }
+.assin-timer-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    white-space: nowrap;
+}
+.assin-timer-label {
+    display: block;
+    font-size: 0.62rem;
+    color: #6c757d;
+    margin-bottom: 1px;
+}
+.assin-timer-value {
+    font-size: .95rem;
+    font-weight: 700;
+    color: #212529;
+}
+.assin-timer-value.warning { color: #e6a800; }
+.assin-timer-value.danger  { color: #dc3545; animation: assinTimerPulse 1s ease-in-out infinite; }
+@keyframes assinTimerPulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+}
+
+.plano-card-usuario {
+    transition: border-color .2s, box-shadow .2s;
+}
+.plano-card-usuario.bronze { border-top: 4px solid #cd7f32; }
+.plano-card-usuario.prata  { border-top: 4px solid #a8a9ad; }
+.plano-card-usuario.ouro   { border-top: 4px solid #ffd700; }
+
+.plano-features-grupo { margin-bottom: .9rem; }
+.plano-features-grupo-nome {
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #6c757d;
+    margin-bottom: .3rem;
+    padding-bottom: .2rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+.plano-feature-item {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .78rem;
+    padding: .1rem 0;
+    color: #212529;
+}
+.btn-assinar {
+    font-size: .95rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+    padding: .6rem 1.5rem;
+    border-radius: 50em;
+    width: 100%;
+}
+.btn-assinar.btn-bronze {
+    background: linear-gradient(135deg, #cd7f32, #a0522d);
+    border-color: #a0522d;
+    color: #fff;
+}
+.btn-assinar.btn-bronze:hover {
+    background: linear-gradient(135deg, #b8712c, #8b4513);
+    border-color: #8b4513;
+    color: #fff;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 860px;">
+
+    <!-- Banner de status -->
+    {% if not assinatura_valida %}
+    <div class="status-banner expirado mb-4 d-flex align-items-center gap-3">
+        <i class="bi bi-exclamation-circle-fill fs-3 text-danger"></i>
+        <div>
+            <h5 class="mb-1 text-danger fw-bold">Assinatura expirada ou não encontrada</h5>
+            <p class="mb-0 text-muted">Seu acesso ao sistema está suspenso. Escolha um plano e realize o pagamento para continuar.</p>
+        </div>
+    </div>
+    {% elif assinatura.status == 'trial' %}
+    <div class="status-banner trial mb-4 d-flex align-items-center gap-3">
+        <i class="bi bi-clock-fill fs-3 text-primary"></i>
+        <div>
+            <h5 class="mb-1 text-primary fw-bold">Período de Trial</h5>
+            <p class="mb-0 text-muted">
+                Você está usando o sistema gratuitamente.
+                {% if assinatura.dias_restantes > 0 %}
+                Seu trial termina em <strong>{{ assinatura.dias_restantes }} dia(s)</strong> ({{ assinatura.trial_fim|date:"d/m/Y" }}).
+                {% else %}
+                Seu trial expirou. Escolha um plano para continuar.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+    {% elif assinatura.status == 'ativo' %}
+    <div class="status-banner ativo mb-4 d-flex align-items-center gap-3">
+        <i class="bi bi-check-circle-fill fs-3 text-success"></i>
+        <div>
+            <h5 class="mb-1 text-success fw-bold">Assinatura Ativa</h5>
+            <p class="mb-0 text-muted">
+                Plano <strong>{{ assinatura.plano.get_tipo_display }}</strong> ativo até
+                <strong>{{ assinatura.data_fim|date:"d/m/Y" }}</strong>
+                ({{ assinatura.dias_restantes }} dia(s) restante(s)).
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- QR Code pendente -->
+    {% if cobranca_pendente %}
+    <div class="card shadow-sm mb-5 border-0">
+        <div class="card-header bg-warning-subtle border-0">
+            <h6 class="mb-0 fw-bold text-warning-emphasis">
+                <i class="bi bi-qr-code me-2"></i>Aguardando Pagamento
+            </h6>
+        </div>
+        <div class="card-body text-center">
+
+            <!-- Timer circular -->
+            <div class="assin-timer-wrapper">
+                <svg class="assin-timer-circle" viewBox="0 0 100 100">
+                    <circle class="assin-timer-bg" cx="50" cy="50" r="45"/>
+                    <circle id="assinTimerProgress" class="assin-timer-progress" cx="50" cy="50" r="45"/>
+                </svg>
+                <div class="assin-timer-content">
+                    <span class="assin-timer-label">Expira em</span>
+                    <span id="assinTimerDisplay" class="assin-timer-value">--:--</span>
+                </div>
+            </div>
+
+            <!-- QR Code centralizado -->
+            {% if cobranca_pendente.qr_code_url %}
+            <div class="qr-code-container mb-3">
+                <img src="{{ cobranca_pendente.qr_code_url }}"
+                     alt="QR Code PIX"
+                     class="d-block mx-auto rounded shadow-sm"
+                     style="width: 180px; height: 180px;">
+                <small class="text-muted d-block mt-2">Escaneie com seu app de banco</small>
+            </div>
+            {% endif %}
+
+            <!-- Informações -->
+            <p class="mb-1 text-muted small">
+                <strong>Plano:</strong> {{ cobranca_pendente.plano.get_tipo_display|default:"—" }}
+                &nbsp;|&nbsp;
+                <strong>Valor:</strong> R$ {{ cobranca_pendente.valor }}
+            </p>
+
+            <!-- PIX Copia e Cola -->
+            {% if cobranca_pendente.pix_copia_cola %}
+            <div class="mb-3 mt-3" style="max-width: 480px; margin-left: auto; margin-right: auto;">
+                <label class="form-label fw-semibold small">PIX Copia e Cola</label>
+                <div class="input-group">
+                    <input type="text"
+                           class="form-control form-control-sm font-monospace"
+                           value="{{ cobranca_pendente.pix_copia_cola }}"
+                           id="pixCopiaColaInput"
+                           readonly>
+                    <button class="btn btn-outline-secondary btn-sm"
+                            onclick="copiarPix()"
+                            type="button">
+                        <i class="bi bi-clipboard me-1"></i>Copiar
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Planos disponíveis -->
+    <h5 class="fw-bold mb-3">
+        <i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Planos Disponíveis
+    </h5>
+
+    <div class="row g-4 mb-5">
+        {% for item in planos_com_features %}
+        <div class="col-12 col-md-4">
+            <div class="card plano-card-usuario {{ item.plano.tipo }} border-0 shadow-sm h-100">
+                <div class="card-body d-flex flex-column p-4">
+
+                    <!-- Badge + preço -->
+                    <div class="text-center mb-3">
+                        <span class="badge-plano {{ item.plano.tipo }} d-inline-block mb-2">
+                            {% if item.plano.tipo == 'bronze' %}<i class="bi bi-award me-1"></i>{% endif %}
+                            {% if item.plano.tipo == 'prata' %}<i class="bi bi-award-fill me-1"></i>{% endif %}
+                            {% if item.plano.tipo == 'ouro' %}<i class="bi bi-trophy-fill me-1"></i>{% endif %}
+                            {{ item.plano.get_tipo_display }}
+                        </span>
+                        <div class="fs-2 fw-bold mt-1">R$ {{ item.plano.valor }}<small class="fs-6 fw-normal text-muted">/mês</small></div>
+                        {% if item.descricao %}
+                        <p class="text-muted small mb-0 mt-1">{{ item.descricao }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Botão ASSINAR -->
+                    <div class="mb-3">
+                        {% if item.is_plano_atual %}
+                        <div class="btn btn-success w-100 disabled">
+                            <i class="bi bi-check-circle-fill me-2"></i>Seu plano atual
+                        </div>
+                        {% else %}
+                        <button type="button"
+                                class="btn btn-assinar {% if item.plano.tipo == 'ouro' %}btn-warning{% elif item.plano.tipo == 'prata' %}btn-secondary{% else %}btn-bronze{% endif %} shadow-sm"
+                                data-plano-nome="{{ item.plano.get_tipo_display }}"
+                                data-plano-valor="{{ item.plano.valor }}"
+                                onclick="assinarPlano({{ item.plano.id }}, this)">
+                            <i class="bi bi-qr-code me-2"></i>Assinar agora
+                        </button>
+                        {% endif %}
+                    </div>
+
+                    <!-- Divisor -->
+                    <hr class="my-2">
+
+                    <!-- Funcionalidades do plano -->
+                    <div class="flex-grow-1">
+                        {% if item.plano.tipo == 'bronze' %}
+                        <!-- Bronze: recursos padrão + não-padrão habilitados pelo admin -->
+                        {% for grupo in grupos_padrao %}
+                        <div class="plano-features-grupo">
+                            <div class="plano-features-grupo-nome">
+                                <i class="{{ grupo.icone }} me-1"></i>{{ grupo.nome }}
+                            </div>
+                            {% for label in grupo.itens %}
+                            <div class="plano-feature-item">
+                                <i class="bi bi-check-circle-fill text-success flex-shrink-0" style="font-size:.7rem;"></i>
+                                {{ label }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                        {% for grupo in item.grupos %}
+                        <div class="plano-features-grupo">
+                            <div class="plano-features-grupo-nome">
+                                <i class="{{ grupo.icone }} me-1"></i>{{ grupo.nome }}
+                            </div>
+                            {% for label in grupo.itens %}
+                            <div class="plano-feature-item">
+                                <i class="bi bi-plus-circle-fill text-primary flex-shrink-0" style="font-size:.7rem;"></i>
+                                {{ label }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <!-- Prata / Ouro: recursos padrão já estão no Bronze + exclusivos deste plano -->
+                        <div class="plano-feature-item mb-2 fw-semibold text-muted" style="font-size:.78rem;">
+                            <i class="bi bi-layers flex-shrink-0 me-1"></i>Tudo do Plano Bronze +
+                        </div>
+                        {% if item.grupos %}
+                        {% for grupo in item.grupos %}
+                        <div class="plano-features-grupo">
+                            <div class="plano-features-grupo-nome">
+                                <i class="{{ grupo.icone }} me-1"></i>{{ grupo.nome }}
+                            </div>
+                            {% for label in grupo.itens %}
+                            <div class="plano-feature-item">
+                                <i class="bi bi-plus-circle-fill text-primary flex-shrink-0" style="font-size:.7rem;"></i>
+                                {{ label }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="text-muted small fst-italic mt-1">Sem recursos adicionais configurados.</div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Histórico de cobranças -->
+    {% if historico_cobranças %}
+    <h5 class="fw-bold mb-3">
+        <i class="bi bi-clock-history me-2 text-primary"></i>Histórico de Cobranças
+    </h5>
+    <div class="card shadow-sm border-0">
+        <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Data</th>
+                        <th>Plano</th>
+                        <th>Período</th>
+                        <th>Valor</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cobranca in historico_cobranças %}
+                    <tr>
+                        <td>{{ cobranca.criado_em|date:"d/m/Y H:i" }}</td>
+                        <td>{{ cobranca.plano.get_tipo_display|default:"—" }}</td>
+                        <td>
+                            {% if cobranca.periodo_inicio and cobranca.periodo_fim %}
+                            {{ cobranca.periodo_inicio|date:"d/m/Y" }} a {{ cobranca.periodo_fim|date:"d/m/Y" }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>R$ {{ cobranca.valor }}</td>
+                        <td>
+                            {% if cobranca.status == 'pago' %}
+                            <span class="badge bg-success-subtle text-success">
+                                <i class="bi bi-check-circle-fill me-1"></i>Pago
+                            </span>
+                            {% elif cobranca.status == 'pendente' %}
+                            <span class="badge bg-warning-subtle text-warning-emphasis">
+                                <i class="bi bi-hourglass-split me-1"></i>Aguardando pagamento
+                            </span>
+                            {% elif cobranca.status == 'expirado' %}
+                            <span class="badge bg-secondary-subtle text-secondary">
+                                <i class="bi bi-clock-history me-1"></i>Expirado
+                            </span>
+                            {% elif cobranca.status == 'cancelado' %}
+                            <span class="badge bg-danger-subtle text-danger">
+                                <i class="bi bi-x-circle-fill me-1"></i>Cancelado
+                            </span>
+                            {% else %}
+                            <span class="badge bg-light text-muted">
+                                {{ cobranca.get_status_display }}
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+{% if cobranca_pendente %}
+const COBRANCA_ID = '{{ cobranca_pendente.id }}';
+
+let _assinPolling  = null;
+let _assinTimer    = null;
+let _assinExpira   = null;
+let _assinTotal    = 0;
+const _assinCirc   = 2 * Math.PI * 45;
+
+// ─── Timer circular (mesma lógica do modal _iniciarTimerCobranca) ─────────
+function _assinIniciarTimer() {
+    if (_assinTimer) clearInterval(_assinTimer);
+    const progress = document.getElementById('assinTimerProgress');
+    const display  = document.getElementById('assinTimerDisplay');
+    if (!progress || !display) return;
+    progress.style.strokeDasharray = _assinCirc;
+
+    function tick() {
+        const diff = _assinExpira - new Date();
+        if (diff <= 0) {
+            clearInterval(_assinTimer);
+            clearInterval(_assinPolling);
+            display.textContent = '00:00';
+            progress.style.strokeDashoffset = _assinCirc;
+            return;
+        }
+        const s = Math.floor(diff / 1000);
+        display.textContent = s >= 3600
+            ? `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`
+            : `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+        progress.style.strokeDashoffset = _assinCirc * (1 - s / _assinTotal);
+        if (s <= 300) {
+            progress.classList.add('danger');  progress.classList.remove('warning');
+            display.classList.add('danger');   display.classList.remove('warning');
+        } else if (s <= 3600) {
+            progress.classList.add('warning'); progress.classList.remove('danger');
+            display.classList.add('warning');  display.classList.remove('danger');
+        }
+    }
+    tick();
+    _assinTimer = setInterval(tick, 1000);
+}
+
+// ─── Polling de pagamento ────────────────────────────────────────────────────
+function _assinVerificarStatus() {
+    fetch(`/api/assinatura/cobranca/${COBRANCA_ID}/status/`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) return;
+
+        if (data.is_expirado) {
+            clearInterval(_assinPolling);
+            clearInterval(_assinTimer);
+            const p = document.getElementById('assinTimerProgress');
+            const d = document.getElementById('assinTimerDisplay');
+            if (p) { p.classList.add('danger'); }
+            if (d) { d.textContent = '00:00'; }
+            return;
+        }
+
+        if (!data.is_pago) return;
+
+        // Pagamento confirmado
+        clearInterval(_assinPolling);
+        clearInterval(_assinTimer);
+        const p = document.getElementById('assinTimerProgress');
+        const d = document.getElementById('assinTimerDisplay');
+        if (p) { p.classList.remove('warning', 'danger'); p.style.stroke = '#198754'; }
+        if (d) { d.classList.remove('warning', 'danger'); d.textContent = '✓'; }
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Pagamento confirmado!',
+            html: `Sua assinatura <strong>${data.plano || ''}</strong> foi ativada com sucesso.<br><small class="text-muted">Você será redirecionado em instantes...</small>`,
+            showConfirmButton: true,
+            confirmButtonText: 'Acessar o sistema',
+            timer: 5000,
+            timerProgressBar: true,
+        }).then(() => { window.location.href = '/dashboard/'; });
+    })
+    .catch(() => {});
+}
+
+// ─── Inicialização via API (mesmo padrão do modal) ───────────────────────────
+fetch(`/api/assinatura/cobranca/${COBRANCA_ID}/status/`, {
+    headers: { 'Accept': 'application/json' }
+})
+.then(r => r.json())
+.then(data => {
+    if (!data.success || data.is_expirado || !data.data_expiracao) return;
+    if (data.is_pago) {
+        window.location.href = '/dashboard/';
+        return;
+    }
+    _assinExpira = new Date(data.data_expiracao);
+    _assinTotal  = Math.max(1, Math.floor((_assinExpira - new Date()) / 1000));
+    _assinIniciarTimer();
+    _assinPolling = setInterval(_assinVerificarStatus, 10000);
+})
+.catch(() => {});
+{% endif %}
+
+function assinarPlano(planoId, btn) {
+    const nomePlano = btn.dataset.planoNome || 'selecionado';
+    const valor     = btn.dataset.planoValor || '';
+
+    Swal.fire({
+        icon: 'question',
+        title: 'Confirmar assinatura',
+        html: `Deseja gerar a cobrança para pagamento da assinatura <strong>Plano ${nomePlano}</strong> via PIX?`
+            + (valor ? `<br><small class="text-muted">Valor: R$ ${valor}/mês</small>` : ''),
+        showCancelButton: true,
+        confirmButtonText: '<i class="bi bi-qr-code me-1"></i>Gerar cobrança PIX',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#0d6efd',
+    }).then(result => {
+        if (!result.isConfirmed) return;
+
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Gerando cobrança...';
+
+        fetch(`/minha-assinatura/assinar/${planoId}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Accept': 'application/json' },
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = original;
+            if (!data.success) {
+                Swal.fire({ icon: 'error', title: 'Erro', text: data.error || 'Erro ao gerar cobrança.' });
+                return;
+            }
+            window.location.reload();
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = original;
+            Swal.fire({ icon: 'error', title: 'Erro', text: 'Erro de conexão. Tente novamente.' });
+        });
+    });
+}
+
+function copiarPix() {
+    const input = document.getElementById('pixCopiaColaInput');
+    if (!input) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+        const btn = document.querySelector('[onclick="copiarPix()"]');
+        if (btn) {
+            const original = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Copiado!';
+            btn.classList.replace('btn-outline-secondary', 'btn-success');
+            setTimeout(() => {
+                btn.innerHTML = original;
+                btn.classList.replace('btn-success', 'btn-outline-secondary');
+            }, 2000);
+        }
+    });
+}
+</script>
+{% endblock %}

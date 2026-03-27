@@ -60,6 +60,12 @@ def enviar_push_pagamento(usuario, titulo, mensagem, dados=None):
         dict: {enviados: int, falhas: int, detalhes: list}
     """
     from nossopainel.models import PushSubscription
+    from nossopainel.utils import usuario_tem_funcionalidade
+
+    # Verificar se o plano do usuário permite push notifications
+    if not usuario_tem_funcionalidade(usuario, 'seguranca_push_notif'):
+        logger.debug(f'[Push] Usuário {usuario.id} não possui seguranca_push_notif no plano. Ignorando.')
+        return {'enviados': 0, 'falhas': 0, 'detalhes': ['Recurso não disponível no plano']}
 
     # Verificar se VAPID está configurado
     vapid_private = getattr(settings, 'VAPID_PRIVATE_KEY', None)

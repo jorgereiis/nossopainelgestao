@@ -9,6 +9,24 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar">
                 </button>
             </div>
+            {% if 'whatsapp_sessao' not in funcionalidades_ativas %}
+            <div class="modal-body text-center px-3 py-4">
+                <div class="rounded-circle bg-warning-subtle d-inline-flex align-items-center justify-content-center mb-3"
+                     style="width:64px;height:64px;">
+                    <i class="bi bi-whatsapp fs-3 text-warning"></i>
+                </div>
+                <h6 class="fw-bold mb-1">WhatsApp não disponível no seu plano</h6>
+                <p class="text-muted small mb-0">
+                    A sessão do WhatsApp (WPPConnect) está disponível apenas em planos que incluem esta funcionalidade.
+                </p>
+            </div>
+            <div class="modal-footer d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <a href="{% url 'minha-assinatura' %}" class="btn btn-warning fw-semibold">
+                    <i class="bi bi-grid-3x3-gap me-1"></i>Ver planos disponíveis
+                </a>
+            </div>
+            {% else %}
             <div class="modal-body">
                 <div id="show-qrcode" class="flex-column text-center">
                     <div class="text-muted mb-0">Aperte em Conectar para exibir o QRCode da sua sessão</div>
@@ -23,6 +41,7 @@
                     disabled>Desconectar</button>
                 <button type="button" class="btn btn-secondary" id="cancelar" data-bs-dismiss="modal">Cancelar</button>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>

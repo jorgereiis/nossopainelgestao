@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Funcionalidade não disponível | Nosso Painel{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 560px;">
+
+    <!-- Ícone e título -->
+    <div class="text-center mb-4">
+        <div class="rounded-circle bg-warning-subtle d-inline-flex align-items-center justify-content-center mb-3"
+             style="width:80px;height:80px;">
+            <i class="bi bi-lock-fill fs-2 text-warning"></i>
+        </div>
+        <h4 class="fw-bold mb-1">Funcionalidade não disponível</h4>
+        <p class="text-muted mb-0" style="font-size:0.9rem;">
+            <strong>{{ nome_funcionalidade }}</strong> não está incluída
+            {% if assinatura and assinatura.plano %}
+            no seu plano atual (<strong>{{ assinatura.plano.get_tipo_display }}</strong>).
+            {% else %}
+            no seu plano atual.
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Card de informações -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+
+            {% if planos_com_acesso %}
+            <!-- Planos que têm acesso -->
+            <p class="fw-semibold mb-3 d-flex align-items-center gap-2" style="font-size:0.9rem;">
+                <i class="bi bi-check-circle-fill text-success"></i>
+                Esta funcionalidade está disponível nos planos:
+            </p>
+            <div class="d-flex flex-wrap gap-2 mb-4">
+                {% for plano in planos_com_acesso %}
+                <span class="badge-plano {{ plano.tipo }} d-inline-flex align-items-center gap-1">
+                    {% if plano.tipo == 'bronze' %}<i class="bi bi-award"></i>{% endif %}
+                    {% if plano.tipo == 'prata' %}<i class="bi bi-award-fill"></i>{% endif %}
+                    {% if plano.tipo == 'ouro' %}<i class="bi bi-trophy-fill"></i>{% endif %}
+                    {{ plano.get_tipo_display }}
+                </span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted small mb-4 d-flex align-items-center gap-2">
+                <i class="bi bi-info-circle"></i>
+                Entre em contato com o suporte para mais informações sobre esta funcionalidade.
+            </p>
+            {% endif %}
+
+            <!-- Separador e CTA -->
+            <div class="rounded p-3 d-flex align-items-center gap-3" style="background:var(--bs-light,#f8f9fa);">
+                <i class="bi bi-arrow-up-circle-fill text-primary fs-4 flex-shrink-0"></i>
+                <div style="font-size:0.85rem;">
+                    <div class="fw-semibold mb-1">Faça upgrade do seu plano</div>
+                    <div class="text-muted">Acesse esta e outras funcionalidades avançadas com um plano superior.</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Botões -->
+    <div class="d-flex gap-2 justify-content-center">
+        <a href="javascript:history.back()" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Voltar
+        </a>
+        <a href="{% url 'minha-assinatura' %}" class="btn btn-warning fw-semibold">
+            <i class="bi bi-grid-3x3-gap me-1"></i>Ver planos disponíveis
+        </a>
+    </div>
+
+</div>
+{% endblock %}

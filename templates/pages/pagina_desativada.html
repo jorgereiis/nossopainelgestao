@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Página indisponível | Nosso Painel{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 560px;">
+
+    <!-- Ícone e título -->
+    <div class="text-center mb-4">
+        <div class="rounded-circle bg-secondary-subtle d-inline-flex align-items-center justify-content-center mb-3"
+             style="width:80px;height:80px;">
+            <i class="bi bi-tools fs-2 text-secondary"></i>
+        </div>
+        <h4 class="fw-bold mb-1">Página desativada</h4>
+        <p class="text-muted mb-0" style="font-size:0.9rem;">
+            <strong>{{ nome_pagina }}</strong> está desativada ou em desenvolvimento.
+        </p>
+    </div>
+
+    <!-- Card de informações -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="rounded p-3 d-flex align-items-center gap-3" style="background:var(--bs-light,#f8f9fa);">
+                <i class="bi bi-info-circle-fill text-secondary fs-4 flex-shrink-0"></i>
+                <div style="font-size:0.85rem;">
+                    <div class="fw-semibold mb-1">Acesso temporariamente indisponível</div>
+                    <div class="text-muted">Entre em contato com o administrador do sistema para mais informações.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botões -->
+    <div class="d-flex gap-2 justify-content-center">
+        <a href="javascript:history.back()" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Voltar
+        </a>
+        <a href="{% url 'dashboard' %}" class="btn btn-primary">
+            <i class="bi bi-house me-1"></i>Ir para Dashboard
+        </a>
+    </div>
+
+</div>
+{% endblock %}

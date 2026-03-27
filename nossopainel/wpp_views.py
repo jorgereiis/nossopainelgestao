@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.utils.timezone import localtime
 
 from nossopainel.models import SecretTokenAPI, SessaoWpp
+from nossopainel.utils import requer_funcionalidade
 from nossopainel.services.logging_config import get_logger
 from wpp.api_connection import (
     check_connection,
@@ -113,12 +114,14 @@ def _verificar_e_renovar_token(sessao, session_name: str, secret: str):
 
 
 @login_required
+@requer_funcionalidade('whatsapp_sessao')
 def whatsapp(request):
     """Renderiza o painel de acompanhamento da integração WhatsApp."""
     return render(request, "pages/whatsapp.html")
 
 
 @login_required
+@requer_funcionalidade('whatsapp_sessao', api=True)
 def conectar_wpp(request):
     """
     Gera ou recupera token, solicita QR Code e marca a sessão como ativa.
@@ -288,6 +291,7 @@ def conectar_wpp(request):
 
 
 @login_required
+@requer_funcionalidade('whatsapp_sessao', api=True)
 def status_wpp(request):
     """Retorna o status atual da sessão do usuário autenticado."""
     usuario = request.user
@@ -314,6 +318,7 @@ def status_wpp(request):
 
 
 @login_required
+@requer_funcionalidade('whatsapp_sessao', api=True)
 def check_connection_wpp(request):
     """Efetua um ping na API para validar se a sessão segue ativa."""
     usuario = request.user
@@ -356,6 +361,7 @@ def _verificar_sucesso_desconexao(resp_data: dict, resp_status: int) -> bool:
 
 
 @login_required
+@requer_funcionalidade('whatsapp_sessao', api=True)
 def desconectar_wpp(request):
     """
     Solicita logout junto à API e marca a sessão local como inativa.
@@ -447,6 +453,7 @@ def desconectar_wpp(request):
 
 
 @login_required
+@requer_funcionalidade('whatsapp_sessao', api=True)
 def cancelar_sessao_wpp(request):
     """
     Força o encerramento da sessão corrente, tratando respostas inconsistentes.

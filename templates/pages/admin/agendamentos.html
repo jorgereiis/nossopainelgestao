@@ -5,7 +5,7 @@
 
 <head>
   {% include 'partials/head.html' %}
-  <title>Configuração de Agendamentos | Nosso Painel - Gestão IPTV</title>
+  <title>Configurações Avançadas do Sistema | Nosso Painel - Gestão IPTV</title>
   <style>
     /* Job Cards */
     .job-grid {
@@ -443,7 +443,7 @@
         <div class="page-header-custom">
           <h1>
             <i data-feather="calendar"></i>
-            Configuração de Agendamentos
+            Configurações Avançadas do Sistema
           </h1>
         </div>
 
@@ -451,8 +451,7 @@
         <div class="info-box">
           <i data-feather="info"></i>
           <p>
-            Gerencie todos os jobs automatizados do sistema. Jobs editaveis podem ser ativados/desativados
-            e ter seus templates de mensagem personalizados. Jobs bloqueados sao exibidos apenas para visualizacao.
+            Gerencie todos os jobs automatizados e recursos avançados do sistema. Jobs editáveis podem ser ativados/desativados e ter seus templates de mensagem personalizados. Jobs bloqueados são exibidos apenas para visualização.
           </p>
         </div>
 
@@ -558,6 +557,61 @@
           </div>
           {% endfor %}
         </div>
+
+        <!-- ─── Controle de Acesso a Páginas ──────────────────────────────── -->
+        <div class="page-header-custom mt-5">
+          <h1 style="font-size:1.25rem;">
+            <i data-feather="shield"></i>
+            Controle de Acesso a Páginas
+          </h1>
+        </div>
+
+        <div class="info-box mb-4">
+          <i data-feather="info"></i>
+          <p>
+            Ative ou desative o acesso de usuários comuns a páginas específicas do sistema.
+            Quando desativada, a página exibe uma mensagem informando que está fora do ar ou em desenvolvimento.
+            Superadmins sempre têm acesso independente desta configuração.
+          </p>
+        </div>
+
+        <div class="job-grid">
+          {% for pagina in paginas %}
+          <div class="job-card editable" data-pagina="{{ pagina.chave }}">
+            <div class="job-header">
+              <div class="job-header-left">
+                <div class="job-icon">
+                  {% if pagina.icone|slice:":3" == "bi-" %}
+                  <i class="bi {{ pagina.icone }}"></i>
+                  {% else %}
+                  <i data-feather="{{ pagina.icone }}"></i>
+                  {% endif %}
+                </div>
+                <div class="job-title">
+                  <h3>{{ pagina.nome_exibicao }}</h3>
+                  <p>{{ pagina.descricao }}</p>
+                </div>
+              </div>
+              <div class="job-header-right">
+                <span class="job-status-badge {% if pagina.ativo %}active{% else %}inactive{% endif %}">
+                  <i data-feather="{% if pagina.ativo %}check-circle{% else %}x-circle{% endif %}"></i>
+                  {% if pagina.ativo %}Ativo{% else %}Inativo{% endif %}
+                </span>
+                <label class="toggle-switch">
+                  <input type="checkbox" {% if pagina.ativo %}checked{% endif %}
+                         onchange="togglePagina('{{ pagina.chave }}', this)">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+          {% empty %}
+          <div class="alert alert-info">
+            Nenhuma página configurada para controle de acesso.
+          </div>
+          {% endfor %}
+        </div>
+
       </div>
     </div>
   </div>
@@ -565,6 +619,50 @@
   {% include 'partials/scripts.html' %}
 
   <script>
+    // Toggle page access
+    function togglePagina(chave, checkbox) {
+      const card = checkbox.closest('.job-card');
+      const badge = card.querySelector('.job-status-badge');
+
+      fetch('{% url "configs-avancadas" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `acao=toggle_pagina&chave=${encodeURIComponent(chave)}`
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          if (data.ativo) {
+            badge.className = 'job-status-badge active';
+            badge.innerHTML = '<i data-feather="check-circle"></i> Ativo';
+          } else {
+            badge.className = 'job-status-badge inactive';
+            badge.innerHTML = '<i data-feather="x-circle"></i> Inativo';
+          }
+          feather.replace();
+          if (typeof Toast !== 'undefined') {
+            Toast.success(data.message);
+          }
+        } else {
+          checkbox.checked = !checkbox.checked;
+          if (typeof Toast !== 'undefined') {
+            Toast.error(data.message);
+          } else {
+            alert(data.message);
+          }
+        }
+      })
+      .catch(() => {
+        checkbox.checked = !checkbox.checked;
+        if (typeof Toast !== 'undefined') {
+          Toast.error('Erro ao atualizar acesso à página.');
+        }
+      });
+    }
+
     // Toggle templates visibility
     function toggleTemplates(header) {
       const content = header.nextElementSibling;
@@ -579,7 +677,7 @@
       const card = document.querySelector(`[data-job="${jobNome}"]`);
       const badge = card.querySelector('.job-status-badge');
 
-      fetch('{% url "config-agendamentos" %}', {
+      fetch('{% url "configs-avancadas" %}', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -641,7 +739,7 @@
         const templateKey = textarea.dataset.templateKey;
         const templateValue = textarea.value;
 
-        fetch('{% url "config-agendamentos" %}', {
+        fetch('{% url "configs-avancadas" %}', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -678,7 +776,7 @@
 
     // Save horario
     function saveHorario(jobNome, horario) {
-      fetch('{% url "config-agendamentos" %}', {
+      fetch('{% url "configs-avancadas" %}', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',

@@ -3456,7 +3456,8 @@ class CobrancaPix(models.Model):
             logger.error(f'[CobrancaPix] Erro ao criar notificação interna: {e}')
 
         # 2. Enviar mensagem WhatsApp de confirmação
-        if cliente.telefone and not cliente.nao_enviar_msgs:
+        from nossopainel.utils import usuario_tem_funcionalidade
+        if cliente.telefone and not cliente.nao_enviar_msgs and usuario_tem_funcionalidade(self.usuario, 'whatsapp_sessao'):
             try:
                 # Verificar se é a primeira mensalidade paga do cliente
                 qtd_mensalidades_pagas = Mensalidade.objects.filter(
@@ -5421,6 +5422,29 @@ class ConfiguracaoAgendamento(models.Model):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# CONTROLE DE ACESSO A PÁGINAS
+# ──────────────────────────────────────────────────────────────────────────────
+
+class ControleAcessoPagina(models.Model):
+    chave         = models.CharField(max_length=80, unique=True)
+    nome_exibicao = models.CharField(max_length=120)
+    descricao     = models.TextField(blank=True)
+    icone         = models.CharField(max_length=60, default='layout')
+    rota_nome     = models.CharField(max_length=120)
+    ativo         = models.BooleanField(default=True)
+    criado_em     = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table     = 'cadastros_controleacessopagina'
+        ordering     = ['nome_exibicao']
+        verbose_name = 'Controle de Acesso a Página'
+
+    def __str__(self):
+        return self.nome_exibicao
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # REGISTRO DE ATENDIMENTOS
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -5590,5 +5614,170 @@ class PermissoesAtendente(models.Model):
 
     def __str__(self):
         return f'Permissões de {self.atendente}'
+
+
+# =============================================================================
+# SISTEMA DE ASSINATURA DE PLATAFORMA
+# =============================================================================
+
+class PlanoAssinatura(models.Model):
+    """Planos de assinatura da plataforma (Bronze, Prata, Ouro)."""
+
+    BRONZE = 'bronze'
+    PRATA  = 'prata'
+    OURO   = 'ouro'
+    TIPO_CHOICES = [
+        (BRONZE, 'Bronze'),
+        (PRATA,  'Prata'),
+        (OURO,   'Ouro'),
+    ]
+
+    tipo        = models.CharField(max_length=10, choices=TIPO_CHOICES, unique=True, verbose_name='Tipo')
+    valor       = models.DecimalField(max_digits=8, decimal_places=2, verbose_name='Valor mensal (R$)')
+    ativo       = models.BooleanField(default=True, verbose_name='Ativo')
+    descricao   = models.TextField(blank=True, verbose_name='Descrição')
+    criado_em   = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'assinaturas_plano'
+        ordering = ['valor']
+        verbose_name = 'Plano de Assinatura'
+        verbose_name_plural = 'Planos de Assinatura'
+
+    def __str__(self):
+        return self.get_tipo_display()
+
+
+class FuncionalidadePlano(models.Model):
+    """Controle de quais funcionalidades cada plano permite."""
+
+    plano  = models.ForeignKey(PlanoAssinatura, on_delete=models.CASCADE, related_name='funcionalidades')
+    chave  = models.CharField(max_length=100, verbose_name='Chave da funcionalidade')
+    ativo  = models.BooleanField(default=True, verbose_name='Habilitado')
+
+    class Meta:
+        db_table = 'assinaturas_funcionalidade'
+        unique_together = ('plano', 'chave')
+        verbose_name = 'Funcionalidade do Plano'
+        verbose_name_plural = 'Funcionalidades dos Planos'
+
+    def __str__(self):
+        return f'{self.plano} — {self.chave} ({"on" if self.ativo else "off"})'
+
+
+class AssinaturaPlataforma(models.Model):
+    """Assinatura do revendedor na plataforma nossopainel."""
+
+    STATUS_TRIAL     = 'trial'
+    STATUS_ATIVO     = 'ativo'
+    STATUS_SUSPENSO  = 'suspenso'
+    STATUS_CANCELADO = 'cancelado'
+    STATUS_CHOICES = [
+        (STATUS_TRIAL,     'Trial'),
+        (STATUS_ATIVO,     'Ativo'),
+        (STATUS_SUSPENSO,  'Suspenso'),
+        (STATUS_CANCELADO, 'Cancelado'),
+    ]
+
+    usuario     = models.OneToOneField(User, on_delete=models.CASCADE, related_name='assinatura_plataforma')
+    plano       = models.ForeignKey(PlanoAssinatura, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Plano')
+    status      = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_TRIAL, verbose_name='Status')
+    data_inicio = models.DateField(null=True, blank=True, verbose_name='Início da assinatura')
+    data_fim    = models.DateField(null=True, blank=True, verbose_name='Fim do período pago')
+    trial_fim   = models.DateField(null=True, blank=True, verbose_name='Fim do período trial')
+    dias_extras = models.IntegerField(default=0, verbose_name='Dias extras gratuitos')
+    criado_em   = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'assinaturas_assinatura_plataforma'
+        verbose_name = 'Assinatura de Plataforma'
+        verbose_name_plural = 'Assinaturas de Plataforma'
+
+    def __str__(self):
+        return f'Assinatura de {self.usuario.username} ({self.get_status_display()})'
+
+    @property
+    def is_acesso_valido(self):
+        """Retorna True se o usuário possui acesso válido (trial ou assinatura ativa)."""
+        from datetime import date as _date, timedelta
+        hoje = _date.today()
+        if self.status == self.STATUS_TRIAL:
+            if self.trial_fim:
+                return hoje <= self.trial_fim + timedelta(days=self.dias_extras)
+            return False
+        if self.status == self.STATUS_ATIVO:
+            if self.data_fim:
+                return hoje <= self.data_fim
+            return False
+        return False
+
+    @property
+    def dias_restantes(self):
+        """Retorna quantos dias restam no trial ou na assinatura ativa, ou 0."""
+        from datetime import date as _date, timedelta
+        hoje = _date.today()
+        if self.status == self.STATUS_TRIAL and self.trial_fim:
+            fim = self.trial_fim + timedelta(days=self.dias_extras)
+            delta = (fim - hoje).days
+            return max(delta, 0)
+        if self.status == self.STATUS_ATIVO and self.data_fim:
+            delta = (self.data_fim - hoje).days
+            return max(delta, 0)
+        return 0
+
+
+class CobrancaAssinaturaPlataforma(models.Model):
+    """Cobrança PIX gerada pelo admin para renovação de assinatura de plataforma."""
+
+    STATUS_PENDENTE  = 'pendente'
+    STATUS_PAGO      = 'pago'
+    STATUS_EXPIRADO  = 'expirado'
+    STATUS_CANCELADO = 'cancelado'
+    STATUS_CHOICES = [
+        (STATUS_PENDENTE,  'Pendente'),
+        (STATUS_PAGO,      'Pago'),
+        (STATUS_EXPIRADO,  'Expirado'),
+        (STATUS_CANCELADO, 'Cancelado'),
+    ]
+
+    id                  = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    usuario             = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cobranças_assinatura')
+    plano               = models.ForeignKey(PlanoAssinatura, on_delete=models.SET_NULL, null=True, blank=True)
+    assinatura          = models.ForeignKey(AssinaturaPlataforma, on_delete=models.SET_NULL, null=True, blank=True)
+    valor               = models.DecimalField(max_digits=8, decimal_places=2, verbose_name='Valor')
+    status              = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDENTE)
+    cobranca_id_externo = models.CharField(max_length=255, blank=True, verbose_name='ID FastDePix')
+    qr_code             = models.TextField(blank=True, verbose_name='QR Code Base64')
+    pix_copia_cola      = models.TextField(blank=True, verbose_name='PIX Copia e Cola')
+    qr_code_url         = models.CharField(max_length=500, blank=True, verbose_name='URL QR Code')
+    link_pagamento      = models.CharField(max_length=500, blank=True, verbose_name='Link de pagamento')
+    data_pagamento      = models.DateTimeField(null=True, blank=True, verbose_name='Data do pagamento')
+    data_expiracao      = models.DateTimeField(null=True, blank=True, verbose_name='Expiração da cobrança')
+    periodo_inicio      = models.DateField(null=True, blank=True, verbose_name='Início do período')
+    periodo_fim         = models.DateField(null=True, blank=True, verbose_name='Fim do período')
+    criado_por          = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='cobranças_assinatura_geradas')
+    criado_em           = models.DateTimeField(auto_now_add=True)
+    atualizado_em       = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'assinaturas_cobranca'
+        ordering = ['-criado_em']
+        verbose_name = 'Cobrança de Assinatura'
+        verbose_name_plural = 'Cobranças de Assinatura'
+
+    def __str__(self):
+        return f'Cobrança {self.id} — {self.usuario.username} R${self.valor} ({self.get_status_display()})'
+
+    @property
+    def is_expired(self):
+        """Verifica se a cobrança está expirada."""
+        if self.status == self.STATUS_EXPIRADO:
+            return True
+        if self.status == self.STATUS_PENDENTE and self.data_expiracao:
+            from django.utils import timezone
+            return timezone.now() > self.data_expiracao
+        return False
 
 

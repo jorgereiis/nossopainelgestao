@@ -9,6 +9,44 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
+                {% if 'atendimento_registrar' not in funcionalidades_ativas %}
+                <div class="text-center mb-4">
+                    <div class="rounded-circle bg-warning-subtle d-inline-flex align-items-center justify-content-center mb-3"
+                         style="width:80px;height:80px;">
+                        <i class="bi bi-lock-fill fs-2 text-warning"></i>
+                    </div>
+                    <h5 class="fw-bold mb-1">Funcionalidade não disponível</h5>
+                    <p class="text-muted mb-0" style="font-size:0.9rem;">
+                        <strong>Registrar Atendimentos</strong> não está incluída
+                        {% if assinatura_plataforma and assinatura_plataforma.plano %}
+                        no seu plano atual (<strong>{{ assinatura_plataforma.plano.get_tipo_display }}</strong>).
+                        {% else %}
+                        no seu plano atual.
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        <div class="rounded p-3 d-flex align-items-center gap-3" style="background:var(--bs-light,#f8f9fa);">
+                            <i class="bi bi-arrow-up-circle-fill text-primary fs-4 flex-shrink-0"></i>
+                            <div style="font-size:0.85rem;">
+                                <div class="fw-semibold mb-1">Faça upgrade do seu plano</div>
+                                <div class="text-muted">Acesse esta e outras funcionalidades avançadas com um plano superior.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-center">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-arrow-left me-1"></i>Voltar
+                    </button>
+                    <a href="{% url 'minha-assinatura' %}" class="btn btn-warning fw-semibold">
+                        <i class="bi bi-grid-3x3-gap me-1"></i>Ver planos disponíveis
+                    </a>
+                </div>
+                {% else %}
                 <form id="form-registrar-atendimento" novalidate>
                     {% csrf_token %}
                     <input type="hidden" id="atend-cliente-id" name="cliente_id">
@@ -135,12 +173,15 @@
                     <!-- Mensagem de erro -->
                     <div class="text-danger small" id="atend-error-message"></div>
                 </form>
+                {% endif %}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                {% if 'atendimento_registrar' in funcionalidades_ativas %}
                 <button type="submit" form="form-registrar-atendimento" class="btn btn-info text-white btn-confirmar-acao" id="btn-registrar-atendimento">
                     <i class="bi bi-check-lg me-1"></i>Registrar
                 </button>
+                {% endif %}
             </div>
         </div>
     </div>
