@@ -5709,7 +5709,7 @@ class AssinaturaPlataforma(models.Model):
             return False
         if self.status == self.STATUS_ATIVO:
             if self.data_fim:
-                return hoje <= self.data_fim
+                return hoje <= self.data_fim + timedelta(days=self.dias_extras)
             return False
         return False
 
@@ -5723,7 +5723,8 @@ class AssinaturaPlataforma(models.Model):
             delta = (fim - hoje).days
             return max(delta, 0)
         if self.status == self.STATUS_ATIVO and self.data_fim:
-            delta = (self.data_fim - hoje).days
+            fim = self.data_fim + timedelta(days=self.dias_extras)
+            delta = (fim - hoje).days
             return max(delta, 0)
         return 0
 

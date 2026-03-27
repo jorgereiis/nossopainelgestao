@@ -16588,7 +16588,18 @@ def revendedor_conceder_dias_extras(request, user_id):
         return JsonResponse({'success': False, 'error': 'Informe entre 1 e 365 dias.'}, status=400)
 
     assinatura = get_ou_criar_assinatura_plataforma(target_user)
-    assinatura.dias_extras += dias
+
+    from datetime import date as _date
+    hoje = _date.today()
+    if assinatura.status == 'ativo' and assinatura.data_fim:
+        base = assinatura.data_fim
+    elif assinatura.trial_fim:
+        base = assinatura.trial_fim
+    else:
+        base = hoje
+    gap = max(0, (hoje - base).days)
+    assinatura.dias_extras = max(assinatura.dias_extras, gap) + dias
+
     assinatura.save(update_fields=['dias_extras', 'atualizado_em'])
 
     log_user_action(
