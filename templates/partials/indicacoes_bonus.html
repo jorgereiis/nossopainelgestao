@@ -132,7 +132,32 @@
 </style>
 
 <div class="d-flex flex-column">
-    <div id="accordionExample1">
+    {% if 'whatsapp_sessao' not in funcionalidades_ativas %}
+    <div class="text-center px-2 py-4">
+        <div class="mb-3">
+            <div class="rounded-circle bg-warning-subtle d-inline-flex align-items-center justify-content-center mb-3"
+                 style="width:64px;height:64px;">
+                <i class="bi bi-whatsapp fs-3 text-warning"></i>
+            </div>
+            <h6 class="fw-bold mb-1">WhatsApp não disponível no seu plano</h6>
+            <p class="text-muted small mb-0">
+                As funcionalidades abaixo dependem do <strong>WPPConnect</strong> e estão disponíveis apenas em planos que incluem a sessão do WhatsApp.
+            </p>
+        </div>
+        <div class="d-flex flex-column gap-1 text-start mb-4 mx-auto" style="max-width:280px;">
+            <span class="small text-muted"><i class="bi bi-x-circle text-danger me-2"></i>Desconto por Indicação</span>
+            <span class="small text-muted"><i class="bi bi-x-circle text-danger me-2"></i>Bônus por Indicação</span>
+            <span class="small text-muted"><i class="bi bi-x-circle text-danger me-2"></i>Desconto Progressivo por Indicação</span>
+            <span class="small text-muted"><i class="bi bi-x-circle text-danger me-2"></i>Notificação de Vencimentos</span>
+            <span class="small text-muted"><i class="bi bi-x-circle text-danger me-2"></i>Notificação de Atrasos</span>
+            <span class="small text-muted"><i class="bi bi-x-circle text-danger me-2"></i>Rejeição de Chamadas</span>
+        </div>
+        <a href="{% url 'minha-assinatura' %}" class="btn btn-warning btn-sm fw-semibold">
+            <i class="bi bi-grid-3x3-gap me-1"></i>Ver planos disponíveis
+        </a>
+    </div>
+    {% endif %}
+    <div id="accordionExample1"{% if 'whatsapp_sessao' not in funcionalidades_ativas %} style="pointer-events:none;opacity:0.5;"{% endif %}>
         <ul class="timeline list-unstyled mb-0" id="lista-planos-indicacao">
             <!-- Items dos PLANOS serão inseridos aqui pelo JS -->
         </ul>
@@ -142,6 +167,7 @@
         </ul>
 
         <!-- Seção: Rejeição de Chamadas -->
+        {% if 'whatsapp_sessao' in funcionalidades_ativas %}
         <ul class="timeline list-unstyled mb-0" id="lista-reject-call">
             <li class="timeline-event">
                 <div class="timeline-event-icon">
@@ -240,6 +266,7 @@ Enquanto isso, informe aqui como podemos ajudá-lo(a).</div>
                 </div>
             </li>
         </ul>
+        {% endif %}
     </div>
 </div>
 
@@ -247,12 +274,14 @@ Enquanto isso, informe aqui como podemos ajudá-lo(a).</div>
     // PLANOS
     // FUNÇÃO PARA OBTER DADOS DO BACKEND COM "GET"
     document.addEventListener('DOMContentLoaded', function() {
+        {% if 'whatsapp_sessao' in funcionalidades_ativas %}
         buscarTodosOsPlanos();
         buscarHorariosEnvios();
+        {% endif %}
     });
 
     function buscarTodosOsPlanos() {
-        fetch("/edit-referral-plan/", { credentials: "same-origin" })
+        fetch("/edit-referral-plan/", { credentials: "same-origin", headers: { "Accept": "application/json" } })
             .then(response => parseJsonResponse(response, "carregamento dos planos de indicação"))
             .then(data => {
                 if (data.error) {
@@ -358,6 +387,7 @@ Enquanto isso, informe aqui como podemos ajudá-lo(a).</div>
                 if (window.feather) window.feather.replace();
             })
             .catch((err) => {
+                if (err.subscriptionExpired) return;
                 console.error("[Planos de indicação] Erro ao buscar dados", err);
                 Swal.fire("Erro", err.message || "Erro ao buscar planos.", "error");
             });
@@ -538,6 +568,11 @@ Enquanto isso, informe aqui como podemos ajudá-lo(a).</div>
 
         if (contentType.includes("application/json")) {
             return response.json().then((data) => {
+                if (response.status === 402) {
+                    const err = new Error('');
+                    err.subscriptionExpired = true;
+                    throw err;
+                }
                 if (!response.ok) {
                     console.error(`[${context}] Resposta com erro`, { status: response.status, data });
                     const message = data.error || data.message || `Falha ao processar ${context}.`;
@@ -559,7 +594,7 @@ Enquanto isso, informe aqui como podemos ajudá-lo(a).</div>
 
     // HORARIOS
     function buscarHorariosEnvios() {
-        fetch("/edit-horario-envios/", { credentials: "same-origin" })
+        fetch("/edit-horario-envios/", { credentials: "same-origin", headers: { "Accept": "application/json" } })
             .then(response => parseJsonResponse(response, "carregamento dos horários de envio"))
             .then(data => {
                 if (data.error) {
@@ -657,6 +692,7 @@ Enquanto isso, informe aqui como podemos ajudá-lo(a).</div>
                 if (window.feather) window.feather.replace();
             })
             .catch((err) => {
+                if (err.subscriptionExpired) return;
                 console.error("[Horários de envio] Erro ao buscar dados", err);
                 Swal.fire("Erro", err.message || "Erro ao buscar horários.", "error");
             });
@@ -829,7 +865,9 @@ Enquanto isso, informe aqui como podemos ajudá-lo(a).</div>
     // ========== REJEIÇÃO DE CHAMADAS ==========
 
     document.addEventListener('DOMContentLoaded', function() {
+        {% if 'whatsapp_sessao' in funcionalidades_ativas %}
         buscarConfigRejectCall();
+        {% endif %}
     });
 
     async function buscarConfigRejectCall() {

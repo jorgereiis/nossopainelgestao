@@ -81,6 +81,11 @@
                 </p>
               </div>
             </div>
+            {% if not request.user.is_superuser %}
+            <a href="{% url 'minha-assinatura' %}" class="btn btn-outline-warning btn-sm w-100 view-profile-btn mb-2">
+              <i class="bi bi-credit-card me-2" style="font-size:0.75rem;"></i>Minha Assinatura
+            </a>
+            {% endif %}
             <a href="{% url 'perfil' %}" class="btn btn-outline-primary btn-sm w-100 view-profile-btn">
               <i class="me-2 icon-xxs" data-feather="user"></i>Ver meu perfil
             </a>

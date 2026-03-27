@@ -1,0 +1,102 @@
+<!-- Modal: Conceder Dias Extras de Acesso Gratuito -->
+<div class="modal fade" id="modalConcederDiasExtras" tabindex="-1" aria-labelledby="labelConcederDiasExtras" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="labelConcederDiasExtras">
+                    <i class="bi bi-calendar-plus me-2 text-success"></i>Conceder Dias Extras
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Conceda dias adicionais de acesso gratuito ao sistema para
+                    <strong id="nomeDiasExtrasRevendedor"></strong>.
+                </p>
+                <input type="hidden" id="diasExtrasUserId">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="inputDiasExtras">Quantidade de dias</label>
+                    <input type="number"
+                           class="form-control"
+                           id="inputDiasExtras"
+                           min="1" max="365"
+                           placeholder="Ex: 30"
+                           value="30">
+                    <div class="form-text">Entre 1 e 365 dias. Esses dias se somam aos já existentes.</div>
+                </div>
+                <div id="diasExtrasError" class="alert alert-danger py-2 d-none small"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="btnConfirmarDiasExtras">
+                    <span class="spinner-border spinner-border-sm d-none me-1" id="spinnerDiasExtras"></span>
+                    <i class="bi bi-check2 me-1"></i>Conceder
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function concederDiasExtras(userId, nomeRevendedor) {
+    document.getElementById('diasExtrasUserId').value = userId;
+    document.getElementById('nomeDiasExtrasRevendedor').textContent = nomeRevendedor;
+    document.getElementById('inputDiasExtras').value = 30;
+    document.getElementById('diasExtrasError').classList.add('d-none');
+    const modal = new bootstrap.Modal(document.getElementById('modalConcederDiasExtras'));
+    modal.show();
+}
+
+document.getElementById('btnConfirmarDiasExtras').addEventListener('click', function() {
+    const userId = document.getElementById('diasExtrasUserId').value;
+    const dias = parseInt(document.getElementById('inputDiasExtras').value);
+    const errorEl = document.getElementById('diasExtrasError');
+    const spinner = document.getElementById('spinnerDiasExtras');
+
+    errorEl.classList.add('d-none');
+
+    if (!dias || dias < 1 || dias > 365) {
+        errorEl.textContent = 'Informe entre 1 e 365 dias.';
+        errorEl.classList.remove('d-none');
+        return;
+    }
+
+    spinner.classList.remove('d-none');
+    this.disabled = true;
+
+    fetch(`/revendedores/${userId}/conceder-dias-extras/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: JSON.stringify({ dias: dias }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        spinner.classList.add('d-none');
+        this.disabled = false;
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalConcederDiasExtras')).hide();
+            Swal.fire({
+                icon: 'success',
+                title: 'Dias concedidos!',
+                text: data.mensagem || `${dias} dia(s) extra(s) adicionado(s) com sucesso.`,
+                timer: 2500,
+                showConfirmButton: false,
+            }).then(() => {
+                if (typeof buscarRevendedores === 'function') buscarRevendedores('');
+            });
+        } else {
+            errorEl.textContent = data.error || 'Erro ao conceder dias.';
+            errorEl.classList.remove('d-none');
+        }
+    })
+    .catch(() => {
+        spinner.classList.add('d-none');
+        this.disabled = false;
+        errorEl.textContent = 'Erro de conexão.';
+        errorEl.classList.remove('d-none');
+    });
+});
+</script>

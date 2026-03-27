@@ -17,6 +17,7 @@ import hmac
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from datetime import datetime, timedelta
+from django.utils import timezone as tz
 from typing import Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -279,14 +280,15 @@ class FastDePixIntegration(BasePaymentIntegration):
         # Processar resposta
         data = response.get("data", response)
 
-        # Calcular expiracao
-        # Tentar usar qr_code_expires_at da resposta, senao usar o tempo padrao
-        expiration = datetime.now() + timedelta(minutes=expiration_minutes)
+        # Calcular expiracao (sempre timezone-aware UTC)
+        expiration = tz.now() + timedelta(minutes=expiration_minutes)
         if data.get("qr_code_expires_at"):
             try:
                 expiration = datetime.fromisoformat(
                     data["qr_code_expires_at"].replace("Z", "+00:00")
-                ).replace(tzinfo=None)
+                )
+                if expiration.tzinfo is None:
+                    expiration = tz.make_aware(expiration, tz.utc)
             except (ValueError, AttributeError):
                 pass
 

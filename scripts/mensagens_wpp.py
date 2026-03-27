@@ -2039,6 +2039,18 @@ def run_scheduled_tasks_from_db():
         for tarefa in tarefas_para_executar:
             try:
                 # ============================================================
+                # VERIFICAÇÃO DE PLANO DE ASSINATURA
+                # ============================================================
+                from nossopainel.utils import usuario_tem_funcionalidade
+                if not usuario_tem_funcionalidade(tarefa.usuario, 'whatsapp_sessao'):
+                    logger.debug(
+                        "TarefaEnvio ignorada — whatsapp_sessao não disponível no plano | tarefa_id=%d usuario=%s",
+                        tarefa.id,
+                        tarefa.usuario.username,
+                    )
+                    continue
+
+                # ============================================================
                 # VERIFICAÇÃO DE CONFLITO COM NOTIFICAÇÕES
                 # ============================================================
                 tem_conflito, motivo = verificar_conflito_notificacoes(tarefa.usuario_id)
@@ -2292,6 +2304,14 @@ def executar_envio_para_usuario(h_candidato, agora, hoje):
         agora: datetime atual
         hoje: date atual
     """
+    from nossopainel.utils import usuario_tem_funcionalidade
+    if not usuario_tem_funcionalidade(h_candidato.usuario, 'whatsapp_sessao'):
+        logger.debug(
+            "[SCHEDULER] Usuário %s não possui whatsapp_sessao no plano. Skipping.",
+            h_candidato.usuario,
+        )
+        return
+
     usuario_id = h_candidato.usuario.id
     usuario_lock = _obter_lock_usuario(usuario_id)
 

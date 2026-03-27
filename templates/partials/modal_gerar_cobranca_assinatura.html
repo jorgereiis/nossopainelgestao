@@ -1,0 +1,402 @@
+<!-- Modal: Gerar Cobrança de Assinatura PIX -->
+<style>
+.cobranca-timer-wrapper {
+    position: relative;
+    width: 110px;
+    height: 110px;
+    margin: 0 auto 1rem;
+}
+.cobranca-timer-circle {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+.cobranca-timer-bg {
+    fill: none;
+    stroke: #dee2e6;
+    stroke-width: 8;
+}
+.cobranca-timer-progress {
+    fill: none;
+    stroke: #0d6efd;
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 283;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s;
+}
+.cobranca-timer-progress.warning { stroke: #ffc107; }
+.cobranca-timer-progress.danger  { stroke: #dc3545; }
+.cobranca-timer-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    white-space: nowrap;
+}
+.cobranca-timer-label {
+    display: block;
+    font-size: 0.65rem;
+    color: #6c757d;
+    margin-bottom: 1px;
+}
+.cobranca-timer-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #212529;
+}
+.cobranca-timer-value.warning { color: #ffc107; }
+.cobranca-timer-value.danger  { color: #dc3545; animation: cobrancaTimerPulse 1s ease-in-out infinite; }
+@keyframes cobrancaTimerPulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+}
+</style>
+
+<div class="modal fade" id="modalGerarCobrancaAssinatura" tabindex="-1" aria-labelledby="labelGerarCobrancaAssinatura" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 540px;">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="labelGerarCobrancaAssinatura">
+                    <i class="bi bi-qr-code me-2 text-primary"></i>Gerar Cobrança de Assinatura
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <!-- Formulário inicial -->
+            <div id="formGerarCobranca">
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Gerando cobrança PIX para <strong id="nomeCobrancaRevendedor"></strong>.
+                    </p>
+                    <input type="hidden" id="cobrancaUserId">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="selectPlanoCobranca">Plano</label>
+                        <select class="form-select" id="selectPlanoCobranca">
+                            <option value="">Selecione o plano...</option>
+                        </select>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="periodoInicioCobranca">Início do período</label>
+                            <input type="date" class="form-control" id="periodoInicioCobranca">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="periodoFimCobranca">Fim do período</label>
+                            <input type="date" class="form-control" id="periodoFimCobranca">
+                        </div>
+                    </div>
+                    <div id="cobrancaAssinaturaError" class="alert alert-danger py-2 mt-3 d-none small"></div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnGerarCobrancaAssinatura">
+                        <span class="spinner-border spinner-border-sm d-none me-1" id="spinnerGerarCobranca"></span>
+                        <i class="bi bi-qr-code me-1"></i>Gerar PIX
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resultado: QR Code -->
+            <div id="resultadoGerarCobranca" class="d-none">
+                <div class="modal-body text-center">
+
+                    <!-- Timer circular -->
+                    <div class="cobranca-timer-wrapper">
+                        <svg class="cobranca-timer-circle" viewBox="0 0 100 100">
+                            <circle class="cobranca-timer-bg" cx="50" cy="50" r="45"/>
+                            <circle id="cobrancaTimerProgress" class="cobranca-timer-progress" cx="50" cy="50" r="45"/>
+                        </svg>
+                        <div class="cobranca-timer-content">
+                            <span class="cobranca-timer-label">Expira em</span>
+                            <span id="cobrancaTimerDisplay" class="cobranca-timer-value">--:--</span>
+                        </div>
+                    </div>
+
+                    <!-- QR Code centralizado -->
+                    <img id="qrCodeAssinatura" src="" alt="QR Code PIX"
+                         class="d-none mx-auto mb-3 rounded shadow-sm"
+                         style="width: 180px; height: 180px; display: block;">
+
+                    <!-- PIX copia e cola -->
+                    <div class="mb-3" id="pixCopiaColaContainer" style="display:none;">
+                        <label class="form-label fw-semibold small">PIX Copia e Cola</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control form-control-sm font-monospace" id="pixCopiaColaCobranca" readonly>
+                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="copiarPixCobranca()">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="valorCobrancaAssinatura" class="fw-bold text-primary fs-5 mb-2"></div>
+
+                    <!-- Confirmação de pagamento -->
+                    <div id="statusPagamentoConfirmado" class="d-none">
+                        <div class="alert alert-success py-2 small mb-0">
+                            <i class="bi bi-check-circle-fill me-1"></i><strong>Pagamento confirmado!</strong> A assinatura foi ativada.
+                        </div>
+                    </div>
+
+                    <!-- PIX expirado -->
+                    <div id="statusPagamentoExpirado" class="d-none">
+                        <div class="alert alert-warning py-2 small mb-0">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Este PIX expirou. Gere uma nova cobrança.
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer border-0 pt-0 justify-content-center">
+                    <button type="button" class="btn btn-success" id="btnConcluirCobranca" data-bs-dismiss="modal">
+                        <i class="bi bi-check2 me-1"></i>Concluído
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let _planosAssinaturaCache = null;
+let _pollingCobrancaInterval = null;
+let _timerCobrancaInterval = null;
+let _expiracaoCobranca = null;
+let _totalSecondsCobranca = 0;
+
+function carregarPlanosAssinatura() {
+    if (_planosAssinaturaCache) return Promise.resolve(_planosAssinaturaCache);
+    return fetch('/api/planos-assinatura-lista/')
+        .then(r => r.json())
+        .then(data => { _planosAssinaturaCache = data.planos || []; return _planosAssinaturaCache; })
+        .catch(() => []);
+}
+
+function gerarCobrancaAssinatura(userId, nomeRevendedor) {
+    document.getElementById('cobrancaUserId').value = userId;
+    document.getElementById('nomeCobrancaRevendedor').textContent = nomeRevendedor;
+    document.getElementById('cobrancaAssinaturaError').classList.add('d-none');
+    document.getElementById('formGerarCobranca').classList.remove('d-none');
+    document.getElementById('resultadoGerarCobranca').classList.add('d-none');
+
+    const hoje = new Date();
+    const fim = new Date(hoje);
+    fim.setMonth(fim.getMonth() + 1);
+    fim.setDate(fim.getDate() - 1);
+    document.getElementById('periodoInicioCobranca').value = hoje.toISOString().split('T')[0];
+    document.getElementById('periodoFimCobranca').value = fim.toISOString().split('T')[0];
+
+    carregarPlanosAssinatura().then(planos => {
+        const select = document.getElementById('selectPlanoCobranca');
+        select.innerHTML = '<option value="">Selecione o plano...</option>';
+        planos.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = `${p.nome} — R$ ${p.valor}`;
+            select.appendChild(opt);
+        });
+    });
+
+    const modal = new bootstrap.Modal(document.getElementById('modalGerarCobrancaAssinatura'));
+    modal.show();
+}
+
+function _pararTimerCobranca() {
+    if (_timerCobrancaInterval) { clearInterval(_timerCobrancaInterval); _timerCobrancaInterval = null; }
+}
+function _pararPollingCobranca() {
+    if (_pollingCobrancaInterval) { clearInterval(_pollingCobrancaInterval); _pollingCobrancaInterval = null; }
+}
+
+function _formatarTempoRestante(segundos) {
+    if (segundos >= 3600) {
+        const h = Math.floor(segundos / 3600);
+        const m = Math.floor((segundos % 3600) / 60);
+        return `${h}h ${m.toString().padStart(2, '0')}m`;
+    }
+    const m = Math.floor(segundos / 60);
+    const s = segundos % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function _iniciarTimerCobranca() {
+    _pararTimerCobranca();
+    const progress = document.getElementById('cobrancaTimerProgress');
+    const display = document.getElementById('cobrancaTimerDisplay');
+    const circumference = 2 * Math.PI * 45; // ≈ 282.7
+    progress.style.strokeDasharray = circumference;
+
+    function tick() {
+        const agora = new Date();
+        const diff = _expiracaoCobranca - agora;
+
+        if (diff <= 0) {
+            _pararTimerCobranca();
+            _pararPollingCobranca();
+            display.textContent = '00:00';
+            progress.style.strokeDashoffset = circumference;
+            document.getElementById('statusPagamentoExpirado').classList.remove('d-none');
+            return;
+        }
+
+        const restando = Math.floor(diff / 1000);
+        display.textContent = _formatarTempoRestante(restando);
+
+        // Progresso circular
+        const ratio = restando / _totalSecondsCobranca;
+        progress.style.strokeDashoffset = circumference * (1 - ratio);
+
+        // Cores
+        if (restando <= 300) {          // ≤ 5 min
+            progress.classList.add('danger');
+            progress.classList.remove('warning');
+            display.classList.add('danger');
+            display.classList.remove('warning');
+        } else if (restando <= 3600) {  // ≤ 1h
+            progress.classList.add('warning');
+            progress.classList.remove('danger');
+            display.classList.add('warning');
+            display.classList.remove('danger');
+        }
+    }
+
+    tick();
+    _timerCobrancaInterval = setInterval(tick, 1000);
+}
+
+function _iniciarPollingCobranca(cobrancaId) {
+    _pararPollingCobranca();
+    _pollingCobrancaInterval = setInterval(function() {
+        fetch(`/api/assinatura/cobranca/${cobrancaId}/status/`, {
+            headers: { 'Accept': 'application/json' },
+        })
+        .then(r => r.json())
+        .then(function(data) {
+            if (!data.success) return;
+            if (data.is_pago) {
+                _pararTimerCobranca();
+                _pararPollingCobranca();
+                document.getElementById('statusPagamentoConfirmado').classList.remove('d-none');
+                document.getElementById('statusPagamentoExpirado').classList.add('d-none');
+                // Timer mostra 100% verde
+                const progress = document.getElementById('cobrancaTimerProgress');
+                const display = document.getElementById('cobrancaTimerDisplay');
+                progress.classList.remove('warning', 'danger');
+                progress.style.stroke = '#198754';
+                display.classList.remove('warning', 'danger');
+                display.textContent = '✓';
+            } else if (data.is_expirado) {
+                _pararTimerCobranca();
+                _pararPollingCobranca();
+                document.getElementById('statusPagamentoExpirado').classList.remove('d-none');
+            }
+        })
+        .catch(function() {});
+    }, 10000);
+}
+
+// Parar tudo ao fechar o modal
+document.getElementById('modalGerarCobrancaAssinatura').addEventListener('hidden.bs.modal', function() {
+    _pararTimerCobranca();
+    _pararPollingCobranca();
+});
+
+document.getElementById('btnGerarCobrancaAssinatura').addEventListener('click', function() {
+    const userId = document.getElementById('cobrancaUserId').value;
+    const planoId = document.getElementById('selectPlanoCobranca').value;
+    const periodoInicio = document.getElementById('periodoInicioCobranca').value;
+    const periodoFim = document.getElementById('periodoFimCobranca').value;
+    const errorEl = document.getElementById('cobrancaAssinaturaError');
+    const spinner = document.getElementById('spinnerGerarCobranca');
+
+    errorEl.classList.add('d-none');
+
+    if (!planoId) {
+        errorEl.textContent = 'Selecione o plano.';
+        errorEl.classList.remove('d-none');
+        return;
+    }
+
+    spinner.classList.remove('d-none');
+    this.disabled = true;
+
+    fetch(`/admin/assinaturas/${userId}/gerar-cobranca/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: JSON.stringify({ plano_id: planoId, periodo_inicio: periodoInicio, periodo_fim: periodoFim }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        spinner.classList.add('d-none');
+        this.disabled = false;
+        if (data.success) {
+            document.getElementById('formGerarCobranca').classList.add('d-none');
+            document.getElementById('resultadoGerarCobranca').classList.remove('d-none');
+            document.getElementById('statusPagamentoConfirmado').classList.add('d-none');
+            document.getElementById('statusPagamentoExpirado').classList.add('d-none');
+
+            // Resetar timer visual
+            const progress = document.getElementById('cobrancaTimerProgress');
+            const display = document.getElementById('cobrancaTimerDisplay');
+            progress.classList.remove('warning', 'danger');
+            progress.style.stroke = '';
+            display.classList.remove('warning', 'danger');
+
+            // QR Code — FastDePix retorna URL em qr_code_url
+            const qrImg = document.getElementById('qrCodeAssinatura');
+            if (data.qr_code_url) {
+                qrImg.src = data.qr_code_url;
+                qrImg.classList.remove('d-none');
+            } else if (data.qr_code) {
+                qrImg.src = 'data:image/png;base64,' + data.qr_code;
+                qrImg.classList.remove('d-none');
+            }
+
+            // PIX copia e cola
+            if (data.pix_copia_cola) {
+                document.getElementById('pixCopiaColaCobranca').value = data.pix_copia_cola;
+                document.getElementById('pixCopiaColaContainer').style.display = 'block';
+            }
+
+            document.getElementById('valorCobrancaAssinatura').textContent =
+                'R$ ' + parseFloat(data.valor).toFixed(2).replace('.', ',');
+
+            // Timer de expiração
+            if (data.expira_em) {
+                _expiracaoCobranca = new Date(data.expira_em);
+                _totalSecondsCobranca = Math.max(1, Math.floor((_expiracaoCobranca - new Date()) / 1000));
+                _iniciarTimerCobranca();
+            }
+
+            // Polling de confirmação de pagamento
+            _iniciarPollingCobranca(data.cobranca_id);
+        } else {
+            errorEl.textContent = data.error || 'Erro ao gerar cobrança.';
+            errorEl.classList.remove('d-none');
+        }
+    })
+    .catch(() => {
+        spinner.classList.add('d-none');
+        this.disabled = false;
+        errorEl.textContent = 'Erro de conexão.';
+        errorEl.classList.remove('d-none');
+    });
+});
+
+function copiarPixCobranca() {
+    const input = document.getElementById('pixCopiaColaCobranca');
+    if (input) {
+        navigator.clipboard.writeText(input.value).then(() => {
+            const btn = document.querySelector('[onclick="copiarPixCobranca()"]');
+            if (btn) {
+                btn.innerHTML = '<i class="bi bi-check2"></i>';
+                setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 2000);
+            }
+        });
+    }
+}
+</script>

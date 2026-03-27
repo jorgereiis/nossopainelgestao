@@ -47,6 +47,7 @@
                         </div>
 
                     <!-- LINHA DE CARDS -->
+                    {% if 'dash_cards' in funcionalidades_ativas %}
                     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 row-cols-xl-5 g-4 mt-6">
                         {% if not is_atendente or atendente_permissoes.dash_card_clientes %}
                         <div class="col objeto">
@@ -182,35 +183,44 @@
                         </div>
                         {% endif %}
                     </div>
-                    
+                    {% endif %}{# fim guard dash_cards #}
+
                     <div class="row g-4 mt-6">
                         {% if not is_atendente or atendente_permissoes.dash_card_estados %}
                         <div class="col-12 col-lg-7 col-xl-7 objeto">
-                            <div class="card mapa-clientes-card h-100">
+                            <div class="card mapa-clientes-card h-100 position-relative{% if 'relatorio_mapa_clientes' not in funcionalidades_ativas %}" style="pointer-events:none; opacity:0.45;{% endif %}">
+                                {% if 'relatorio_mapa_clientes' not in funcionalidades_ativas %}
+                                <div class="position-absolute top-50 start-50 translate-middle text-center px-3" style="z-index:2; width:100%;">
+                                    <div class="rounded-circle bg-secondary-subtle d-inline-flex align-items-center justify-content-center mb-2"
+                                         style="width:clamp(48px,8vw,72px); height:clamp(48px,8vw,72px);">
+                                        <i class="bi bi-lock-fill text-secondary" style="font-size:clamp(1.25rem,3.5vw,2rem);"></i>
+                                    </div>
+                                    <div class="fw-semibold text-secondary" style="font-size:clamp(0.8rem,2vw,1rem);">Funcionalidade não disponível no seu plano</div>
+                                    <div class="text-muted" style="font-size:clamp(0.7rem,1.5vw,0.85rem);">Faça upgrade para ter acesso ao mapa geográfico</div>
+                                </div>
+                                {% endif %}
                                 <div class="card-body">
                                     <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2 mb-3">
                                         <div>
                                             <h4 class="mb-1">Clientes ativos por estado</h4>
                                             <p class="text-muted small mb-0 fs-6">Passe o mouse sobre o mapa para explorar os estados.</p>
                                         </div>
-                                        <div id="mapa-clientes-summary" class="d-flex flex-wrap gap-2 small text-muted">
-                                            <span class="mapa-summary-chip mapa-total-chip" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modal-clientes-estados" title="Clique para ver detalhes">
+                                        <div {% if 'relatorio_mapa_clientes' in funcionalidades_ativas %}id="mapa-clientes-summary" {% endif %}class="d-flex flex-wrap gap-2 small text-muted">
+                                            <span class="mapa-summary-chip mapa-total-chip">
                                                 Total: <strong>0</strong>
                                             </span>
-                                            <span class="mapa-summary-chip mapa-exterior-chip" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modal-clientes-exterior" title="Clique para ver detalhes">
+                                            <span class="mapa-summary-chip mapa-exterior-chip">
                                                 Exterior: <strong>0</strong>
                                             </span>
                                         </div>
                                     </div>
                                     <div class="row g-3">
                                         <div class="col-12 col-lg-8">
-                                            <div id="mapa-clientes" class="mapa-clientes-canvas">
-                                                <div class="mapa-clientes-loading">Carregando mapa...</div>
+                                            <div {% if 'relatorio_mapa_clientes' in funcionalidades_ativas %}id="mapa-clientes" {% endif %}class="mapa-clientes-canvas">
                                             </div>
                                         </div>
                                         <div class="col-12 col-lg-4">
-                                            <div id="mapa-top5" class="mapa-top5-container">
-                                                <div class="mapa-top5-loading text-muted small">Carregando...</div>
+                                            <div {% if 'relatorio_mapa_clientes' in funcionalidades_ativas %}id="mapa-top5" {% endif %}class="mapa-top5-container">
                                             </div>
                                         </div>
                                     </div>
@@ -218,6 +228,7 @@
                             </div>
                         </div>
 
+                        {% if 'relatorio_mapa_clientes' in funcionalidades_ativas %}
                         <!-- Modal Clientes por Estado -->
                         <div class="modal fade" id="modal-clientes-estados" tabindex="-1" aria-labelledby="modal-clientes-estados-label" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -261,6 +272,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}{# fim guard relatorio_mapa_clientes #}
 
                         {% endif %}{# fim guard dash_card_estados #}
 
@@ -315,7 +327,7 @@
                     {% endif %}
 
                     <!-- Alerta: Sessão WhatsApp Desconectada -->
-                    {% if not sessao_wpp_ativa %}
+                    {% if not sessao_wpp_ativa and 'whatsapp_sessao' in funcionalidades_ativas %}
                     <div class="row mt-4">
                         <div class="col-12">
                             <div class="alert alert-warning d-flex align-items-start shadow-sm" role="alert" id="alert-sessao-wpp">
@@ -369,32 +381,59 @@
                                         </li>
                                         {% if not is_atendente or atendente_permissoes.dash_tab_evolucao %}
                                         <li class="nav-item" role="presentation">
+                                            {% if 'relatorio_evolucao_patrimonio' in funcionalidades_ativas %}
                                             <button class="nav-link" id="tab-evolucao" data-bs-toggle="tab" data-bs-target="#pane-evolucao" type="button" role="tab" aria-controls="pane-evolucao" aria-selected="false">
                                                 <span class="dashboard-tab-icon tab-icon-evolucao">
                                                     <i class="bi bi-graph-up"></i>
                                                 </span>
                                                 <span class="dashboard-tab-label">Evolu&ccedil;&atilde;o do Patrim&ocirc;nio</span>
                                             </button>
+                                            {% else %}
+                                            <button class="nav-link disabled" type="button" style="opacity:0.45; cursor:not-allowed;" title="Funcionalidade não disponível no seu plano" disabled>
+                                                <span class="dashboard-tab-icon tab-icon-evolucao">
+                                                    <i class="bi bi-lock-fill"></i>
+                                                </span>
+                                                <span class="dashboard-tab-label">Evolu&ccedil;&atilde;o do Patrim&ocirc;nio</span>
+                                            </button>
+                                            {% endif %}
                                         </li>
                                         {% endif %}
                                         {% if not is_atendente or atendente_permissoes.dash_tab_adesao %}
                                         <li class="nav-item" role="presentation">
+                                            {% if 'relatorio_adesoes_cancelamentos' in funcionalidades_ativas %}
                                             <button class="nav-link" id="tab-adesao-cancelamentos" data-bs-toggle="tab" data-bs-target="#pane-adesao-cancelamentos" type="button" role="tab" aria-controls="pane-adesao-cancelamentos" aria-selected="false">
                                                 <span class="dashboard-tab-icon tab-icon-adesao">
                                                     <i class="bi bi-bar-chart-steps"></i>
                                                 </span>
                                                 <span class="dashboard-tab-label">Ades&atilde;o e Cancelamentos</span>
                                             </button>
+                                            {% else %}
+                                            <button class="nav-link disabled" type="button" style="opacity:0.45; cursor:not-allowed;" title="Funcionalidade não disponível no seu plano" disabled>
+                                                <span class="dashboard-tab-icon tab-icon-adesao">
+                                                    <i class="bi bi-lock-fill"></i>
+                                                </span>
+                                                <span class="dashboard-tab-label">Ades&atilde;o e Cancelamentos</span>
+                                            </button>
+                                            {% endif %}
                                         </li>
                                         {% endif %}
                                         {% if not is_atendente or atendente_permissoes.dash_tab_receita %}
                                         <li class="nav-item" role="presentation">
+                                            {% if 'relatorio_receita_anual' in funcionalidades_ativas %}
                                             <button class="nav-link" id="tab-receita-anual" data-bs-toggle="tab" data-bs-target="#pane-receita-anual" type="button" role="tab" aria-controls="pane-receita-anual" aria-selected="false">
                                                 <span class="dashboard-tab-icon tab-icon-receita">
                                                     <i class="bi bi-cash-stack"></i>
                                                 </span>
                                                 <span class="dashboard-tab-label">Receita Anual</span>
                                             </button>
+                                            {% else %}
+                                            <button class="nav-link disabled" type="button" style="opacity:0.45; cursor:not-allowed;" title="Funcionalidade não disponível no seu plano" disabled>
+                                                <span class="dashboard-tab-icon tab-icon-receita">
+                                                    <i class="bi bi-lock-fill"></i>
+                                                </span>
+                                                <span class="dashboard-tab-label">Receita Anual</span>
+                                            </button>
+                                            {% endif %}
                                         </li>
                                         {% endif %}
                                         {% if user.is_superuser %}
@@ -547,6 +586,7 @@
                                                 <div id="tabela-atendimentos-container"></div>
                                             </div>
                                         </div>
+                                        {% if 'relatorio_evolucao_patrimonio' in funcionalidades_ativas %}
                                         {% if not is_atendente or atendente_permissoes.dash_tab_evolucao %}
                                         <div class="tab-pane fade" id="pane-evolucao" role="tabpanel" aria-labelledby="tab-evolucao">
                                             <div class="dashboard-tab-body">
@@ -571,6 +611,8 @@
                                             </div>
                                         </div>
                                         {% endif %}{# fim guard dash_tab_evolucao #}
+                                        {% endif %}{# fim guard relatorio_evolucao_patrimonio #}
+                                        {% if 'relatorio_adesoes_cancelamentos' in funcionalidades_ativas %}
                                         {% if not is_atendente or atendente_permissoes.dash_tab_adesao %}
                                         <div class="tab-pane fade" id="pane-adesao-cancelamentos" role="tabpanel" aria-labelledby="tab-adesao-cancelamentos">
                                             <div class="dashboard-tab-body">
@@ -617,6 +659,8 @@
                                             </div>
                                         </div>
                                         {% endif %}{# fim guard dash_tab_adesao #}
+                                        {% endif %}{# fim guard relatorio_adesoes_cancelamentos #}
+                                        {% if 'relatorio_receita_anual' in funcionalidades_ativas %}
                                         {% if not is_atendente or atendente_permissoes.dash_tab_receita %}
                                         <div class="tab-pane fade" id="pane-receita-anual" role="tabpanel" aria-labelledby="tab-receita-anual">
                                             <div class="dashboard-tab-body">
@@ -669,6 +713,7 @@
                                             </div>
                                         </div>
                                         {% endif %}{# fim guard dash_tab_receita #}
+                                        {% endif %}{# fim guard relatorio_receita_anual #}
                                         {% if user.is_superuser %}
                                         <div class="tab-pane fade" id="pane-revendedores" role="tabpanel" aria-labelledby="tab-revendedores">
                                             <div class="dashboard-tab-body">

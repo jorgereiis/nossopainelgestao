@@ -653,6 +653,10 @@ def cliente_post_save(sender, instance, created, **kwargs):
         f"Usando chat_id={chat_id} (telefone)"
     )
 
+    from nossopainel.utils import usuario_tem_funcionalidade
+    if not usuario_tem_funcionalidade(instance.usuario, 'whatsapp_sessao'):
+        return
+
     token = SessaoWpp.objects.filter(usuario=instance.usuario, is_active=True).first()
     if not token:
         logger.debug(

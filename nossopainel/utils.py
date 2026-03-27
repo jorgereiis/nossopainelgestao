@@ -60,6 +60,282 @@ def get_data_owner(request):
     return getattr(request, 'data_owner', request.user)
 
 
+# =============================================================================
+# SISTEMA DE ASSINATURA DE PLATAFORMA — Constantes e Helpers
+# =============================================================================
+
+# Features liberadas por padrão para todos os planos (sem necessidade de guard)
+FUNCIONALIDADES_PADRAO = frozenset([
+    'clientes_cadastro',
+    'clientes_edicao',
+    'clientes_cancelamento',
+    'clientes_reativacao',
+    'clientes_cancelados_lista',
+    'clientes_logs',
+    'dash_cards',
+    'financeiro_mensalidades',
+    'financeiro_pagamento_manual',
+    'financeiro_formas_pgto',
+    'financeiro_planos_pgto',
+    'bancario_contas',
+    'infra_servidores', 'infra_dispositivos', 'infra_aplicativos', 'infra_contas_app',
+])
+
+TODAS_FUNCIONALIDADES = frozenset([
+    # Grupo 1 — Clientes
+    'clientes_cadastro', 'clientes_edicao', 'clientes_cancelamento',
+    'clientes_reativacao', 'clientes_importacao_lote', 'clientes_exportacao',
+    'clientes_logs', 'clientes_cancelados_lista',
+    # Grupo 2 — Dashboard / Relatórios
+    'dash_cards', 'relatorio_evolucao_patrimonio', 'relatorio_receita_anual',
+    'relatorio_adesoes_cancelamentos', 'relatorio_mapa_clientes',
+    'relatorio_pagamentos',
+    # Grupo 3 — WhatsApp
+    'whatsapp_sessao', 'whatsapp_tarefas_envio',
+    # Grupo 4 — Financeiro
+    'financeiro_mensalidades', 'financeiro_pagamento_manual',
+    'financeiro_formas_pgto', 'financeiro_planos_pgto',
+    # Grupo 5 — Bancário
+    'bancario_contas', 'pagamentos_automatizados',
+    # Grupo 6 — Atendimentos e Atendentes (toggleáveis)
+    'atendimento_registrar', 'atendentes_gestao',
+    # Grupo 6b — Atendimentos (padrão)
+    'atendimento_historico', 'atendimento_categorias', 'atendimento_imagens',
+    # Grupo 7 — Atendentes (padrão)
+    'atendentes_limite', 'atendentes_produtividade',
+    # Grupo 8 — Infraestrutura
+    'infra_servidores', 'infra_dispositivos', 'infra_aplicativos', 'infra_contas_app',
+    # Grupo 9 — Segurança / Perfil
+    'seguranca_2fa', 'seguranca_push_notif', 'perfil_historico', 'perfil_privacidade',
+    # Grupo 10 — Avançado
+    'avancado_migracao_dns',
+])
+
+# Grupos de funcionalidades para exibição organizada na página de admin
+GRUPOS_FUNCIONALIDADES = [
+    {
+        'nome': 'Gestão de Clientes e seus componentes',
+        'icone': 'bi-people',
+        'chaves': [
+            ('clientes_cadastro',        'Cadastro de clientes'),
+            ('clientes_edicao',          'Edição de clientes'),
+            ('clientes_cancelamento',    'Cancelamento de clientes'),
+            ('clientes_reativacao',      'Reativação de clientes'),
+            ('clientes_logs',            'Histórico de logs do cliente'),
+            ('infra_servidores',         'Gestão de servidores'),
+            ('infra_dispositivos',       'Gestão de dispositivos'),
+            ('infra_aplicativos',        'Gestão de aplicativos'),
+            ('infra_contas_app',         'Contas de aplicativo'),
+        ],
+    },
+    {
+        'nome': 'Dashboard e Relatórios',
+        'icone': 'bi-bar-chart',
+        'chaves': [
+            ('dash_cards',                    'Cards informativos do dashboard'),
+            ('relatorio_evolucao_patrimonio',  'Gráfico: Evolução de patrimônio'),
+            ('relatorio_receita_anual',        'Gráfico: Receita anual'),
+            ('relatorio_adesoes_cancelamentos','Gráfico: Adesões vs Cancelamentos'),
+            ('relatorio_mapa_clientes',        'Gráfico: Mapa geográfico de clientes'),
+            ('relatorio_pagamentos',           'Relatório de pagamentos'),
+        ],
+    },
+    {
+        'nome': 'WhatsApp e Automações',
+        'icone': 'bi-whatsapp',
+        'chaves': [
+            ('whatsapp_sessao',            'Conexão e sessão WhatsApp'),
+            ('whatsapp_tarefas_envio',     'Tarefas de envio automático'),
+        ],
+    },
+    {
+        'nome': 'Financeiro e Pagamentos',
+        'icone': 'bi-cash-stack',
+        'chaves': [
+            ('financeiro_mensalidades',    'Gestão de mensalidades'),
+            ('financeiro_pagamento_manual','Pagamento manual'),
+            ('financeiro_formas_pgto',     'Formas de pagamento'),
+            ('financeiro_planos_pgto',     'Planos de preço (tabelas)'),
+        ],
+    },
+    {
+        'nome': 'Integração Bancária',
+        'icone': 'bi-bank',
+        'chaves': [
+            ('bancario_contas',             'Contas bancárias'),
+            ('pagamentos_automatizados',    'Pagamentos automatizados'),
+        ],
+    },
+    {
+        'nome': 'Sistema de Atendentes e Atendimentos',
+        'icone': 'bi-headset',
+        'chaves': [
+            ('atendimento_registrar',   'Registrar atendimentos'),
+            ('atendentes_gestao',       'Ver, criar e gerenciar atendentes'),
+        ],
+    },
+    {
+        'nome': 'Recursos Avançados',
+        'icone': 'bi-gear-wide-connected',
+        'chaves': [
+            ('clientes_importacao_lote', 'Importação de clientes em lote (XLSX)'),
+            ('clientes_exportacao',      'Exportação de clientes (XLSX)'),
+            ('seguranca_push_notif',     'Notificações de pagamentos em tempo real (Push Notifications)'),
+            ('avancado_migracao_dns',    'Migração DNS / Reseller'),
+        ],
+    },
+]
+
+
+def get_ou_criar_assinatura_plataforma(user):
+    """
+    Retorna a AssinaturaPlataforma do usuário, criando se não existir.
+    Ao criar, define trial_fim = date_joined + 30 dias.
+    """
+    from nossopainel.models import AssinaturaPlataforma
+    try:
+        return user.assinatura_plataforma
+    except AssinaturaPlataforma.DoesNotExist:
+        trial_fim = user.date_joined.date() + timedelta(days=30)
+        assinatura, _ = AssinaturaPlataforma.objects.get_or_create(
+            usuario=user,
+            defaults={'status': 'trial', 'trial_fim': trial_fim},
+        )
+        return assinatura
+
+
+def get_funcionalidades_usuario(user):
+    """
+    Retorna frozenset de chaves de funcionalidades ativas para o plano do usuário.
+    - Superuser: todas as funcionalidades.
+    - Trial ativo: todas as funcionalidades (acesso completo durante trial).
+    - Plano ativo: apenas as habilitadas no plano.
+    - Sem acesso válido: conjunto vazio.
+    """
+    if user.is_superuser:
+        return TODAS_FUNCIONALIDADES
+
+    try:
+        assinatura = get_ou_criar_assinatura_plataforma(user)
+    except Exception:
+        return frozenset()
+
+    if not assinatura.is_acesso_valido:
+        return frozenset()
+
+    # Trial ativo: acesso completo
+    if assinatura.status == 'trial':
+        return TODAS_FUNCIONALIDADES
+
+    # Assinatura ativa: funcionalidades habilitadas no plano
+    if assinatura.plano:
+        from nossopainel.models import FuncionalidadePlano
+        chaves = FuncionalidadePlano.objects.filter(
+            plano=assinatura.plano,
+            ativo=True,
+        ).values_list('chave', flat=True)
+        return frozenset(chaves)
+
+    return frozenset()
+
+
+def usuario_tem_funcionalidade(user, chave):
+    """Verifica se o usuário tem acesso a uma funcionalidade específica."""
+    if user.is_superuser:
+        return True
+    return chave in get_funcionalidades_usuario(user)
+
+
+def pagina_esta_ativa(chave: str) -> bool:
+    """Retorna True se a página está ativa para acesso de usuários comuns."""
+    from nossopainel.models import ControleAcessoPagina
+    try:
+        return ControleAcessoPagina.objects.get(chave=chave).ativo
+    except ControleAcessoPagina.DoesNotExist:
+        return True
+
+
+def requer_pagina_ativa(chave: str):
+    """
+    Decorator que bloqueia acesso a views quando a página está desativada pelo admin.
+    Superusers sempre têm acesso independente do estado.
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if request.user.is_superuser:
+                return view_func(request, *args, **kwargs)
+            if not pagina_esta_ativa(chave):
+                from nossopainel.models import ControleAcessoPagina
+                from django.shortcuts import render as _render
+                try:
+                    pagina = ControleAcessoPagina.objects.get(chave=chave)
+                    nome = pagina.nome_exibicao
+                except ControleAcessoPagina.DoesNotExist:
+                    nome = 'Página'
+                return _render(request, 'pages/pagina_desativada.html', {'nome_pagina': nome})
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def requer_funcionalidade(chave, redirect_url=None, api=False):
+    """
+    Decorator que bloqueia acesso a views quando o plano do usuário
+    não inclui a funcionalidade especificada.
+    - api=True: retorna JsonResponse 403
+    - api=False: renderiza página de feature bloqueada com informações do plano
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                from django.contrib.auth.views import redirect_to_login
+                return redirect_to_login(request.get_full_path())
+
+            user = getattr(request, 'data_owner', request.user)
+            if not usuario_tem_funcionalidade(user, chave):
+                if api:
+                    from django.http import JsonResponse
+                    return JsonResponse(
+                        {'error': 'Funcionalidade não disponível no seu plano.', 'chave': chave},
+                        status=403,
+                    )
+                # Página amigável mostrando qual plano inclui a funcionalidade
+                from django.shortcuts import render as _render
+                from nossopainel.models import PlanoAssinatura, FuncionalidadePlano, AssinaturaPlataforma
+
+                # Label legível da funcionalidade
+                nome_funcionalidade = chave
+                for grupo in GRUPOS_FUNCIONALIDADES:
+                    for c, label in grupo['chaves']:
+                        if c == chave:
+                            nome_funcionalidade = label
+                            break
+
+                # Planos que têm esta funcionalidade ativa
+                planos_ids = FuncionalidadePlano.objects.filter(
+                    chave=chave, ativo=True
+                ).values_list('plano_id', flat=True)
+                planos_com_acesso = PlanoAssinatura.objects.filter(
+                    pk__in=planos_ids, ativo=True
+                ).order_by('valor')
+
+                assinatura = AssinaturaPlataforma.objects.select_related('plano').filter(
+                    usuario=user
+                ).first()
+
+                return _render(request, 'pages/feature_bloqueada.html', {
+                    'chave': chave,
+                    'nome_funcionalidade': nome_funcionalidade,
+                    'planos_com_acesso': planos_com_acesso,
+                    'assinatura': assinatura,
+                }, status=403)
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def requer_permissao_atendente(perm_name, redirect_url='dashboard', api=False):
     """
     Decorator que bloqueia atendentes sem a permissão especificada.
@@ -1103,6 +1379,8 @@ def envio_apos_novo_cadastro(cliente):
     avalia bônus para o cliente indicador.
     """
     usuario = cliente.usuario
+    if not usuario_tem_funcionalidade(usuario, 'whatsapp_sessao'):
+        return
     nome_cliente = str(cliente)
     primeiro_nome = nome_cliente.split(' ')[0]
 
@@ -1179,6 +1457,9 @@ def envio_apos_nova_indicacao(usuario, novo_cliente, cliente_indicador):
     primeiro_nome = nome_cliente.split(' ')[0]
     tipo_envio = "Indicação"
     now = datetime.now()
+
+    if not usuario_tem_funcionalidade(usuario, 'whatsapp_sessao'):
+        return
 
     try:
         token_user = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()
@@ -1324,6 +1605,9 @@ def envio_desconto_progressivo_indicacao(usuario, novo_cliente, cliente_indicado
     telefone_cliente = str(cliente_indicador.telefone)
     primeiro_nome = nome_cliente.split(' ')[0]
     tipo_envio = "Desconto Progressivo"
+
+    if not usuario_tem_funcionalidade(usuario, 'whatsapp_sessao'):
+        return
 
     try:
         token_user = SessaoWpp.objects.filter(usuario=usuario, is_active=True).first()

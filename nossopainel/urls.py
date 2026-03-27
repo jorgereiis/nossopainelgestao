@@ -209,6 +209,17 @@ from .views import (
     api_produtividade_atendentes,
     api_periodos_produtividade,
     api_timeline_atendente,
+    # Assinatura de Plataforma
+    admin_planos_assinatura,
+    api_toggle_funcionalidade_plano,
+    api_atualizar_valor_plano,
+    minha_assinatura,
+    api_assinar_plano,
+    gerar_cobranca_assinatura,
+    api_status_cobranca_assinatura,
+    webhook_pagamento_assinatura,
+    revendedor_conceder_dias_extras,
+    api_planos_assinatura_lista,
 )
 
 urlpatterns = [
@@ -401,7 +412,7 @@ urlpatterns = [
     path("admin/forma-pagamento/", RedirectView.as_view(pattern_name='cadastro-forma-pagamento', permanent=True), name="admin-forma-pagamento"),
 
     ############ Configuração de Agendamentos (Admin) ###########
-    path("admin/agendamentos/", config_agendamentos, name="config-agendamentos"),
+    path("admin/configs-avancadas/", config_agendamentos, name="configs-avancadas"),
 
     ############ Integrações API (Admin) ###########
     path("admin/integracoes-api/", integracoes_api_index, name="integracoes-api"),
@@ -424,7 +435,7 @@ urlpatterns = [
     path("api/forma-pagamento/<int:pk>/clientes-count/", api_forma_pagamento_clientes_count, name="api-forma-pagamento-clientes-count"),
 
     ############ Relatórios (Admin) ###########
-    path("admin/relatorios/pagamentos/", relatorio_pagamentos, name="relatorio-pagamentos"),
+    path("relatorios/pagamentos/", relatorio_pagamentos, name="relatorio-pagamentos"),
     path("api/clientes/<int:cliente_id>/mensalidades/", api_cliente_mensalidades, name="api-cliente-mensalidades"),
     path("api/cliente/<int:cliente_id>/dados-reativacao/", api_cliente_dados_reativacao, name="api-cliente-dados-reativacao"),
 
@@ -471,4 +482,16 @@ urlpatterns = [
     path("atendentes/produtividade/", api_produtividade_atendentes, name="atendentes-produtividade"),
     path("atendentes/periodos/", api_periodos_produtividade, name="atendentes-periodos"),
     path("atendentes/<int:atendente_id>/timeline/", api_timeline_atendente, name="atendente-timeline"),
+
+    ########### Assinatura de Plataforma ###########
+    path("minha-assinatura/", minha_assinatura, name="minha-assinatura"),
+    path("minha-assinatura/assinar/<int:plano_id>/", api_assinar_plano, name="api-assinar-plano"),
+    path("admin/planos-assinatura/", admin_planos_assinatura, name="admin-planos-assinatura"),
+    path("admin/planos-assinatura/toggle-funcionalidade/", api_toggle_funcionalidade_plano, name="api-toggle-funcionalidade-plano"),
+    path("admin/planos-assinatura/<int:pk>/atualizar-valor/", api_atualizar_valor_plano, name="api-atualizar-valor-plano"),
+    path("admin/assinaturas/<int:user_id>/gerar-cobranca/", gerar_cobranca_assinatura, name="gerar-cobranca-assinatura"),
+    path("api/assinatura/cobranca/<uuid:cobranca_id>/status/", api_status_cobranca_assinatura, name="api-status-cobranca-assinatura"),
+    path("revendedores/<int:user_id>/conceder-dias-extras/", revendedor_conceder_dias_extras, name="revendedor-conceder-dias-extras"),
+    path("webhook/assinatura/pix/", webhook_pagamento_assinatura, name="webhook-assinatura-pix"),
+    path("api/planos-assinatura-lista/", api_planos_assinatura_lista, name="api-planos-assinatura-lista"),
 ]

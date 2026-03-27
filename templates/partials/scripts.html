@@ -27,8 +27,10 @@
 <!-- Toast Manager - Centralized toast notification system -->
 <script src="{% static '/assets/js/toast-manager.js' %}"></script>
 
-<!-- Push Notifications Manager -->
+<!-- Push Notifications Manager (apenas para planos com o recurso ativo) -->
+{% if 'seguranca_push_notif' in funcionalidades_ativas %}
 <script src="{% static '/assets/js/push-notifications.js' %}?v=20251223d"></script>
+{% endif %}
 
 <!-- Button Loading - Efeito de loading para botões -->
 <script src="{% static '/assets/js/button-loading.js' %}"></script>
