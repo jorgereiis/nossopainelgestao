@@ -13871,9 +13871,12 @@ def integracoes_fastdepix_sincronizar(request):
                             if details.get('qr_code_expires_at') or details.get('expires_at'):
                                 exp_str = details.get('qr_code_expires_at') or details.get('expires_at')
                                 try:
-                                    expires_at = timezone.datetime.fromisoformat(
-                                        exp_str.replace('Z', '+00:00')
-                                    )
+                                    from datetime import datetime as _dt
+                                    import pytz as _pytz
+                                    _recife_tz = _pytz.timezone("America/Recife")
+                                    expires_at = _dt.fromisoformat(exp_str.replace('Z', '+00:00'))
+                                    if expires_at.tzinfo is None:
+                                        expires_at = _recife_tz.localize(expires_at)
                                 except (ValueError, AttributeError):
                                     pass
 
