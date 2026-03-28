@@ -14,10 +14,14 @@ import requests
 import json
 import hashlib
 import hmac
+import pytz
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from datetime import datetime, timedelta
 from django.utils import timezone as tz
+
+# FastDePix retorna timestamps em horário local de Recife (UTC-3) sem indicador de fuso
+_FASTDEPIX_TZ = pytz.timezone("America/Recife")
 from typing import Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -288,7 +292,8 @@ class FastDePixIntegration(BasePaymentIntegration):
                     data["qr_code_expires_at"].replace("Z", "+00:00")
                 )
                 if expiration.tzinfo is None:
-                    expiration = tz.make_aware(expiration, tz.utc)
+                    # FastDePix retorna horário local de Recife (UTC-3) sem fuso
+                    expiration = _FASTDEPIX_TZ.localize(expiration)
             except (ValueError, AttributeError):
                 pass
 
